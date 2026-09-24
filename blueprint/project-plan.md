@@ -42,17 +42,23 @@ No server-side or account data; everything is local to the browser profile.
 ## 5. Tech - What stack are we using?
 
 - Chrome Extension, Manifest V3 (`manifest.json`).
-- Plain vanilla JavaScript, no build step, no bundler, no package manager
-  (no `package.json` present).
+- TypeScript (strict mode), compiled with `tsc` to the plain JS the manifest
+  loads as content scripts. No bundler, no framework; each script stays a
+  standalone script (no ES module imports/exports across files), matching how
+  Chrome loads MV3 content scripts today.
 - Content scripts injected at `document_start`: one in the page's `MAIN`
-  world (`injector.js`, patches the game bundle and relays actions), two in
-  the extension's isolated world (`change_counter.js`, `garage_skins.js`).
-- No frameworks, no UI libraries — DOM queries and inline styles/CSS strings
+  world (`injector.ts`, patches the game bundle and relays actions), two in
+  the extension's isolated world (`change_counter.ts`, `garage_skins.ts`).
+- No frameworks, no UI libraries - DOM queries and inline styles/CSS strings
   only, targeting the live Tanki Online web client's own class names.
 
 > TODO (confirm): code is explicitly described as a "WIP port" of modules
-> from a larger private extension (`src/kasp_main.ts`) — expect ongoing rework
+> from a larger private extension (`src/kasp_main.ts`) - expect ongoing rework
 > as fixes land upstream in that source.
+
+> Changed 2026-09-24: migrated from plain JavaScript to TypeScript (build-plan
+> feature 4), for senior-level static typing on code that patches a live
+> third-party page. See build-plan.md and coding-standards.md.
 
 ## 6. Monetize - How will this make money?
 

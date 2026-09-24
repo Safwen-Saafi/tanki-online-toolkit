@@ -25,9 +25,13 @@ Start with your first real slice of functionality.
 - [x] 3. **Custom garage skins** - detects the equipped skin brand for a
       garage item and persistently overrides its displayed image using a
       bundled skin database
-- [ ] 4. **Packaging/build tooling** - add proper extension packaging
-      (versioning, zip/release output, maybe a manifest build step); currently
-      no `package.json` or build process exists
+- [ ] 4. **TypeScript migration** - convert `injector.js`, `change_counter.js`,
+      and `garage_skins.js` to TypeScript with strict-mode, senior-level
+      standards; add a `tsc` build step that compiles them to the plain JS the
+      manifest loads
+- [ ] 5. **Packaging/build tooling** - add proper extension packaging
+      (versioning, zip/release output); the build script zips the compiled
+      `.js` output, not raw `.ts` sources
 
 > TODO (confirm): items 1-3 are marked shipped but flagged as WIP ports from a
 > larger private extension (`kasp_main.ts`) - expect rework, not treat as

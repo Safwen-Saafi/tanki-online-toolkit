@@ -28,9 +28,14 @@ other players or public distribution.
    from the mounted/preview image and persistently overrides its displayed
    image (garage list, preview) via injected CSS, using a bundled skin
    database.
-4. **Packaging/build tooling** - not yet built. Add proper extension
-   packaging (versioning, zip/release output, possibly a manifest build
-   step). No `package.json` or build process exists today.
+4. **TypeScript migration** - not yet built. Convert `injector.js`,
+   `change_counter.js`, and `garage_skins.js` to TypeScript with strict-mode,
+   senior-level standards, plus a `tsc` build step compiling them to the
+   plain JS the manifest loads. No `package.json` or build process exists
+   today.
+5. **Packaging/build tooling** - not yet built, depends on feature 4. Add
+   proper extension packaging (versioning, zip/release output); the build
+   script zips the compiled `.js` output, not raw `.ts` sources.
 
 > All three shipped features (1-3) are WIP ports from a larger private
 > extension source (`kasp_main.ts`); expect ongoing rework as fixes land
@@ -71,13 +76,15 @@ browser-local storage, keyed by the `kasp_` prefix.
 
 - **Chrome Extension, Manifest V3** - `manifest.json` declares content
   scripts, injection worlds, and web-accessible resources.
-- **Vanilla JavaScript** - no framework, no bundler, no TypeScript build; each
-  script is a self-contained IIFE.
-- **MAIN-world content script** (`injector.js`) - only script permitted to
+- **TypeScript (strict mode)** - compiled with `tsc` to the plain JS the
+  manifest loads; no bundler, no framework. Each script stays a standalone
+  script (no ES module imports/exports across files), matching how Chrome
+  loads MV3 content scripts today. Landing via build-plan feature 4.
+- **MAIN-world content script** (`injector.ts`) - only script permitted to
   patch the page's own bundle/global scope; talks to isolated-world scripts
   via `window.postMessage`.
-- **Isolated-world content scripts** (`change_counter.js`,
-  `garage_skins.js`) - DOM-scraping against the live game client's class
+- **Isolated-world content scripts** (`change_counter.ts`,
+  `garage_skins.ts`) - DOM-scraping against the live game client's class
   names, reading/writing `localStorage`/`sessionStorage`.
 
 ## Monetization
@@ -102,7 +109,8 @@ each script targets.
 
 Not published. Loaded locally as an unpacked extension via
 `chrome://extensions` -> Developer mode -> Load unpacked. No Chrome Web Store
-listing planned, no build/output pipeline yet (tracked as feature 4).
+listing planned. No build/output pipeline yet: TypeScript compilation lands
+with feature 4, packaging with feature 5.
 
 ## Open questions
 
