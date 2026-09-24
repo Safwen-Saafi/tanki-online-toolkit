@@ -291,19 +291,20 @@ checks do not make the Blueprint unusable.
 
 ## Commands
 
-<!-- blueprint:onboarding-required -->
-For a standard Next.js project. Change or remove if you're using something else.
+Manifest V3 Chrome extension, plain vanilla JavaScript. No package manager, no
+build step, no bundler currently exists.
 
-- Dev server: `npm run dev` (http://localhost:3000)
-- Build: `npm run build`
-- Production server: `npm run start`
-- Lint: `npm run lint`
+- Load/run: `chrome://extensions` -> enable Developer mode -> Load unpacked ->
+  select this repo's folder. Reload the extension after any source change.
+- Build: none. Files run as-is.
+- Lint: none configured.
 
-Testing is opt-in. If this project does not already have a unit test runner, run
-`/tests` or `$tests` to add one and update this section with the real test
-commands.
+Testing is opt-in and not yet set up; there is no unit test runner. Run
+`/tests` or `$tests` if one is wanted later. Verification today is manual: load
+unpacked, play against `tankionline.com`, check DevTools console for the
+`[KI-test]` log prefixes and behavior (battle stats warning icon, garage skin
+overrides).
 
-Browser testing is also opt-in. Run `/tests browser` or `$tests browser` to add
-or normalize a browser harness and document its exact command as `Browser
-tests`. Check and Continuous Mode can then reuse it without installing tooling
-mid-feature.
+Browser testing is also opt-in and not set up. Run `/tests browser` or
+`$tests browser` to add a harness if automated browser verification becomes
+worthwhile.

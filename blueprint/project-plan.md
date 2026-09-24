@@ -1,51 +1,82 @@
 # Project Plan
 
-> One of the two planning docs you provide. Use as much detail as the project
-> needs, including rationale, constraints, examples, edge cases, and explicit
-> exclusions that should guide later feature work. Draft it directly, develop it
-> through any AI conversation, or optionally run `/discovery` for a guided deep
-> planning session. The content is always yours to direct. When it is filled in,
-> run `/overview` to generate the project overview from this plus `build-plan.md`.
-
 ## 1. Problem - What problem are we solving?
 
-Add the problem that this project solves and its main purpose
+Personal quality-of-life (QoL) modding toolkit for the browser game Tanki
+Online. Provides small client-side enhancements (battle-stat overlays,
+cosmetic skin persistence) that the stock game client does not offer.
+
+> TODO (confirm): no explicit problem statement was given beyond "personal QoL
+> mod" — confirm this framing matches intent.
 
 ## 2. Users - Who is this for?
 
-What kind of users are you focusing on? eg. new programmers, college students, single people
+Single user (the developer), for personal use while playing Tanki Online. Not
+intended for public distribution.
 
 ## 3. Features - What does the MVP need?
 
-High level list of features. One line each, don't go into deep detail
+Already shipped (see build-plan for checked items):
+
+- Change-equipment counter: marks players who swapped equipment mid-battle
+  with a warning icon next to their nickname in the battle stats table.
+- Custom garage skins: detects the equipped skin "brand" for a garage item and
+  persistently overrides its displayed image (garage list, mounted preview)
+  via injected CSS, using a bundled skin database.
+- MAIN-world injector: patches the game's own bundled JS at load time to hook
+  its internal `TankUserActionLog` action dispatch and relay actions
+  (`postMessage`) to the isolated-world content scripts above.
 
 ## 4. Data - What are we storing?
 
-List of data that will be stored eg. users, products, stats
+- `database/skins.json` (bundled, static): skin brand map, name translation
+  table (RU/EN), per-item default image URLs, per-item per-brand skin image
+  URL database.
+- Browser `localStorage`: `kasp_equipped_skins` (item -> chosen skin image
+  URL), `kasp_base_images` (item -> known default/base image URLs).
+- Browser `sessionStorage`: `kasp_player_changes_cache` (nickname -> equipment
+  change count for the current battle).
+
+No server-side or account data; everything is local to the browser profile.
 
 ## 5. Tech - What stack are we using?
 
-The stack this project will use eg. Next.js, Neon Postgres, ShadCN UI, Claude Haiku for content generation
+- Chrome Extension, Manifest V3 (`manifest.json`).
+- Plain vanilla JavaScript, no build step, no bundler, no package manager
+  (no `package.json` present).
+- Content scripts injected at `document_start`: one in the page's `MAIN`
+  world (`injector.js`, patches the game bundle and relays actions), two in
+  the extension's isolated world (`change_counter.js`, `garage_skins.js`).
+- No frameworks, no UI libraries — DOM queries and inline styles/CSS strings
+  only, targeting the live Tanki Online web client's own class names.
+
+> TODO (confirm): code is explicitly described as a "WIP port" of modules
+> from a larger private extension (`src/kasp_main.ts`) — expect ongoing rework
+> as fixes land upstream in that source.
 
 ## 6. Monetize - How will this make money?
 
-Explain how you plan to make money. eg. Ads, memberships, etc
+None. Personal-use tool, not monetized.
 
 ## 7. UI/UX - How should this look and feel?
 
-Describe the look and feel. Add examples if you want
+No dedicated UI. Visual footprint is intentionally minimal and non-intrusive:
+a small red warning glyph (⚠) next to a nickname, and CSS-level image
+substitution for garage skins. No game CSS files are modified; scripts avoid
+touching layout beyond the specific elements they annotate.
 
 ## 8. Deployment - Where and how will this ship?
 
-Target host if known, such as Render or Vercel. Include app type, build command,
-start command or output directory, env vars by name, database or storage needs,
-workers or cron jobs, health check path, and domain notes if you know them.
+Not shipped/published. Loaded locally as an unpacked Chrome extension
+(`chrome://extensions` -> Developer mode -> Load unpacked) for personal use.
+No Chrome Web Store listing planned.
 
 ## 9. Usage model and constraints (optional)
 
-Record only what is known and relevant: expected user count and approximate scale;
-local, internal, or internet-facing operation; trusted or adversarial users;
-single-tenant or multi-tenant use when applicable; required security, compliance,
-availability, or audit constraints; and explicit non-requirements. Leave this
-section unanswered when those facts are not established. Unknown does not mean
-enterprise, hostile, multi-tenant, or single-user.
+- Single user, local browser only, not internet-facing as a service.
+- Trusted context: runs against the real tankionline.com client the user
+  plays on; a MAIN-world script patches that game's live bundle, so care is
+  needed to not break gameplay for the user's own session.
+- No compliance/audit requirements. No multi-tenant concerns.
+- Explicit non-requirements: no packaging/store distribution, no
+  monetization, no multi-user support.
