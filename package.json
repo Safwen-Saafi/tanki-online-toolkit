@@ -1,0 +1,12 @@
+{
+  "name": "tanki-online-toolkit",
+  "version": "1.2.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.280",
+    "typescript": "^5.6.3"
+  }
+}
