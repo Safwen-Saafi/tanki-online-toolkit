@@ -8,35 +8,45 @@
     'use strict';
 
     const CACHE_KEY = 'kasp_player_changes_cache';
-    const playerChanges = new Map();
+    const playerChanges = new Map<string, number>();
     let isInBattle = false;
 
     try {
         const cached = sessionStorage.getItem(CACHE_KEY);
         if (cached) {
-            const parsed = JSON.parse(cached);
-            for (const [nick, count] of Object.entries(parsed)) {
-                playerChanges.set(nick, count);
+            const parsed: unknown = JSON.parse(cached);
+            if (parsed && typeof parsed === 'object') {
+                for (const [nick, count] of Object.entries(parsed as Record<string, number>)) {
+                    playerChanges.set(nick, count);
+                }
             }
         }
     } catch (e) {}
 
-    function saveCache() {
-        const obj = {};
+    function saveCache(): void {
+        const obj: Record<string, number> = {};
         playerChanges.forEach((count, nick) => { obj[nick] = count; });
         sessionStorage.setItem(CACHE_KEY, JSON.stringify(obj));
     }
 
-    function clearCache() {
+    function clearCache(): void {
         playerChanges.clear();
         sessionStorage.removeItem(CACHE_KEY);
     }
 
-    window.addEventListener('message', (e) => {
-        const data = e.data;
-        if (!data || data.type !== 'kasp:useraction') return;
+    function isKaspUserActionMessage(data: unknown): data is KaspUserActionMessage {
+        return (
+            !!data &&
+            typeof data === 'object' &&
+            (data as { type?: unknown }).type === 'kasp:useraction' &&
+            Array.isArray((data as { detail?: unknown }).detail)
+        );
+    }
+
+    window.addEventListener('message', (e: MessageEvent) => {
+        const data: unknown = e.data;
+        if (!isKaspUserActionMessage(data)) return;
         const detail = data.detail;
-        if (!Array.isArray(detail)) return;
         if (detail[0] !== 'TankUserActionLog' || !detail.includes('CHANGE_EQUIPMENT')) return;
 
         const nickname = detail.find((item) =>
@@ -64,7 +74,7 @@
         sync();
     });
 
-    function checkBattleCanvas() {
+    function checkBattleCanvas(): void {
         const currentInBattle = !!document.querySelector('.BattleComponentStyle-canvasContainer');
         if (currentInBattle !== isInBattle) {
             isInBattle = currentInBattle;
@@ -75,7 +85,7 @@
         }
     }
 
-    function sync() {
+    function sync(): void {
         const container = document.querySelector('.BattleTabStatisticComponentStyle-container');
         if (!container) return;
 
@@ -88,7 +98,7 @@
             if (!nickname) continue;
             const count = playerChanges.get(nickname) ?? 0;
 
-            let mark = cell.querySelector('.kasp-change-mark');
+            let mark = cell.querySelector<HTMLSpanElement>('.kasp-change-mark');
             if (count > 0) {
                 if (!mark) {
                     mark = document.createElement('span');

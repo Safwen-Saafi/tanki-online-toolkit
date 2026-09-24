@@ -291,13 +291,20 @@ checks do not make the Blueprint unusable.
 
 ## Commands
 
-Manifest V3 Chrome extension, plain vanilla JavaScript. No package manager, no
-build step, no bundler currently exists.
+Manifest V3 Chrome extension. Source is TypeScript (strict mode), compiled
+with `tsc` to the plain JS `manifest.json` loads. No bundler.
 
-- Load/run: `chrome://extensions` -> enable Developer mode -> Load unpacked ->
-  select this repo's folder. Reload the extension after any source change.
-- Build: none. Files run as-is.
-- Lint: none configured.
+- Install: `npm install`
+- Build: `npm run build` (compiles `injector.ts`, `change_counter.ts`, and
+  `garage_skins.ts` to the `.js` files at the same repo-root paths the
+  manifest references). Run this after any `.ts` change, before reloading the
+  extension - the compiled `.js` files are gitignored build output, not
+  source.
+- Load/run: `npm run build`, then `chrome://extensions` -> enable Developer
+  mode -> Load unpacked -> select this repo's folder. Reload the extension
+  after any rebuild.
+- Lint: none configured. `tsc`'s strict-mode type check is the current
+  correctness gate.
 
 Testing is opt-in and not yet set up; there is no unit test runner. Run
 `/tests` or `$tests` if one is wanted later. Verification today is manual: load

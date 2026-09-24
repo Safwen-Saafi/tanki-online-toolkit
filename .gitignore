@@ -3,6 +3,14 @@ dist/
 release/
 *.zip
 
+# Blueprint workflow state - local only, not pushed
+blueprint/
+
+# Compiled from TypeScript sources; run `npm run build` to regenerate
+/injector.js
+/change_counter.js
+/garage_skins.js
+
 # OS/editor cruft
 .DS_Store
 Thumbs.db

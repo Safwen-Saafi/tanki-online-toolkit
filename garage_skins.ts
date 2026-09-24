@@ -5,22 +5,25 @@
 (function () {
     'use strict';
 
+    type SavedSkins = Record<string, string>;
+    type DefaultImagesMap = Record<string, string[]>;
+
     const STORAGE_KEY = 'kasp_equipped_skins';
     const BASE_IMG_KEY = 'kasp_base_images';
-    let SKIN_BRANDS_MAP = null;
-    let NAME_TRANSLATE = null;
-    let PREFILLED_DEFAULTS = null;
-    let SKINS_DATABASE = null;
-    let dataReadyPromise = null;
+    let SKIN_BRANDS_MAP: SkinsDatabase['brands'] | null = null;
+    let NAME_TRANSLATE: SkinsDatabase['names'] | null = null;
+    let PREFILLED_DEFAULTS: SkinsDatabase['defaults'] | null = null;
+    let SKINS_DATABASE: SkinsDatabase['database'] | null = null;
+    let dataReadyPromise: Promise<void> | null = null;
 
-    function loadSkinsData() {
+    function loadSkinsData(): Promise<void> {
         if (dataReadyPromise) return dataReadyPromise;
         dataReadyPromise = fetch(chrome.runtime.getURL('database/skins.json'))
             .then(res => {
                 if (!res.ok) throw new Error('skins.json: HTTP ' + res.status);
                 return res.json();
             })
-            .then(data => {
+            .then((data: SkinsDatabase) => {
                 SKIN_BRANDS_MAP = data.brands;
                 NAME_TRANSLATE = data.names;
                 PREFILLED_DEFAULTS = data.defaults;
@@ -32,15 +35,23 @@
     }
     loadSkinsData();
 
-    function getSavedSkins() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
-        catch (e) { return {}; }
+    function safeParseJSON<T>(raw: string | null): T | null {
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw) as T;
+        } catch (e) {
+            return null;
+        }
     }
 
-    function getDefaultImages() {
+    function getSavedSkins(): SavedSkins {
+        return safeParseJSON<SavedSkins>(localStorage.getItem(STORAGE_KEY)) || {};
+    }
+
+    function getDefaultImages(): DefaultImagesMap {
         try {
-            const stored = JSON.parse(localStorage.getItem(BASE_IMG_KEY)) || {};
-            const merged = {};
+            const stored = safeParseJSON<Record<string, string | string[]>>(localStorage.getItem(BASE_IMG_KEY)) || {};
+            const merged: DefaultImagesMap = {};
 
             for (const key in PREFILLED_DEFAULTS) {
                 merged[key] = [PREFILLED_DEFAULTS[key]];
@@ -57,30 +68,33 @@
             }
             return merged;
         } catch (e) {
-            const fallback = {};
+            const fallback: DefaultImagesMap = {};
             for (const key in PREFILLED_DEFAULTS) fallback[key] = [PREFILLED_DEFAULTS[key]];
             return fallback;
         }
     }
 
-    function updateGlobalCSS() {
+    function updateGlobalCSS(): void {
+        // Invariant: only called from tick() after the "!SKIN_BRANDS_MAP" load
+        // guard, so all four database fields are populated together here.
+        const skinsDatabase = SKINS_DATABASE!;
         const savedSkins = getSavedSkins();
         const defaultImages = getDefaultImages();
         let css = '';
 
-        const allItems = new Set([...Object.keys(defaultImages), ...Object.keys(SKINS_DATABASE)]);
+        const allItems = new Set([...Object.keys(defaultImages), ...Object.keys(skinsDatabase)]);
 
         for (const item of allItems) {
             const targetUrl = savedSkins[item];
             if (!targetUrl) continue;
 
-            const urlsToOverride = [];
+            const urlsToOverride: string[] = [];
             if (defaultImages[item]) {
                 urlsToOverride.push(...defaultImages[item]);
             }
 
-            if (SKINS_DATABASE[item]) {
-                for (const skinUrl of Object.values(SKINS_DATABASE[item])) {
+            if (skinsDatabase[item]) {
+                for (const skinUrl of Object.values(skinsDatabase[item])) {
                     if (skinUrl) urlsToOverride.push(skinUrl);
                 }
             }
@@ -109,15 +123,22 @@
     let lastItemName = "";
     let readAllowedTime = 0;
 
-    function isGarageScreen() {
+    function isGarageScreen(): boolean {
         return !!document.querySelector(
             '.GarageCommonStyle-positionContent, .GarageItemComponent-container, .ContainerInfoComponentStyle-lootBoxContainer'
         );
     }
 
-    function tick() {
+    function tick(): void {
         if (!SKIN_BRANDS_MAP) return; // database still loading
         if (!isGarageScreen()) return;
+
+        // Invariant: guarded by the SKIN_BRANDS_MAP check above - all four
+        // database fields are set together in loadSkinsData()'s .then().
+        const nameTranslate = NAME_TRANSLATE!;
+        const skinsDatabase = SKINS_DATABASE!;
+        const prefilledDefaults = PREFILLED_DEFAULTS!;
+        const skinBrandsMap = SKIN_BRANDS_MAP;
 
         const defaultImages = getDefaultImages();
         let defaultsUpdated = false;
@@ -128,14 +149,14 @@
             const imgMain = item.querySelector('.GarageItemComponentStyle-mainImg');
 
             if (titleSpan && imgMain) {
-                const rawTitle = titleSpan.textContent.trim().toLowerCase();
-                const itemNameEN = NAME_TRANSLATE[rawTitle.split(/\s+/)[0]] || rawTitle.split(/\s+/)[0];
+                const rawTitle = (titleSpan.textContent ?? '').trim().toLowerCase();
+                const itemNameEN = nameTranslate[rawTitle.split(/\s+/)[0]] || rawTitle.split(/\s+/)[0];
                 const originalSrc = imgMain.getAttribute('src') || '';
 
                 if (originalSrc && originalSrc.includes('tankionline.com')) {
                     let isCustomSkin = false;
-                    if (SKINS_DATABASE[itemNameEN]) {
-                        isCustomSkin = Object.values(SKINS_DATABASE[itemNameEN]).includes(originalSrc);
+                    if (skinsDatabase[itemNameEN]) {
+                        isCustomSkin = Object.values(skinsDatabase[itemNameEN]).includes(originalSrc);
                     }
 
                     if (!isCustomSkin) {
@@ -157,9 +178,9 @@
             || document.querySelector('.garage-item.-active .GarageItemComponentStyle-descriptionDevice span');
 
         if (nameEl) {
-            const rawName = nameEl.textContent.trim().toLowerCase();
+            const rawName = (nameEl.textContent ?? '').trim().toLowerCase();
             const firstWord = rawName.split(/\s+/)[0];
-            const itemNameEN = NAME_TRANSLATE[firstWord] || firstWord;
+            const itemNameEN = nameTranslate[firstWord] || firstWord;
 
             if (itemNameEN !== lastItemName) {
                 lastItemName = itemNameEN;
@@ -168,20 +189,20 @@
 
             if (Date.now() >= readAllowedTime) {
                 const skinImgs = document.querySelectorAll('.SkinsIconComponentStyle-cellSkins img');
-                let foundBrand = null;
+                let foundBrand: string | null = null;
 
                 const previewImg = document.querySelector('.MountedItemsStyle-itemPreview, .ItemDescriptionComponentStyle-previewImg img');
                 if (previewImg) {
                     const currentSrc = previewImg.getAttribute('src') || '';
-                    if (SKINS_DATABASE[itemNameEN]) {
-                        for (const [brand, url] of Object.entries(SKINS_DATABASE[itemNameEN])) {
+                    if (skinsDatabase[itemNameEN]) {
+                        for (const [brand, url] of Object.entries(skinsDatabase[itemNameEN])) {
                             if (url === currentSrc) {
                                 foundBrand = brand;
                                 break;
                             }
                         }
                     }
-                    if (!foundBrand && PREFILLED_DEFAULTS[itemNameEN] === currentSrc) {
+                    if (!foundBrand && prefilledDefaults[itemNameEN] === currentSrc) {
                         foundBrand = 'default';
                     }
                 }
@@ -189,8 +210,8 @@
                 if (!foundBrand && !previewImg) {
                     for (const skinImg of skinImgs) {
                         const src = skinImg.getAttribute('src') || '';
-                        if (SKIN_BRANDS_MAP[src]) {
-                            foundBrand = SKIN_BRANDS_MAP[src];
+                        if (skinBrandsMap[src]) {
+                            foundBrand = skinBrandsMap[src];
                             break;
                         } else if (src.includes('ic_standard') || src.includes('standard')) {
                             foundBrand = 'default';
@@ -208,8 +229,8 @@
                             delete savedSkins[itemNameEN];
                             skinsUpdated = true;
                         }
-                    } else if (SKINS_DATABASE[itemNameEN] && SKINS_DATABASE[itemNameEN][foundBrand]) {
-                        const targetUrl = SKINS_DATABASE[itemNameEN][foundBrand];
+                    } else if (skinsDatabase[itemNameEN] && skinsDatabase[itemNameEN][foundBrand]) {
+                        const targetUrl = skinsDatabase[itemNameEN][foundBrand];
                         if (savedSkins[itemNameEN] !== targetUrl) {
                             savedSkins[itemNameEN] = targetUrl;
                             skinsUpdated = true;
@@ -221,7 +242,7 @@
                     }
                 } else if (skinImgs.length > 0) {
                     const savedSkins = getSavedSkins();
-                    const fallbackUrl = PREFILLED_DEFAULTS[itemNameEN];
+                    const fallbackUrl = prefilledDefaults[itemNameEN];
                     if (fallbackUrl && savedSkins[itemNameEN] !== fallbackUrl) {
                         savedSkins[itemNameEN] = fallbackUrl;
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSkins));

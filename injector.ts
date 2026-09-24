@@ -1,15 +1,15 @@
 "use strict";
 (function () {
     'use strict';
-    window.__kaspSendAction = function (className, obj) {
+    window.__kaspSendAction = function (className: string, obj: unknown): void {
         try {
-            let res = [className];
-            let seen = new Set();
-            function safeWalk(o, depth) {
+            const res: string[] = [className];
+            const seen = new Set<object>();
+            function safeWalk(o: unknown, depth: number): void {
                 if (depth > 2 || !o || typeof o !== 'object' || seen.has(o))
                     return;
                 seen.add(o);
-                let keys = [];
+                let keys: string[] = [];
                 try {
                     keys = Object.keys(o);
                 }
@@ -17,17 +17,17 @@
                     return;
                 }
                 for (let i = 0; i < keys.length; i++) {
-                    let k = keys[i];
-                    let v;
+                    const k = keys[i];
+                    let v: unknown;
                     try {
-                        v = o[k];
+                        v = (o as Record<string, unknown>)[k];
                     }
                     catch (e) {
                         continue;
                     }
                     if (v != null) {
                         if (typeof v === 'string' || typeof v === 'number') {
-                            let strVal = String(v).trim();
+                            const strVal = String(v).trim();
                             if (strVal && strVal.length >= 2 && strVal.length < 30) {
                                 res.push(strVal);
                             }
@@ -39,7 +39,8 @@
                 }
             }
             safeWalk(obj, 0);
-            window.postMessage({ type: 'kasp:useraction', detail: res }, '*');
+            const message: KaspUserActionMessage = { type: 'kasp:useraction', detail: res };
+            window.postMessage(message, '*');
         }
         catch (e) { }
     };
