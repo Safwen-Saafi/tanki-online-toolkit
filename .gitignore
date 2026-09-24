@@ -3,6 +3,9 @@ dist/
 release/
 *.zip
 
+# Blueprint workflow state - local only, not pushed
+blueprint/
+
 # OS/editor cruft
 .DS_Store
 Thumbs.db
