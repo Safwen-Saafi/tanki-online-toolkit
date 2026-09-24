@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "KI Standalone Test - Change Counter + Garage Skins",
+  "version": "1.2.0",
+  "description": "Isolated test build of changeCounter and customGarageSkins, with real MAIN-world/document_start timing. No game CSS touched.",
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.tankionline.com/*",
+        "*://tankionline.com/*"
+      ],
+      "js": ["injector.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "*://*.tankionline.com/*"
+      ],
+      "js": ["change_counter.js", "garage_skins.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["database/skins.json"],
+      "matches": ["*://*.tankionline.com/*"]
+    }
+  ]
+}
