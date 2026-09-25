@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "package": "node scripts/package.mjs"
+    "package": "node scripts/package.mjs",
+    "release": "node scripts/release.js"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.280",
