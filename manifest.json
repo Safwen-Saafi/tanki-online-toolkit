@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "KI Standalone Test - Change Counter + Garage Skins",
+  "name": "Tanki Online ToolKit",
   "version": "1.2.0",
-  "description": "Isolated test build of changeCounter and customGarageSkins, with real MAIN-world/document_start timing. No game CSS touched.",
+  "description": "Adds quality-of-life features to Tanki Online: flags players who change equipment mid-battle and keeps your chosen garage skins applied.",
   "content_scripts": [
     {
       "matches": [
