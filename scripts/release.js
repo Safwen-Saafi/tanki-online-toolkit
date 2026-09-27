@@ -10,15 +10,20 @@ const MANIFEST_PATH = path.join(ROOT, 'manifest.json');
 const PACKAGE_PATH = path.join(ROOT, 'package.json');
 
 function usageAndExit() {
-    console.error('Usage: npm run release -- <patch|minor|major|x.y.z> [--dry-run]');
+    console.error('Usage: npm run release -- <patch|minor|major|x.y.z> [--dry-run] [--notes-file <path>]');
     process.exit(1);
 }
 
 function parseArgs(argv) {
     const dryRun = argv.includes('--dry-run');
-    const bump = argv.find((a) => a !== '--dry-run');
+    const notesFlagIndex = argv.indexOf('--notes-file');
+    const notesFile = notesFlagIndex === -1 ? null : argv[notesFlagIndex + 1];
+    if (notesFlagIndex !== -1 && !notesFile) usageAndExit();
+
+    const notesValueIndex = notesFlagIndex === -1 ? -1 : notesFlagIndex + 1;
+    const bump = argv.find((a, i) => a !== '--dry-run' && a !== '--notes-file' && i !== notesValueIndex);
     if (!bump) usageAndExit();
-    return { bump, dryRun };
+    return { bump, dryRun, notesFile };
 }
 
 function computeNextVersion(currentVersion, bump) {
@@ -80,7 +85,12 @@ function writeJsonVersion(filePath, version) {
 }
 
 function main() {
-    const { bump, dryRun } = parseArgs(process.argv.slice(2));
+    const { bump, dryRun, notesFile } = parseArgs(process.argv.slice(2));
+
+    if (notesFile && !fs.existsSync(path.join(ROOT, notesFile)) && !fs.existsSync(notesFile)) {
+        refusalBox([`refusing to run: notes file not found: ${notesFile}`]);
+        process.exit(1);
+    }
 
     // Guards run cheapest-first: branch, dirty tree, no-changes-since-last-tag,
     // then a full build (the expensive one) last.
@@ -131,7 +141,16 @@ function main() {
     writeJsonVersion(PACKAGE_PATH, nextVersion);
 
     execSync('git add manifest.json package.json', { cwd: ROOT, stdio: 'inherit' });
-    execSync(`git commit -m "${commitMessage}"`, { cwd: ROOT, stdio: 'inherit' });
+    if (notesFile) {
+        const notesContent = fs.readFileSync(
+            fs.existsSync(path.join(ROOT, notesFile)) ? path.join(ROOT, notesFile) : notesFile,
+            'utf8'
+        );
+        const fullMessage = `${commitMessage}\n\n${notesContent}`;
+        execSync('git commit -F -', { cwd: ROOT, stdio: ['pipe', 'inherit', 'inherit'], input: fullMessage });
+    } else {
+        execSync(`git commit -m "${commitMessage}"`, { cwd: ROOT, stdio: 'inherit' });
+    }
     execSync(`git tag ${tagName}`, { cwd: ROOT, stdio: 'inherit' });
     execSync('git push', { cwd: ROOT, stdio: 'inherit' });
     execSync(`git push origin ${tagName}`, { cwd: ROOT, stdio: 'inherit' });
