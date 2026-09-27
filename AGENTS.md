@@ -305,6 +305,22 @@ with `tsc` to the plain JS `manifest.json` loads. No bundler.
   after any rebuild.
 - Lint: none configured. `tsc`'s strict-mode type check is the current
   correctness gate.
+- Package: `npm run package` (after `npm run build`) zips `manifest.json`, the
+  3 compiled `.js` files, and `database/skins.json` into
+  `release/tanki-online-toolkit-v<version>.zip`.
+- Release: `npm run release -- <patch|minor|major|x.y.z> [--dry-run]
+  [--notes-file <path>]`. Bumps the version in `manifest.json` and
+  `package.json`, commits, tags `v<version>`, and pushes. Refuses to run
+  unless on `main`, the working tree is clean, something has actually
+  changed since the last release tag, and the project builds. `--dry-run`
+  prints the plan without touching anything. `--notes-file <path>` makes the
+  release commit's body that file's content (see `ai-interaction.md`'s
+  Releases section for the full assistant-driven process, including the
+  fixed description template).
+- Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`, which
+  builds, packages, and opens a **draft** GitHub Release with the zip
+  attached and the release commit's body as the description - it never
+  auto-publishes; open the draft on GitHub to review, edit, and publish it.
 
 Testing is opt-in and not yet set up; there is no unit test runner. Run
 `/tests` or `$tests` if one is wanted later. Verification today is manual: load

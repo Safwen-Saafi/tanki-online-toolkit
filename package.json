@@ -3,10 +3,13 @@
   "version": "1.2.0",
   "private": true,
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "package": "node scripts/package.mjs",
+    "release": "node scripts/release.js"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.280",
+    "archiver": "^8.0.0",
     "typescript": "^5.6.3"
   }
 }
