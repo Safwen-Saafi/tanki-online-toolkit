@@ -51,6 +51,7 @@ and installed dependencies before adding machinery.
 - `blueprint/context/coding-standards.md` - read before changing code
 - `blueprint/context/ai-interaction.md` - read when running the Blueprint workflow
 - `blueprint/context/current-feature.md` - the one feature, fix, or rollback being built right now
+- `blueprint/context/battle-stats-table.md` - read before changing anything visual in the in-battle stats panel
 
 Reuse relevant context already loaded in the session. Claude Code imports only
 this file; its Blueprint skills load the other files on demand.
