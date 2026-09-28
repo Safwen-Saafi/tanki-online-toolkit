@@ -1,0 +1,75 @@
+/* Panel is 90em wide by default. Widening it only stretches the panel - text and
+   icons keep their own size, and the free space opens up past the last column.
+   Capped against the viewport so it can never run off-screen. */
+.BattleTabStatisticComponentStyle-containerInsideTeams {
+    width: 96em !important;
+    max-width: 98vw !important;
+}
+
+/* Scoped to tbody rows on purpose: the game's thead is position:absolute, so a
+   width:100% on it or on its row resolves against the container rather than the
+   table, stretching the header across the whole panel. */
+.BattleTabStatisticComponentStyle-containerInsideTeams table,
+.BattleTabStatisticComponentStyle-containerInsideTeams tbody>tr {
+    width: 100% !important;
+}
+
+/* The game does not lay its stat cells out in flow - it pins them at fixed
+   coordinates. Measured: the cells' on-screen order does not match their DOM
+   order even though every one of them computes order:0, which is only possible
+   out of flow. So flex order, flex-basis and column percentages have no effect
+   on them, and a cell appended in normal flow lands at the row's origin rather
+   than after the last column.
+
+   This cell is therefore pinned the same way, in the gap past the last column
+   (kills/deaths ends at 525px, the row ends at 600px). Being out of flow, it
+   cannot shift or resize anything else in the row. */
+.BattleTabStatisticComponentStyle-containerInsideTeams tbody>tr {
+    position: relative !important;
+}
+
+/* The header icon is left to anchor against the game's own thead, which is
+   already position:absolute and already sized to its table. Giving the thead or
+   its row a width of our own is what threw the icon out to the panel's edge. */
+.kasp-change-th,
+.kasp-change-td {
+    position: absolute !important;
+    width: 3em !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+.kasp-change-td {
+    top: 0 !important;
+    bottom: 0 !important;
+    right: 1em !important;
+}
+
+/* left, top and height come from JS, measured against the body column and the
+   neighbouring header label - see change_counter.ts. Deliberately not set here,
+   since an !important rule would beat the measured inline values. Colour matches
+   the game's own header labels. */
+.kasp-change-th {
+    color: rgb(191, 213, 255);
+    font-size: 1.15em;
+}
+
+.kasp-change-icon {
+    color: #ffcc00;
+    font-weight: bold;
+    visibility: hidden;
+}
+
+.kasp-change-td.kasp-changed .kasp-change-icon {
+    visibility: visible;
+    animation: kasp-change-blink 1s step-start infinite;
+}
+
+@keyframes kasp-change-blink {
+    50% {
+        opacity: 0;
+    }
+}
