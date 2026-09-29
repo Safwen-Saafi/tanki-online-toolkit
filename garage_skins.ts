@@ -377,6 +377,12 @@
 
                 const savedSkins = getSavedSkins();
                 const previousUrl = savedSkins[itemNameEN];
+                // A stored URL that is neither stock nor in the database was learned from the Skins tab.
+                // This block cannot tell which skin it belongs to, so it leaves it alone, unless it
+                // just matched a database brand: that is real evidence of what is equipped now.
+                const hasLearnedArt = !!previousUrl
+                    && previousUrl !== prefilledDefaults[itemNameEN]
+                    && !Object.values(skinsDatabase[itemNameEN] ?? {}).includes(previousUrl);
                 const brandUrl = foundBrand && foundBrand !== 'default'
                     ? skinsDatabase[itemNameEN]?.[foundBrand]
                     : undefined;
@@ -398,7 +404,7 @@
                     nextUrl = previousUrl;
                 }
 
-                if (nextUrl !== previousUrl) {
+                if ((!hasLearnedArt || brandUrl) && nextUrl !== previousUrl) {
                     if (nextUrl) {
                         savedSkins[itemNameEN] = nextUrl;
                     } else {
