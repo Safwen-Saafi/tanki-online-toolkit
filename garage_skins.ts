@@ -120,12 +120,58 @@
         }
     }
 
+    // Neither garage screen renders the equipped skin itself: the tiles and the
+    // mounted previews both carry the item's stock art and the skin is painted
+    // over it by CSS. So an element cannot tell on its own that an unknown skin
+    // is on. What it can read is what detection stored: the stock URL is written
+    // for exactly that case, while a recognized brand stores that brand's URL and
+    // a plain default stores nothing at all.
+    function hasUnknownSkin(
+        itemNameEN: string,
+        savedSkins: SavedSkins,
+        prefilledDefaults: SkinsDatabase['defaults']
+    ): boolean {
+        const saved = savedSkins[itemNameEN];
+        return !!saved && saved === prefilledDefaults[itemNameEN];
+    }
+
+    function toggleUnknownLabel(host: Element, show: boolean): void {
+        const existing = host.querySelector('.kasp-unknown-skin');
+
+        if (!show) {
+            if (existing) existing.remove();
+            return;
+        }
+
+        if (!existing) {
+            const label = document.createElement('span');
+            label.className = 'kasp-unknown-skin';
+            label.textContent = 'unknown skin';
+            host.appendChild(label);
+        }
+    }
+
+    // The main screen's blocks only show the category ("Turrets"), never the item
+    // name, so the item is found by matching the preview's stock image instead.
+    function markMountedUnknownSkins(
+        savedSkins: SavedSkins,
+        defaultImages: DefaultImagesMap,
+        prefilledDefaults: SkinsDatabase['defaults']
+    ): void {
+        const blocks = document.querySelectorAll('.MountedItemsStyle-commonBlockForTurretsHulls');
+        blocks.forEach((block) => {
+            const src = block.querySelector('.MountedItemsStyle-itemPreview')?.getAttribute('src') || '';
+            const owner = Object.keys(savedSkins).find(item => defaultImages[item]?.includes(src));
+            toggleUnknownLabel(block, !!owner && hasUnknownSkin(owner, savedSkins, prefilledDefaults));
+        });
+    }
+
     let lastItemName = "";
     let readAllowedTime = 0;
 
     function isGarageScreen(): boolean {
         return !!document.querySelector(
-            '.GarageCommonStyle-positionContent, .GarageItemComponent-container, .ContainerInfoComponentStyle-lootBoxContainer'
+            '.GarageCommonStyle-positionContent, .GarageItemComponent-container, .ContainerInfoComponentStyle-lootBoxContainer, .GarageMainScreenStyle-blockParameters'
         );
     }
 
@@ -142,6 +188,7 @@
 
         const defaultImages = getDefaultImages();
         let defaultsUpdated = false;
+        const savedSkinsForList = getSavedSkins();
 
         const garageItems = document.querySelectorAll('.garage-item');
         garageItems.forEach((item) => {
@@ -167,8 +214,12 @@
                         }
                     }
                 }
+
+                toggleUnknownLabel(item, hasUnknownSkin(itemNameEN, savedSkinsForList, prefilledDefaults));
             }
         });
+
+        markMountedUnknownSkins(savedSkinsForList, defaultImages, prefilledDefaults);
 
         if (defaultsUpdated) {
             localStorage.setItem(BASE_IMG_KEY, JSON.stringify(defaultImages));
@@ -190,19 +241,20 @@
             if (Date.now() >= readAllowedTime) {
                 const skinImgs = document.querySelectorAll('.SkinsIconComponentStyle-cellSkins img');
                 let foundBrand: string | null = null;
+                let previewSrc = '';
 
                 const previewImg = document.querySelector('.MountedItemsStyle-itemPreview, .ItemDescriptionComponentStyle-previewImg img');
                 if (previewImg) {
-                    const currentSrc = previewImg.getAttribute('src') || '';
+                    previewSrc = previewImg.getAttribute('src') || '';
                     if (skinsDatabase[itemNameEN]) {
                         for (const [brand, url] of Object.entries(skinsDatabase[itemNameEN])) {
-                            if (url === currentSrc) {
+                            if (url === previewSrc) {
                                 foundBrand = brand;
                                 break;
                             }
                         }
                     }
-                    if (!foundBrand && prefilledDefaults[itemNameEN] === currentSrc) {
+                    if (!foundBrand && prefilledDefaults[itemNameEN] === previewSrc) {
                         foundBrand = 'default';
                     }
                 }
@@ -220,33 +272,36 @@
                     }
                 }
 
-                if (foundBrand) {
-                    const savedSkins = getSavedSkins();
-                    let skinsUpdated = false;
+                const savedSkins = getSavedSkins();
+                const previousUrl = savedSkins[itemNameEN];
+                const brandUrl = foundBrand && foundBrand !== 'default'
+                    ? skinsDatabase[itemNameEN]?.[foundBrand]
+                    : undefined;
 
-                    if (foundBrand === 'default') {
-                        if (savedSkins[itemNameEN]) {
-                            delete savedSkins[itemNameEN];
-                            skinsUpdated = true;
-                        }
-                    } else if (skinsDatabase[itemNameEN] && skinsDatabase[itemNameEN][foundBrand]) {
-                        const targetUrl = skinsDatabase[itemNameEN][foundBrand];
-                        if (savedSkins[itemNameEN] !== targetUrl) {
-                            savedSkins[itemNameEN] = targetUrl;
-                            skinsUpdated = true;
-                        }
-                    }
+                // A skin the database has no entry for (VT on smoky) reads exactly
+                // like a skin we failed to identify, and both have to clear whatever
+                // brand was stored before. Treating them as "nothing to do" is what
+                // left the previous brand's override applied for good.
+                const unknownSkin = !brandUrl && foundBrand !== 'default'
+                    && (!!foundBrand || previewSrc.includes('tankionline.com') || skinImgs.length > 0);
 
-                    if (skinsUpdated) {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSkins));
+                let nextUrl: string | undefined;
+                if (brandUrl) {
+                    nextUrl = brandUrl;
+                } else if (unknownSkin) {
+                    nextUrl = prefilledDefaults[itemNameEN];
+                } else if (foundBrand !== 'default') {
+                    // Nothing readable this tick - keep what we had rather than guess.
+                    nextUrl = previousUrl;
+                }
+
+                if (nextUrl !== previousUrl) {
+                    if (nextUrl) {
+                        savedSkins[itemNameEN] = nextUrl;
+                    } else {
+                        delete savedSkins[itemNameEN];
                     }
-                } else if (skinImgs.length > 0) {
-                    const savedSkins = getSavedSkins();
-                    const fallbackUrl = prefilledDefaults[itemNameEN];
-                    if (fallbackUrl && savedSkins[itemNameEN] !== fallbackUrl) {
-                        savedSkins[itemNameEN] = fallbackUrl;
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSkins));
-                    }
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSkins));
                 }
             }
         }

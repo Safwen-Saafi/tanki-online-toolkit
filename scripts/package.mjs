@@ -12,7 +12,9 @@ const RUNTIME_FILES = [
     'manifest.json',
     'injector.js',
     'change_counter.js',
+    'change_counter.css',
     'garage_skins.js',
+    'garage_skins.css',
     'database/skins.json',
 ];
 

@@ -307,8 +307,11 @@ with `tsc` to the plain JS `manifest.json` loads. No bundler.
 - Lint: none configured. `tsc`'s strict-mode type check is the current
   correctness gate.
 - Package: `npm run package` (after `npm run build`) zips `manifest.json`, the
-  3 compiled `.js` files, and `database/skins.json` into
-  `release/tanki-online-toolkit-v<version>.zip`.
+  3 compiled `.js` files, the 2 stylesheets the manifest injects
+  (`change_counter.css`, `garage_skins.css`), and `database/skins.json` into
+  `release/tanki-online-toolkit-v<version>.zip`. Any new file the manifest
+  references must be added to `RUNTIME_FILES` in `scripts/package.mjs`, or the
+  zip ships a manifest pointing at a file that isn't there.
 - Release: `npm run release -- <patch|minor|major|x.y.z> [--dry-run]
   [--notes-file <path>]`. Bumps the version in `manifest.json` and
   `package.json`, commits, tags `v<version>`, and pushes. Refuses to run

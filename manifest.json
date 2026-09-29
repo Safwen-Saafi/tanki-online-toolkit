@@ -24,7 +24,8 @@
         "garage_skins.js"
       ],
       "css": [
-        "change_counter.css"
+        "change_counter.css",
+        "garage_skins.css"
       ],
       "run_at": "document_start"
     }
