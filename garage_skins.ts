@@ -267,6 +267,91 @@
         console.log(`[KI-test][garage-skins] skins tab: ${summary}`);
     }
 
+    type LearnAction =
+        | { readonly kind: 'none'; readonly reason: string | null }
+        | { readonly kind: 'set'; readonly item: string; readonly url: string; readonly source: 'art' | 'stock' }
+        | { readonly kind: 'clear'; readonly item: string };
+
+    // Learned URLs end up inside a CSS url("..."), so anything but a plain game image URL is refused.
+    const SAFE_ART_URL = /^https:\/\/[a-z0-9.-]+\.tankionline\.com\/[A-Za-z0-9/_.-]+\.webp$/;
+
+    function decideLearnAction(state: SkinsScreenState, stockUrl: string | undefined): LearnAction {
+        if (state.kind === 'absent') return { kind: 'none', reason: null };
+        if (state.equipped.kind === 'standard') return { kind: 'clear', item: state.item };
+
+        const selectedIsEquipped = state.selectedTitle !== null
+            && state.selectedTitle.toLowerCase() === state.equipped.title.toLowerCase();
+        if (!selectedIsEquipped) {
+            return {
+                kind: 'none',
+                reason: `waiting, selected ${JSON.stringify(state.selectedTitle)} is not the equipped ${JSON.stringify(state.equipped.title)}`,
+            };
+        }
+
+        if (state.artUrl && SAFE_ART_URL.test(state.artUrl)) {
+            return { kind: 'set', item: state.item, url: state.artUrl, source: 'art' };
+        }
+        // Art that cannot be read stores the stock image, which is what raises the "unknown skin" label.
+        return stockUrl
+            ? { kind: 'set', item: state.item, url: stockUrl, source: 'stock' }
+            : { kind: 'none', reason: `art of ${JSON.stringify(state.equipped.title)} is unreadable and no stock image is known` };
+    }
+
+    let lastLearnNote: string | null = null;
+
+    // A run that saves nothing has to say why, since the storage value alone cannot tell the causes apart.
+    function noteLearn(note: string | null): void {
+        if (note === lastLearnNote) return;
+        lastLearnNote = note;
+        if (note) console.log(`[KI-test][garage-skins] learn: ${note}`);
+    }
+
+    function describeLearnAction(action: Exclude<LearnAction, { kind: 'none' }>): string {
+        if (action.kind === 'clear') return `standard equipped, clearing ${action.item}`;
+        const art = action.url.split('/').slice(-2).join('/');
+        return action.source === 'art'
+            ? `equipped skin art ${art} for ${action.item}`
+            : `equipped skin art is unreadable, storing stock ${art} for ${action.item}`;
+    }
+
+    function writeSavedSkins(savedSkins: SavedSkins): void {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSkins));
+        } catch (e: unknown) {
+            console.warn('[KI-test][garage-skins] could not save skins:', e instanceof Error ? e.message : e);
+        }
+    }
+
+    let pendingLearn: { readonly key: string; readonly ticks: number } | null = null;
+
+    function learnFromSkinsScreen(state: SkinsScreenState, prefilledDefaults: SkinsDatabase['defaults']): void {
+        const stockUrl = state.kind === 'ready' ? prefilledDefaults[state.item] : undefined;
+        const action = decideLearnAction(state, stockUrl);
+        if (action.kind === 'none') {
+            pendingLearn = null;
+            noteLearn(action.reason);
+            return;
+        }
+        noteLearn(describeLearnAction(action));
+
+        // One tick can catch the marker and the preview out of step mid-render, so a change must hold for two.
+        const key = action.kind === 'set' ? `set|${action.item}|${action.url}` : `clear|${action.item}`;
+        pendingLearn = { key, ticks: pendingLearn?.key === key ? pendingLearn.ticks + 1 : 1 };
+        if (pendingLearn.ticks < 2) return;
+
+        const savedSkins = getSavedSkins();
+        if (action.kind === 'set') {
+            if (savedSkins[action.item] === action.url) return;
+            savedSkins[action.item] = action.url;
+            console.log(`[KI-test][garage-skins] saved ${action.item}: ${action.url.split('/').slice(-2).join('/')}`);
+        } else {
+            if (savedSkins[action.item] === undefined) return;
+            delete savedSkins[action.item];
+            console.log(`[KI-test][garage-skins] cleared ${action.item}`);
+        }
+        writeSavedSkins(savedSkins);
+    }
+
     let lastItemName = "";
     let readAllowedTime = 0;
 
@@ -287,7 +372,9 @@
         const prefilledDefaults = PREFILLED_DEFAULTS!;
         const skinBrandsMap = SKIN_BRANDS_MAP;
 
-        logSkinsScreen(readSkinsScreen(nameTranslate));
+        const skinsScreen = readSkinsScreen(nameTranslate);
+        logSkinsScreen(skinsScreen);
+        learnFromSkinsScreen(skinsScreen, prefilledDefaults);
 
         const defaultImages = getDefaultImages();
         let defaultsUpdated = false;
