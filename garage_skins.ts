@@ -190,19 +190,20 @@
             if (Date.now() >= readAllowedTime) {
                 const skinImgs = document.querySelectorAll('.SkinsIconComponentStyle-cellSkins img');
                 let foundBrand: string | null = null;
+                let previewSrc = '';
 
                 const previewImg = document.querySelector('.MountedItemsStyle-itemPreview, .ItemDescriptionComponentStyle-previewImg img');
                 if (previewImg) {
-                    const currentSrc = previewImg.getAttribute('src') || '';
+                    previewSrc = previewImg.getAttribute('src') || '';
                     if (skinsDatabase[itemNameEN]) {
                         for (const [brand, url] of Object.entries(skinsDatabase[itemNameEN])) {
-                            if (url === currentSrc) {
+                            if (url === previewSrc) {
                                 foundBrand = brand;
                                 break;
                             }
                         }
                     }
-                    if (!foundBrand && prefilledDefaults[itemNameEN] === currentSrc) {
+                    if (!foundBrand && prefilledDefaults[itemNameEN] === previewSrc) {
                         foundBrand = 'default';
                     }
                 }
@@ -220,33 +221,36 @@
                     }
                 }
 
-                if (foundBrand) {
-                    const savedSkins = getSavedSkins();
-                    let skinsUpdated = false;
+                const savedSkins = getSavedSkins();
+                const previousUrl = savedSkins[itemNameEN];
+                const brandUrl = foundBrand && foundBrand !== 'default'
+                    ? skinsDatabase[itemNameEN]?.[foundBrand]
+                    : undefined;
 
-                    if (foundBrand === 'default') {
-                        if (savedSkins[itemNameEN]) {
-                            delete savedSkins[itemNameEN];
-                            skinsUpdated = true;
-                        }
-                    } else if (skinsDatabase[itemNameEN] && skinsDatabase[itemNameEN][foundBrand]) {
-                        const targetUrl = skinsDatabase[itemNameEN][foundBrand];
-                        if (savedSkins[itemNameEN] !== targetUrl) {
-                            savedSkins[itemNameEN] = targetUrl;
-                            skinsUpdated = true;
-                        }
-                    }
+                // A skin the database has no entry for (VT on smoky) reads exactly
+                // like a skin we failed to identify, and both have to clear whatever
+                // brand was stored before. Treating them as "nothing to do" is what
+                // left the previous brand's override applied for good.
+                const unknownSkin = !brandUrl && foundBrand !== 'default'
+                    && (!!foundBrand || previewSrc.includes('tankionline.com') || skinImgs.length > 0);
 
-                    if (skinsUpdated) {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSkins));
+                let nextUrl: string | undefined;
+                if (brandUrl) {
+                    nextUrl = brandUrl;
+                } else if (unknownSkin) {
+                    nextUrl = prefilledDefaults[itemNameEN];
+                } else if (foundBrand !== 'default') {
+                    // Nothing readable this tick - keep what we had rather than guess.
+                    nextUrl = previousUrl;
+                }
+
+                if (nextUrl !== previousUrl) {
+                    if (nextUrl) {
+                        savedSkins[itemNameEN] = nextUrl;
+                    } else {
+                        delete savedSkins[itemNameEN];
                     }
-                } else if (skinImgs.length > 0) {
-                    const savedSkins = getSavedSkins();
-                    const fallbackUrl = prefilledDefaults[itemNameEN];
-                    if (fallbackUrl && savedSkins[itemNameEN] !== fallbackUrl) {
-                        savedSkins[itemNameEN] = fallbackUrl;
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSkins));
-                    }
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSkins));
                 }
             }
         }
