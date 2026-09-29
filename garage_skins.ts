@@ -1,7 +1,6 @@
-// Isolated-world content script. Fixed port of modules.customGarageSkins from
-// src/kasp_main.ts:2954-3168 (branch fix/garage-skins-unrecognized-fallback):
-// - detects the equipped brand from the real mounted/preview image, not thumbnail-list order
-// - falls back to the Standard image when the equipped skin matches no known brand
+// Isolated-world content script. Ported from modules.customGarageSkins in
+// src/kasp_main.ts:2954-3168, but the equipped skin is no longer detected from previews and
+// looked up in a database: its art URL is learned from the game's own Skins tab.
 (function () {
     'use strict';
 
@@ -352,9 +351,6 @@
         writeSavedSkins(savedSkins);
     }
 
-    let lastItemName = "";
-    let readAllowedTime = 0;
-
     function isGarageScreen(): boolean {
         return !!document.querySelector(
             '.GarageCommonStyle-positionContent, .GarageItemComponent-container, .ContainerInfoComponentStyle-lootBoxContainer, .GarageMainScreenStyle-blockParameters, .SkinsAndAlterationsStyle-SkinsVerticalComponent'
@@ -370,7 +366,6 @@
         const nameTranslate = NAME_TRANSLATE!;
         const skinsDatabase = SKINS_DATABASE!;
         const prefilledDefaults = PREFILLED_DEFAULTS!;
-        const skinBrandsMap = SKIN_BRANDS_MAP;
 
         const skinsScreen = readSkinsScreen(nameTranslate);
         logSkinsScreen(skinsScreen);
@@ -413,93 +408,6 @@
 
         if (defaultsUpdated) {
             localStorage.setItem(BASE_IMG_KEY, JSON.stringify(defaultImages));
-        }
-
-        const nameEl = document.querySelector('.ItemDescriptionComponentStyle-nameItem span')
-            || document.querySelector('.garage-item.-active .GarageItemComponentStyle-descriptionDevice span');
-
-        if (nameEl) {
-            const rawName = (nameEl.textContent ?? '').trim().toLowerCase();
-            const firstWord = rawName.split(/\s+/)[0];
-            const itemNameEN = nameTranslate[firstWord] || firstWord;
-
-            if (itemNameEN !== lastItemName) {
-                lastItemName = itemNameEN;
-                readAllowedTime = Date.now() + 400;
-            }
-
-            if (Date.now() >= readAllowedTime) {
-                const skinImgs = document.querySelectorAll('.SkinsIconComponentStyle-cellSkins img');
-                let foundBrand: string | null = null;
-                let previewSrc = '';
-
-                const previewImg = document.querySelector('.MountedItemsStyle-itemPreview, .ItemDescriptionComponentStyle-previewImg img');
-                if (previewImg) {
-                    previewSrc = previewImg.getAttribute('src') || '';
-                    if (skinsDatabase[itemNameEN]) {
-                        for (const [brand, url] of Object.entries(skinsDatabase[itemNameEN])) {
-                            if (url === previewSrc) {
-                                foundBrand = brand;
-                                break;
-                            }
-                        }
-                    }
-                    if (!foundBrand && prefilledDefaults[itemNameEN] === previewSrc) {
-                        foundBrand = 'default';
-                    }
-                }
-
-                if (!foundBrand && !previewImg) {
-                    for (const skinImg of skinImgs) {
-                        const src = skinImg.getAttribute('src') || '';
-                        if (skinBrandsMap[src]) {
-                            foundBrand = skinBrandsMap[src];
-                            break;
-                        } else if (src.includes('ic_standard') || src.includes('standard')) {
-                            foundBrand = 'default';
-                            break;
-                        }
-                    }
-                }
-
-                const savedSkins = getSavedSkins();
-                const previousUrl = savedSkins[itemNameEN];
-                // A stored URL that is neither stock nor in the database was learned from the Skins tab.
-                // This block cannot tell which skin it belongs to, so it leaves it alone, unless it
-                // just matched a database brand: that is real evidence of what is equipped now.
-                const hasLearnedArt = !!previousUrl
-                    && previousUrl !== prefilledDefaults[itemNameEN]
-                    && !Object.values(skinsDatabase[itemNameEN] ?? {}).includes(previousUrl);
-                const brandUrl = foundBrand && foundBrand !== 'default'
-                    ? skinsDatabase[itemNameEN]?.[foundBrand]
-                    : undefined;
-
-                // A skin the database has no entry for (VT on smoky) reads exactly
-                // like a skin we failed to identify, and both have to clear whatever
-                // brand was stored before. Treating them as "nothing to do" is what
-                // left the previous brand's override applied for good.
-                const unknownSkin = !brandUrl && foundBrand !== 'default'
-                    && (!!foundBrand || previewSrc.includes('tankionline.com') || skinImgs.length > 0);
-
-                let nextUrl: string | undefined;
-                if (brandUrl) {
-                    nextUrl = brandUrl;
-                } else if (unknownSkin) {
-                    nextUrl = prefilledDefaults[itemNameEN];
-                } else if (foundBrand !== 'default') {
-                    // Nothing readable this tick - keep what we had rather than guess.
-                    nextUrl = previousUrl;
-                }
-
-                if ((!hasLearnedArt || brandUrl) && nextUrl !== previousUrl) {
-                    if (nextUrl) {
-                        savedSkins[itemNameEN] = nextUrl;
-                    } else {
-                        delete savedSkins[itemNameEN];
-                    }
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSkins));
-                }
-            }
         }
 
         updateGlobalCSS();
