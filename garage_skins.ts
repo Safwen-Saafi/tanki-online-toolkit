@@ -9,10 +9,8 @@
 
     const STORAGE_KEY = 'kasp_equipped_skins';
     const BASE_IMG_KEY = 'kasp_base_images';
-    let SKIN_BRANDS_MAP: SkinsDatabase['brands'] | null = null;
     let NAME_TRANSLATE: SkinsDatabase['names'] | null = null;
     let PREFILLED_DEFAULTS: SkinsDatabase['defaults'] | null = null;
-    let SKINS_DATABASE: SkinsDatabase['database'] | null = null;
     let dataReadyPromise: Promise<void> | null = null;
 
     function loadSkinsData(): Promise<void> {
@@ -23,10 +21,8 @@
                 return res.json();
             })
             .then((data: SkinsDatabase) => {
-                SKIN_BRANDS_MAP = data.brands;
                 NAME_TRANSLATE = data.names;
                 PREFILLED_DEFAULTS = data.defaults;
-                SKINS_DATABASE = data.database;
                 console.log('[KI-test][garage-skins] database loaded');
             })
             .catch(e => console.error('[KI-test][garage-skins] failed to load database/skins.json:', e));
@@ -74,31 +70,15 @@
     }
 
     function updateGlobalCSS(): void {
-        // Invariant: only called from tick() after the "!SKIN_BRANDS_MAP" load
-        // guard, so all four database fields are populated together here.
-        const skinsDatabase = SKINS_DATABASE!;
         const savedSkins = getSavedSkins();
         const defaultImages = getDefaultImages();
         let css = '';
 
-        const allItems = new Set([...Object.keys(defaultImages), ...Object.keys(skinsDatabase)]);
-
-        for (const item of allItems) {
+        for (const item of Object.keys(defaultImages)) {
             const targetUrl = savedSkins[item];
             if (!targetUrl) continue;
 
-            const urlsToOverride: string[] = [];
-            if (defaultImages[item]) {
-                urlsToOverride.push(...defaultImages[item]);
-            }
-
-            if (skinsDatabase[item]) {
-                for (const skinUrl of Object.values(skinsDatabase[item])) {
-                    if (skinUrl) urlsToOverride.push(skinUrl);
-                }
-            }
-
-            const finalUrls = urlsToOverride.filter(url => url !== targetUrl);
+            const finalUrls = defaultImages[item].filter(url => url !== targetUrl);
 
             if (finalUrls.length > 0) {
                 const selectors = finalUrls.map(url =>
@@ -122,9 +102,9 @@
     // Neither garage screen renders the equipped skin itself: the tiles and the
     // mounted previews both carry the item's stock art and the skin is painted
     // over it by CSS. So an element cannot tell on its own that an unknown skin
-    // is on. What it can read is what detection stored: the stock URL is written
-    // for exactly that case, while a recognized brand stores that brand's URL and
-    // a plain default stores nothing at all.
+    // is on. What it can read is what learning stored: the stock URL is stored only
+    // when the equipped skin's art could not be read, a learned skin stores its own
+    // art URL, and Standard stores nothing at all.
     function hasUnknownSkin(
         itemNameEN: string,
         savedSkins: SavedSkins,
@@ -358,14 +338,11 @@
     }
 
     function tick(): void {
-        if (!SKIN_BRANDS_MAP) return; // database still loading
+        if (!NAME_TRANSLATE || !PREFILLED_DEFAULTS) return; // data still loading
         if (!isGarageScreen()) return;
 
-        // Invariant: guarded by the SKIN_BRANDS_MAP check above - all four
-        // database fields are set together in loadSkinsData()'s .then().
-        const nameTranslate = NAME_TRANSLATE!;
-        const skinsDatabase = SKINS_DATABASE!;
-        const prefilledDefaults = PREFILLED_DEFAULTS!;
+        const nameTranslate = NAME_TRANSLATE;
+        const prefilledDefaults = PREFILLED_DEFAULTS;
 
         const skinsScreen = readSkinsScreen(nameTranslate);
         logSkinsScreen(skinsScreen);
@@ -385,18 +362,12 @@
                 const itemNameEN = nameTranslate[rawTitle.split(/\s+/)[0]] || rawTitle.split(/\s+/)[0];
                 const originalSrc = imgMain.getAttribute('src') || '';
 
-                if (originalSrc && originalSrc.includes('tankionline.com')) {
-                    let isCustomSkin = false;
-                    if (skinsDatabase[itemNameEN]) {
-                        isCustomSkin = Object.values(skinsDatabase[itemNameEN]).includes(originalSrc);
-                    }
-
-                    if (!isCustomSkin) {
-                        if (!defaultImages[itemNameEN]) defaultImages[itemNameEN] = [];
-                        if (!defaultImages[itemNameEN].includes(originalSrc)) {
-                            defaultImages[itemNameEN].push(originalSrc);
-                            defaultsUpdated = true;
-                        }
+                // A tile already showing the saved skin's URL is not stock art, so it must not be learned as stock.
+                if (originalSrc && originalSrc.includes('tankionline.com') && originalSrc !== savedSkinsForList[itemNameEN]) {
+                    if (!defaultImages[itemNameEN]) defaultImages[itemNameEN] = [];
+                    if (!defaultImages[itemNameEN].includes(originalSrc)) {
+                        defaultImages[itemNameEN].push(originalSrc);
+                        defaultsUpdated = true;
                     }
                 }
 
