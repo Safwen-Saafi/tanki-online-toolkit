@@ -1,0 +1,37 @@
+/* The tile is already position:relative (measured), so the label anchors to it
+   the same way the game pins its own improvement arrow, without changing the
+   containing block of anything the game positions itself. */
+.kasp-unknown-skin {
+    position: absolute;
+    bottom: 0;
+    left: 0.4em;
+    /* The improvement arrow owns the bottom-right ~20% of the tile, so the label
+       stops short of it rather than sitting on top of it. */
+    right: 21%;
+    /* Same band as the arrow (measured top:84.09px of a 113.6px tile, bottom:0),
+       centered inside it so the text and the arrow read as one line. */
+    height: 26%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    font-size: 0.9em;
+    line-height: 1.2;
+    color: #ffcc00;
+    text-shadow: 0 0 0.25em rgba(0, 0, 0, 0.9), 0 0 0.15em rgba(0, 0, 0, 0.9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+/* Main screen turret and hull blocks (measured: position:relative, overflow:visible,
+   273x152). Their arrow is not absolutely positioned, so it could not be measured;
+   these offsets come from a screenshot (arrow centre about 16% up from the bottom,
+   right edge about 14% in from the right) and are the first thing to adjust if the
+   label sits off the arrow's line. Left starts past the skin and augment icons. */
+.MountedItemsStyle-commonBlockForTurretsHulls .kasp-unknown-skin {
+    left: 35%;
+    right: 16%;
+    bottom: 6%;
+    height: 20%;
+}

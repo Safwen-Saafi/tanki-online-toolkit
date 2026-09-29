@@ -120,12 +120,58 @@
         }
     }
 
+    // Neither garage screen renders the equipped skin itself: the tiles and the
+    // mounted previews both carry the item's stock art and the skin is painted
+    // over it by CSS. So an element cannot tell on its own that an unknown skin
+    // is on. What it can read is what detection stored: the stock URL is written
+    // for exactly that case, while a recognized brand stores that brand's URL and
+    // a plain default stores nothing at all.
+    function hasUnknownSkin(
+        itemNameEN: string,
+        savedSkins: SavedSkins,
+        prefilledDefaults: SkinsDatabase['defaults']
+    ): boolean {
+        const saved = savedSkins[itemNameEN];
+        return !!saved && saved === prefilledDefaults[itemNameEN];
+    }
+
+    function toggleUnknownLabel(host: Element, show: boolean): void {
+        const existing = host.querySelector('.kasp-unknown-skin');
+
+        if (!show) {
+            if (existing) existing.remove();
+            return;
+        }
+
+        if (!existing) {
+            const label = document.createElement('span');
+            label.className = 'kasp-unknown-skin';
+            label.textContent = 'unknown skin';
+            host.appendChild(label);
+        }
+    }
+
+    // The main screen's blocks only show the category ("Turrets"), never the item
+    // name, so the item is found by matching the preview's stock image instead.
+    function markMountedUnknownSkins(
+        savedSkins: SavedSkins,
+        defaultImages: DefaultImagesMap,
+        prefilledDefaults: SkinsDatabase['defaults']
+    ): void {
+        const blocks = document.querySelectorAll('.MountedItemsStyle-commonBlockForTurretsHulls');
+        blocks.forEach((block) => {
+            const src = block.querySelector('.MountedItemsStyle-itemPreview')?.getAttribute('src') || '';
+            const owner = Object.keys(savedSkins).find(item => defaultImages[item]?.includes(src));
+            toggleUnknownLabel(block, !!owner && hasUnknownSkin(owner, savedSkins, prefilledDefaults));
+        });
+    }
+
     let lastItemName = "";
     let readAllowedTime = 0;
 
     function isGarageScreen(): boolean {
         return !!document.querySelector(
-            '.GarageCommonStyle-positionContent, .GarageItemComponent-container, .ContainerInfoComponentStyle-lootBoxContainer'
+            '.GarageCommonStyle-positionContent, .GarageItemComponent-container, .ContainerInfoComponentStyle-lootBoxContainer, .GarageMainScreenStyle-blockParameters'
         );
     }
 
@@ -142,6 +188,7 @@
 
         const defaultImages = getDefaultImages();
         let defaultsUpdated = false;
+        const savedSkinsForList = getSavedSkins();
 
         const garageItems = document.querySelectorAll('.garage-item');
         garageItems.forEach((item) => {
@@ -167,8 +214,12 @@
                         }
                     }
                 }
+
+                toggleUnknownLabel(item, hasUnknownSkin(itemNameEN, savedSkinsForList, prefilledDefaults));
             }
         });
+
+        markMountedUnknownSkins(savedSkinsForList, defaultImages, prefilledDefaults);
 
         if (defaultsUpdated) {
             localStorage.setItem(BASE_IMG_KEY, JSON.stringify(defaultImages));
