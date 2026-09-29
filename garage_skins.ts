@@ -166,12 +166,113 @@
         });
     }
 
+    type EquippedCard =
+        | { readonly kind: 'standard' }
+        | { readonly kind: 'skin'; readonly title: string };
+
+    type SkinsScreenState =
+        | { readonly kind: 'absent' }
+        | {
+            readonly kind: 'ready';
+            readonly item: string;
+            readonly equipped: EquippedCard;
+            readonly selectedTitle: string | null;
+            readonly artUrl: string | null;
+        };
+
+    interface SkinCard {
+        readonly title: string;
+        readonly isStandard: boolean;
+        readonly isEquipped: boolean;
+    }
+
+    function readSkinCards(row: Element): SkinCard[] {
+        const cards: SkinCard[] = [];
+        row.querySelectorAll('.SkinCellStyle-nameDevices').forEach((titleEl) => {
+            const card = titleEl.parentElement;
+            if (!card) return;
+            const icon = card.querySelector('.SkinCellStyle-iconCell');
+            cards.push({
+                title: (titleEl.textContent ?? '').trim(),
+                isStandard: (icon?.getAttribute('src') ?? '').includes('ic_standard'),
+                isEquipped: !!card.querySelector('.SkinCellStyle-mountIcon'),
+            });
+        });
+        return cards;
+    }
+
+    // The panel prints the selected skin's title, but the same text also sits in
+    // the cards row, so that row is skipped or the first card would always win.
+    function readSelectedTitle(menu: Element, row: Element, cardTitles: ReadonlySet<string>): string | null {
+        for (const el of menu.querySelectorAll('*')) {
+            if (el.children.length > 0 || row.contains(el)) continue;
+            const text = (el.textContent ?? '').trim();
+            if (cardTitles.has(text.toLowerCase())) return text;
+        }
+        return null;
+    }
+
+    // The art is a CSS background on a div, not an img, so it only shows in computed style.
+    function readPreviewArt(menu: Element, row: Element): string | null {
+        for (const el of menu.querySelectorAll('[class*="backgroundImageContain"]')) {
+            if (row.contains(el)) continue;
+            const match = /url\("?([^")]+\.webp)"?\)/.exec(getComputedStyle(el).backgroundImage);
+            if (match) return match[1];
+        }
+        return null;
+    }
+
+    function readSkinsScreen(nameTranslate: SkinsDatabase['names']): SkinsScreenState {
+        const row = document.querySelector('.SkinsAndAlterationsStyle-SkinsVerticalComponent');
+        const menu = document.querySelector('.GarageCommonStyle-subMenu');
+        if (!row || !menu) return { kind: 'absent' };
+
+        const cards = readSkinCards(row);
+        const equippedCard = cards.find(card => card.isEquipped);
+        // Standard's title carries no item name, so any other card supplies it.
+        const namedCard = equippedCard && !equippedCard.isStandard
+            ? equippedCard
+            : cards.find(card => !card.isStandard);
+        if (!equippedCard || !namedCard) return { kind: 'absent' };
+
+        const word = namedCard.title.toLowerCase().split(/\s+/)[0];
+        if (!word) return { kind: 'absent' };
+
+        return {
+            kind: 'ready',
+            item: nameTranslate[word] || word,
+            equipped: equippedCard.isStandard
+                ? { kind: 'standard' }
+                : { kind: 'skin', title: equippedCard.title },
+            selectedTitle: readSelectedTitle(menu, row, new Set(cards.map(card => card.title.toLowerCase()))),
+            artUrl: readPreviewArt(menu, row),
+        };
+    }
+
+    function describeSkinsScreen(state: SkinsScreenState): string {
+        if (state.kind === 'absent') return 'absent';
+        const equipped = state.equipped.kind === 'standard' ? 'standard' : `skin "${state.equipped.title}"`;
+        const art = state.artUrl?.split('/').slice(-2).join('/') ?? 'none';
+        return `item=${state.item} equipped=${equipped} selected=${JSON.stringify(state.selectedTitle)} art=${art}`;
+    }
+
+    let lastSkinsSummary: string | null = null;
+
+    function logSkinsScreen(state: SkinsScreenState): void {
+        const summary = describeSkinsScreen(state);
+        if (summary === lastSkinsSummary) return;
+        const isFirstRead = lastSkinsSummary === null;
+        lastSkinsSummary = summary;
+        if (state.kind === 'absent' && isFirstRead) return;
+        console.log(`[KI-test][garage-skins] skins tab: ${summary}`);
+    }
+
     let lastItemName = "";
     let readAllowedTime = 0;
 
     function isGarageScreen(): boolean {
         return !!document.querySelector(
-            '.GarageCommonStyle-positionContent, .GarageItemComponent-container, .ContainerInfoComponentStyle-lootBoxContainer, .GarageMainScreenStyle-blockParameters'
+            '.GarageCommonStyle-positionContent, .GarageItemComponent-container, .ContainerInfoComponentStyle-lootBoxContainer, .GarageMainScreenStyle-blockParameters, .SkinsAndAlterationsStyle-SkinsVerticalComponent'
         );
     }
 
@@ -185,6 +286,8 @@
         const skinsDatabase = SKINS_DATABASE!;
         const prefilledDefaults = PREFILLED_DEFAULTS!;
         const skinBrandsMap = SKIN_BRANDS_MAP;
+
+        logSkinsScreen(readSkinsScreen(nameTranslate));
 
         const defaultImages = getDefaultImages();
         let defaultsUpdated = false;
