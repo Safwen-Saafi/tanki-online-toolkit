@@ -5,28 +5,15 @@ import { ZipArchive } from 'archiver';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
-
-// Fixed list, not a glob: keeps blueprint/, scripts/, node_modules/, etc.
-// out of the shipped zip no matter what else lands in the repo root.
-const RUNTIME_FILES = [
-    'manifest.json',
-    'injector.js',
-    'change_counter.js',
-    'change_counter.css',
-    'garage_skins.js',
-    'garage_skins.css',
-    'database/skins.json',
-];
+const EXTENSION_DIR = path.join(ROOT, 'extension');
 
 function main() {
-    const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf8'));
     const version = manifest.version;
 
-    for (const file of RUNTIME_FILES) {
-        if (!fs.existsSync(path.join(ROOT, file))) {
-            console.error(`[package] missing required file: ${file} (did you run "npm run build"?)`);
-            process.exit(1);
-        }
+    if (!fs.existsSync(path.join(EXTENSION_DIR, 'js'))) {
+        console.error('[package] extension/js is missing (did you run "npm run build"?)');
+        process.exit(1);
     }
 
     const releaseDir = path.join(ROOT, 'release');
@@ -45,9 +32,7 @@ function main() {
     });
 
     archive.pipe(output);
-    for (const file of RUNTIME_FILES) {
-        archive.file(path.join(ROOT, file), { name: file });
-    }
+    archive.directory(EXTENSION_DIR, false);
     archive.finalize();
 }
 

@@ -15,7 +15,7 @@
 
     function loadSkinsData(): Promise<void> {
         if (dataReadyPromise) return dataReadyPromise;
-        dataReadyPromise = fetch(chrome.runtime.getURL('database/skins.json'))
+        dataReadyPromise = fetch(chrome.runtime.getURL('data/skins.json'))
             .then(res => {
                 if (!res.ok) throw new Error('skins.json: HTTP ' + res.status);
                 return res.json();
@@ -25,7 +25,7 @@
                 PREFILLED_DEFAULTS = data.defaults;
                 console.log('[KI-test][garage-skins] database loaded');
             })
-            .catch(e => console.error('[KI-test][garage-skins] failed to load database/skins.json:', e));
+            .catch(e => console.error('[KI-test][garage-skins] failed to load data/skins.json:', e));
         return dataReadyPromise;
     }
     loadSkinsData();

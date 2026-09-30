@@ -10,7 +10,7 @@
         "*://tankionline.com/*"
       ],
       "js": [
-        "injector.js"
+        "js/injector.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"
@@ -20,12 +20,12 @@
         "*://*.tankionline.com/*"
       ],
       "js": [
-        "change_counter.js",
-        "garage_skins.js"
+        "js/modules/change_counter.js",
+        "js/modules/garage_skins.js"
       ],
       "css": [
-        "change_counter.css",
-        "garage_skins.css"
+        "styles/change_counter.css",
+        "styles/garage_skins.css"
       ],
       "run_at": "document_start"
     }
@@ -33,7 +33,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "database/skins.json"
+        "data/skins.json"
       ],
       "matches": [
         "*://*.tankionline.com/*"

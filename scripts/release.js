@@ -6,7 +6,7 @@ const { execSync } = require('child_process');
 const { refusalBox, successBox } = require('./term.js');
 
 const ROOT = path.join(__dirname, '..');
-const MANIFEST_PATH = path.join(ROOT, 'manifest.json');
+const MANIFEST_PATH = path.join(ROOT, 'extension', 'manifest.json');
 const PACKAGE_PATH = path.join(ROOT, 'package.json');
 
 function usageAndExit() {
@@ -127,7 +127,7 @@ function main() {
 
     console.log(`[release] current version: ${currentVersion}`);
     console.log(`[release] next version:    ${nextVersion}`);
-    console.log('[release] would update:    manifest.json, package.json');
+    console.log('[release] would update:    extension/manifest.json, package.json');
     console.log(`[release] would commit:    "${commitMessage}"`);
     console.log(`[release] would tag:       ${tagName}`);
     console.log('[release] would push:      main, ' + tagName);
@@ -140,7 +140,7 @@ function main() {
     writeJsonVersion(MANIFEST_PATH, nextVersion);
     writeJsonVersion(PACKAGE_PATH, nextVersion);
 
-    execSync('git add manifest.json package.json', { cwd: ROOT, stdio: 'inherit' });
+    execSync('git add extension/manifest.json package.json', { cwd: ROOT, stdio: 'inherit' });
     if (notesFile) {
         const notesContent = fs.readFileSync(
             fs.existsSync(path.join(ROOT, notesFile)) ? path.join(ROOT, notesFile) : notesFile,

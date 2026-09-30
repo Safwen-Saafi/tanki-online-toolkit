@@ -7,9 +7,7 @@ release/
 blueprint/
 
 # Compiled from TypeScript sources; run `npm run build` to regenerate
-/injector.js
-/change_counter.js
-/garage_skins.js
+/extension/js/
 
 # OS/editor cruft
 .DS_Store

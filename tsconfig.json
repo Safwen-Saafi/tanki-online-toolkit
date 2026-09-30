@@ -6,7 +6,9 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["chrome"]
+    "types": ["chrome"],
+    "rootDir": "src",
+    "outDir": "extension/js"
   },
-  "include": ["*.ts"]
+  "include": ["src/**/*.ts"]
 }
