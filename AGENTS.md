@@ -293,28 +293,29 @@ checks do not make the Blueprint unusable.
 
 ## Commands
 
-Manifest V3 Chrome extension. Source is TypeScript (strict mode), compiled
-with `tsc` to the plain JS `manifest.json` loads. No bundler.
+Manifest V3 Chrome extension. Source is TypeScript (strict mode) in `src/`,
+compiled with `tsc` to the plain JS `extension/manifest.json` loads. No
+bundler. Everything inside `extension/` ships to Chrome; everything outside it
+does not.
 
 - Install: `npm install`
-- Build: `npm run build` (compiles `injector.ts`, `change_counter.ts`, and
-  `garage_skins.ts` to the `.js` files at the same repo-root paths the
-  manifest references). Run this after any `.ts` change, before reloading the
-  extension - the compiled `.js` files are gitignored build output, not
+- Build: `npm run build` (compiles `src/injector.ts` and the files in
+  `src/modules/` to `extension/js/`, mirroring the `src/` folders, at the
+  paths the manifest references). Run this after any `.ts` change, before
+  reloading the extension - `extension/js/` is gitignored build output, not
   source.
 - Load/run: `npm run build`, then `chrome://extensions` -> enable Developer
-  mode -> Load unpacked -> select this repo's folder. Reload the extension
-  after any rebuild.
+  mode -> Load unpacked -> select this repo's `extension/` folder. Reload the
+  extension after any rebuild.
 - Lint: none configured. `tsc`'s strict-mode type check is the current
   correctness gate.
-- Package: `npm run package` (after `npm run build`) zips `manifest.json`, the
-  3 compiled `.js` files, the 2 stylesheets the manifest injects
-  (`change_counter.css`, `garage_skins.css`), and `database/skins.json` into
-  `release/tanki-online-toolkit-v<version>.zip`. Any new file the manifest
-  references must be added to `RUNTIME_FILES` in `scripts/package.mjs`, or the
-  zip ships a manifest pointing at a file that isn't there.
+- Package: `npm run package` (after `npm run build`) zips the whole
+  `extension/` folder into `release/tanki-online-toolkit-v<version>.zip`, with
+  `manifest.json`, `js/`, `styles/` and `data/` at the zip root. There is no
+  file list to maintain: a new file the manifest references just has to live
+  inside `extension/`. The script stops if `extension/js/` is missing.
 - Release: `npm run release -- <patch|minor|major|x.y.z> [--dry-run]
-  [--notes-file <path>]`. Bumps the version in `manifest.json` and
+  [--notes-file <path>]`. Bumps the version in `extension/manifest.json` and
   `package.json`, commits, tags `v<version>`, and pushes. Refuses to run
   unless on `main`, the working tree is clean, something has actually
   changed since the last release tag, and the project builds. `--dry-run`
