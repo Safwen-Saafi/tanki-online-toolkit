@@ -1,0 +1,90 @@
+name: Augments bot
+
+on:
+  schedule:
+    - cron: '30 5 * * *'
+  workflow_dispatch:
+  # Temporary: lets the first live run start from the feature branch. Removed before merge.
+  push:
+    branches: [feature/tanki-augments-bot]
+    paths:
+      - 'bot/**'
+      - '.github/workflows/augments-bot.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: augments-bot
+  cancel-in-progress: false
+
+jobs:
+  scrape-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: bot/package-lock.json
+
+      - name: Install bot dependencies
+        working-directory: bot
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: bot
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        working-directory: bot
+        run: npm run build
+
+      # A language that fails validation is skipped by the publish step, so a failure here must not
+      # stop the other language from publishing. The job is failed at the end instead.
+      - name: Scrape
+        id: scrape
+        continue-on-error: true
+        working-directory: bot
+        run: npm run scrape
+
+      - name: Prepare the data branch
+        run: |
+          git config user.name "tanki-augments-bot"
+          git config user.email "tanki-augments-bot@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin data > /dev/null; then
+            git fetch origin data:refs/remotes/origin/data
+            git worktree add data-branch -B data origin/data
+          else
+            git worktree add --orphan -b data data-branch
+          fi
+
+      # shell: bash turns on pipefail, so a failing publish is not hidden by tee.
+      - name: Publish only what changed
+        id: publish
+        continue-on-error: true
+        shell: bash
+        working-directory: bot
+        run: npm run --silent scrape -- --publish ../data-branch | tee "$RUNNER_TEMP/publish.txt"
+
+      - name: Commit and push the data branch
+        run: |
+          cat "$RUNNER_TEMP/publish.txt" >> "$GITHUB_STEP_SUMMARY" || true
+          cd data-branch
+          touch .nojekyll
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed, nothing to publish."
+          else
+            git commit -m "data: update augments" -m "$(cat "$RUNNER_TEMP/publish.txt")"
+            git push origin data
+          fi
+
+      - name: Fail the run if anything went wrong
+        if: steps.scrape.outcome == 'failure' || steps.publish.outcome == 'failure'
+        run: |
+          echo "The scrape or the publish step failed; see the logs above."
+          exit 1

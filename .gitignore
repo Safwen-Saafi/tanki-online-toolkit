@@ -9,6 +9,9 @@ blueprint/
 # Compiled from TypeScript sources; run `npm run build` to regenerate
 /extension/js/
 
+# Tanki Augments Bot scrape output (dist/ and node_modules/ are covered above)
+/bot/out/
+
 # OS/editor cruft
 .DS_Store
 Thumbs.db
