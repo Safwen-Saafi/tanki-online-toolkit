@@ -1,0 +1,3599 @@
+{
+  "schemaVersion": 1,
+  "language": "EN",
+  "generatedAt": "2026-10-01T10:26:18Z",
+  "items": {
+    "firebird": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤35%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "High-pressure pump": {
+        "name": "High-pressure pump",
+        "advantages": [
+          "Range +50%",
+          "Range (of minimum damage): +50%",
+          "Range of maximum damage: +50%"
+        ],
+        "disadvantages": [
+          "Cone angle: -75%"
+        ]
+      },
+      "Compact fuel tanks": {
+        "name": "Compact fuel tanks",
+        "advantages": [
+          "Upper temperature limit: +1.00",
+          "Heating rate: +1.00 / tick"
+        ],
+        "disadvantages": [
+          "Energy consumption: +50%",
+          "Reload: +100%"
+        ]
+      },
+      "Incendiary mix": {
+        "name": "Incendiary mix",
+        "advantages": [
+          "Damage: +20%",
+          "Critical damage: +20%"
+        ],
+        "disadvantages": [
+          "Afterburn effect removed"
+        ]
+      },
+      "Magnetic Mix": {
+        "name": "Magnetic Mix",
+        "advantages": [
+          "Critically hitting the enemy activates the Electromagnetic Pulse status effect for 1 second",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%",
+          "Heating rate: -70%"
+        ]
+      },
+      "Paralyzing mix": {
+        "name": "Paralyzing mix",
+        "advantages": [
+          "Critical hits Stun the enemy for 0.4 seconds",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%",
+          "Heating rate: -70%"
+        ]
+      },
+      "Toxic Mix": {
+        "name": "Toxic Mix",
+        "advantages": [
+          "Critically hitting the enemy activates the Armor-Piercing status effect for 1.5 seconds",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%",
+          "Heating rate: -70%"
+        ]
+      },
+      "Jamming Mix": {
+        "name": "Jamming Mix",
+        "advantages": [
+          "Critically hitting the enemy activates the Jammer status effect for 3 seconds"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%",
+          "Heating rate: -70%"
+        ]
+      },
+      "Critical Mix": {
+        "name": "Critical Mix",
+        "advantages": [
+          "Critical damage: +50%",
+          "Max. critical hit chance: +400%",
+          "Starting critical hit chance: +400%"
+        ],
+        "disadvantages": []
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 50% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 1.5 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -25%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Range: +10%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "freeze": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤35%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "High-pressure pump": {
+        "name": "High-pressure pump",
+        "advantages": [
+          "Range (of minimum damage): +50%",
+          "Range of maximum damage: +50%"
+        ],
+        "disadvantages": [
+          "Cone angle: -75%"
+        ]
+      },
+      "Corrosive mix": {
+        "name": "Corrosive mix",
+        "advantages": [
+          "Damage: +10%",
+          "Critical damage: +10%"
+        ],
+        "disadvantages": [
+          "Freezing effect removed"
+        ]
+      },
+      "Shock freeze": {
+        "name": "Shock freeze",
+        "advantages": [
+          "Freezing rate: -1.00 / tick"
+        ],
+        "disadvantages": [
+          "Damage: -10%",
+          "Critical hits removed"
+        ]
+      },
+      "Magnetic Mix": {
+        "name": "Magnetic Mix",
+        "advantages": [
+          "Critically hitting an enemy activates the Electromagnetic Pulse status effect for 2 seconds",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%",
+          "Freezing rate: -70%"
+        ]
+      },
+      "Paralyzing Mix": {
+        "name": "Paralyzing Mix",
+        "advantages": [
+          "Critical hits Stun the enemy for 0.4 seconds",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%",
+          "Freezing rate: -70%"
+        ]
+      },
+      "Toxic Mix": {
+        "name": "Toxic Mix",
+        "advantages": [
+          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 1.5 seconds",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%",
+          "Freezing rate: -70%"
+        ]
+      },
+      "Jamming Mix": {
+        "name": "Jamming Mix",
+        "advantages": [
+          "Critically hitting an enemy activates the Jammer status effect for 3 seconds"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%",
+          "Freezing rate: -70%"
+        ]
+      },
+      "Critical Mix": {
+        "name": "Critical Mix",
+        "advantages": [
+          "Critical hit chance: +500%"
+        ],
+        "disadvantages": [
+          "Freeze per tick: -50%"
+        ]
+      },
+      "Stable Mix": {
+        "name": "Stable Mix",
+        "advantages": [
+          "Low damage range: +50%",
+          "Full damage range: +100%",
+          "Energy consumption: -50%"
+        ],
+        "disadvantages": [
+          "Freezing rate: -50%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 50% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 1.5 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -30%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Range: +10%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "isida": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤35%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Broadband radiators": {
+        "name": "Broadband radiators",
+        "advantages": [
+          "Cone angle: +125%"
+        ],
+        "disadvantages": [
+          "Range: -30%"
+        ]
+      },
+      "Support nanobots": {
+        "name": "Support nanobots",
+        "advantages": [
+          "Energy consumption when healing: -50%",
+          "Maximum critical healing chance: +100%"
+        ],
+        "disadvantages": [
+          "Regular damage: -50%"
+        ]
+      },
+      "Nanomass reactor": {
+        "name": "Nanomass reactor",
+        "advantages": [
+          "Energy recovery on target destruction: +50%"
+        ],
+        "disadvantages": []
+      },
+      "Jamming Nanobots": {
+        "name": "Jamming Nanobots",
+        "advantages": [
+          "Critically hitting an enemy activates the Jammer effect for 3 seconds"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Magnetic Nanobots": {
+        "name": "Magnetic Nanobots",
+        "advantages": [
+          "Critically hitting an enemy activates the Electromagnetic Pulse effect for 1.5 seconds",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Stunning Nanobots": {
+        "name": "Stunning Nanobots",
+        "advantages": [
+          "Critically hitting an enemy activates the Stun effect for 0.4 seconds",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Toxic Nanobots": {
+        "name": "Toxic Nanobots",
+        "advantages": [
+          "Critically hitting an enemy activates the Armor-Piercing effect for 1.5 seconds",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Vampire Nanobots": {
+        "name": "Vampire Nanobots",
+        "advantages": [
+          "Recovers HP at a rate of 35% of your base damage per tick while beam is on an enemy. Healing rate is not affected by protection, supplies, or status effects.",
+          "Energy reload time: -15%"
+        ],
+        "disadvantages": [
+          "Energy consumption when attacking: +300%",
+          "Energy consumption when idle: +200%",
+          "Critical hits removed (damage and healing)",
+          "Healing rate: -99%"
+        ]
+      },
+      "Sustainable Nanobots": {
+        "name": "Sustainable Nanobots",
+        "advantages": [
+          "Range: +60%",
+          "Energy consumption when healing: -50%",
+          "Enemy highlight range: +50%"
+        ],
+        "disadvantages": [
+          "Energy consumption when attacking: +100%",
+          "Energy consumption when idle: +100%",
+          "Cone angle: -60%"
+        ]
+      },
+      "Shock Nanobot Injection": {
+        "name": "Shock Nanobot Injection",
+        "advantages": [
+          "Increases an ally's damage while healing: +25%",
+          "Energy consumption during healing: -90%"
+        ],
+        "disadvantages": [
+          "Normal healing rate: -75%",
+          "Critical healing: -95%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 50% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 1.5 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -30%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Range: +10%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "tesla": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤35%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Minus-field": {
+        "name": "Minus-field",
+        "advantages": [
+          "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10"
+        ],
+        "disadvantages": []
+      },
+      "Acceleration Protocol": {
+        "name": "Acceleration Protocol",
+        "advantages": [
+          "Lightning ball speed: +100%",
+          "Lightning ball range: +100%"
+        ],
+        "disadvantages": []
+      },
+      "Dilatory Protocol": {
+        "name": "Dilatory Protocol",
+        "advantages": [
+          "Lightning ball speed: 1 m/s"
+        ],
+        "disadvantages": [
+          "Lightning ball range: -50%",
+          "Lightning ball reload: +50%"
+        ]
+      },
+      "Exothermic Lightning": {
+        "name": "Exothermic Lightning",
+        "advantages": [
+          "Critical hits raise the temperature of enemies hit by +0.40",
+          "Ball lightning raises the temperature of enemies hit by +1.00",
+          "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Ball lightning does not burst until the 11th impact and so is less likely to cause splash damage",
+          "Critical damage: -50%",
+          "Range from one chain lightning to the next ball lightning: 1 m"
+        ]
+      },
+      "Endothermic Lightning": {
+        "name": "Endothermic Lightning",
+        "advantages": [
+          "Critical hits and ball lightning lower the temperature of enemies hit by -1.00",
+          "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Ball lightning does not burst until the 11th impact and so is less likely to cause splash damage",
+          "Critical damage: -50%",
+          "Range from one chain lightning to the next ball lightning: 1 m"
+        ]
+      },
+      "Superconducting Discharge": {
+        "name": "Superconducting Discharge",
+        "advantages": [
+          "Critical hits apply the Electromagnetic Pulse status effect on the enemy for 2 seconds.",
+          "Ball lightning applies the Electromagnetic Pulse status effect for 3 seconds on the enemies hit",
+          "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Ball lightning does not burst until the 11th impact and is less likely to cause splash damage",
+          "Critical damage: -50%",
+          "Range from one chain lightning to the next ball lightning: 1 m"
+        ]
+      },
+      "Shocking Lightning": {
+        "name": "Shocking Lightning",
+        "advantages": [
+          "Critical hits activate the Stun status effect for 1 second",
+          "Ball lightning activates the Stun status effect for 1.5 seconds on enemies hit",
+          "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Ball lightning does not burst until the 11th impact and is less likely to cause splash damage",
+          "Critical damage: -50%",
+          "Range from one chain lightning to the next ball lightning: 1 m"
+        ]
+      },
+      "Armor-piercing Discharge": {
+        "name": "Armor-piercing Discharge",
+        "advantages": [
+          "Critical hits activate the Armor-Piercing status effect for 5 seconds on enemies hit",
+          "Ball lightning activates the Armor-Piercing status effect for 9 seconds on enemies hit",
+          "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Ball lightning does not burst until the 11th impact and so is less likely to cause splash damage",
+          "Critical damage: -50%",
+          "Range from one chain lightning to the next ball lightning: 1 m"
+        ]
+      },
+      "Jamming Discharge": {
+        "name": "Jamming Discharge",
+        "advantages": [
+          "Hitting an enemy with either chain or ball lightning applies the Jammer status effect to them for 3 seconds",
+          "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10"
+        ],
+        "disadvantages": [
+          "Ball lightning does not burst until the 11th impact and so is less likely to cause splash damage",
+          "Critical damage: -50%"
+        ]
+      },
+      "Electroturret": {
+        "name": "Electroturret",
+        "advantages": [
+          "Lightning ball reload: -33%",
+          "Lightning ball speed: 75 m/s",
+          "Lightning ball range: 1000 m",
+          "Lightning ball damage: +25%"
+        ],
+        "disadvantages": [
+          "Lightning ball warmup time: +200%"
+        ]
+      },
+      "Shock therapy": {
+        "name": "Shock therapy",
+        "advantages": [
+          "Time between two shots: -75%",
+          "Tesla ball lightning damage: +100%"
+        ],
+        "disadvantages": [
+          "Regular damage: -30%",
+          "Critical damage: -22.5%",
+          "Shot range: -60%",
+          "Highlighting distance: -50%",
+          "Radius of adding a tank to the chain (m) : 1 m",
+          "Radius of adding ball lightning to the chain (m) : 1 m"
+        ]
+      },
+      "Increased Voltage": {
+        "name": "Increased Voltage",
+        "advantages": [
+          "Additional damage: +100%"
+        ],
+        "disadvantages": [
+          "Standard damage: -100%",
+          "Lightning ball damage: -22.5%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 50% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 1 sec; Armor-Piercing: 5 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -30%",
+          "Critical damage: -90%",
+          "Range from one chain lightning to the next ball lightning: 1 m"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage (Chain Lightning): +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Chain lightning range: +10%",
+          "Lightning ball vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "hammer": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤35%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Slugger": {
+        "name": "Slugger",
+        "advantages": [
+          "Range of minimum damage: +50%: Highlighting range: +25%",
+          "Range of maximum damage: +50%",
+          "Vertical scatter angle: -50%",
+          "Horizontal scatter angle: -75%"
+        ],
+        "disadvantages": [
+          "Impact force: -50%"
+        ]
+      },
+      "High-capacity ammo clip": {
+        "name": "High-capacity ammo clip",
+        "advantages": [
+          "Shots per clip: 5"
+        ],
+        "disadvantages": [
+          "Clip reload: +20%"
+        ]
+      },
+      "Duplet": {
+        "name": "Duplet",
+        "advantages": [
+          "Shot reload: -80%"
+        ],
+        "disadvantages": [
+          "Shots per clip: 2",
+          "Clip reload: +25%",
+          "Impact force: -50%"
+        ]
+      },
+      "Wyvern's Breath": {
+        "name": "Wyvern's Breath",
+        "advantages": [
+          "Critically hitting an enemy lowers their temperature by -1.00.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Dragon's Breath": {
+        "name": "Dragon's Breath",
+        "advantages": [
+          "Critically hitting an enemy raises their temperature by +0.4.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Magnetic Pellets": {
+        "name": "Magnetic Pellets",
+        "advantages": [
+          "Critically hitting an enemy will apply the Electromagnetic Pulse status effect to them for 1 second.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Stunning Pellets": {
+        "name": "Stunning Pellets",
+        "advantages": [
+          "Critically hitting an enemy will apply the Stun status effect to them for 0.8 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Armor-Piercing Shot": {
+        "name": "Armor-Piercing Shot",
+        "advantages": [
+          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 3 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Jamming Shot": {
+        "name": "Jamming Shot",
+        "advantages": [
+          "Hitting an enemy will apply the Jammer status effect to them for 3 seconds."
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Adaptive reload": {
+        "name": "Adaptive reload",
+        "advantages": [
+          "Destroying an enemy reloads the clip",
+          "Reload time between shots: -20%",
+          "Shots per clip: 4"
+        ],
+        "disadvantages": [
+          "Clip reload time: +20%"
+        ]
+      },
+      "Blunderbuss": {
+        "name": "Blunderbuss",
+        "advantages": [
+          "Damage: +80%",
+          "Critical damage: +40%",
+          "Pellets per shot: +100% (40)",
+          "Critical chance: 50%",
+          "Clip reload time: -20%"
+        ],
+        "disadvantages": [
+          "Shots per clip: 1",
+          "Horizontal Angle of Scatter: +200%"
+        ]
+      },
+      "Revolver": {
+        "name": "Revolver",
+        "advantages": [
+          "Shots per clip: 6",
+          "Every third shot deals critical damage.",
+          "Shot reload: -5%"
+        ],
+        "disadvantages": [
+          "Clip reload: +25%"
+        ]
+      },
+      "Large Caliber Pellets": {
+        "name": "Large Caliber Pellets",
+        "advantages": [
+          "Damage: +70%",
+          "Critical damage: +20%"
+        ],
+        "disadvantages": [
+          "Shot reload: +80%",
+          "Clip reload: +50%"
+        ]
+      },
+      "Assault Magazine": {
+        "name": "Assault Magazine",
+        "advantages": [
+          "Shot reload: -75%",
+          "Clip reload: -25%",
+          "Recoil: -80%"
+        ],
+        "disadvantages": [
+          "Critical chance: -50%",
+          "Pellets per shot = 10",
+          "Impact force: -80%"
+        ]
+      },
+      "Heavy Slugger": {
+        "name": "Heavy Slugger",
+        "advantages": [
+          "Range of maximum damage: +100%",
+          "Range of minimum damage: +100%: Highlighting range: +100%",
+          "Horizontal scatter angle: -75%"
+        ],
+        "disadvantages": [
+          "Turret rotation speed: -35%",
+          "Turret rotary acceleration: -35%",
+          "Impact force: -50%"
+        ]
+      },
+      "Hunter Duplet": {
+        "name": "Hunter Duplet",
+        "advantages": [
+          "Horizontal scatter angle: -50%",
+          "Range of maximum damage: +100%",
+          "Range of minimum damage: +100%: Highlighting range: +100%",
+          "Time between the two shots: -80%"
+        ],
+        "disadvantages": [
+          "Shots per clip: 2",
+          "Clip reload: +15%",
+          "Impact force: -50%"
+        ]
+      },
+      "Boxer": {
+        "name": "Boxer",
+        "advantages": [
+          "Clip reload: -56%",
+          "Pellets per shot: +50%",
+          "Impact Force: +40%"
+        ],
+        "disadvantages": [
+          "Shots per clip: 1",
+          "Recoil +10%"
+        ]
+      },
+      "Needle Gun": {
+        "name": "Needle Gun",
+        "advantages": [
+          "Magazine size = 12",
+          "Time between two shots: -75%",
+          "Start of damage degression: +300%",
+          "End of damage degression: +300%",
+          "Range: +300%",
+          "Enemy highlight range: +300%",
+          "Vertical/Horizontal scattering angle: 0°",
+          "Recoil -90%"
+        ],
+        "disadvantages": [
+          "Impact force -90%",
+          "Critical damage -50%",
+          "Pellets per shot = 5",
+          "Reload time +200%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 50% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 0.8 sec; Armor-Piercing: 3 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -12%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "twins": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Stabilized plasma": {
+        "name": "Stabilized plasma",
+        "advantages": [
+          "Impact force: +20%",
+          "Self-damage removed"
+        ],
+        "disadvantages": [
+          "Splash damage removed"
+        ]
+      },
+      "Plasma accelerators": {
+        "name": "Plasma accelerators",
+        "advantages": [
+          "Initial projectile speed: +100%",
+          "Range of minimum damage: +50%",
+          "Range: +50%",
+          "Highlighting distance: +50%",
+          "Projectile acceleration: +20%"
+        ],
+        "disadvantages": [
+          "Reload: +20%"
+        ]
+      },
+      "Heavy Plasmagun": {
+        "name": "Heavy Plasmagun",
+        "advantages": [
+          "Regular and critical damage: +35%"
+        ],
+        "disadvantages": [
+          "Range: -45%",
+          "Range of minimum damage: -45%",
+          "Highlighting distance: -45%",
+          "Initial projectile speed: -50%"
+        ]
+      },
+      "Cryotron": {
+        "name": "Cryotron",
+        "advantages": [
+          "Critical hits decrease the target's temperature by -1.0",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Vaporizer": {
+        "name": "Vaporizer",
+        "advantages": [
+          "Critical hits increase the target's temperature by +0.4",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Magnetron": {
+        "name": "Magnetron",
+        "advantages": [
+          "Critical hits activate the Electromagnetic Pulse status effect for 1 second",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Tectonic Plasma": {
+        "name": "Tectonic Plasma",
+        "advantages": [
+          "Critical hits Stun the enemy for 0.4 seconds",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Plasma Injector": {
+        "name": "Plasma Injector",
+        "advantages": [
+          "Critically hitting an enemy applies the Armor-Piercing status effect to them for 1.5 second.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Plasma Disruptor": {
+        "name": "Plasma Disruptor",
+        "advantages": [
+          "Critically hitting an enemy activates the Jammer status effect for 3 second"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Plasma Turbo Accelerators": {
+        "name": "Plasma Turbo Accelerators",
+        "advantages": [
+          "Reload: -50%",
+          "Critical damage: +25%",
+          "Range (of minimum damage): +100%",
+          "Recoil: -80%",
+          "Initial projectile speed: +125%"
+        ],
+        "disadvantages": [
+          "Regular damage: -60%",
+          "Impact force: -70%"
+        ]
+      },
+      "Plasmatron": {
+        "name": "Plasmatron",
+        "advantages": [
+          "Initial projectile speed: +50%",
+          "Standard damage: +250%"
+        ],
+        "disadvantages": [
+          "Recharge time: +300%"
+        ]
+      },
+      "Tempest": {
+        "name": "Tempest",
+        "advantages": [
+          "Normal damage: +35%",
+          "Critical damage: +125%",
+          "Chance of critical damage: +100%",
+          "Target speed: +1200%",
+          "Impact force: +100%"
+        ],
+        "disadvantages": [
+          "Initial projectile speed: -95%",
+          "Projectile acceleration time: +25%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 85% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 1 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 1.5 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -25%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "ricochet": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Destabilized plasma": {
+        "name": "Destabilized plasma",
+        "advantages": [
+          "Splash damage added: Minimum and critical splash damage radius: 7 m; Average splash damage radius: 2 m; Maximum splash damage radius: 1 m"
+        ],
+        "disadvantages": [
+          "Self-damage possible at close range",
+          "Maximum number of ricochets: 1"
+        ]
+      },
+      "Minus-field stabilization": {
+        "name": "Minus-field stabilization",
+        "advantages": [
+          "Range: +50%",
+          "Range (of minimum damage): +50%",
+          "Projectile speed: +100%"
+        ],
+        "disadvantages": [
+          "Shot reload: +10%"
+        ]
+      },
+      "Plasma-torch": {
+        "name": "Plasma-torch",
+        "advantages": [
+          "Shot reload: -50%",
+          "Energy consumed per shot: -30%",
+          "Recoil: -50%"
+        ],
+        "disadvantages": [
+          "Regular and critical damage: -25%",
+          "Range: -35%",
+          "Range of minimum damage: -35%",
+          "Projectile impact force: -50%",
+          "Projectile speed: -50%",
+          "Projectile speed after ricochet: -50%",
+          "Maximum number of ricochets: 1"
+        ]
+      },
+      "Cryo field": {
+        "name": "Cryo field",
+        "advantages": [
+          "Hitting an enemy with a critical shot lowers their temperature by -1.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Sizzling Field": {
+        "name": "Sizzling Field",
+        "advantages": [
+          "Hitting an enemy with a critical shot raises their temperature by +0.5.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Magnetron": {
+        "name": "Magnetron",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the Electromagnetic Pulse status effect to them for 2 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Tectonic field": {
+        "name": "Tectonic field",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the Stun status effect to them for 1 second.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Super-smart Minus-Field": {
+        "name": "Super-smart Minus-Field",
+        "advantages": [
+          "Hitting an enemy with a critical shot may apply the Armor-Piercing status effect to them for 5 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Jamming field": {
+        "name": "Jamming field",
+        "advantages": [
+          "Hitting an enemy will apply the Jammer status effect to them for 1 second."
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Berserk": {
+        "name": "Berserk",
+        "advantages": [
+          "Destroying an enemy refills the energy tank",
+          "Shot reload: -30%",
+          "Charge rate: +7%"
+        ],
+        "disadvantages": []
+      },
+      "Helios": {
+        "name": "Helios",
+        "advantages": [
+          "Shot reload: -80%",
+          "Range (of minimum damage): +100%",
+          "Projectile speed: +50%",
+          "Recoil: -80%",
+          "Energy consumed per shot: -15%"
+        ],
+        "disadvantages": [
+          "Energy recovery rate: -32%",
+          "Impact force: -80%",
+          "Maximum number of ricochets: 1"
+        ]
+      },
+      "Plasma Resonator": {
+        "name": "Plasma Resonator",
+        "advantages": [
+          "Damage percentage at the range of min. damage: 300%",
+          "Range of max. damage: 10 meters",
+          "Range of min. damage: 80 meters"
+        ],
+        "disadvantages": [
+          "Damage: -30%",
+          "Critical hits removed"
+        ]
+      },
+      "BOXER": {
+        "name": "BOXER",
+        "advantages": [
+          "Reload time: -25%",
+          "Impact force: +120%",
+          "Final projectile speed: 120 m/s",
+          "Critical chance: +23%"
+        ],
+        "disadvantages": [
+          "Initial projectile speed = 30 m/s",
+          "Projectile acceleration time = 1.5 s",
+          "One shot at a time"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 85% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 1 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 3 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -40%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "vulcan": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Shooting Speed Regulator": {
+        "name": "Shooting Speed Regulator",
+        "advantages": [
+          "Barrel startup time: -50%",
+          "Barrel slowdown time: -50%",
+          "Regular damage: +50%",
+          "Critical chance: +50%",
+          "Time to overheating: +50%"
+        ],
+        "disadvantages": [
+          "Bullet reload: +50%"
+        ]
+      },
+      "Reinforced aiming transmission": {
+        "name": "Reinforced aiming transmission",
+        "advantages": [
+          "Turret rotation speed: +50%",
+          "Turret rotary acceleration: +50%",
+          "Coefficient of turret rotation slowdown while shooting: -50%"
+        ],
+        "disadvantages": [
+          "Upward auto-aim: -80%"
+        ]
+      },
+      "Incendiary band": {
+        "name": "Incendiary band",
+        "advantages": [
+          "Each bullet that hits an enemy while your own tank is under the Burning status effect will increase their temperature by +0.07",
+          "Time to overheat: -75%"
+        ],
+        "disadvantages": [
+          "Temperature limit: 1",
+          "Critical damage: -50%"
+        ]
+      },
+      "Freezing Band": {
+        "name": "Freezing Band",
+        "advantages": [
+          "Critical damage imposes Freezing status effect on an enemy tank for 5 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Magnetic Band": {
+        "name": "Magnetic Band",
+        "advantages": [
+          "Critically hitting the enemy activates the Electromagnetic Pulse status effect for 1 second.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Stunning Band": {
+        "name": "Stunning Band",
+        "advantages": [
+          "Critical damage imposes Status Effect «Stun» on an enemy tank: Critical stun: =0.4 sec",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Armor-Piercing Band": {
+        "name": "Armor-Piercing Band",
+        "advantages": [
+          "Critically hitting the enemy activates the Armor-Piercing status effect for 1.5 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Jamming Band": {
+        "name": "Jamming Band",
+        "advantages": [
+          "Critically hitting the enemy activates the Jammer status effect for 3 seconds."
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Rubberized Rounds": {
+        "name": "Rubberized Rounds",
+        "advantages": [
+          "Maximum number of projectile bounces: 5",
+          "Minimum ricochet angle: 1°",
+          "Critical damage: +50%"
+        ],
+        "disadvantages": []
+      },
+      "Explosive Band": {
+        "name": "Explosive Band",
+        "advantages": [
+          "Damage: +10%",
+          "Minimum ricochet angle: 45°",
+          "Splash damage added: Damage at 2m: 100%; Damage at 4m: 50%; Damage at 6m (outer radius): 50%; Critical damage at 4m: 100%"
+        ],
+        "disadvantages": []
+      },
+      "Shredder": {
+        "name": "Shredder",
+        "advantages": [
+          "Reload: -35%",
+          "Projectile speed: +50%",
+          "Damage: +13%",
+          "Min. and max. damage range: +50%"
+        ],
+        "disadvantages": [
+          "Turret slowdown when firing = 100%",
+          "Barrel startup time: +900%",
+          "Barrel slowdown time: +50%"
+        ]
+      },
+      "Large Caliber": {
+        "name": "Large Caliber",
+        "advantages": [
+          "Damage: +140%",
+          "Barrel startup time: -20%",
+          "Barrel slowdown time: -20%",
+          "Impact force: +300%"
+        ],
+        "disadvantages": [
+          "Reload: +100%",
+          "Recoil: +100%",
+          "Rotation speed: -50%",
+          "Rotation acceleration: -50%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 85% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 1.5 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -40%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "smoky": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Assault rounds": {
+        "name": "Assault rounds",
+        "advantages": [
+          "Initial projectile speed: +50%",
+          "Final projectile speed: +50%",
+          "Impact force: +35%"
+        ],
+        "disadvantages": [
+          "Critical hits disabled"
+        ]
+      },
+      "High-precision aiming system": {
+        "name": "High-precision aiming system",
+        "advantages": [
+          "Regular damage: +27%",
+          "Critical damage: +29%"
+        ],
+        "disadvantages": [
+          "Reload time: +64%",
+          "Projectile speed: -30%"
+        ]
+      },
+      "Supercumulative rounds": {
+        "name": "Supercumulative rounds",
+        "advantages": [
+          "Critical damage: +35%"
+        ],
+        "disadvantages": [
+          "Critical chance step: -60%"
+        ]
+      },
+      "Incendiary rounds": {
+        "name": "Incendiary rounds",
+        "advantages": [
+          "Critical hits raise the target's temperature by +0.40",
+          "Critical hit chance increase by +10%",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Cryo rounds": {
+        "name": "Cryo rounds",
+        "advantages": [
+          "Critical hits lower the target's temperature by -1.00",
+          "Critical hit chance increase by +10%",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "EMP Rounds": {
+        "name": "EMP Rounds",
+        "advantages": [
+          "Critically hitting an enemy will apply the Electromagnetic Pulse status effect to them for 1 second.",
+          "Critical hit chance increase by +10%",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Paralyzing Rounds": {
+        "name": "Paralyzing Rounds",
+        "advantages": [
+          "Critical hits Stun the enemy for 1 second",
+          "Critical chance step increases even with shots that do not register on the target",
+          "Critical hit chance increase by +10%",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Armor-Piercing Rounds": {
+        "name": "Armor-Piercing Rounds",
+        "advantages": [
+          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 2 seconds.",
+          "Critical hit chance increases by +10%",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Jamming Rounds": {
+        "name": "Jamming Rounds",
+        "advantages": [
+          "Hitting an enemy will apply the Jammer status effect to them for 2 seconds."
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Autocannon": {
+        "name": "Autocannon",
+        "advantages": [
+          "Reload: -55%",
+          "Recoil: -25%"
+        ],
+        "disadvantages": [
+          "Regular damage: -35%",
+          "Impact force: -66%",
+          "Horizontal auto-aim angle: ±0.6°"
+        ]
+      },
+      "Rubberized Rounds": {
+        "name": "Rubberized Rounds",
+        "advantages": [
+          "Critical damage: +50%",
+          "Maximum number of projectile bounces: 3",
+          "Minimum ricochet angle: 5°",
+          "Initial projectile speed: +100%",
+          "Final projectile speed: +100%"
+        ],
+        "disadvantages": []
+      },
+      "Explosive Rounds": {
+        "name": "Explosive Rounds",
+        "advantages": [
+          "Critical damage: +25%",
+          "Splash damage added: Damage at 3m: 100%; Damage at 6m: 50%; Damage at 9m (outer radius): 50%; Critical damage explosion radius: 3 m"
+        ],
+        "disadvantages": [
+          "Self damage at close range",
+          "Rounds do not ricochet"
+        ]
+      },
+      "Sorted Ammunition": {
+        "name": "Sorted Ammunition",
+        "advantages": [
+          "Every fourth hit is guaranteed to be a critical",
+          "The first shot after spawning will be a critical",
+          "Reload time: -10%"
+        ],
+        "disadvantages": []
+      },
+      "Hyperspeed Rounds": {
+        "name": "Hyperspeed Rounds",
+        "advantages": [
+          "Initial projectile speed: +100%",
+          "Final projectile speed: +100%",
+          "Damage percentage at the end of the degression: 300%",
+          "Start of damage degression -50%",
+          "Range of enemy highlighting +100%"
+        ],
+        "disadvantages": [
+          "Normal damage: -50%",
+          "Horizontal auto-aim angle: ±0.4°",
+          "Critical hits disabled"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 85% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 2 sec; Electromagnetic Pulse: 1 sec; Stun: 1 sec; Armor-Piercing: 2 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -45%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "striker": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Remote rocket explosives": {
+        "name": "Remote rocket explosives",
+        "advantages": [
+          "Rockets will explode upon double-pressing fire button",
+          "Minimum rocket speed: 20 m/s"
+        ],
+        "disadvantages": [
+          "Rocket acceleration time: 1.5 s",
+          "Possibility of self-damage if not careful",
+          "Horizontal auto-aim angle: ±0°"
+        ]
+      },
+      "Missile launcher «Hunter»": {
+        "name": "Missile launcher «Hunter»",
+        "advantages": [
+          "Aiming time: -75%",
+          "Salvo reload time: -40%"
+        ],
+        "disadvantages": [
+          "Rockets per salvo: 1",
+          "Aiming recovery time: -30%"
+        ]
+      },
+      "Missile launcher «Cyclone»": {
+        "name": "Missile launcher «Cyclone»",
+        "advantages": [
+          "Rockets per salvo: 8",
+          "Pause between salvo's rockets: -40%",
+          "Aiming recovery time: +50%"
+        ],
+        "disadvantages": [
+          "Aiming time: +20%"
+        ]
+      },
+      "Incendiary Missiles": {
+        "name": "Incendiary Missiles",
+        "advantages": [
+          "Critical hits raise the temperature of all damaged enemy tanks by +0.4 Burning",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Cryo Missiles": {
+        "name": "Cryo Missiles",
+        "advantages": [
+          "Critical hits lower the temperature of all damaged enemy tanks by 1. Freezing",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Magnetic Missiles": {
+        "name": "Magnetic Missiles",
+        "advantages": [
+          "Critically hitting an enemy will apply the Electromagnetic Pulse status effect to them for 3 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Stunning Missiles": {
+        "name": "Stunning Missiles",
+        "advantages": [
+          "Critically hitting an enemy will apply the Stun status effect to them for 1.5 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Armor-Piercing Missiles": {
+        "name": "Armor-Piercing Missiles",
+        "advantages": [
+          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 9 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Jamming Missiles": {
+        "name": "Jamming Missiles",
+        "advantages": [
+          "Critically hitting an enemy will apply the Jammer status effect to them for 5 seconds."
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Missile launcher «Uranium»": {
+        "name": "Missile launcher «Uranium»",
+        "advantages": [
+          "Damage: +125%",
+          "Critical damage: +160%",
+          "Aiming time: -30%",
+          "Minimum splash damage radius: +50%",
+          "Maximum projectile speed: 350 m/s"
+        ],
+        "disadvantages": [
+          "Projectile acceleration time: +700%",
+          "Single-shot reload time: +12%",
+          "Pause between salvo's rockets: +400%"
+        ]
+      },
+      "Missile launcher «Tandem»": {
+        "name": "Missile launcher «Tandem»",
+        "advantages": [
+          "Reload time: -12%",
+          "Aiming time: -75%",
+          "Rocket angular velocity: +25%",
+          "Critical hit chance: +25%",
+          "Pause between salvo's rockets: -100%"
+        ],
+        "disadvantages": [
+          "Recharge time after salvo: +35%",
+          "Rockets per salvo: 2"
+        ]
+      },
+      "Missile launcher «Hydra»": {
+        "name": "Missile launcher «Hydra»",
+        "advantages": [
+          "Rockets per salvo = 20",
+          "Pause between salvo's rockets: -20%",
+          "Aiming time: -50%",
+          "Single-shot reload time: -40%"
+        ],
+        "disadvantages": [
+          "Normal and critical damage: -40%",
+          "Recharge time after salvo: +80%",
+          "Rockets angular velocity = 3°/sec"
+        ]
+      },
+      "Missile launcher «Faust»": {
+        "name": "Missile launcher «Faust»",
+        "advantages": [
+          "Reload time: -50%",
+          "Aiming time: -50%",
+          "Pause between salvo's rockets: -50%"
+        ],
+        "disadvantages": [
+          "Range = 40m",
+          "Reload after salvo: +100%"
+        ]
+      },
+      "Vacuum Missiles": {
+        "name": "Vacuum Missiles",
+        "advantages": [
+          "Average and minimal splash damage: 235%",
+          "Rockets will explode upon double-pressing fire button",
+          "Critical damage: +25%",
+          "Minimum rocket speed: 20 m/s",
+          "Horizontal auto-aim angle: ±0°"
+        ],
+        "disadvantages": [
+          "Damage: -30%",
+          "Rocket acceleration time: 1.5 s",
+          "Possibility of self-damage if not careful",
+          "Pause between salvo rockets: +6%"
+        ]
+      },
+      "Missile Launcher «Meteor»": {
+        "name": "Missile Launcher «Meteor»",
+        "advantages": [
+          "Damage: +25%",
+          "Impact force: +50%",
+          "Minimum rocket speed = 90 m/s",
+          "Pause between rockets in salvo = 50 ms"
+        ],
+        "disadvantages": [
+          "Splash radius = 1m"
+        ]
+      },
+      "Missile Launcher «Brass Knuckles»": {
+        "name": "Missile Launcher «Brass Knuckles»",
+        "advantages": [
+          "Rockets will explode upon double-pressing fire button",
+          "Reload time: -12%",
+          "Aiming time: -62%",
+          "Pause between salvo's rockets: -20%",
+          "Maximum chance of critical hit = 100%",
+          "Minimum rocket speed: 20 m/s"
+        ],
+        "disadvantages": [
+          "Reload time after salvo: +111%",
+          "Rocket acceleration time: 1.5 s"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 85% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 5 sec; Electromagnetic Pulse: 3 sec; Stun: 1.5 sec; Armor-Piercing: 9 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -9%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "thunder": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Small caliber charging machine": {
+        "name": "Small caliber charging machine",
+        "advantages": [
+          "Reload time: -20%"
+        ],
+        "disadvantages": [
+          "Regular damage: -30%"
+        ]
+      },
+      "Subcaliber rounds": {
+        "name": "Subcaliber rounds",
+        "advantages": [
+          "Reload time: -10%",
+          "Projectile speed: +100%",
+          "Impact force: +25%",
+          "Firing speed: +100%",
+          "Self damage removed"
+        ],
+        "disadvantages": [
+          "Splash damage removed"
+        ]
+      },
+      "«Sledgehammer» rounds": {
+        "name": "«Sledgehammer» rounds",
+        "advantages": [
+          "Regular damage: +35%"
+        ],
+        "disadvantages": [
+          "Range of minimum damage: -60%",
+          "Range of maximum damage: -60%",
+          "Projectile speed: -50%",
+          "Critical hits disabled",
+          "Launch speed -50"
+        ]
+      },
+      "«Wyvern» shells": {
+        "name": "«Wyvern» shells",
+        "advantages": [
+          "Critical hits lower the temperature of all enemy tanks in a 12 meter radius by -1.00.",
+          "Critical splash damage radius: 12 m",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "«Salamander» shells": {
+        "name": "«Salamander» shells",
+        "advantages": [
+          "Critical hits raise the temperature of all enemy tanks in a 12 meter radius by +0.40.",
+          "Critical splash damage radius: 12 m",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "«Magneto» shells": {
+        "name": "«Magneto» shells",
+        "advantages": [
+          "Critical hits apply the Electromagnetic Pulse status effect to all enemies in a 12 meter radius for 2 seconds.",
+          "Critical splash damage radius: 12 m",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "«Peacekeeper» shells": {
+        "name": "«Peacekeeper» shells",
+        "advantages": [
+          "Critical hits apply the Stun status effect to all enemies in a 12 meter radius for 1 second.",
+          "Critical splash damage radius: 12 m",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "«Corrosion» shells": {
+        "name": "«Corrosion» shells",
+        "advantages": [
+          "Critical hits apply the Armor-Piercing status effect to all enemies in a 12 meter radius for 5 seconds.",
+          "Critical splash damage radius: 12 m",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "«Noise» shells": {
+        "name": "«Noise» shells",
+        "advantages": [
+          "Hitting an enemy tank applies the Jammer status effect to them and all enemies in a 12 meter radius for 3 seconds."
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Strict Ammunition Load": {
+        "name": "Strict Ammunition Load",
+        "advantages": [
+          "Every third hit is guaranteed to be a critical",
+          "The first shot after spawning will be a critical",
+          "Reload time: -20%",
+          "Critical damage: +25%"
+        ],
+        "disadvantages": []
+      },
+      "Hyperspeed shells": {
+        "name": "Hyperspeed shells",
+        "advantages": [
+          "Launch speed +100%",
+          "Target velocity +100%",
+          "Damage percentage at the end of the degression = 300%",
+          "Start of damage degression -50%",
+          "Range of enemy highlighting +100%"
+        ],
+        "disadvantages": [
+          "Regular damage: -50%",
+          "Critical hits removed",
+          "Horizontal auto-aim angle: ±0.2°"
+        ]
+      },
+      "Vacuum shells": {
+        "name": "Vacuum shells",
+        "advantages": [
+          "Splash damage radius: 12 m",
+          "Radius of average splash damage: 9 m",
+          "Average and minimal splash damage: 250%",
+          "Horizontal auto-aim angle: ±0°"
+        ],
+        "disadvantages": [
+          "Damage: -15%"
+        ]
+      },
+      "Adaptive reload": {
+        "name": "Adaptive reload",
+        "advantages": [
+          "Reload reduction per enemy damaged: 33%"
+        ],
+        "disadvantages": [
+          "Base reload time: +15%",
+          "Splash damage radius: -25%"
+        ]
+      },
+      "«Nanotech» shells": {
+        "name": "«Nanotech» shells",
+        "advantages": [
+          "Shooting a teammate heals them the same amount it would damage an unarmored enemy.: Healing gives from 1 to 10 reputation points, depending on the amount of health restored.; Healing gives from 1 to 20 experience points, depending on the amount of health restored.",
+          "Healing is not affected by range"
+        ],
+        "disadvantages": [
+          "Damage: -20%",
+          "Impact force disabled",
+          "Critical hits disabled",
+          "Splash damage does not heal allied tanks",
+          "Horizontal auto-aim angle: ±0°"
+        ]
+      },
+      "«Anvil» shells": {
+        "name": "«Anvil» shells",
+        "advantages": [
+          "Reload time: -10%",
+          "Regular damage: +35%",
+          "Critical damage: +30%",
+          "Critical splash radius: 12m"
+        ],
+        "disadvantages": [
+          "Range of maximum damage: -50%",
+          "Range of minimum damage: -25%"
+        ]
+      },
+      "Bolter": {
+        "name": "Bolter",
+        "advantages": [
+          "Max shell speed: 700 m/s",
+          "Reload time: -45%",
+          "Impact force: +25%",
+          "Splash damage impact force: +25%"
+        ],
+        "disadvantages": [
+          "Min shell speed: 10 m/s",
+          "Projectile acceleration time: 2.5s",
+          "Recoil force: +15%"
+        ]
+      },
+      "Yamato": {
+        "name": "Yamato",
+        "advantages": [
+          "Damage: +60%",
+          "Critical damage: +50%",
+          "Initial projectile speed: +100%",
+          "Final projectile speed: +100%",
+          "Minimum splash damage radius: +50%"
+        ],
+        "disadvantages": [
+          "Reload: +80%",
+          "Rotation speed: -25%",
+          "Rotation acceleration: -25%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 85% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 5 sec; Electromagnetic Pulse: 2 sec; Stun: 1 sec; Armor-Piercing: 5 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -12%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "tsunami": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Manual Firing Mode": {
+        "name": "Manual Firing Mode",
+        "advantages": [
+          "Reload time -25%"
+        ],
+        "disadvantages": [
+          "Magazine size = 1"
+        ]
+      },
+      "Explosive Shells": {
+        "name": "Explosive Shells",
+        "advantages": [
+          "Radius of maximum area damage = 3 m",
+          "Radius of the average area of ​​damage = 6 m",
+          "Radius of minimum area damage = 9 m",
+          "Radius of critical area damage = 3 m",
+          "Average area damage percentage = 50%",
+          "Minimal area damage percentage = 50%"
+        ],
+        "disadvantages": [
+          "Projectiles can no longer ricochet",
+          "The blast radius damage can cause self-damage"
+        ]
+      },
+      "Tungsten Shells": {
+        "name": "Tungsten Shells",
+        "advantages": [
+          "Maximum number of ricochets = 2",
+          "Min ricochet angle: 5°"
+        ],
+        "disadvantages": []
+      },
+      "\"Heat\" Shells": {
+        "name": "\"Heat\" Shells",
+        "advantages": [
+          "Critically hit enemies are heated up by +0.4",
+          "Critical damage chance +10%"
+        ],
+        "disadvantages": [
+          "Critical damage -50%"
+        ]
+      },
+      "\"Cryo\" Shells": {
+        "name": "\"Cryo\" Shells",
+        "advantages": [
+          "Critically hit enemies are frozen by -1.0",
+          "Critical damage chance +10%"
+        ],
+        "disadvantages": [
+          "Critical damage -50%"
+        ]
+      },
+      "\"Drill\" Shells": {
+        "name": "\"Drill\" Shells",
+        "advantages": [
+          "For critically hit enemies, the Armor-Piercing status effect is activated for 5 seconds.",
+          "Critical damage chance +10%"
+        ],
+        "disadvantages": [
+          "Critical damage -50%"
+        ]
+      },
+      "\"Shock\" Shells": {
+        "name": "\"Shock\" Shells",
+        "advantages": [
+          "When enemies are hit critically, the Stun status effect is activated for 1 second.",
+          "Critical Hit Chance +10%"
+        ],
+        "disadvantages": [
+          "Critical Damage -50%"
+        ]
+      },
+      "\"Lightning\" Shells": {
+        "name": "\"Lightning\" Shells",
+        "advantages": [
+          "When enemies are hit critically, the EMP status effect is activated for 2 seconds.",
+          "Critical Hit Chance +10%"
+        ],
+        "disadvantages": [
+          "Critical Damage -50%"
+        ]
+      },
+      "\"Noise\" Shells": {
+        "name": "\"Noise\" Shells",
+        "advantages": [
+          "Applies the Jammer status effect to hit enemies for 4.5 seconds."
+        ],
+        "disadvantages": [
+          "Critical Damage -50%"
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 5 sec; Electromagnetic Pulse: 2 sec; Stun: 1.5 sec; Armor-Piercing: 9 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -8%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Duplet": {
+        "name": "Duplet",
+        "advantages": [
+          "Time between two shots: -92%",
+          "Recoil: -50%"
+        ],
+        "disadvantages": [
+          "Additional combo damage: 0",
+          "Reload time: +15%",
+          "Impact force: -25%"
+        ]
+      },
+      "Megatsunami": {
+        "name": "Megatsunami",
+        "advantages": [
+          "Damage +100%",
+          "Additional combo damage = +100%",
+          "Critical damage +25%",
+          "Radius of max. area damage = 3 m",
+          "Radius of the avg. area of ​​damage = 6 m",
+          "Radius of min. area damage = 9 m",
+          "Radius of critical area damage = 3 m",
+          "Avg. area damage percentage = 50%",
+          "minimal area damage percentage = 50%"
+        ],
+        "disadvantages": [
+          "Reload time +50%",
+          "Time between two shots +50%",
+          "Shots do not ricochet.",
+          "Area damage can cause self-damage"
+        ]
+      },
+      "Triplet Firing Mode": {
+        "name": "Triplet Firing Mode",
+        "advantages": [
+          "Magazine size: 3",
+          "Time between two shots: -60%",
+          "Recoil: -25%"
+        ],
+        "disadvantages": [
+          "Additional combo damage: 0",
+          "Reload time: +25%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 95% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "scorpion": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Explosive Shells": {
+        "name": "Explosive Shells",
+        "advantages": [
+          "Arcade minimum splash damage radius: 10 m",
+          "Arcade average splash damage radius: 2 m"
+        ],
+        "disadvantages": [
+          "Projectile speed: -50%",
+          "Ricochet effect disabled"
+        ]
+      },
+      "Explosive warheads": {
+        "name": "Explosive warheads",
+        "advantages": [
+          "Rocket minimum splash damage radius: 10 m",
+          "Rocket average splash damage radius: 3 m"
+        ],
+        "disadvantages": []
+      },
+      "Missile launcher «Wolfpack»": {
+        "name": "Missile launcher «Wolfpack»",
+        "advantages": [
+          "Maximum rocket speed: = 50 m/s"
+        ],
+        "disadvantages": [
+          "Pause between salvo's rockets: +20%",
+          "Minimum rocket speed = 20 m/s"
+        ]
+      },
+      "Cryo Shells": {
+        "name": "Cryo Shells",
+        "advantages": [
+          "Critical hits and rocket hits in a 5 meter splash radius lower the temperature of damaged enemy tanks, freezing them for 10 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Incendiary shells": {
+        "name": "Incendiary shells",
+        "advantages": [
+          "Critical hits and rocket hits in a 5 meter splash radius raise the temperature of damaged enemy tanks; a salvo applies 9 ticks of burn, and an arcade shot or a single rocket apply burn for 5 ticks.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "EMP shells": {
+        "name": "EMP shells",
+        "advantages": [
+          "Critical hits and will apply the Electromagnetic Pulse status effect to enemies for 2 seconds.",
+          "Rocket hits in a 5 meter splash radius will apply the Electromagnetic Pulse status effect to enemies for 1 second.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Stun shells": {
+        "name": "Stun shells",
+        "advantages": [
+          "Critical hits will apply the Stun status effect to enemies for 1.5 seconds.",
+          "Rocket hits in a 5 meter splash radius will apply the Stun status effect to enemies for 0.4 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Armor-piercing shells": {
+        "name": "Armor-piercing shells",
+        "advantages": [
+          "Critical hits will apply the Armor-Piercing status effect to enemies for 10 seconds.",
+          "Rocket hits will apply the Armor-Piercing status effect to enemies for 1 second.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Jamming Shells": {
+        "name": "Jamming Shells",
+        "advantages": [
+          "Normal and critical hits will apply the Jammer status effect to enemies for 5 seconds.",
+          "Rocket hits will apply the Jammer status effect to enemies in a 5 meter radius for 1 second."
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Missile launcher «Tornado»": {
+        "name": "Missile launcher «Tornado»",
+        "advantages": [
+          "Salvo reload time: -12%",
+          "Rockets in salvo: +10",
+          "Pause between salvo's rockets: -30%",
+          "Initial rocket speed = 70 m/s",
+          "Aiming recovery time: +30%",
+          "Rocket minimum splash damage radius: 10 m",
+          "Rocket average splash damage radius: 5 m",
+          "Final rocket angular speed = 17 °/s"
+        ],
+        "disadvantages": [
+          "Initial rocket angular speed = 80 °/s",
+          "Aiming time: +50%"
+        ]
+      },
+      "Missile launcher «Swarm»": {
+        "name": "Missile launcher «Swarm»",
+        "advantages": [
+          "Rockets per salvo: +10",
+          "Aiming time: -50%",
+          "Salvo reload time: -50%",
+          "Pause between salvo's rockets: -30%",
+          "Final rocket angular speed: +400%"
+        ],
+        "disadvantages": [
+          "Final rocket speed: -20%",
+          "Initial rocket angular speed: -10%"
+        ]
+      },
+      "Missile launcher «Spear»": {
+        "name": "Missile launcher «Spear»",
+        "advantages": [
+          "Salvo reload time: -20%",
+          "Aiming time: -50%",
+          "Maximum rocket speed: 30 m/s",
+          "Initial rocket speed: 45 m/s",
+          "Initial rocket max. angular velocity: 120 °/s",
+          "Rocket acceleration phase duration: -50%"
+        ],
+        "disadvantages": [
+          "Rockets in salvo: -4",
+          "Initial rocket min. angular velocity: 30 °/s",
+          "Pause between salvo's rockets: +30%",
+          "Projectile acceleration time: -50%"
+        ]
+      },
+      "Uranium Shells": {
+        "name": "Uranium Shells",
+        "advantages": [
+          "Max ricochet count: 3",
+          "Shell minimum ricochet angle: 5°",
+          "Radius of mean area damage in normal mode = 2 meters",
+          "Maximum Critical Damage Chance = 100%",
+          "Initial Critical Damage Chance = 100%",
+          "Critical Damage Chance Increase: +100%",
+          "Minimum area damage radius in normal mode = 12 meters"
+        ],
+        "disadvantages": [
+          "Minimum Critical Damage Chance: -100%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 95% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 5 sec; Electromagnetic Pulse: 2 sec; Stun: 1.5 sec; Armor-Piercing: 9 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -8%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Vacuum shell": {
+        "name": "Vacuum shell",
+        "advantages": [
+          "Splash damage radius: 12 meters",
+          "Average Splash damage radius: 9 meters",
+          "Average and minimum splash damage: 250%"
+        ],
+        "disadvantages": [
+          "Damage: -15%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "magnum": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Reinforced gun carriage": {
+        "name": "Reinforced gun carriage",
+        "advantages": [
+          "Control mode: vertical aiming"
+        ],
+        "disadvantages": []
+      },
+      "Automated gunpowder loading mechanism": {
+        "name": "Automated gunpowder loading mechanism",
+        "advantages": [
+          "Control mode: vertical aiming",
+          "Amplification time: -15%"
+        ],
+        "disadvantages": []
+      },
+      "Harpoon": {
+        "name": "Harpoon",
+        "advantages": [
+          "Turret elevation: 1º",
+          "Projectile gravitation: 1",
+          "Amplification time: -70%",
+          "Number of steps when charging = 10",
+          "Minimum projectile speed: +100%",
+          "Maximum projectile speed: +50%",
+          "Impact force: +50%"
+        ],
+        "disadvantages": [
+          "Reload time: +10%",
+          "Minimum, average, maximum and critical splash damage radiuses: -60%"
+        ]
+      },
+      "Incendiary core": {
+        "name": "Incendiary core",
+        "advantages": [
+          "Critical hits (10m radius from explosion) raise the temperature of all damaged enemy tanks by +1.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Freezing Core": {
+        "name": "Freezing Core",
+        "advantages": [
+          "Critical hits apply the Freezing status effect to all enemies within a 10 meter radius from the point of impact for 10 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Magnetic core": {
+        "name": "Magnetic core",
+        "advantages": [
+          "Critical hits (10m radius from explosion) apply the Electromagnetic Pulse status effect for 3 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Stunning Core": {
+        "name": "Stunning Core",
+        "advantages": [
+          "Critical hits (10m radius from explosion) apply the Stun status effect for 1.5 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Armor-Piercing Core": {
+        "name": "Armor-Piercing Core",
+        "advantages": [
+          "On a critical hit, applies the Armor-Piercing status effect for 9 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Jamming Core": {
+        "name": "Jamming Core",
+        "advantages": [
+          "Applies the Jammer status effect to all enemies within a 10 meter radius from the point of impact for 6 seconds.",
+          "Critical hits apply the Jammer status effect for 10 seconds."
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Mortar": {
+        "name": "Mortar",
+        "advantages": [
+          "Control mode: vertical aiming",
+          "Lay mines when a tank is not hit (mine lifetime 120 seconds)"
+        ],
+        "disadvantages": [
+          "Critical splash damage radius: -50%"
+        ]
+      },
+      "Bombard": {
+        "name": "Bombard",
+        "advantages": [
+          "Reload time: -45%",
+          "Time to maximum charge level: -50%.",
+          "Max. projectile speed: -40%",
+          "Min. Projectile speed: -40%"
+        ],
+        "disadvantages": [
+          "Minimum angle of elevation: 45°",
+          "Projectile gravity: +50%"
+        ]
+      },
+      "Vacuum core": {
+        "name": "Vacuum core",
+        "advantages": [
+          "Radius of average splash damage: 15 m",
+          "Average splash damage: 250%"
+        ],
+        "disadvantages": [
+          "Damage: -45%"
+        ]
+      },
+      "Destroyer": {
+        "name": "Destroyer",
+        "advantages": [
+          "Damage: +120%",
+          "Critical Hit Damage: +150%",
+          "Impact Force: +33%",
+          "Splash Damage Impact: +33%",
+          "Weapon Charging Time: -70%"
+        ],
+        "disadvantages": [
+          "Turret Rotation Speed: -50%",
+          "Turret Rotation Acceleration: -50%",
+          "Minimum Shell Speed: -30%",
+          "Maximum Shell Speed: -50%",
+          "Shell Gravity Coefficient: -50%",
+          "Weapon Reload Time: +90%",
+          "Initial Turret Angle: 6",
+          "Recoil force: +33%",
+          "Splash Damage Radius: -55%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 95% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 12 sec; Electromagnetic Pulse: 3 sec; Stun: 1.5 sec; Armor-Piercing: 9 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -8%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Carronade": {
+        "name": "Carronade",
+        "advantages": [
+          "Reload time: -60%",
+          "Time to maximum charge level: -60%",
+          "Recoil: -30%",
+          "Rotation speed: +33%",
+          "Rotation acceleration: +33%",
+          "Minimum projectile speed: +50%"
+        ],
+        "disadvantages": [
+          "Damage: -35%",
+          "Maximum projectile speed: -9%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "railgun": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Round stabilization": {
+        "name": "Round stabilization",
+        "advantages": [
+          "Penetration: 100%",
+          "Damage is not distance-dependent"
+        ],
+        "disadvantages": [
+          "Regular damage: -5%",
+          "Critical damage: -24%"
+        ]
+      },
+      "Reinforced aiming transmission": {
+        "name": "Reinforced aiming transmission",
+        "advantages": [
+          "Turret rotation speed: +50%",
+          "Turret rotatory acceleration: +50%",
+          "Vertical auto-aim: +50%"
+        ],
+        "disadvantages": []
+      },
+      "Electromagnetic accelerator «Scout»": {
+        "name": "Electromagnetic accelerator «Scout»",
+        "advantages": [
+          "Reload time: -15%",
+          "Shot warmup time: -15%"
+        ],
+        "disadvantages": [
+          "Regular damage: -15%",
+          "Critical damage: -15%"
+        ]
+      },
+      "Cryo Rounds": {
+        "name": "Cryo Rounds",
+        "advantages": [
+          "Hitting an enemy lowers their temperature by -0.40.",
+          "Critically hitting an enemy lowers their temperature by -1.00.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Incendiary Rounds": {
+        "name": "Incendiary Rounds",
+        "advantages": [
+          "Critically hitting an enemy raises their temperature by +0.40. A maximum of two tanks can be set on fire in this way at any given time.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "EMP Rounds": {
+        "name": "EMP Rounds",
+        "advantages": [
+          "Critically hitting an enemy applies the Electromagnetic Pulse status effect to them for 2 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Stun Rounds": {
+        "name": "Stun Rounds",
+        "advantages": [
+          "Critically hitting an enemy applies the Stun status effect to them for 1 second.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Super Armor-Piercing Rounds": {
+        "name": "Super Armor-Piercing Rounds",
+        "advantages": [
+          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 5 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Jamming Shells": {
+        "name": "Jamming Shells",
+        "advantages": [
+          "Hitting an enemy applies the Jammer status effect to them for 9 seconds."
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Large caliber rounds": {
+        "name": "Large caliber rounds",
+        "advantages": [
+          "Regular damage: +50%",
+          "Critical damage: +20%",
+          "Critical Hit Chance: +50%"
+        ],
+        "disadvantages": [
+          "Shot warmup time: +15%",
+          "Reload time: +16%"
+        ]
+      },
+      "Round destabilization": {
+        "name": "Round destabilization",
+        "advantages": [
+          "Critical damage: +20%",
+          "Fixed critical chance: 50%",
+          "Impact force: +60%"
+        ],
+        "disadvantages": [
+          "Regular damage: -25%"
+        ]
+      },
+      "«Death Herald» compulsator": {
+        "name": "«Death Herald» compulsator",
+        "advantages": [
+          "Destroying an enemy fully reloads the turret",
+          "Reload time: -40%",
+          "Shot warmup time: -25%"
+        ],
+        "disadvantages": []
+      },
+      "Hyperspace rounds": {
+        "name": "Hyperspace rounds",
+        "advantages": [
+          "Penetration: +200%",
+          "Shot warmup time: -25%"
+        ],
+        "disadvantages": [
+          "Impact force removed",
+          "Critical hits disabled"
+        ]
+      },
+      "Hyperspeed shells": {
+        "name": "Hyperspeed shells",
+        "advantages": [
+          "Weak damage: 300%",
+          "Range of minimum damage: -60%",
+          "Range of maximum damage: -70%",
+          "Highlighting range: +100%"
+        ],
+        "disadvantages": [
+          "Regular damage: -50%"
+        ]
+      },
+      "«Shotgun» rounds": {
+        "name": "«Shotgun» rounds",
+        "advantages": [
+          "Normal damage: +50%",
+          "Reload time: -10%"
+        ],
+        "disadvantages": [
+          "Range of maximum damage: -80%",
+          "Range of minimum damage: -50%",
+          "Weak damage = 25%"
+        ]
+      },
+      "Excalibur rounds": {
+        "name": "Excalibur rounds",
+        "advantages": [
+          "Critical damage: +129.9%",
+          "Maximum chance of critical damage: 99%",
+          "Increased chance of critical damage: +45%",
+          "Minimum chance of critical damage: 5%"
+        ],
+        "disadvantages": [
+          "Reload time: +17%",
+          "Initial chance of critical damage: 5%",
+          "Shot warmup time: +25%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 95% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Detonator": {
+        "name": "Detonator",
+        "advantages": [
+          "Damage (Combo Shot with grenade): +100%",
+          "Shot warmup time: 0.5s",
+          "Max. area damage radius of the grenade: +100%",
+          "Avg. area damage radius of the grenade: +100%",
+          "Min. area damage radius of the grenade: +30%",
+          "Rotational acceleration: +100%"
+        ],
+        "disadvantages": []
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 9 sec; Electromagnetic Pulse: 2 sec; Stun: 1 sec; Armor-Piercing: 5 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -8%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "gauss": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Faster Horizontal Tracking": {
+        "name": "Faster Horizontal Tracking",
+        "advantages": [
+          "Turret rotation speed: +100%",
+          "Turret rotatory acceleration: +100%",
+          "Vertical auto-aim: +50%"
+        ],
+        "disadvantages": []
+      },
+      "Hacked Aiming Processor": {
+        "name": "Hacked Aiming Processor",
+        "advantages": [
+          "Aiming recovery time: +400%"
+        ],
+        "disadvantages": []
+      },
+      "Large Caliber": {
+        "name": "Large Caliber",
+        "advantages": [
+          "Arcade normal damage: +27%",
+          "Critical damage: +29%"
+        ],
+        "disadvantages": [
+          "Arcade reload time: +54%"
+        ]
+      },
+      "Incendiary Salvo": {
+        "name": "Incendiary Salvo",
+        "advantages": [
+          "Sniping an enemy will raise the temperature of all enemies within a 15 meter radius by +0.40.",
+          "Critically hitting an enemy will raise their temperature by 0.40.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Freezing Salvo": {
+        "name": "Freezing Salvo",
+        "advantages": [
+          "Sniping an enemy will lower the temperature of all enemies within a 15 meter radius by -1.0.",
+          "Critically hitting an enemy will lower their temperature by -1.0.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Electromagnetic salvo": {
+        "name": "Electromagnetic salvo",
+        "advantages": [
+          "Sniping an enemy will apply the Electromagnetic Pulse status effect to them and all enemies within a 15 meter radius for 3 seconds.",
+          "Critically hitting an enemy will apply the Electromagnetic Pulse status effect to them for 2 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Stunning Salvo": {
+        "name": "Stunning Salvo",
+        "advantages": [
+          "Sniping an enemy will apply the Stun status effect to all enemies hit for 1.5 seconds.",
+          "Critically hitting an enemy will apply the Stun status effect to them for 1 seconds",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Jamming Salvo": {
+        "name": "Jamming Salvo",
+        "advantages": [
+          "Hitting an enemy will apply the Jammer status effect to them for 3 seconds.",
+          "Sniping an enemy will apply the Jammer status effect to all enemies hit for 12 seconds.",
+          "Critically hitting an enemy will apply the Jammer status effect to them for 9 seconds"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Armor-Piercing Salvo": {
+        "name": "Armor-Piercing Salvo",
+        "advantages": [
+          "Sniping an enemy will apply the Armor-Piercing status effect to them and all enemies within a 15 meter radius for 9 seconds.",
+          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 5 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Hyperspeed Shells": {
+        "name": "Hyperspeed Shells",
+        "advantages": [
+          "Weak damage percentage = 300%",
+          "Projectile speed: +100%",
+          "Range of maximum damage: -50%",
+          "Range of minimum damage: -25%"
+        ],
+        "disadvantages": [
+          "Normal damage: -50%",
+          "Critical hit removed",
+          "Horizontal auto-aim angle: ±0.2°"
+        ]
+      },
+      "Nemesis": {
+        "name": "Nemesis",
+        "advantages": [
+          "Salvo reload: -70%",
+          "Salvo damage: +140%",
+          "Aiming recovery time: +400%"
+        ],
+        "disadvantages": [
+          "Aiming time: +120%",
+          "Recoil: +150%"
+        ]
+      },
+      "Solenoid Cooling": {
+        "name": "Solenoid Cooling",
+        "advantages": [
+          "Aiming time: -50%",
+          "Salvo reload: -50%"
+        ],
+        "disadvantages": [
+          "Salvo damage: -20%"
+        ]
+      },
+      "Super Solenoids": {
+        "name": "Super Solenoids",
+        "advantages": [
+          "Salvo damage: +50%",
+          "Salvo reload: -36%"
+        ],
+        "disadvantages": [
+          "Radius max. splash damage: -90%",
+          "Radius avg. splash damage: -90%",
+          "Radius min. splash damage: -90%"
+        ]
+      },
+      "Boxer": {
+        "name": "Boxer",
+        "advantages": [
+          "Salvo impact force: +200%",
+          "Salvo splash damage impact force: +600%",
+          "Arcade impact force: +50%",
+          "Aiming time: -10%",
+          "Salvo reload: -30%",
+          "Arcade Shot damage: +27%",
+          "Arcade Critical Shot damage: +29%"
+        ],
+        "disadvantages": [
+          "Reload time in Arcade mode: +15%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 95% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 9 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 5 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -12%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Arcade Shot Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "shaft": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Short-band emitter": {
+        "name": "Short-band emitter",
+        "advantages": [
+          "Arcade damage: +30%",
+          "Arcade critical damage: +29%",
+          "Minimum sniping damage: +30%"
+        ],
+        "disadvantages": [
+          "Arcade reload: +15%"
+        ]
+      },
+      "Heavy capacitors": {
+        "name": "Heavy capacitors",
+        "advantages": [
+          "Maximum sniping damage: +25%"
+        ],
+        "disadvantages": [
+          "Charge rate in aiming mode: -25%",
+          "Energy consumed by sniping shot: +100%",
+          "Recharge rate after sniping shot: -20%"
+        ]
+      },
+      "Light capacitors": {
+        "name": "Light capacitors",
+        "advantages": [
+          "Charge rate in aiming mode: +50%",
+          "Recharge rate after sniping shot: +20%",
+          "Energy consumed by sniping shot: -50%",
+          "Horizontal aiming speed: +100%"
+        ],
+        "disadvantages": [
+          "Maximum sniping damage: -25%"
+        ]
+      },
+      "Incendiary Sight": {
+        "name": "Incendiary Sight",
+        "advantages": [
+          "Critically hitting or sniping an enemy will raise their temperature by +0.4.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Freezing Sight": {
+        "name": "Freezing Sight",
+        "advantages": [
+          "Sniping an enemy will apply the Freezing status effect to them for 10 seconds.",
+          "Hitting an enemy with a critical arcade shot will apply the Freezing status effect to them for 10 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Electrifying Sight": {
+        "name": "Electrifying Sight",
+        "advantages": [
+          "Sniping an enemy will apply the Electromagnetic Pulse status effect to them for 3 seconds.",
+          "Hitting an enemy with a critical arcade shot will apply the Electromagnetic Pulse status effect to them for 2 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Stunning Sight": {
+        "name": "Stunning Sight",
+        "advantages": [
+          "Sniping an enemy will apply the Stun status effect to them for 1.5 seconds.",
+          "Hitting an enemy with a critical arcade shot will apply the Stun status effect to them for 1 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Armor-Piercing Sight": {
+        "name": "Armor-Piercing Sight",
+        "advantages": [
+          "Sniping an enemy will apply the Armor-Piercing status effect to them for 9 seconds.",
+          "Hitting an enemy with a critical arcade shot will apply the Armor-Piercing status effect to them for 9 seconds.",
+          "Critical hit chance: +10%"
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Jamming Sight": {
+        "name": "Jamming Sight",
+        "advantages": [
+          "Hitting an enemy will apply the Jammer status effect to them for 3 seconds.",
+          "Sniping an enemy will apply the Jammer status effect to them for 12 seconds.",
+          "Hitting an enemy with a critical arcade shot will apply the Jammer status effect to them for 9 seconds."
+        ],
+        "disadvantages": [
+          "Critical damage: -50%"
+        ]
+      },
+      "Rapid-fire mode": {
+        "name": "Rapid-fire mode",
+        "advantages": [
+          "Arcade shot reload: -83%",
+          "Energy recovery rate: +100%"
+        ],
+        "disadvantages": [
+          "Energy consumed per arcade shot: 369",
+          "Maximum sniping damage: -40%",
+          "Energy consumed per sniping shot: 1000"
+        ]
+      },
+      "Healing Emitters": {
+        "name": "Healing Emitters",
+        "advantages": [
+          "Shooting a teammate heals them the same amount it would damage an unarmored enemy",
+          "Healing gives 1-10 REPUTATION points, depending on the percentage of health restored",
+          "Healing gives 1-20 EXPERIENCE points, depending on the percentage of health restored",
+          "No recoil"
+        ],
+        "disadvantages": [
+          "Arcade damage: -15%",
+          "Maximum sniping damage: -15%",
+          "Critical damage removed (and no critical healing)",
+          "No impact force",
+          "Arcade shot reload: +15%",
+          "Horizontal auto-aim angle: ±0°"
+        ]
+      },
+      "Quasar": {
+        "name": "Quasar",
+        "advantages": [
+          "Min. sniping damage: +60%",
+          "Max. sniping damage: +51.5%",
+          "Arcade damage: +60%",
+          "Arcade critical damage: +55%",
+          "Energy consumption: +50%"
+        ],
+        "disadvantages": [
+          "Sniping shot reload time: +33.3%",
+          "Arcade shot reload time: +70%",
+          "All sniping shots will consume the full energy bar and so require a full reload",
+          "Turret rotation speed: -25%"
+        ]
+      },
+      "Stellarator": {
+        "name": "Stellarator",
+        "advantages": [
+          "Initial sniping damage: +300%",
+          "Energy consumed = 200 units/sec"
+        ],
+        "disadvantages": [
+          "Final sniping damage: -15%",
+          "Energy consumed per sniping shot: +60%"
+        ]
+      },
+      "Camper": {
+        "name": "Camper",
+        "advantages": [
+          "Normal and critical damage increase: +90%"
+        ],
+        "disadvantages": [
+          "Damage boost is active only while you have at least 95% of your maximum HP.",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Pulsar": {
+        "name": "Pulsar",
+        "advantages": [
+          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 9 sec; Electromagnetic Pulse: 2 sec; Stun: 1 sec; Armor-Piercing: 5 sec"
+        ],
+        "disadvantages": [
+          "Critical chance: -12%",
+          "Critical damage: -90%"
+        ]
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Damage: +25%",
+          "Turning speed: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Damage: +15%",
+          "Critical damage: +15%",
+          "Critical chance: +30%",
+          "Vertical auto-aim: +15%",
+          "Reputation points earned in battle: +40%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "hulls": {
+      "Heat Resistance": {
+        "name": "Heat Resistance",
+        "advantages": [
+          "Damage taken from Burning: -50%",
+          "Heating rate: -50%"
+        ],
+        "disadvantages": []
+      },
+      "Cold Resistance": {
+        "name": "Cold Resistance",
+        "advantages": [
+          "Slowdown from Freezing: -50%",
+          "Freezing rate: -50%"
+        ],
+        "disadvantages": []
+      },
+      "Lightweight Construction": {
+        "name": "Lightweight Construction",
+        "advantages": [
+          "Acceleration: +15%",
+          "Weight: -30%"
+        ],
+        "disadvantages": []
+      },
+      "Heavyweight Construction": {
+        "name": "Heavyweight Construction",
+        "advantages": [
+          "Weight: +30%"
+        ],
+        "disadvantages": [
+          "Acceleration: -15%"
+        ]
+      },
+      "Engineer": {
+        "name": "Engineer",
+        "advantages": [
+          "Picking up a supply box adds 1000 HP"
+        ],
+        "disadvantages": []
+      },
+      "Heat Immunity": {
+        "name": "Heat Immunity",
+        "advantages": [
+          "Provides complete immunity from Burning."
+        ],
+        "disadvantages": []
+      },
+      "Cold Immunity": {
+        "name": "Cold Immunity",
+        "advantages": [
+          "Provides complete immunity from Freezing."
+        ],
+        "disadvantages": []
+      },
+      "EMP Immunity": {
+        "name": "EMP Immunity",
+        "advantages": [
+          "Provides complete immunity from Electromagnetic Pulse"
+        ],
+        "disadvantages": []
+      },
+      "Stun Immunity": {
+        "name": "Stun Immunity",
+        "advantages": [
+          "Provides complete immunity from Stun"
+        ],
+        "disadvantages": []
+      },
+      "AP Immunity": {
+        "name": "AP Immunity",
+        "advantages": [
+          "Provides complete immunity from Armor-Piercing"
+        ],
+        "disadvantages": []
+      },
+      "Jammer Immunity": {
+        "name": "Jammer Immunity",
+        "advantages": [
+          "Provides complete immunity from Jammer"
+        ],
+        "disadvantages": []
+      },
+      "Driver": {
+        "name": "Driver",
+        "advantages": [
+          "Speed of overdrive reload (time): +100%",
+          "Speed of overdrive reload (score): +50%"
+        ],
+        "disadvantages": []
+      },
+      "Blaster": {
+        "name": "Blaster",
+        "advantages": [
+          "Chaos damage on death depending on hull weight"
+        ],
+        "disadvantages": []
+      },
+      "Lifeguard": {
+        "name": "Lifeguard",
+        "advantages": [
+          "Prevents death once",
+          "Recovers 500 HP"
+        ],
+        "disadvantages": []
+      },
+      "Miner": {
+        "name": "Miner",
+        "advantages": [
+          "70% of mines survive after death"
+        ],
+        "disadvantages": []
+      },
+      "Grenadier": {
+        "name": "Grenadier",
+        "advantages": [
+          "Grenade reload persists without respawning"
+        ],
+        "disadvantages": []
+      },
+      "Excelsior": {
+        "name": "Excelsior",
+        "advantages": [
+          "Health: +25%",
+          "Top speed: +10%",
+          "Power: +15%",
+          "Acceleration: +15%",
+          "Turning acceleration: +15%"
+        ],
+        "disadvantages": []
+      },
+      "Extreme Lightweight Construction": {
+        "name": "Extreme Lightweight Construction",
+        "advantages": [
+          "Weight: 1000 kg",
+          "Ideal for parkour"
+        ],
+        "disadvantages": [
+          "Weak in regular battles"
+        ]
+      },
+      "Phoenix": {
+        "name": "Phoenix",
+        "advantages": [
+          "Freeze speed: -50%",
+          "Heating speed: -50%",
+          "Immunity from jammer, emp, stun, ap"
+        ],
+        "disadvantages": [
+          "Overdrive does not charge passively"
+        ]
+      },
+      "Special Protection": {
+        "name": "Special Protection",
+        "advantages": [
+          "Immunity from jammer",
+          "Immunity from emp",
+          "Immunity from stun",
+          "Immunity from ap",
+          "Immunity from burning",
+          "Immunity from freezing"
+        ],
+        "disadvantages": []
+      }
+    }
+  }
+}
