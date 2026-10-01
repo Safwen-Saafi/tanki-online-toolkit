@@ -4,12 +4,6 @@ on:
   schedule:
     - cron: '30 5 * * *'
   workflow_dispatch:
-  # Temporary: lets the first live runs start from the feature branch. Removed before merge.
-  push:
-    branches: [feature/tanki-augments-bot]
-    paths:
-      - 'bot/**'
-      - '.github/workflows/augments-bot.yml'
 
 permissions:
   contents: write
