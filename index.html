@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tanki Augments Database</title>
+<meta name="description" content="Daily-updated Tanki Online augment data in English and Russian, scraped from the Tanki Online wiki.">
+<meta name="theme-color" content="#090c10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23090c10'/%3E%3Cpath d='M6 20h20l-3 5H9z' fill='%23ffbc09'/%3E%3Crect x='10' y='12' width='11' height='7' rx='2' fill='%23ff5309'/%3E%3Crect x='20' y='14' width='8' height='2.5' fill='%23ffbc09'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #090c10;
+  --panel: #10151c;
+  --steel: #1a222c;
+  --line: #2a3542;
+  --text: #e9eef3;
+  --muted: #8d9aaa;
+  --gold: #ffbc09;
+  --orange: #ff5309;
+  --blue: #16b9ff;
+  --green: #43e97b;
+  --ui: 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
+  --num: 'Orbitron', 'Rajdhani', 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; }
+html { color-scheme: dark; }
+body {
+  min-height: 100vh;
+  font-family: var(--ui);
+  font-size: 18px;
+  color: var(--text);
+  background:
+    radial-gradient(900px 500px at 82% -8%, rgba(255, 83, 9, .22), transparent 60%),
+    radial-gradient(700px 480px at -5% 30%, rgba(22, 185, 255, .12), transparent 60%),
+    var(--bg);
+  position: relative;
+  overflow-x: hidden;
+}
+body::before {
+  content: "";
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'%3E%3Cpath d='M28 2l26 15v30L28 62 2 47V17zM28 62v33M2 47L0 48M54 47l2 1' fill='none' stroke='%23ffffff' stroke-opacity='.045' stroke-width='1.2'/%3E%3C/svg%3E");
+  mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+}
+body::after {
+  content: "";
+  position: fixed; inset: 0; pointer-events: none; z-index: 3;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .14) 0 1px, transparent 1px 3px);
+  opacity: .35;
+}
+.wrap { position: relative; z-index: 1; max-width: 1060px; margin: 0 auto; padding: 22px 20px 48px; }
+
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-weight: 600; letter-spacing: .16em; font-size: 13px; text-transform: uppercase; color: var(--muted); }
+.live { display: inline-flex; align-items: center; gap: 9px; color: var(--green); }
+.live i { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(67, 233, 123, .7); animation: ping 2.2s infinite; }
+.live.off { color: var(--orange); }
+.live.off i { background: var(--orange); animation: none; }
+@keyframes ping { 70% { box-shadow: 0 0 0 10px rgba(67, 233, 123, 0); } 100% { box-shadow: 0 0 0 0 rgba(67, 233, 123, 0); } }
+
+.hero { display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: 12px; padding: 34px 0 18px; }
+.eyebrow { color: var(--gold); letter-spacing: .32em; font-weight: 700; font-size: 14px; text-transform: uppercase; display: flex; align-items: center; gap: 12px; }
+.eyebrow::before { content: ""; width: 38px; height: 3px; background: linear-gradient(90deg, var(--gold), var(--orange)); }
+h1 { font-family: var(--num); font-weight: 900; font-size: clamp(38px, 6.4vw, 70px); line-height: .98; letter-spacing: .02em; margin: 14px 0 16px; text-transform: uppercase; background: linear-gradient(180deg, #fff3c9 0%, var(--gold) 38%, var(--orange) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 18px rgba(255, 83, 9, .35)); }
+.lead { max-width: 30em; color: #b7c2cf; font-size: 20px; line-height: 1.4; font-weight: 500; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.chip { display: flex; align-items: baseline; gap: 8px; padding: 8px 14px; background: rgba(26, 34, 44, .75); border: 1px solid var(--line); border-left: 3px solid var(--gold); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); padding-right: 24px; }
+.chip b { font-family: var(--num); font-size: 20px; color: #fff; }
+.chip span { text-transform: uppercase; letter-spacing: .14em; font-size: 12px; font-weight: 700; color: var(--muted); }
+
+.tank { width: 100%; max-width: 470px; justify-self: center; overflow: visible; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .6)); }
+.ring { transform-origin: 215px 125px; animation: spin 38s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.barrel { animation: recoil 5s ease-out infinite; }
+@keyframes recoil { 0%, 70% { transform: translateX(0); } 72% { transform: translateX(-11px); } 100% { transform: translateX(0); } }
+.flash { transform-origin: 405px 107px; opacity: 0; animation: flash 5s linear infinite; }
+@keyframes flash { 0%, 70% { opacity: 0; transform: scale(.4); } 71.5% { opacity: 1; transform: scale(1); } 76%, 100% { opacity: 0; transform: scale(1.15); } }
+
+.section-title { margin: 30px 0 14px; font-weight: 700; font-size: 14px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 14px; }
+.section-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
+
+.cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.card-wrap { display: flex; filter: drop-shadow(0 10px 22px rgba(0, 0, 0, .5)); }
+.card { flex: 1; position: relative; padding: 24px 24px 22px; background: linear-gradient(160deg, #19212b 0%, #10151c 62%); border: 1px solid var(--line); clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 26px 100%, 0 calc(100% - 26px)); transition: transform .18s ease, border-color .18s ease; }
+.card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--accent); box-shadow: 0 0 22px var(--accent); }
+.card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, .07) 50%, transparent 60%); transform: translateX(-120%); transition: transform .7s ease; pointer-events: none; }
+.card:hover { transform: translateY(-3px); border-color: var(--accent); }
+.card:hover::after { transform: translateX(120%); }
+.card:has(a.open:focus-visible) { outline: 2px solid var(--gold); outline-offset: -5px; }
+.card.en { --accent: var(--blue); }
+.card.ru { --accent: var(--orange); }
+.tag { display: inline-block; font-family: var(--num); font-size: 12px; letter-spacing: .2em; padding: 3px 10px; color: #06090c; background: var(--accent); font-weight: 900; }
+.card h2 { margin: 12px 0 2px; line-height: 1.15; font-size: 32px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.file { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 15px; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 6px 26px; margin: 20px 0 22px; }
+.stats dt { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.stats dd { margin: 2px 0 0; font-family: var(--num); font-size: 22px; font-weight: 700; color: #fff; min-height: 1.4em; }
+.stats dd.small { font-family: var(--ui); font-size: 20px; font-weight: 600; padding-top: 2px; }
+.actions { display: flex; align-items: center; gap: 12px; }
+a.open { position: static; display: inline-flex; align-items: center; gap: 10px; padding: 11px 22px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 16px; text-decoration: none; color: #130a02; background: linear-gradient(180deg, var(--gold), #ff8f09); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 12px 100%); padding-inline: 30px; }
+a.open::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+a.open svg { width: 18px; height: 18px; }
+button.copy { position: relative; z-index: 2; font: inherit; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 14px; color: var(--text); background: transparent; border: 1px solid var(--line); padding: 10px 16px; cursor: pointer; transition: background .15s, border-color .15s; }
+button.copy:hover { background: rgba(255, 255, 255, .06); border-color: var(--accent); }
+button.copy:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: 10px; }
+.step { padding: 16px 18px; background: rgba(16, 21, 28, .8); border: 1px solid var(--line); }
+.step b { display: block; font-size: 13px; letter-spacing: .24em; color: var(--gold); text-transform: uppercase; }
+.step span { color: #b7c2cf; font-size: 17px; line-height: 1.3; display: block; margin-top: 4px; }
+.arrow { align-self: center; color: var(--orange); font-family: var(--num); font-size: 22px; }
+
+footer { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; font-size: 15px; color: var(--muted); }
+footer a { color: var(--gold); text-decoration: none; border-bottom: 1px dotted var(--gold); }
+footer a:hover { color: #fff; }
+
+.toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 30px); opacity: 0; z-index: 10; padding: 10px 20px; background: var(--steel); border: 1px solid var(--gold); color: var(--text); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 14px; transition: opacity .2s, transform .2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 820px) {
+  .hero { grid-template-columns: 1fr; padding-top: 22px; }
+  .tank { max-width: 360px; order: -1; }
+  .cards { grid-template-columns: 1fr; }
+  .flow { grid-template-columns: 1fr; }
+  .arrow { transform: rotate(90deg); justify-self: center; }
+}
+@media (max-width: 460px) {
+  .stats { grid-template-columns: repeat(2, auto); }
+  .actions { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ring, .barrel, .flash, .live i { animation: none; }
+  .card, .card::after, .toast { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span>Unofficial fan tool &middot; not affiliated with Tanki Online</span>
+    <span class="live" id="live"><i></i><span id="liveText">Checking data...</span></span>
+  </div>
+
+  <header class="hero">
+    <div>
+      <div class="eyebrow">Tanki Online Toolkit</div>
+      <h1>Augments<br>Database</h1>
+      <p class="lead">Every augment for every turret and hull, scraped daily from the Tanki Online wiki in English and Russian, ready to load with one request.</p>
+      <div class="chips">
+        <div class="chip"><b id="chipItems">-</b><span>Items</span></div>
+        <div class="chip"><b id="chipAugments">-</b><span>Augments</span></div>
+        <div class="chip"><b id="chipNext">-</b><span>Next scrape</span></div>
+      </div>
+    </div>
+
+    <svg class="tank" viewBox="0 0 470 250" role="img" aria-label="Stylised tank firing">
+      <defs>
+        <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#4a5868"/><stop offset=".5" stop-color="#2c3743"/><stop offset="1" stop-color="#1b232d"/>
+        </linearGradient>
+        <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#232c37"/><stop offset="1" stop-color="#12171d"/>
+        </linearGradient>
+        <radialGradient id="fl" cx=".3" cy=".5" r=".8">
+          <stop offset="0" stop-color="#fff6c8"/><stop offset=".4" stop-color="#ffbc09"/><stop offset="1" stop-color="#ff5309" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <g class="ring" fill="none" stroke="#ffbc09" stroke-opacity=".35">
+        <circle cx="215" cy="125" r="118" stroke-dasharray="3 9"/>
+        <circle cx="215" cy="125" r="100" stroke-opacity=".18"/>
+        <path d="M215 -6v18M215 238v18M84 125h18M328 125h18" stroke-width="2"/>
+      </g>
+      <ellipse cx="215" cy="226" rx="170" ry="11" fill="#000" opacity=".45"/>
+      <rect x="48" y="168" width="334" height="50" rx="25" fill="url(#dark)" stroke="#34414f" stroke-width="2"/>
+      <g fill="#262f3a" stroke="#3d4b5a" stroke-width="2">
+        <circle cx="80" cy="193" r="17"/><circle cx="127" cy="193" r="17"/><circle cx="174" cy="193" r="17"/>
+        <circle cx="221" cy="193" r="17"/><circle cx="268" cy="193" r="17"/><circle cx="315" cy="193" r="17"/><circle cx="352" cy="193" r="14"/>
+      </g>
+      <g fill="#0c1015"><circle cx="80" cy="193" r="6"/><circle cx="127" cy="193" r="6"/><circle cx="174" cy="193" r="6"/><circle cx="221" cy="193" r="6"/><circle cx="268" cy="193" r="6"/><circle cx="315" cy="193" r="6"/></g>
+      <path d="M62 172 L98 128 H318 L366 172 Z" fill="url(#steel)" stroke="#546577" stroke-width="2"/>
+      <path d="M98 128 H318" stroke="#ffbc09" stroke-width="3" opacity=".9"/>
+      <path d="M78 160 H350" stroke="#ff5309" stroke-width="2" opacity=".7"/>
+      <g class="barrel">
+        <rect x="256" y="99" width="132" height="15" rx="3" fill="url(#steel)" stroke="#546577" stroke-width="2"/>
+        <rect x="380" y="94" width="22" height="25" rx="3" fill="#1b232d" stroke="#ffbc09" stroke-width="2"/>
+      </g>
+      <path d="M142 128 C142 96 160 82 190 82 H236 C256 82 268 98 268 128 Z" fill="url(#steel)" stroke="#546577" stroke-width="2"/>
+      <circle cx="176" cy="99" r="9" fill="#12171d" stroke="#ffbc09" stroke-width="2"/>
+      <rect x="206" y="92" width="40" height="8" rx="2" fill="#12171d" opacity=".8"/>
+      <polygon class="flash" points="405,107 448,86 432,107 456,114 430,119 444,138 405,119" fill="url(#fl)"/>
+    </svg>
+  </header>
+
+  <div class="section-title">Pick a language</div>
+  <section class="cards">
+    <div class="card-wrap">
+      <article class="card en" data-file="augments.en.json" data-id="en">
+        <span class="tag">EN</span>
+        <h2>English</h2>
+        <div class="file">augments.en.json</div>
+        <dl class="stats">
+          <div><dt>Items</dt><dd data-stat="items">-</dd></div>
+          <div><dt>Augments</dt><dd data-stat="augments">-</dd></div>
+          <div><dt>Updated</dt><dd class="small" data-stat="updated">-</dd></div>
+        </dl>
+        <div class="actions">
+          <a class="open" href="augments.en.json">Open file
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <button class="copy" type="button" data-copy="augments.en.json">Copy link</button>
+        </div>
+      </article>
+    </div>
+
+    <div class="card-wrap">
+      <article class="card ru" data-file="augments.ru.json" data-id="ru">
+        <span class="tag">RU</span>
+        <h2>Русский</h2>
+        <div class="file">augments.ru.json</div>
+        <dl class="stats">
+          <div><dt>Items</dt><dd data-stat="items">-</dd></div>
+          <div><dt>Augments</dt><dd data-stat="augments">-</dd></div>
+          <div><dt>Updated</dt><dd class="small" data-stat="updated">-</dd></div>
+        </dl>
+        <div class="actions">
+          <a class="open" href="augments.ru.json">Open file
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <button class="copy" type="button" data-copy="augments.ru.json">Copy link</button>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div class="section-title">How it works</div>
+  <section class="flow" aria-label="How the data is produced">
+    <div class="step"><b>1 &middot; Scrape</b><span>A bot reads the EN and RU Tanki wiki augment pages once a day.</span></div>
+    <div class="arrow" aria-hidden="true">&#9654;</div>
+    <div class="step"><b>2 &middot; Validate</b><span>Broken or shrunken results are rejected and the last good file stays live.</span></div>
+    <div class="arrow" aria-hidden="true">&#9654;</div>
+    <div class="step"><b>3 &middot; Publish</b><span>Only changed files are committed here, so every patch is a readable diff.</span></div>
+  </section>
+
+  <footer>
+    <span>Data comes from the community <a href="https://en.tankiwiki.com/Augments" rel="noopener">Tanki Online wiki</a>. Tanki Online belongs to its owners.</span>
+    <span><a href="https://github.com/Safwen-Saafi/tanki-online-toolkit" rel="noopener">Source on GitHub</a></span>
+  </footer>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  var SCRAPE_HOUR = 5, SCRAPE_MINUTE = 30;
+  var formatter = typeof Intl !== 'undefined' && Intl.RelativeTimeFormat ? new Intl.RelativeTimeFormat('en', { numeric: 'auto' }) : null;
+
+  function ago(iso) {
+    var then = Date.parse(iso);
+    if (isNaN(then)) return '-';
+    var minutes = Math.round((then - Date.now()) / 60000);
+    if (!formatter) return new Date(then).toUTCString();
+    if (Math.abs(minutes) < 60) return formatter.format(minutes, 'minute');
+    if (Math.abs(minutes) < 1440) return formatter.format(Math.round(minutes / 60), 'hour');
+    return formatter.format(Math.round(minutes / 1440), 'day');
+  }
+
+  function nextScrapeLabel() {
+    var now = new Date();
+    var next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), SCRAPE_HOUR, SCRAPE_MINUTE));
+    if (next <= now) next = new Date(next.getTime() + 86400000);
+    var minutes = Math.round((next - now) / 60000);
+    return Math.floor(minutes / 60) + 'h ' + String(minutes % 60).padStart(2, '0') + 'm';
+  }
+
+  function setText(root, name, value) {
+    var el = root.querySelector('[data-stat="' + name + '"]');
+    if (el) el.textContent = value;
+  }
+
+  function summarize(data) {
+    var items = Object.keys(data.items || {});
+    var augments = items.reduce(function (total, item) { return total + Object.keys(data.items[item]).length; }, 0);
+    return { items: items.length, augments: augments, generatedAt: data.generatedAt };
+  }
+
+  function loadCard(card) {
+    return fetch(card.getAttribute('data-file'), { cache: 'no-cache' })
+      .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(function (data) {
+        var s = summarize(data);
+        setText(card, 'items', s.items);
+        setText(card, 'augments', s.augments);
+        setText(card, 'updated', ago(s.generatedAt));
+        return s;
+      })
+      .catch(function () {
+        setText(card, 'items', '-'); setText(card, 'augments', '-'); setText(card, 'updated', 'unavailable');
+        return null;
+      });
+  }
+
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+  Promise.all(cards.map(loadCard)).then(function (results) {
+    var ok = results.filter(Boolean);
+    var live = document.getElementById('live');
+    document.getElementById('liveText').textContent = ok.length === results.length ? 'Live data' : (ok.length ? 'Partly available' : 'Data unavailable');
+    if (ok.length !== results.length) live.classList.add('off');
+    var first = ok[0];
+    if (first) {
+      document.getElementById('chipItems').textContent = first.items;
+      document.getElementById('chipAugments').textContent = first.augments + (ok[1] ? ' / ' + ok[1].augments : '');
+    }
+  });
+
+  var nextEl = document.getElementById('chipNext');
+  function tick() { nextEl.textContent = nextScrapeLabel(); }
+  tick(); setInterval(tick, 30000);
+
+  var toast = document.getElementById('toast'), toastTimer = 0;
+  function say(message) {
+    toast.textContent = message; toast.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 1800);
+  }
+  document.querySelectorAll('button.copy').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var url = new URL(button.getAttribute('data-copy'), location.href).href;
+      var done = function () { say('Link copied'); };
+      var fail = function () { window.prompt('Copy this link:', url); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, fail); else fail();
+    });
+  });
+})();
+</script>
+</body>
+</html>
