@@ -55,6 +55,78 @@
     c.restore();
   }
 
+  function lerp(a, b, k) { return a + (b - a) * k; }
+
+  // 0 before start, fades in over `up`, 1 until end, fades out over `down`, then 0.
+  function ramp(t, start, end, up, down) {
+    if (t < start || t > end + down) return 0;
+    if (t < start + up) return (t - start) / up;
+    if (t <= end) return 1;
+    return 1 - (t - end) / down;
+  }
+
+  // A soft round sprite per tint, drawn instead of building a gradient for every particle.
+  var sprites = {};
+  function sprite(r, g, b) {
+    var q = function (v) { return Math.max(0, Math.min(255, Math.round(v / 16) * 16)); };
+    var key = q(r) + ',' + q(g) + ',' + q(b);
+    if (sprites[key]) return sprites[key];
+    var s = document.createElement('canvas');
+    s.width = s.height = 64;
+    var x = s.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(' + key + ',1)');
+    gr.addColorStop(0.45, 'rgba(' + key + ',0.55)');
+    gr.addColorStop(1, 'rgba(' + key + ',0)');
+    x.fillStyle = gr;
+    x.fillRect(0, 0, 64, 64);
+    sprites[key] = s;
+    return s;
+  }
+
+  // The particle stream: a cone of soft particles that move, grow and fade. Used for flames, mist and smoke.
+  // cfg: x, y (origin), angle, spread (radians, either side), speed [min,max] px/s, life [min,max] s,
+  //      size [start,end] px radius, rise px/s^2 (upward pull), drag 1/s, jitter px.
+  var stream = {
+    create: function (cap) { return { p: [], cap: cap, acc: 0 }; },
+    emit: function (s, cfg, rate, dtMs, rand) {
+      s.acc += rate * dtMs / 1000;
+      while (s.acc >= 1) {
+        s.acc -= 1;
+        if (s.p.length >= s.cap) continue;
+        var ang = cfg.angle + (rand() - 0.5) * 2 * cfg.spread;
+        var sp = cfg.speed[0] + rand() * (cfg.speed[1] - cfg.speed[0]);
+        s.p.push({
+          x: cfg.x + (rand() - 0.5) * (cfg.jitter || 0), y: cfg.y + (rand() - 0.5) * (cfg.jitter || 0),
+          vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, age: 0,
+          life: cfg.life[0] + rand() * (cfg.life[1] - cfg.life[0]),
+          r0: cfg.size[0] * (0.7 + rand() * 0.6), r1: cfg.size[1] * (0.7 + rand() * 0.6),
+          rise: cfg.rise || 0, drag: cfg.drag || 0, seed: rand()
+        });
+      }
+    },
+    update: function (s, dtMs) {
+      var dt = dtMs / 1000;
+      for (var i = s.p.length - 1; i >= 0; i--) {
+        var q = s.p[i];
+        q.age += dt;
+        if (q.age >= q.life) { s.p.splice(i, 1); continue; }
+        q.vy -= q.rise * dt;
+        if (q.drag) { var d = Math.exp(-q.drag * dt); q.vx *= d; q.vy *= d; }
+        q.x += q.vx * dt;
+        q.y += q.vy * dt;
+      }
+    },
+    // tint(f, seed) gets the particle's age as 0..1 and returns [r, g, b, alpha]
+    draw: function (c, s, tint) {
+      for (var i = 0; i < s.p.length; i++) {
+        var q = s.p[i], f = q.age / q.life, col = tint(f, q.seed), rad = q.r0 + (q.r1 - q.r0) * f;
+        c.globalAlpha = col[3];
+        c.drawImage(sprite(col[0], col[1], col[2]), q.x - rad, q.y - rad, rad * 2, rad * 2);
+      }
+      c.globalAlpha = 1;
+    }
+  };
+
   /* ---------- recipes: one per turret ---------- */
 
   // The default recipe, used by every turret until it gets its own: a muzzle flash and a recoil.
@@ -72,6 +144,32 @@
         var strength = 1 - age / FLASH_MS;
         for (var m = 0; m < e.muzzles.length; m++) drawFlash(c, e.muzzles[m], e.turretPx * 0.085, strength);
       }
+    }
+  };
+
+  // Firebird: a continuous flame. White-yellow at the nozzle, orange, then dark red as it rises and fades.
+  function fireTint(f) {
+    var r, g, b, k;
+    if (f < 0.3) { k = f / 0.3; r = 255; g = lerp(246, 170, k); b = lerp(190, 50, k); }
+    else if (f < 0.7) { k = (f - 0.3) / 0.4; r = 255; g = lerp(170, 95, k); b = lerp(50, 20, k); }
+    else { k = (f - 0.7) / 0.3; r = lerp(255, 150, k); g = lerp(95, 25, k); b = lerp(20, 10, k); }
+    return [r, g, b, (f < 0.12 ? f / 0.12 : (1 - f) / 0.88) * 0.8];
+  }
+  recipes.firebird = {
+    shots: [],
+    muzzles: null,
+    update: function (e, dt) {
+      var tp = e.turretPx, m = e.muzzles[0];
+      var st = e.store.flame || (e.store.flame = stream.create(e.w < 520 ? 150 : 300));
+      var a = e.store.fire = ramp(e.t, 800, 3200, 160, 380);
+      var reach = Math.min(tp * 0.95, e.reach * 0.9);
+      stream.emit(st, { x: m.x, y: m.y, angle: 0, spread: 0.14, speed: [reach / 0.8, reach / 0.5], life: [0.5, 0.85], size: [tp * 0.024, tp * 0.088], rise: tp * 0.8, jitter: tp * 0.014 }, 300 * a, dt, e.rand);
+      stream.update(st, dt);
+    },
+    draw: function (c, e) {
+      if (e.store.flame) stream.draw(c, e.store.flame, fireTint);
+      var a = e.store.fire || 0, m = e.muzzles[0];
+      if (a > 0) glow(c, m.x, m.y, e.turretPx * 0.05, '255,230,150', 0.7 * a * (0.8 + 0.2 * Math.sin(e.t / 35)));
     }
   };
 
@@ -209,7 +307,7 @@
 
   window.TankFx = {
     recipes: recipes,
-    helpers: { glow: glow, drawFlash: drawFlash },
+    helpers: { glow: glow, drawFlash: drawFlash, lerp: lerp, ramp: ramp, sprite: sprite, stream: stream },
 
     init: function (opts) {
       frame = opts.frame; real = opts.real; canvas = opts.canvas;
