@@ -1,0 +1,22 @@
+==Устройства игры==
+
+<div class="mapContainer">
+{{AugmentSwitcher|item=firebird|augments={{Устройства/Огнемёт}}}}
+{{AugmentSwitcher|item=freeze|augments={{Устройства/Фриз}}}}
+{{AugmentSwitcher|item=isida|augments={{Устройства/Изида}}}}
+{{AugmentSwitcher|item=tesla|augments={{Устройства/Тесла}}}}
+{{AugmentSwitcher|item=hammer|augments={{Устройства/Молот}}}}
+{{AugmentSwitcher|item=twins|augments={{Устройства/Твинс}}}}
+{{AugmentSwitcher|item=ricochet|augments={{Устройства/Рикошет}}}}
+{{AugmentSwitcher|item=vulcan|augments={{Устройства/Вулкан}}}}
+{{AugmentSwitcher|item=smoky|augments={{Устройства/Смоки}}}}
+{{AugmentSwitcher|item=striker|augments={{Устройства/Страйкер}}}}
+{{AugmentSwitcher|item=thunder|augments={{Устройства/Гром}}}}
+{{AugmentSwitcher|item=tsunami|augments={{Устройства/Цунами}}}}
+{{AugmentSwitcher|item=scorpion|augments={{Устройства/Скорпион}}}}
+{{AugmentSwitcher|item=magnum|augments={{Устройства/Магнум}}}}
+{{AugmentSwitcher|item=railgun|augments={{Устройства/Рельса}}}}
+{{AugmentSwitcher|item=gauss|augments={{Устройства/Гаусс}}}}
+{{AugmentSwitcher|item=shaft|augments={{Устройства/Шафт}}}}
+{{AugmentSwitcher|item=hulls|augments={{Устройства для корпусов}}}}
+</div>

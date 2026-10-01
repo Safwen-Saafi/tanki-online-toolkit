@@ -1,0 +1,22 @@
+==Augments of the Game ==
+
+<div class="mapContainer">
+{{AugmentSwitcher|item=firebird|augments={{:Augments/Firebird}}}}
+{{AugmentSwitcher|item=freeze|augments={{:Augments/Freeze}}}}
+{{AugmentSwitcher|item=isida|augments={{:Augments/Isida}}}}
+{{AugmentSwitcher|item=tesla|augments={{:Augments/Tesla}}}}
+{{AugmentSwitcher|item=hammer|augments={{:Augments/Hammer}}}}
+{{AugmentSwitcher|item=twins|augments={{:Augments/Twins}}}}
+{{AugmentSwitcher|item=ricochet|augments={{:Augments/Ricochet}}}}
+{{AugmentSwitcher|item=vulcan|augments={{:Augments/Vulcan}}}}
+{{AugmentSwitcher|item=smoky|augments={{:Augments/Smoky}}}}
+{{AugmentSwitcher|item=striker|augments={{:Augments/Striker}}}}
+{{AugmentSwitcher|item=thunder|augments={{:Augments/Thunder}}}}
+{{AugmentSwitcher|item=tsunami|augments={{:Augments/Tsunami}}}}
+{{AugmentSwitcher|item=scorpion|augments={{:Augments/Scorpion}}}}
+{{AugmentSwitcher|item=magnum|augments={{:Augments/Magnum}}}}
+{{AugmentSwitcher|item=railgun|augments={{:Augments/Railgun}}}}
+{{AugmentSwitcher|item=gauss|augments={{:Augments/Gauss}}}}
+{{AugmentSwitcher|item=shaft|augments={{:Augments/Shaft}}}}
+{{AugmentSwitcher|item=hulls|augments={{:Augments/Hulls}}}}
+</div>

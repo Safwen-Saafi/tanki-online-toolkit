@@ -328,11 +328,55 @@ does not.
   attached and the release commit's body as the description - it never
   auto-publishes; open the draft on GitHub to review, edit, and publish it.
 
-Testing is opt-in and not yet set up; there is no unit test runner. Run
-`/tests` or `$tests` if one is wanted later. Verification today is manual: load
-unpacked, play against `tankionline.com`, check DevTools console for the
-`[KI-test]` log prefixes and behavior (battle stats warning icon, garage skin
-overrides).
+### Tanki Augments Bot (`bot/`)
+
+A separate Node project that is not part of the extension and never ships in
+the zip. It scrapes the EN and RU Tanki wiki augment pages and publishes
+per-language JSON. It has its own `package.json` and lockfile; run these inside
+`bot/`.
+
+- Install: `npm install`, then `npx playwright install chromium` once.
+- Build: `npm run build` (compiles `bot/src/` to the gitignored `bot/dist/`).
+- Test: `npm test` (builds, then runs Node's built-in test runner on the
+  `*.test.ts` files, using the saved wiki snippets in `bot/test/fixtures/`).
+- Scrape: `npm run scrape` builds and validates both languages and writes
+  `bot/out/augments.en.json` and `bot/out/augments.ru.json`. It exits non-zero
+  if either language fails validation. Takes about 40 seconds.
+- Other modes: `npm run scrape -- --discover` lists the pages found on each
+  hub, `npm run scrape -- --page <en|ru> <item>` parses one page, and
+  `npm run scrape -- --publish <dir>` copies the validated files from
+  `bot/out/` into `<dir>` only when their content changed.
+- Daily run: `.github/workflows/augments-bot.yml` runs the scrape at 05:30 UTC
+  (and on manual dispatch), then commits any changed files to the `data`
+  branch. It never touches `main`.
+- Published at (GitHub Pages, deployed from the `data` branch, folder `/`):
+  `https://safwen-saafi.github.io/tanki-online-toolkit/augments.en.json` and
+  `.../augments.ru.json`. Both send `Access-Control-Allow-Origin: *`. The landing
+  page at the same root is `bot/site/index.html`, copied there by the workflow.
+  It is bilingual (EN and RU: it follows the browser language, has a toggle, and
+  remembers the choice) and shows live stats read from the two JSON files. Its
+  turret and hull pictures are the game's own garage exports: 28 WebP files in
+  `bot/site/img/` (17 turrets, 11 hulls), which the workflow copies to the
+  `data` branch next to the page. Each tank is assembled from one hull and one
+  turret image using the placements in the page's `REAL` table (all in the
+  frame the turrets were exported in; a part can carry a size correction `k`,
+  measured against a real hull+turret export); the drawings in the page are
+  only a fallback for a part with no image. These
+  images are Tanki Online's assets, and Tanki's fan content guidelines do not
+  clearly allow original in-game assets outside gameplay or fan art, so the
+  owner chose this knowingly: keep the page clearly marked as unofficial, keep
+  the "images belong to Tanki Online" credit, and take the images down if
+  Tanki asks. Never hotlink Tanki or wiki images; host only these files.
+- The file shape (`schemaVersion: 1`, `items`, item slugs, augment-name keys,
+  `name`, `advantages`, `disadvantages`) is defined in `bot/src/contract.ts` and
+  is read by a later extension feature; do not rename these.
+
+Testing for the extension is opt-in and not yet set up; there is no unit test
+runner for `src/`. Run `/tests` or `$tests` if one is wanted later.
+Verification there is manual: load unpacked, play against `tankionline.com`,
+check DevTools console for the `[KI-test]` log prefixes and behavior (battle
+stats warning icon, garage skin overrides). The bot is the exception, with its
+own tests as described above.
 
 Browser testing is also opt-in and not set up. Run `/tests browser` or
 `$tests browser` to add a harness if automated browser verification becomes
