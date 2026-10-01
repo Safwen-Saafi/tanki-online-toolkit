@@ -74,6 +74,8 @@ jobs:
         run: |
           cat "$RUNNER_TEMP/publish.txt" >> "$GITHUB_STEP_SUMMARY" || true
           cp bot/site/index.html data-branch/index.html
+          rm -rf data-branch/img
+          cp -r bot/site/img data-branch/img
           cd data-branch
           touch .nojekyll
           git add -A

@@ -87,6 +87,17 @@ h1 { font-family: var(--num); font-weight: 900; font-size: clamp(34px, 5.8vw, 64
 .caption b { display: block; font-family: var(--num); font-size: 18px; letter-spacing: .1em; color: #fff; text-transform: uppercase; }
 .caption span { color: var(--muted); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
 
+.heroframe { position: relative; }
+.real { position: absolute; left: 50%; bottom: 8%; width: 80%; transform: translateX(-50%); pointer-events: none; }
+.real[hidden] { display: none; }
+.rshadow { position: absolute; left: 4%; right: 4%; bottom: -3%; height: 9%; border-radius: 50%; background: #000; opacity: .55; filter: blur(8px); }
+.rpart { position: absolute; }
+.rpart img { display: block; width: 100%; height: 100%; }
+.rturret.fire { animation: rrecoil 5s ease-out infinite; }
+@keyframes rrecoil { 0%, 70% { transform: translateX(0); } 72% { transform: translateX(-1.6%); } 100% { transform: translateX(0); } }
+.rflash { position: absolute; width: 15%; aspect-ratio: 1.4; transform: translate(-12%, -50%); opacity: 0; background: radial-gradient(circle at 18% 50%, #fff6c8, #ffbc09 38%, rgba(255, 83, 9, 0) 72%); animation: flash 5s linear infinite; }
+.thumb.photo { object-fit: contain; }
+
 .section-title { margin: 30px 0 14px; font-weight: 700; font-size: 14px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 14px; }
 .section-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
 
@@ -180,7 +191,7 @@ footer a:hover { color: #fff; }
   .tiles { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ring, .recoil, .flash, .live i, .shout::after { animation: none; }
+  .ring, .recoil, .flash, .live i, .shout::after, .rturret.fire, .rflash { animation: none; }
   .card, .card::after, .toast, .tile { transition: none; }
 }
 </style>
@@ -218,16 +229,19 @@ footer a:hover { color: #fff; }
       </div>
     </div>
     <div class="stage">
+      <div class="heroframe">
       <svg class="tank" id="heroSvg" viewBox="0 0 520 250" role="img" aria-label="Tank">
         <g class="ring" fill="none" stroke="#ffbc09" stroke-opacity=".32">
           <circle cx="260" cy="120" r="112" stroke-dasharray="3 9"/>
           <circle cx="260" cy="120" r="94" stroke-opacity=".16"/>
           <path d="M260 -8v18M260 230v18M118 120h18M384 120h18" stroke-width="2"/>
         </g>
-        <ellipse cx="260" cy="226" rx="200" ry="11" fill="#000" opacity=".45"/>
+        <ellipse id="svgShadow" cx="260" cy="226" rx="200" ry="11" fill="#000" opacity=".45"/>
         <g id="heroHull" transform="translate(50 116)"></g>
         <g id="heroTurret"></g>
       </svg>
+      <div class="real" id="heroReal" hidden></div>
+      </div>
       <div class="caption"><b id="capName">-</b><span id="capCount">&nbsp;</span></div>
     </div>
   </header>
@@ -347,7 +361,7 @@ footer a:hover { color: #fff; }
       s2t: '2 · Validate', s2d: 'Broken or shrunken results are rejected and the last good file stays live.',
       s3t: '3 · Publish', s3d: 'Only changed files are committed here, so every patch is a readable diff.',
       foot1: 'Data comes from the community', wiki: 'Tanki Online wiki', foot2: 'Tanki Online belongs to its owners.',
-      art: 'Artwork is original fan art inspired by Tanki Online.',
+      art: 'Tank images are exported from the game and belong to Tanki Online.',
       site: 'Official game site', src: 'Source on GitHub',
       aug: function (n) { return n + (n === 1 ? ' augment' : ' augments'); },
       hm: function (h, m) { return h + 'h ' + (m < 10 ? '0' : '') + m + 'm'; },
@@ -372,7 +386,7 @@ footer a:hover { color: #fff; }
       s2t: '2 · Проверка', s2d: 'Сломанные или урезанные результаты отклоняются, а последний хороший файл остаётся в сети.',
       s3t: '3 · Публикация', s3d: 'Сюда попадают только изменённые файлы, поэтому каждый патч виден как понятная разница.',
       foot1: 'Данные берутся из вики сообщества', wiki: 'Tanki Online', foot2: 'Tanki Online принадлежит своим владельцам.',
-      art: 'Рисунки: оригинальный фан-арт по мотивам Tanki Online.',
+      art: 'Изображения танков экспортированы из игры и принадлежат Tanki Online.',
       site: 'Сайт игры', src: 'Исходный код на GitHub',
       aug: function (n) {
         var mod10 = n % 10, mod100 = n % 100;
@@ -457,6 +471,93 @@ footer a:hover { color: #fff; }
 
   function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return list[0]; }
 
+  // Real in-game renders. Everything is placed in one frame, the one the turrets were exported in
+  // (all turrets sit on a Hunter there), in scaled-image pixels.
+  // turret: x,y,w,h = where the crop sits; mx,my = the muzzle tip inside it; k = optional size correction.
+  // hull: x,y,w,h = where the hull sits so that a turret rests correctly on it (already includes any size correction).
+  // pivot: the seat point of the turrets, used as the centre when a turret is scaled.
+  var REAL = {
+    ground: 558,
+    pivot: { x: 538.5, y: 336 },
+    turret: {
+      firebird: { src: 'img/turret-firebird.webp', x: 328.8, y: 191.4, w: 598, h: 146, mx: 595.8, my: 105.3 },
+      freeze: { src: 'img/turret-freeze.webp', x: 319.8, y: 211.2, w: 634, h: 127, mx: 632.4, my: 75.3 },
+      isida: { src: 'img/turret-isida.webp', x: 397.2, y: 208.2, w: 409, h: 129, mx: 406.8, my: 96.9 },
+      tesla: { src: 'img/turret-tesla.webp', x: 267.6, y: 176.4, w: 561, h: 165, mx: 559.2, my: 104.4 },
+      hammer: { src: 'img/turret-hammer.webp', x: 343.8, y: 181.2, w: 487, h: 155, mx: 485.4, my: 70.8 },
+      twins: { src: 'img/turret-twins.webp', x: 336.6, y: 220.2, w: 537, h: 116, mx: 535.2, my: 70.5 },
+      ricochet: { src: 'img/turret-ricochet.webp', x: 352.8, y: 200.4, w: 526, h: 136, mx: 524.4, my: 94.2 },
+      vulcan: { src: 'img/turret-vulcan.webp', x: 276, y: 174.6, w: 575, h: 163, mx: 573.6, my: 71.4 },
+      smoky: { src: 'img/turret-smoky.webp', x: 377.4, y: 230.4, w: 502, h: 106, mx: 500.4, my: 58.2 },
+      striker: { src: 'img/turret-striker.webp', x: 363.6, y: 194.4, w: 299, h: 142, mx: 297.6, my: 35.1, k: 1.08 },
+      thunder: { src: 'img/turret-thunder.webp', x: 290.4, y: 226.8, w: 644, h: 110, mx: 642.6, my: 57.9 },
+      tsunami: { src: 'img/turret-tsunami.webp', x: 364.8, y: 225.6, w: 611, h: 113, mx: 609.6, my: 57.3 },
+      scorpion: { src: 'img/turret-scorpion.webp', x: 311.4, y: 189, w: 800, h: 148, mx: 798.6, my: 90.9 },
+      magnum: { src: 'img/turret-magnum.webp', x: 390, y: 189, w: 653, h: 148, mx: 651.6, my: 63.9 },
+      railgun: { src: 'img/turret-railgun.webp', x: 382.8, y: 205.8, w: 656, h: 132, mx: 654, my: 74.7 },
+      gauss: { src: 'img/turret-gauss.webp', x: 286.2, y: 214.8, w: 682, h: 122, mx: 679.8, my: 57.9 },
+      shaft: { src: 'img/turret-shaft.webp', x: 286.2, y: 198.6, w: 784, h: 143, mx: 782.4, my: 84.6 }
+    },
+    hull: {
+      wasp: { src: 'img/hull-wasp.webp', x: 260.9, y: 339.7, w: 730, h: 233 },
+      hopper: { src: 'img/hull-hopper.webp', x: 152.1, y: 331.6, w: 789.4, h: 180.2, k: 1.1261 },
+      hornet: { src: 'img/hull-hornet.webp', x: 209.9, y: 325.6, w: 743, h: 208 },
+      viking: { src: 'img/hull-viking.webp', x: 174.6, y: 321.4, w: 863.3, h: 208.4, k: 0.9603 },
+      crusader: { src: 'img/hull-crusader.webp', x: 135, y: 329.7, w: 822, h: 220.8, k: 0.9277 },
+      hunter: { src: 'img/hull-hunter.webp', x: 159.2, y: 333.3, w: 802, h: 230 },
+      paladin: { src: 'img/hull-paladin.webp', x: 148.1, y: 331.2, w: 826, h: 215 },
+      dictator: { src: 'img/hull-dictator.webp', x: 204.9, y: 338, w: 982, h: 306 },
+      titan: { src: 'img/hull-titan.webp', x: 54.2, y: 328.9, w: 928, h: 253 },
+      ares: { src: 'img/hull-ares.webp', x: 89.3, y: 321.7, w: 886, h: 225 },
+      mammoth: { src: 'img/hull-mammoth.webp', x: -42.9, y: 329.5, w: 967, h: 251 }
+    }
+  };
+
+  function realLayout(turretId, hullId) {
+    var t = REAL.turret[turretId], h = REAL.hull[hullId];
+    if (!t || !h) return null;
+    // a turret with a size correction is scaled around its seat point, so it stays on its hull
+    var k = t.k || 1, p = REAL.pivot;
+    var tx = p.x + (t.x - p.x) * k, ty = p.y + (t.y - p.y) * k, tw = t.w * k, th = t.h * k;
+    var x0 = Math.min(h.x, tx), y0 = Math.min(h.y, ty);
+    // the frame always reaches down to the ground line, so hovering hulls stay at their real height
+    var x1 = Math.max(h.x + h.w, tx + tw), y1 = Math.max(h.y + h.h, ty + th, REAL.ground);
+    return {
+      w: x1 - x0, h: y1 - y0,
+      hull: { src: h.src, x: h.x - x0, y: h.y - y0, w: h.w, h: h.h },
+      turret: { src: t.src, x: tx - x0, y: ty - y0, w: tw, h: th, mx: t.mx * k, my: t.my * k }
+    };
+  }
+
+  function pct(value, total) { return (value / total * 100).toFixed(3) + '%'; }
+  function box(p, frame) { return 'left:' + pct(p.x, frame.w) + ';top:' + pct(p.y, frame.h) + ';width:' + pct(p.w, frame.w) + ';height:' + pct(p.h, frame.h); }
+
+  // Every tank is drawn at the same scale, sized so the largest combination fills the frame.
+  var FRAME_ASPECT = 520 / 250;
+  var REF = (function () {
+    var w = 0, h = 0;
+    Object.keys(REAL.turret).forEach(function (t) {
+      Object.keys(REAL.hull).forEach(function (hu) { var l = realLayout(t, hu); if (l.w > w) w = l.w; if (l.h > h) h = l.h; });
+    });
+    return { w: w, h: h };
+  })();
+  var FIT = Math.min(90 / REF.w, 90 / (FRAME_ASPECT * REF.h));
+
+  var heroReal = document.getElementById('heroReal');
+  var svgShadow = document.getElementById('svgShadow');
+  function renderReal() {
+    var layout = realLayout(sel.turret, sel.hull);
+    heroReal.hidden = !layout;
+    svgShadow.style.display = heroHull.style.display = heroTurret.style.display = layout ? 'none' : '';
+    if (!layout) return;
+    heroReal.style.width = (layout.w * FIT).toFixed(2) + '%';
+    heroReal.style.aspectRatio = layout.w + ' / ' + layout.h;
+    heroReal.innerHTML = '<div class="rshadow"></div>' +
+      '<div class="rpart" style="' + box(layout.hull, layout) + '"><img src="' + layout.hull.src + '" alt=""></div>' +
+      '<div class="rpart rturret fire" style="' + box(layout.turret, layout) + '"><img src="' + layout.turret.src + '" alt="">' +
+      '<div class="rflash" style="left:' + pct(layout.turret.mx, layout.turret.w) + ';top:' + pct(layout.turret.my, layout.turret.h) + '"></div></div>';
+  }
+
   var sel = { turret: 'railgun', hull: 'hunter' };
   var heroHull = document.getElementById('heroHull');
   var heroTurret = document.getElementById('heroTurret');
@@ -469,6 +570,7 @@ footer a:hover { color: #fff; }
     heroTurret.setAttribute('transform', 'translate(' + x + ' ' + y + ')');
     heroTurret.innerHTML = '<g class="recoil">' + tu.art() +
       '<g class="flash" transform="translate(' + tu.mz[0] + ' ' + tu.mz[1] + ')"><polygon points="0,0 34,-16 22,0 44,8 20,10 30,28 0,12" fill="url(#gFlash)"/></g></g>';
+    renderReal();
     var label = nameOf(sel.hull) + ' + ' + nameOf(sel.turret);
     document.getElementById('capName').textContent = label;
     document.getElementById('heroSvg').setAttribute('aria-label', t('heroLabel')(label));
@@ -493,16 +595,19 @@ footer a:hover { color: #fff; }
 
   function buildTiles() {
     var tt = document.getElementById('turretTiles'), ht = document.getElementById('hullTiles');
-    TURRETS.forEach(function (tu) { tt.appendChild(makeTile('turret', tu.id, 'tile ' + tu.range, '<g>' + tu.art() + '</g>')); });
-    HULLS.forEach(function (hu) { ht.appendChild(makeTile('hull', hu.id, 'tile hull', '<g>' + hu.art() + '</g>')); });
-    var thumbs = document.querySelectorAll('.thumb');
+    function thumb(real, art) {
+      return real ? '<img class="thumb photo" src="' + real.src + '" alt="" aria-hidden="true">' : '<svg class="thumb" aria-hidden="true"><g>' + art() + '</g></svg>';
+    }
+    TURRETS.forEach(function (tu) { tt.appendChild(makeTile('turret', tu.id, 'tile ' + tu.range, thumb(REAL.turret[tu.id], tu.art))); });
+    HULLS.forEach(function (hu) { ht.appendChild(makeTile('hull', hu.id, 'tile hull', thumb(REAL.hull[hu.id], hu.art))); });
+    var thumbs = document.querySelectorAll('svg.thumb');
     for (var i = 0; i < thumbs.length; i++) fitThumb(thumbs[i]);
   }
 
-  function makeTile(kind, id, cls, art) {
+  function makeTile(kind, id, cls, thumbHtml) {
     var b = document.createElement('button');
     b.type = 'button'; b.className = cls; b.setAttribute('data-kind', kind); b.setAttribute('data-id', id);
-    b.innerHTML = '<svg class="thumb" aria-hidden="true">' + art + '</svg><span class="tn"></span><span class="tc"></span>';
+    b.innerHTML = thumbHtml + '<span class="tn"></span><span class="tc"></span>';
     b.addEventListener('click', function () { auto = false; sel[kind] = id; renderHero(); });
     return b;
   }
@@ -627,11 +732,15 @@ footer a:hover { color: #fff; }
   /* ---------- go ---------- */
   var auto = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var combos = [['railgun', 'hunter'], ['hammer', 'viking'], ['shaft', 'wasp'], ['vulcan', 'mammoth'], ['tesla', 'hornet'], ['smoky', 'crusader'], ['twins', 'dictator'], ['firebird', 'titan'], ['magnum', 'ares'], ['striker', 'paladin'], ['tsunami', 'hopper']];
+  // While only some parts have real images, rotate only through combos that are fully real.
+  var anyReal = Object.keys(REAL.turret).length + Object.keys(REAL.hull).length > 0;
+  var pool = anyReal ? combos.filter(function (c) { return realLayout(c[0], c[1]); }) : combos;
+  if (pool.length < 2) auto = false;
   var comboAt = 0;
   setInterval(function () {
     if (!auto) return;
-    comboAt = (comboAt + 1) % combos.length;
-    sel.turret = combos[comboAt][0]; sel.hull = combos[comboAt][1];
+    comboAt = (comboAt + 1) % pool.length;
+    sel.turret = pool[comboAt][0]; sel.hull = pool[comboAt][1];
     renderHero();
   }, 6500);
 
