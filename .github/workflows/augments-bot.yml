@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '30 5 * * *'
   workflow_dispatch:
-  # Temporary: lets the first live run start from the feature branch. Removed before merge.
+  # Temporary: lets the first live runs start from the feature branch. Removed before merge.
   push:
     branches: [feature/tanki-augments-bot]
     paths:
@@ -73,6 +73,7 @@ jobs:
       - name: Commit and push the data branch
         run: |
           cat "$RUNNER_TEMP/publish.txt" >> "$GITHUB_STEP_SUMMARY" || true
+          cp bot/site/index.html data-branch/index.html
           cd data-branch
           touch .nojekyll
           git add -A
