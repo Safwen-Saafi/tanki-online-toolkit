@@ -93,9 +93,8 @@ h1 { font-family: var(--num); font-weight: 900; font-size: clamp(34px, 5.8vw, 64
 .rshadow { position: absolute; left: 4%; right: 4%; bottom: -3%; height: 9%; border-radius: 50%; background: #000; opacity: .55; filter: blur(8px); }
 .rpart { position: absolute; }
 .rpart img { display: block; width: 100%; height: 100%; }
-.rturret.fire { animation: rrecoil 5s ease-out infinite; }
-@keyframes rrecoil { 0%, 70% { transform: translateX(0); } 72% { transform: translateX(-1.6%); } 100% { transform: translateX(0); } }
-.rflash { position: absolute; width: 15%; aspect-ratio: 1.4; transform: translate(-12%, -50%); opacity: 0; background: radial-gradient(circle at 18% 50%, #fff6c8, #ffbc09 38%, rgba(255, 83, 9, 0) 72%); animation: flash 5s linear infinite; }
+/* Wider and taller than the tank, so shots have room to travel. Drawn by fx.js. */
+.fx { position: absolute; left: -8%; top: -34%; width: 150%; height: 168%; pointer-events: none; }
 .thumb.photo { object-fit: contain; }
 
 .section-title { margin: 30px 0 14px; font-weight: 700; font-size: 14px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 14px; }
@@ -191,7 +190,7 @@ footer a:hover { color: #fff; }
   .tiles { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ring, .recoil, .flash, .live i, .shout::after, .rturret.fire, .rflash { animation: none; }
+  .ring, .recoil, .flash, .live i, .shout::after { animation: none; }
   .card, .card::after, .toast, .tile { transition: none; }
 }
 </style>
@@ -241,6 +240,7 @@ footer a:hover { color: #fff; }
         <g id="heroTurret"></g>
       </svg>
       <div class="real" id="heroReal" hidden></div>
+      <canvas class="fx" id="heroFx" aria-hidden="true"></canvas>
       </div>
       <div class="caption"><b id="capName">-</b><span id="capCount">&nbsp;</span></div>
     </div>
@@ -336,6 +336,7 @@ footer a:hover { color: #fff; }
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="fx.js"></script>
 <script>
 (function () {
   'use strict';
@@ -525,7 +526,7 @@ footer a:hover { color: #fff; }
     return {
       w: x1 - x0, h: y1 - y0,
       hull: { src: h.src, x: h.x - x0, y: h.y - y0, w: h.w, h: h.h },
-      turret: { src: t.src, x: tx - x0, y: ty - y0, w: tw, h: th, mx: t.mx * k, my: t.my * k }
+      turret: { src: t.src, x: tx - x0, y: ty - y0, w: tw, h: th, mx: t.mx * k, my: t.my * k, k: k }
     };
   }
 
@@ -549,13 +550,14 @@ footer a:hover { color: #fff; }
     var layout = realLayout(sel.turret, sel.hull);
     heroReal.hidden = !layout;
     svgShadow.style.display = heroHull.style.display = heroTurret.style.display = layout ? 'none' : '';
-    if (!layout) return;
+    if (!layout) { if (window.TankFx) window.TankFx.clear(); return; }
     heroReal.style.width = (layout.w * FIT).toFixed(2) + '%';
     heroReal.style.aspectRatio = layout.w + ' / ' + layout.h;
     heroReal.innerHTML = '<div class="rshadow"></div>' +
       '<div class="rpart" style="' + box(layout.hull, layout) + '"><img src="' + layout.hull.src + '" alt=""></div>' +
-      '<div class="rpart rturret fire" style="' + box(layout.turret, layout) + '"><img src="' + layout.turret.src + '" alt="">' +
-      '<div class="rflash" style="left:' + pct(layout.turret.mx, layout.turret.w) + ';top:' + pct(layout.turret.my, layout.turret.h) + '"></div></div>';
+      '<div class="rpart rturret" style="' + box(layout.turret, layout) + '"><img src="' + layout.turret.src + '" alt=""></div>';
+    // the shot effect canvas works out where the muzzle is from this layout
+    if (window.TankFx) window.TankFx.setTank({ id: sel.turret, layout: layout, turretEl: heroReal.querySelector('.rturret') });
   }
 
   var sel = { turret: 'railgun', hull: 'hunter' };
@@ -737,13 +739,21 @@ footer a:hover { color: #fff; }
   var pool = anyReal ? combos.filter(function (c) { return realLayout(c[0], c[1]); }) : combos;
   if (pool.length < 2) auto = false;
   var comboAt = 0;
+  // two full shot cycles per tank (the cycle is 6 s in fx.js), so every turret is seen firing, resting and firing again
   setInterval(function () {
     if (!auto) return;
     comboAt = (comboAt + 1) % pool.length;
     sel.turret = pool[comboAt][0]; sel.hull = pool[comboAt][1];
     renderHero();
-  }, 6500);
+  }, 12000);
 
+  // ?tank=<turret>,<hull> starts on that tank with no auto-rotation (used for checks and screenshots)
+  var tankParam = (new URLSearchParams(location.search).get('tank') || '').split(',');
+  if (tankParam.length === 2 && REAL.turret[tankParam[0]] && REAL.hull[tankParam[1]]) {
+    sel.turret = tankParam[0]; sel.hull = tankParam[1]; auto = false;
+  }
+
+  if (window.TankFx) window.TankFx.init({ frame: document.querySelector('.heroframe'), real: heroReal, canvas: document.getElementById('heroFx') });
   buildTiles();
   applyLang();
 
