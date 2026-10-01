@@ -173,6 +173,52 @@
     }
   };
 
+  // Freeze: a cold mist cone, white to cyan to pale blue, heavier than flame so it drifts down a little,
+  // with small ice glints that twinkle inside it.
+  function frostTint(f) {
+    var r, g, b, k;
+    // deep blue at the nozzle, getting lighter with age (and so with distance), never pure white
+    if (f < 0.5) { k = f / 0.5; r = lerp(25, 105, k); g = lerp(115, 190, k); b = lerp(225, 255, k); }
+    else { k = (f - 0.5) / 0.5; r = lerp(105, 170, k); g = lerp(190, 225, k); b = 255; }
+    return [r, g, b, (f < 0.07 ? f / 0.07 : (1 - f) / 0.93) * 0.5];
+  }
+  recipes.freeze = {
+    shots: [],
+    muzzles: null,
+    update: function (e, dt) {
+      var tp = e.turretPx, m = e.muzzles[0], small = e.w < 520;
+      var mist = e.store.mist || (e.store.mist = stream.create(small ? 320 : 620));
+      var ice = e.store.ice || (e.store.ice = stream.create(small ? 60 : 120));
+      var a = e.store.fire = ramp(e.t, 800, 3200, 200, 420);
+      var reach = Math.min(tp * 0.9, e.reach * 0.9);
+      stream.emit(mist, { x: m.x, y: m.y, angle: 0.04, spread: 0.2, speed: [reach / 1.05, reach / 0.65], life: [0.65, 1.1], size: [tp * 0.026, tp * 0.1], rise: -tp * 0.25, jitter: tp * 0.014 }, 620 * a, dt, e.rand);
+      stream.emit(ice, { x: m.x, y: m.y, angle: 0.04, spread: 0.24, speed: [reach / 0.9, reach / 0.5], life: [0.35, 0.75], size: [tp * 0.011, tp * 0.019], rise: -tp * 0.1, jitter: tp * 0.01 }, 85 * a, dt, e.rand);
+      stream.update(mist, dt);
+      stream.update(ice, dt);
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx, m = e.muzzles[0], a = e.store.fire || 0;
+      if (e.store.mist) {
+        c.globalCompositeOperation = 'source-over';
+        stream.draw(c, e.store.mist, frostTint);
+        c.globalCompositeOperation = 'lighter';
+      }
+      if (e.store.ice) {
+        // round ice droplets: a small bright core with a soft halo, fading in as they travel
+        e.store.ice.p.forEach(function (q) {
+          var f = q.age / q.life, tw = 0.65 + 0.35 * Math.sin(q.age * 28 + q.seed * 10);
+          var alpha = (1 - f) * tw * Math.min(1, f / 0.3), rad = q.r0 + (q.r1 - q.r0) * f;
+          c.globalAlpha = alpha * 0.35;
+          c.drawImage(sprite(150, 205, 255), q.x - rad * 2.6, q.y - rad * 2.6, rad * 5.2, rad * 5.2);
+          c.globalAlpha = alpha * 0.95;
+          c.drawImage(sprite(205, 235, 255), q.x - rad, q.y - rad, rad * 2, rad * 2);
+        });
+        c.globalAlpha = 1;
+      }
+      if (a > 0) glow(c, m.x, m.y, tp * 0.05, '90,170,255', 0.55 * a * (0.85 + 0.15 * Math.sin(e.t / 45)));
+    }
+  };
+
   function recipeFor(id) { return recipes[id] || generic; }
 
   function recoilAt(t, shots) {
