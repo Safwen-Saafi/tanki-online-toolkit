@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tanki Augments Database</title>
-<meta name="description" content="Daily-updated Tanki Online augment data in English and Russian, scraped from the Tanki Online wiki.">
+<meta id="metaDesc" name="description" content="Daily-updated Tanki Online augment data in English and Russian, scraped from the Tanki Online wiki.">
 <meta name="theme-color" content="#090c10">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23090c10'/%3E%3Cpath d='M6 20h20l-3 5H9z' fill='%23ffbc09'/%3E%3Crect x='10' y='12' width='11' height='7' rx='2' fill='%23ff5309'/%3E%3Crect x='20' y='14' width='8' height='2.5' fill='%23ffbc09'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;600;700&family=Exo+2:wght@500;600;700&family=Russo+One&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #090c10;
@@ -22,8 +22,8 @@
   --orange: #ff5309;
   --blue: #16b9ff;
   --green: #43e97b;
-  --ui: 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
-  --num: 'Orbitron', 'Rajdhani', 'Segoe UI', sans-serif;
+  --ui: 'Rajdhani', 'Exo 2', 'Segoe UI', system-ui, sans-serif;
+  --num: 'Orbitron', 'Russo One', 'Rajdhani', 'Exo 2', 'Segoe UI', sans-serif;
 }
 * { box-sizing: border-box; margin: 0; }
 html { color-scheme: dark; }
@@ -53,30 +53,39 @@ body::after {
 }
 .wrap { position: relative; z-index: 1; max-width: 1060px; margin: 0 auto; padding: 22px 20px 48px; }
 
-.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-weight: 600; letter-spacing: .16em; font-size: 13px; text-transform: uppercase; color: var(--muted); }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px 18px; flex-wrap: wrap; font-weight: 600; letter-spacing: .16em; font-size: 13px; text-transform: uppercase; color: var(--muted); }
+.topright { display: flex; align-items: center; gap: 18px; }
 .live { display: inline-flex; align-items: center; gap: 9px; color: var(--green); }
 .live i { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(67, 233, 123, .7); animation: ping 2.2s infinite; }
 .live.off { color: var(--orange); }
 .live.off i { background: var(--orange); animation: none; }
 @keyframes ping { 70% { box-shadow: 0 0 0 10px rgba(67, 233, 123, 0); } 100% { box-shadow: 0 0 0 0 rgba(67, 233, 123, 0); } }
+.lang { display: inline-flex; border: 1px solid var(--line); clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+.lang button { font: inherit; letter-spacing: .14em; font-weight: 700; color: var(--muted); background: transparent; border: 0; padding: 6px 14px; cursor: pointer; }
+.lang button[aria-pressed="true"] { color: #130a02; background: linear-gradient(180deg, var(--gold), #ff8f09); }
+.lang button:focus-visible { outline: 2px solid var(--gold); outline-offset: -3px; }
 
-.hero { display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: 12px; padding: 34px 0 18px; }
+.hero { display: grid; grid-template-columns: .95fr 1.1fr; align-items: center; gap: 12px; padding: 30px 0 14px; }
 .eyebrow { color: var(--gold); letter-spacing: .32em; font-weight: 700; font-size: 14px; text-transform: uppercase; display: flex; align-items: center; gap: 12px; }
 .eyebrow::before { content: ""; width: 38px; height: 3px; background: linear-gradient(90deg, var(--gold), var(--orange)); }
-h1 { font-family: var(--num); font-weight: 900; font-size: clamp(38px, 6.4vw, 70px); line-height: .98; letter-spacing: .02em; margin: 14px 0 16px; text-transform: uppercase; background: linear-gradient(180deg, #fff3c9 0%, var(--gold) 38%, var(--orange) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 18px rgba(255, 83, 9, .35)); }
+h1 { font-family: var(--num); font-weight: 900; font-size: clamp(34px, 5.8vw, 64px); line-height: 1; letter-spacing: .02em; margin: 14px 0 16px; text-transform: uppercase; background: linear-gradient(180deg, #fff3c9 0%, var(--gold) 38%, var(--orange) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 18px rgba(255, 83, 9, .35)); }
 .lead { max-width: 30em; color: #b7c2cf; font-size: 20px; line-height: 1.4; font-weight: 500; }
 .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
-.chip { display: flex; align-items: baseline; gap: 8px; padding: 8px 14px; background: rgba(26, 34, 44, .75); border: 1px solid var(--line); border-left: 3px solid var(--gold); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); padding-right: 24px; }
+.chip { display: flex; align-items: baseline; gap: 8px; padding: 8px 24px 8px 14px; background: rgba(26, 34, 44, .75); border: 1px solid var(--line); border-left: 3px solid var(--gold); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
 .chip b { font-family: var(--num); font-size: 20px; color: #fff; }
 .chip span { text-transform: uppercase; letter-spacing: .14em; font-size: 12px; font-weight: 700; color: var(--muted); }
 
-.tank { width: 100%; max-width: 470px; justify-self: center; overflow: visible; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .6)); }
-.ring { transform-origin: 215px 125px; animation: spin 38s linear infinite; }
+.stage { position: relative; }
+.tank { display: block; width: 100%; max-width: 620px; margin: 0 auto; overflow: visible; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .6)); }
+.ring { transform-origin: 260px 120px; animation: spin 38s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.barrel { animation: recoil 5s ease-out infinite; }
-@keyframes recoil { 0%, 70% { transform: translateX(0); } 72% { transform: translateX(-11px); } 100% { transform: translateX(0); } }
-.flash { transform-origin: 405px 107px; opacity: 0; animation: flash 5s linear infinite; }
-@keyframes flash { 0%, 70% { opacity: 0; transform: scale(.4); } 71.5% { opacity: 1; transform: scale(1); } 76%, 100% { opacity: 0; transform: scale(1.15); } }
+.recoil { animation: recoil 5s ease-out infinite; }
+@keyframes recoil { 0%, 70% { transform: translateX(0); } 72% { transform: translateX(-9px); } 100% { transform: translateX(0); } }
+.flash { opacity: 0; animation: flash 5s linear infinite; }
+@keyframes flash { 0%, 70% { opacity: 0; } 71.5% { opacity: 1; } 76%, 100% { opacity: 0; } }
+.caption { text-align: center; margin-top: 4px; }
+.caption b { display: block; font-family: var(--num); font-size: 18px; letter-spacing: .1em; color: #fff; text-transform: uppercase; }
+.caption span { color: var(--muted); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
 
 .section-title { margin: 30px 0 14px; font-weight: 700; font-size: 14px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 14px; }
 .section-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
@@ -98,13 +107,42 @@ h1 { font-family: var(--num); font-weight: 900; font-size: clamp(38px, 6.4vw, 70
 .stats dt { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
 .stats dd { margin: 2px 0 0; font-family: var(--num); font-size: 22px; font-weight: 700; color: #fff; min-height: 1.4em; }
 .stats dd.small { font-family: var(--ui); font-size: 20px; font-weight: 600; padding-top: 2px; }
-.actions { display: flex; align-items: center; gap: 12px; }
-a.open { position: static; display: inline-flex; align-items: center; gap: 10px; padding: 11px 22px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 16px; text-decoration: none; color: #130a02; background: linear-gradient(180deg, var(--gold), #ff8f09); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 12px 100%); padding-inline: 30px; }
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+html[lang="ru"] a.open { letter-spacing: .05em; padding-inline: 22px; }
+html[lang="ru"] button.copy { letter-spacing: .05em; padding-inline: 12px; }
+a.open { white-space: nowrap; position: static; display: inline-flex; align-items: center; gap: 10px; padding: 11px 30px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 16px; text-decoration: none; color: #130a02; background: linear-gradient(180deg, var(--gold), #ff8f09); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 12px 100%); }
 a.open::after { content: ""; position: absolute; inset: 0; z-index: 1; }
 a.open svg { width: 18px; height: 18px; }
-button.copy { position: relative; z-index: 2; font: inherit; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 14px; color: var(--text); background: transparent; border: 1px solid var(--line); padding: 10px 16px; cursor: pointer; transition: background .15s, border-color .15s; }
+button.copy { white-space: nowrap; position: relative; z-index: 2; font: inherit; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 14px; color: var(--text); background: transparent; border: 1px solid var(--line); padding: 10px 16px; cursor: pointer; transition: background .15s, border-color .15s; }
 button.copy:hover { background: rgba(255, 255, 255, .06); border-color: var(--accent); }
 button.copy:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.garage { background: linear-gradient(180deg, rgba(16, 21, 28, .88), rgba(10, 13, 17, .88)); border: 1px solid var(--line); padding: 18px 18px 8px; }
+.garage h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 17px; letter-spacing: .24em; text-transform: uppercase; color: var(--gold); margin: 4px 2px 12px; }
+.garage h3 small { font-size: 13px; letter-spacing: .08em; color: var(--muted); font-weight: 600; text-transform: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 2px 12px; font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; margin-right: 7px; transform: skewX(-20deg); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.tile { --rc: var(--gold); position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px 9px; font: inherit; color: var(--text); text-align: center; cursor: pointer; background: linear-gradient(180deg, #1b242e, #11171e); border: 1px solid var(--line); border-top: 3px solid var(--rc); clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%); transition: transform .15s ease, border-color .15s ease, background .15s ease; }
+.tile:hover { transform: translateY(-3px); background: linear-gradient(180deg, #223040, #141b23); }
+.tile:focus-visible { outline: 2px solid var(--gold); outline-offset: -4px; }
+.tile.on { border-color: var(--gold); background: linear-gradient(180deg, #3a2b0c, #1a1408); box-shadow: inset 0 0 22px rgba(255, 188, 9, .25); }
+.tile.short { --rc: var(--orange); }
+.tile.medium { --rc: var(--blue); }
+.tile.long { --rc: var(--gold); }
+.tile.hull { --rc: #8fa3b8; }
+.thumb { width: 100%; height: 54px; }
+.tn { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 15px; line-height: 1.1; }
+.tc { font-size: 12px; letter-spacing: .08em; color: var(--muted); font-weight: 600; text-transform: uppercase; min-height: 1.2em; }
+
+.shout { position: relative; display: flex; align-items: center; gap: 22px; padding: 22px 26px; background: linear-gradient(110deg, #2a1d06 0%, #17110a 45%, #10151c 100%); border: 1px solid #6b4d0e; clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 28px 100%, 0 calc(100% - 28px)); overflow: hidden; }
+.shout::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, transparent 0 18px, rgba(255, 188, 9, .05) 18px 36px); pointer-events: none; }
+.shout::after { content: ""; position: absolute; top: 0; bottom: 0; width: 120px; left: -160px; background: linear-gradient(100deg, transparent, rgba(255, 220, 120, .22), transparent); animation: sweep 6s ease-in-out infinite; pointer-events: none; }
+@keyframes sweep { 0%, 55% { transform: translateX(0); } 100% { transform: translateX(1300px); } }
+.emblem { flex: none; width: 92px; height: 92px; filter: drop-shadow(0 0 14px rgba(255, 188, 9, .45)); }
+.shout .label { color: var(--gold); letter-spacing: .3em; font-weight: 700; font-size: 13px; text-transform: uppercase; }
+.shout .clan { font-family: var(--num); font-weight: 900; font-size: clamp(36px, 7vw, 64px); letter-spacing: .14em; line-height: 1.05; margin: 2px 0 4px; background: linear-gradient(180deg, #fff6d6, var(--gold) 45%, #ff8f09); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 14px rgba(255, 143, 9, .45)); }
+.shout p { font-size: 20px; font-weight: 600; color: #e8dcc0; max-width: 34em; line-height: 1.3; }
 
 .flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: 10px; }
 .step { padding: 16px 18px; background: rgba(16, 21, 28, .8); border: 1px solid var(--line); }
@@ -112,148 +150,378 @@ button.copy:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px;
 .step span { color: #b7c2cf; font-size: 17px; line-height: 1.3; display: block; margin-top: 4px; }
 .arrow { align-self: center; color: var(--orange); font-family: var(--num); font-size: 22px; }
 
-footer { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; font-size: 15px; color: var(--muted); }
+footer { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px 22px; flex-wrap: wrap; font-size: 15px; color: var(--muted); }
+footer p { max-width: 46em; }
 footer a { color: var(--gold); text-decoration: none; border-bottom: 1px dotted var(--gold); }
 footer a:hover { color: #fff; }
+.links { display: flex; gap: 18px; flex-wrap: wrap; }
 
 .toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 30px); opacity: 0; z-index: 10; padding: 10px 20px; background: var(--steel); border: 1px solid var(--gold); color: var(--text); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 14px; transition: opacity .2s, transform .2s; pointer-events: none; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* tank art: olive armour, steel plates, cyan lights, in the spirit of the in-game look */
+.ol { fill: url(#gOl); stroke: #1d2a10; stroke-width: 1.6; stroke-linejoin: round; }
+.pl { fill: url(#gPl); stroke: #2b323a; stroke-width: 1.3; stroke-linejoin: round; }
+.dk { fill: #161c23; stroke: #080b0e; stroke-width: 1; }
+.cy { fill: #3de3ff; } .or { fill: #ff7a1a; } .rd { fill: #ff3b1f; } .gr { fill: #43e97b; } .bl { fill: #3dc7ff; }
+.tr { fill: none; stroke: #36424f; stroke-width: 1.4; stroke-dasharray: 3 3; }
+
 @media (max-width: 820px) {
   .hero { grid-template-columns: 1fr; padding-top: 22px; }
-  .tank { max-width: 360px; order: -1; }
+  .stage { order: -1; }
   .cards { grid-template-columns: 1fr; }
   .flow { grid-template-columns: 1fr; }
   .arrow { transform: rotate(90deg); justify-self: center; }
+  .shout { flex-direction: column; align-items: flex-start; gap: 12px; }
 }
 @media (max-width: 460px) {
   .stats { grid-template-columns: repeat(2, auto); }
   .actions { flex-wrap: wrap; }
+  .tiles { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ring, .barrel, .flash, .live i { animation: none; }
-  .card, .card::after, .toast { transition: none; }
+  .ring, .recoil, .flash, .live i, .shout::after { animation: none; }
+  .card, .card::after, .toast, .tile { transition: none; }
 }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="gOl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8aab4f"/><stop offset=".55" stop-color="#58742f"/><stop offset="1" stop-color="#3a5020"/></linearGradient>
+    <linearGradient id="gPl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9d1d9"/><stop offset=".55" stop-color="#7d8996"/><stop offset="1" stop-color="#4a5561"/></linearGradient>
+    <radialGradient id="gFlash" cx=".25" cy=".5" r=".8"><stop offset="0" stop-color="#fff6c8"/><stop offset=".4" stop-color="#ffbc09"/><stop offset="1" stop-color="#ff5309" stop-opacity="0"/></radialGradient>
+  </defs>
+</svg>
+
 <div class="wrap">
   <div class="topbar">
-    <span>Unofficial fan tool &middot; not affiliated with Tanki Online</span>
-    <span class="live" id="live"><i></i><span id="liveText">Checking data...</span></span>
+    <span data-i18n="unofficial">Unofficial fan tool &middot; not affiliated with Tanki Online</span>
+    <span class="topright">
+      <span class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="EN" aria-pressed="true">EN</button>
+        <button type="button" data-lang="RU" aria-pressed="false">RU</button>
+      </span>
+      <span class="live" id="live"><i></i><span id="liveText" data-i18n="checking">Checking data...</span></span>
+    </span>
   </div>
 
   <header class="hero">
     <div>
       <div class="eyebrow">Tanki Online Toolkit</div>
-      <h1>Augments<br>Database</h1>
-      <p class="lead">Every augment for every turret and hull, scraped daily from the Tanki Online wiki in English and Russian, ready to load with one request.</p>
+      <h1 id="h1">Augments<br>Database</h1>
+      <p class="lead" data-i18n="lead">Every augment for every turret and hull, scraped daily from the Tanki Online wiki in English and Russian, ready to load with one request.</p>
       <div class="chips">
-        <div class="chip"><b id="chipItems">-</b><span>Items</span></div>
-        <div class="chip"><b id="chipAugments">-</b><span>Augments</span></div>
-        <div class="chip"><b id="chipNext">-</b><span>Next scrape</span></div>
+        <div class="chip"><b id="chipItems">-</b><span data-i18n="items">Items</span></div>
+        <div class="chip"><b id="chipAugments">-</b><span data-i18n="augments">Augments</span></div>
+        <div class="chip"><b id="chipNext">-</b><span data-i18n="next">Next scrape</span></div>
       </div>
     </div>
-
-    <svg class="tank" viewBox="0 0 470 250" role="img" aria-label="Stylised tank firing">
-      <defs>
-        <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#4a5868"/><stop offset=".5" stop-color="#2c3743"/><stop offset="1" stop-color="#1b232d"/>
-        </linearGradient>
-        <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#232c37"/><stop offset="1" stop-color="#12171d"/>
-        </linearGradient>
-        <radialGradient id="fl" cx=".3" cy=".5" r=".8">
-          <stop offset="0" stop-color="#fff6c8"/><stop offset=".4" stop-color="#ffbc09"/><stop offset="1" stop-color="#ff5309" stop-opacity="0"/>
-        </radialGradient>
-      </defs>
-      <g class="ring" fill="none" stroke="#ffbc09" stroke-opacity=".35">
-        <circle cx="215" cy="125" r="118" stroke-dasharray="3 9"/>
-        <circle cx="215" cy="125" r="100" stroke-opacity=".18"/>
-        <path d="M215 -6v18M215 238v18M84 125h18M328 125h18" stroke-width="2"/>
-      </g>
-      <ellipse cx="215" cy="226" rx="170" ry="11" fill="#000" opacity=".45"/>
-      <rect x="48" y="168" width="334" height="50" rx="25" fill="url(#dark)" stroke="#34414f" stroke-width="2"/>
-      <g fill="#262f3a" stroke="#3d4b5a" stroke-width="2">
-        <circle cx="80" cy="193" r="17"/><circle cx="127" cy="193" r="17"/><circle cx="174" cy="193" r="17"/>
-        <circle cx="221" cy="193" r="17"/><circle cx="268" cy="193" r="17"/><circle cx="315" cy="193" r="17"/><circle cx="352" cy="193" r="14"/>
-      </g>
-      <g fill="#0c1015"><circle cx="80" cy="193" r="6"/><circle cx="127" cy="193" r="6"/><circle cx="174" cy="193" r="6"/><circle cx="221" cy="193" r="6"/><circle cx="268" cy="193" r="6"/><circle cx="315" cy="193" r="6"/></g>
-      <path d="M62 172 L98 128 H318 L366 172 Z" fill="url(#steel)" stroke="#546577" stroke-width="2"/>
-      <path d="M98 128 H318" stroke="#ffbc09" stroke-width="3" opacity=".9"/>
-      <path d="M78 160 H350" stroke="#ff5309" stroke-width="2" opacity=".7"/>
-      <g class="barrel">
-        <rect x="256" y="99" width="132" height="15" rx="3" fill="url(#steel)" stroke="#546577" stroke-width="2"/>
-        <rect x="380" y="94" width="22" height="25" rx="3" fill="#1b232d" stroke="#ffbc09" stroke-width="2"/>
-      </g>
-      <path d="M142 128 C142 96 160 82 190 82 H236 C256 82 268 98 268 128 Z" fill="url(#steel)" stroke="#546577" stroke-width="2"/>
-      <circle cx="176" cy="99" r="9" fill="#12171d" stroke="#ffbc09" stroke-width="2"/>
-      <rect x="206" y="92" width="40" height="8" rx="2" fill="#12171d" opacity=".8"/>
-      <polygon class="flash" points="405,107 448,86 432,107 456,114 430,119 444,138 405,119" fill="url(#fl)"/>
-    </svg>
+    <div class="stage">
+      <svg class="tank" id="heroSvg" viewBox="0 0 520 250" role="img" aria-label="Tank">
+        <g class="ring" fill="none" stroke="#ffbc09" stroke-opacity=".32">
+          <circle cx="260" cy="120" r="112" stroke-dasharray="3 9"/>
+          <circle cx="260" cy="120" r="94" stroke-opacity=".16"/>
+          <path d="M260 -8v18M260 230v18M118 120h18M384 120h18" stroke-width="2"/>
+        </g>
+        <ellipse cx="260" cy="226" rx="200" ry="11" fill="#000" opacity=".45"/>
+        <g id="heroHull" transform="translate(50 116)"></g>
+        <g id="heroTurret"></g>
+      </svg>
+      <div class="caption"><b id="capName">-</b><span id="capCount">&nbsp;</span></div>
+    </div>
   </header>
 
-  <div class="section-title">Pick a language</div>
+  <div class="section-title" data-i18n="pick">Pick a language</div>
   <section class="cards">
     <div class="card-wrap">
-      <article class="card en" data-file="augments.en.json" data-id="en">
+      <article class="card en" data-file="augments.en.json">
         <span class="tag">EN</span>
         <h2>English</h2>
         <div class="file">augments.en.json</div>
         <dl class="stats">
-          <div><dt>Items</dt><dd data-stat="items">-</dd></div>
-          <div><dt>Augments</dt><dd data-stat="augments">-</dd></div>
-          <div><dt>Updated</dt><dd class="small" data-stat="updated">-</dd></div>
+          <div><dt data-i18n="items">Items</dt><dd data-stat="items">-</dd></div>
+          <div><dt data-i18n="augments">Augments</dt><dd data-stat="augments">-</dd></div>
+          <div><dt data-i18n="updated">Updated</dt><dd class="small" data-stat="updated">-</dd></div>
         </dl>
         <div class="actions">
-          <a class="open" href="augments.en.json">Open file
+          <a class="open" href="augments.en.json"><span data-i18n="open">Open file</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
-          <button class="copy" type="button" data-copy="augments.en.json">Copy link</button>
+          <button class="copy" type="button" data-copy="augments.en.json" data-i18n="copy">Copy link</button>
         </div>
       </article>
     </div>
 
     <div class="card-wrap">
-      <article class="card ru" data-file="augments.ru.json" data-id="ru">
+      <article class="card ru" data-file="augments.ru.json">
         <span class="tag">RU</span>
         <h2>Русский</h2>
         <div class="file">augments.ru.json</div>
         <dl class="stats">
-          <div><dt>Items</dt><dd data-stat="items">-</dd></div>
-          <div><dt>Augments</dt><dd data-stat="augments">-</dd></div>
-          <div><dt>Updated</dt><dd class="small" data-stat="updated">-</dd></div>
+          <div><dt data-i18n="items">Items</dt><dd data-stat="items">-</dd></div>
+          <div><dt data-i18n="augments">Augments</dt><dd data-stat="augments">-</dd></div>
+          <div><dt data-i18n="updated">Updated</dt><dd class="small" data-stat="updated">-</dd></div>
         </dl>
         <div class="actions">
-          <a class="open" href="augments.ru.json">Open file
+          <a class="open" href="augments.ru.json"><span data-i18n="open">Open file</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
-          <button class="copy" type="button" data-copy="augments.ru.json">Copy link</button>
+          <button class="copy" type="button" data-copy="augments.ru.json" data-i18n="copy">Copy link</button>
         </div>
       </article>
     </div>
   </section>
 
-  <div class="section-title">How it works</div>
+  <div class="section-title" data-i18n="garage">Build a tank</div>
+  <section class="garage">
+    <h3><span data-i18n="turrets">Turrets</span></h3>
+    <div class="legend">
+      <span><i style="background:var(--orange)"></i><span data-i18n="short">Short range</span></span>
+      <span><i style="background:var(--blue)"></i><span data-i18n="medium">Medium range</span></span>
+      <span><i style="background:var(--gold)"></i><span data-i18n="long">Long range</span></span>
+    </div>
+    <div class="tiles" id="turretTiles"></div>
+    <h3><span data-i18n="hulls">Hulls</span><small id="hullNote"></small></h3>
+    <div class="tiles" id="hullTiles"></div>
+  </section>
+
+  <div class="section-title" data-i18n="shoutTitle">Shoutout</div>
+  <section class="shout" aria-labelledby="clanName">
+    <svg class="emblem" viewBox="0 0 100 100" aria-hidden="true">
+      <defs><linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#ffbc09"/><stop offset="1" stop-color="#e06a09"/></linearGradient></defs>
+      <path d="M50 4 L92 22 V56 C92 76 74 90 50 97 C26 90 8 76 8 56 V22 Z" fill="#14100a" stroke="url(#gGold)" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M20 66 L74 30 L80 38 L26 74 Z" fill="url(#gGold)"/>
+      <path d="M80 66 L26 30 L20 38 L74 74 Z" fill="url(#gGold)"/>
+      <path d="M72 26 h14 v6 h-14 Z M14 26 h14 v6 h-14 Z" fill="#fff0b8" transform="rotate(0)"/>
+      <path d="M50 38 l5 10 11 1 -8 8 2 11 -10 -5 -10 5 2 -11 -8 -8 11 -1 Z" fill="#14100a" stroke="url(#gGold)" stroke-width="2.4" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <div class="label" data-i18n="clanLabel">Clan shoutout</div>
+      <div class="clan" id="clanName">TWIZY</div>
+      <p data-i18n="clanText">Big respect to the TWIZY clan, my clan in Tanki Online. Roll out, tankers!</p>
+    </div>
+  </section>
+
+  <div class="section-title" data-i18n="how">How it works</div>
   <section class="flow" aria-label="How the data is produced">
-    <div class="step"><b>1 &middot; Scrape</b><span>A bot reads the EN and RU Tanki wiki augment pages once a day.</span></div>
+    <div class="step"><b data-i18n="s1t">1 &middot; Scrape</b><span data-i18n="s1d">A bot reads the EN and RU Tanki wiki augment pages once a day.</span></div>
     <div class="arrow" aria-hidden="true">&#9654;</div>
-    <div class="step"><b>2 &middot; Validate</b><span>Broken or shrunken results are rejected and the last good file stays live.</span></div>
+    <div class="step"><b data-i18n="s2t">2 &middot; Validate</b><span data-i18n="s2d">Broken or shrunken results are rejected and the last good file stays live.</span></div>
     <div class="arrow" aria-hidden="true">&#9654;</div>
-    <div class="step"><b>3 &middot; Publish</b><span>Only changed files are committed here, so every patch is a readable diff.</span></div>
+    <div class="step"><b data-i18n="s3t">3 &middot; Publish</b><span data-i18n="s3d">Only changed files are committed here, so every patch is a readable diff.</span></div>
   </section>
 
   <footer>
-    <span>Data comes from the community <a href="https://en.tankiwiki.com/Augments" rel="noopener">Tanki Online wiki</a>. Tanki Online belongs to its owners.</span>
-    <span><a href="https://github.com/Safwen-Saafi/tanki-online-toolkit" rel="noopener">Source on GitHub</a></span>
+    <p><span data-i18n="foot1">Data comes from the community</span> <a href="https://en.tankiwiki.com/Augments" rel="noopener" data-i18n="wiki">Tanki Online wiki</a>. <span data-i18n="foot2">Tanki Online belongs to its owners.</span> <span data-i18n="art">Artwork is original fan art inspired by Tanki Online.</span></p>
+    <span class="links">
+      <a href="https://tankionline.com" rel="noopener" data-i18n="site">Official game site</a>
+      <a href="https://github.com/Safwen-Saafi/tanki-online-toolkit" rel="noopener" data-i18n="src">Source on GitHub</a>
+    </span>
   </footer>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function () {
-  var SCRAPE_HOUR = 5, SCRAPE_MINUTE = 30;
-  var formatter = typeof Intl !== 'undefined' && Intl.RelativeTimeFormat ? new Intl.RelativeTimeFormat('en', { numeric: 'auto' }) : null;
+  'use strict';
+
+  /* ---------- text, English and Russian ---------- */
+  var T = {
+    EN: {
+      title: 'Tanki Augments Database',
+      desc: 'Daily-updated Tanki Online augment data in English and Russian, scraped from the Tanki Online wiki.',
+      unofficial: 'Unofficial fan tool · not affiliated with Tanki Online',
+      checking: 'Checking data...', live: 'Live data', partly: 'Partly available', down: 'Data unavailable',
+      h1: 'Augments<br>Database',
+      lead: 'Every augment for every turret and hull, scraped daily from the Tanki Online wiki in English and Russian, ready to load with one request.',
+      items: 'Items', augments: 'Augments', next: 'Next scrape', updated: 'Updated', unavailable: 'unavailable',
+      pick: 'Pick a language', open: 'Open file', copy: 'Copy link', copied: 'Link copied', copyPrompt: 'Copy this link:',
+      garage: 'Build a tank', turrets: 'Turrets', hulls: 'Hulls',
+      short: 'Short range', medium: 'Medium range', long: 'Long range',
+      hullNote: 'Hull augments are shared by every hull', shared: 'shared',
+      shoutTitle: 'Shoutout', clanLabel: 'Clan shoutout',
+      clanText: 'Big respect to the TWIZY clan, my clan in Tanki Online. Roll out, tankers!',
+      how: 'How it works',
+      s1t: '1 · Scrape', s1d: 'A bot reads the EN and RU Tanki wiki augment pages once a day.',
+      s2t: '2 · Validate', s2d: 'Broken or shrunken results are rejected and the last good file stays live.',
+      s3t: '3 · Publish', s3d: 'Only changed files are committed here, so every patch is a readable diff.',
+      foot1: 'Data comes from the community', wiki: 'Tanki Online wiki', foot2: 'Tanki Online belongs to its owners.',
+      art: 'Artwork is original fan art inspired by Tanki Online.',
+      site: 'Official game site', src: 'Source on GitHub',
+      aug: function (n) { return n + (n === 1 ? ' augment' : ' augments'); },
+      hm: function (h, m) { return h + 'h ' + (m < 10 ? '0' : '') + m + 'm'; },
+      heroLabel: function (name) { return 'Tank: ' + name; }
+    },
+    RU: {
+      title: 'База устройств Tanki',
+      desc: 'Ежедневно обновляемые данные об устройствах Tanki Online на английском и русском, собранные с вики Tanki Online.',
+      unofficial: 'Неофициальный фан-проект · не связан с Tanki Online',
+      checking: 'Проверка данных...', live: 'Данные актуальны', partly: 'Доступно частично', down: 'Данные недоступны',
+      h1: 'База<br>устройств',
+      lead: 'Все устройства для каждой пушки и корпуса, раз в день собранные с вики Tanki Online на английском и русском и готовые к загрузке одним запросом.',
+      items: 'Предметы', augments: 'Устройства', next: 'Следующий сбор', updated: 'Обновлено', unavailable: 'недоступно',
+      pick: 'Выберите язык', open: 'Открыть файл', copy: 'Копировать ссылку', copied: 'Ссылка скопирована', copyPrompt: 'Скопируйте ссылку:',
+      garage: 'Соберите танк', turrets: 'Пушки', hulls: 'Корпуса',
+      short: 'Ближний бой', medium: 'Средняя дистанция', long: 'Дальний бой',
+      hullNote: 'Устройства для корпусов общие для всех корпусов', shared: 'общие',
+      shoutTitle: 'Респект', clanLabel: 'Привет клану',
+      clanText: 'Большой респект клану TWIZY, моему клану в Tanki Online. Вперёд, танкисты!',
+      how: 'Как это работает',
+      s1t: '1 · Сбор', s1d: 'Бот раз в день читает страницы устройств в EN и RU вики Tanki.',
+      s2t: '2 · Проверка', s2d: 'Сломанные или урезанные результаты отклоняются, а последний хороший файл остаётся в сети.',
+      s3t: '3 · Публикация', s3d: 'Сюда попадают только изменённые файлы, поэтому каждый патч виден как понятная разница.',
+      foot1: 'Данные берутся из вики сообщества', wiki: 'Tanki Online', foot2: 'Tanki Online принадлежит своим владельцам.',
+      art: 'Рисунки: оригинальный фан-арт по мотивам Tanki Online.',
+      site: 'Сайт игры', src: 'Исходный код на GitHub',
+      aug: function (n) {
+        var mod10 = n % 10, mod100 = n % 100;
+        var word = mod10 === 1 && mod100 !== 11 ? 'устройство' : (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'устройства' : 'устройств');
+        return n + ' ' + word;
+      },
+      hm: function (h, m) { return h + ' ч ' + (m < 10 ? '0' : '') + m + ' мин'; },
+      heroLabel: function (name) { return 'Танк: ' + name; }
+    }
+  };
+
+  var NAMES = {
+    firebird: ['Firebird', 'Огнемёт'], freeze: ['Freeze', 'Фриз'], isida: ['Isida', 'Изида'], tesla: ['Tesla', 'Тесла'],
+    hammer: ['Hammer', 'Молот'], twins: ['Twins', 'Твинс'], ricochet: ['Ricochet', 'Рикошет'], vulcan: ['Vulcan', 'Вулкан'],
+    smoky: ['Smoky', 'Смоки'], striker: ['Striker', 'Страйкер'], thunder: ['Thunder', 'Гром'], tsunami: ['Tsunami', 'Цунами'],
+    scorpion: ['Scorpion', 'Скорпион'], magnum: ['Magnum', 'Магнум'], railgun: ['Railgun', 'Рельса'], gauss: ['Gauss', 'Гаусс'],
+    shaft: ['Shaft', 'Шафт'],
+    wasp: ['Wasp', 'Оса'], hopper: ['Hopper', 'Хоппер'], hornet: ['Hornet', 'Хорнет'], viking: ['Viking', 'Викинг'],
+    crusader: ['Crusader', 'Крестоносец'], hunter: ['Hunter', 'Хантер'], paladin: ['Paladin', 'Паладин'],
+    dictator: ['Dictator', 'Диктатор'], titan: ['Titan', 'Титан'], ares: ['Ares', 'Арес'], mammoth: ['Mammoth', 'Мамонт']
+  };
+
+  var lang = 'EN';
+  try { var saved = localStorage.getItem('lang'); if (saved === 'EN' || saved === 'RU') lang = saved; else if (/^ru/i.test(navigator.language || '')) lang = 'RU'; } catch (e) { if (/^ru/i.test(navigator.language || '')) lang = 'RU'; }
+  function t(key) { return T[lang][key]; }
+  function nameOf(id) { return NAMES[id][lang === 'RU' ? 1 : 0]; }
+
+  /* ---------- tank art (original fan art, drawn in code) ---------- */
+  function R(c, x, y, w, h, rx) { return '<rect class="' + c + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"' + (rx ? ' rx="' + rx + '"' : '') + '/>'; }
+  function P(c, pts) { return '<polygon class="' + c + '" points="' + pts + '"/>'; }
+  function C(c, x, y, r) { return '<circle class="' + c + '" cx="' + x + '" cy="' + y + '" r="' + r + '"/>'; }
+  function E(c, x, y, rx, ry) { return '<ellipse class="' + c + '" cx="' + x + '" cy="' + y + '" rx="' + rx + '" ry="' + ry + '"/>'; }
+  function D(c, d) { return '<path class="' + c + '" d="' + d + '"/>'; }
+
+  // Each turret is drawn around its pivot (0,0), sitting on y=0, barrel pointing right.
+  var TURRETS = [
+    { id: 'firebird', range: 'short', mz: [114, -27], art: function () { return D('ol', 'M-52 0 Q-50 -34 -16 -38 L34 -36 Q50 -30 52 0Z') + R('or', -34, -58, 56, 18, 9) + R('dk', -18, -58, 4, 18) + R('dk', 2, -58, 4, 18) + P('pl', '44,-34 104,-46 104,-8 44,-14') + R('dk', 100, -48, 8, 42, 2); } },
+    { id: 'freeze', range: 'short', mz: [114, -27], art: function () { return D('ol', 'M-52 0 Q-50 -34 -16 -38 L34 -36 Q50 -30 52 0Z') + R('bl', -34, -58, 56, 18, 9) + R('dk', -18, -58, 4, 18) + R('dk', 2, -58, 4, 18) + P('pl', '44,-34 104,-46 104,-8 44,-14') + R('dk', 100, -48, 8, 42, 2) + C('cy', 88, -27, 5); } },
+    { id: 'isida', range: 'short', mz: [108, -32], art: function () { return E('ol', 0, -20, 50, 20) + D('ol', 'M-30 -30 Q0 -62 30 -30Z') + P('pl', '36,-30 100,-52 104,-44 42,-20') + P('pl', '36,-18 100,-24 104,-16 42,-8') + C('gr', 88, -34, 7) + C('cy', 0, -44, 4); } },
+    { id: 'tesla', range: 'short', mz: [142, -42], art: function () { return D('ol', 'M-46 0 L-40 -22 L30 -26 L46 0Z') + P('pl', '20,-22 130,-60 134,-52 36,-12') + P('pl', '20,-14 134,-30 138,-22 36,-4') + C('cy', 134, -56, 5) + C('cy', 138, -26, 5) + C('cy', 14, -30, 8); } },
+    { id: 'hammer', range: 'short', mz: [106, -30], art: function () { return D('ol', 'M-56 0 L-50 -36 L20 -44 L50 -30 L54 0Z') + R('pl', 46, -40, 50, 17, 3) + R('pl', 46, -21, 50, 17, 3) + R('dk', 92, -42, 10, 21, 2) + R('dk', 92, -23, 10, 21, 2); } },
+    { id: 'twins', range: 'medium', mz: [142, -30], art: function () { return D('ol', 'M-52 0 L-46 -34 L16 -42 L46 -30 L50 0Z') + R('pl', 42, -38, 92, 8, 2) + R('pl', 42, -24, 92, 8, 2) + R('dk', 128, -40, 10, 12, 2) + R('dk', 128, -26, 10, 12, 2) + C('cy', -20, -30, 3); } },
+    { id: 'ricochet', range: 'medium', mz: [118, -28], art: function () { return D('ol', 'M-58 0 L-54 -40 L10 -46 L52 -34 L56 0Z') + R('pl', 48, -36, 62, 16, 3) + R('rd', -44, -26, 70, 4, 2) + R('dk', 104, -38, 8, 20, 2); } },
+    { id: 'vulcan', range: 'medium', mz: [130, -28], art: function () { return D('ol', 'M-54 0 L-50 -36 L10 -44 L40 -32 L42 0Z') + R('pl', 34, -48, 86, 40, 6) + R('dk', 54, -48, 5, 40) + R('dk', 78, -48, 5, 40) + R('dk', 100, -48, 5, 40) + R('dk', 116, -50, 10, 44, 3); } },
+    { id: 'smoky', range: 'medium', mz: [150, -24], art: function () { return D('ol', 'M-52 0 Q-50 -40 -8 -46 Q40 -44 50 0Z') + E('pl', -18, -44, 12, 5) + R('pl', 40, -30, 98, 11, 2) + R('dk', 130, -34, 16, 19, 2); } },
+    { id: 'striker', range: 'medium', mz: [54, -48], art: function () { return P('ol', '-56,0 -52,-30 40,-32 52,0') + R('ol', -34, -60, 80, 26, 3) + R('pl', -30, -56, 60, 6, 2) + C('dk', 38, -52, 4) + C('dk', 38, -43, 4) + R('dk', -26, -40, 56, 3); } },
+    { id: 'thunder', range: 'medium', mz: [122, -26], art: function () { return D('ol', 'M-56 0 L-52 -38 L6 -46 L38 -34 L40 0Z') + R('pl', 34, -40, 66, 28, 4) + R('dk', 96, -46, 22, 40, 3); } },
+    { id: 'tsunami', range: 'long', mz: [154, -28], art: function () { return E('ol', 0, -20, 60, 20) + D('pl', 'M-26 -30 Q0 -52 26 -30Z') + R('pl', 46, -34, 100, 6, 2) + R('pl', 46, -22, 100, 6, 2) + R('dk', 140, -36, 10, 10, 2) + R('dk', 140, -24, 10, 10, 2) + C('cy', 0, -40, 4); } },
+    { id: 'scorpion', range: 'long', mz: [176, -23], art: function () { return R('ol', -62, -52, 52, 46, 4) + R('or', -56, -46, 40, 4, 2) + D('ol', 'M-14 0 L-10 -34 L20 -38 L46 -26 L48 0Z') + R('pl', 42, -28, 126, 10, 2) + R('dk', 160, -31, 12, 16, 2); } },
+    { id: 'magnum', range: 'long', mz: [214, -28], art: function () { return D('ol', 'M-44 0 L-38 -26 L10 -34 L40 -22 L42 0Z') + R('pl', 36, -32, 170, 7, 2) + R('pl', 70, -26, 60, 4, 1) + R('dk', 196, -36, 14, 15, 2); } },
+    { id: 'railgun', range: 'long', mz: [208, -28], art: function () { return D('ol', 'M-52 0 L-46 -28 L-6 -38 L30 -34 L58 -18 L60 0Z') + R('pl', 50, -34, 150, 6, 2) + R('pl', 50, -24, 150, 6, 2) + R('cy', 54, -28, 142, 3, 1) + P('pl', '190,-36 214,-29 190,-22'); } },
+    { id: 'gauss', range: 'long', mz: [186, -30], art: function () { return D('ol', 'M-52 0 L-48 -34 L0 -44 L34 -34 L48 0Z') + R('pl', 36, -36, 142, 13, 3) + R('cy', 66, -37, 5, 15) + R('cy', 94, -37, 5, 15) + R('cy', 122, -37, 5, 15) + R('dk', 170, -38, 12, 17, 2); } },
+    { id: 'shaft', range: 'long', mz: [180, -26], art: function () { return D('ol', 'M-52 0 L-48 -30 L-6 -36 L30 -28 L44 0Z') + R('pl', 34, -30, 138, 8, 2) + R('dk', -4, -50, 6, 14) + R('dk', 46, -50, 6, 14) + R('pl', -20, -60, 86, 10, 5) + C('cy', 64, -55, 4) + R('dk', 166, -33, 10, 14, 2); } }
+  ];
+
+  function tracks(x, w, top, h) {
+    var n = Math.max(3, Math.round(w / 44)), r = h / 2 - 5, s = '';
+    s += R('dk', x, top, w, h, h / 2) + R('tr', x + 5, top + 4, w - 10, h - 8, (h - 8) / 2);
+    for (var i = 0; i < n; i++) {
+      var cx = x + h / 2 + i * ((w - h) / (n - 1));
+      s += C('pl', cx, top + h / 2, r) + C('dk', cx, top + h / 2, r / 2.4);
+    }
+    return s;
+  }
+  function ring(mx, my) { return E('pl', mx, my, 38, 6); }
+  function hex(cx, cy, r) { var p = []; for (var i = 0; i < 6; i++) { var a = Math.PI / 3 * i + Math.PI / 6; p.push((cx + r * Math.cos(a)).toFixed(1) + ',' + (cy + r * Math.sin(a) * 0.55).toFixed(1)); } return P('pl', p.join(' ')); }
+
+  // Each hull is drawn on a 300 wide canvas with the ground at y=104; mt is where the turret sits.
+  var HULLS = [
+    { id: 'wasp', mt: [150, 60], art: function () { return tracks(52, 196, 78, 26) + P('ol', '58,80 80,60 218,60 244,80') + R('pl', 46, 62, 28, 14, 3) + C('dk', 56, 69, 3) + C('dk', 66, 69, 3) + ring(150, 60); } },
+    { id: 'hopper', mt: [150, 56], art: function () { return tracks(48, 204, 76, 28) + P('ol', '52,78 70,56 230,56 250,78') + R('pl', 62, 62, 40, 16, 3) + R('pl', 198, 62, 40, 16, 3) + C('cy', 72, 70, 3) + C('cy', 228, 70, 3) + ring(150, 56); } },
+    { id: 'hornet', mt: [150, 53], art: function () { return tracks(42, 222, 76, 28) + P('ol', '44,78 58,58 206,52 262,76') + P('pl', '208,58 250,72 214,72') + D('dk', 'M70 66 H190') + ring(150, 53); } },
+    { id: 'viking', mt: [150, 58], art: function () { return tracks(24, 254, 74, 30) + P('ol', '26,78 50,58 252,58 284,78') + R('pl', 40, 63, 220, 10, 3) + C('cy', 262, 68, 3) + ring(150, 58); } },
+    { id: 'crusader', mt: [150, 49], art: function () { return tracks(40, 222, 74, 30) + D('ol', 'M38 80 Q56 52 150 48 Q244 52 262 80 Z') + E('pl', 150, 62, 62, 8) + C('cy', 92, 62, 3) + C('cy', 208, 62, 3) + ring(150, 49); } },
+    { id: 'hunter', mt: [150, 58], art: function () { return tracks(32, 244, 78, 26) + P('ol', '30,82 72,60 232,58 278,82') + R('pl', 36, 76, 232, 8, 3) + D('dk', 'M90 66 H210') + ring(150, 58); } },
+    { id: 'paladin', mt: [140, 46], art: function () { return tracks(44, 214, 74, 30) + P('ol', '46,78 54,46 240,46 256,78') + P('pl', '226,52 264,58 266,78 226,78') + C('cy', 246, 66, 3) + ring(140, 46); } },
+    { id: 'dictator', mt: [130, 57], art: function () { return tracks(28, 262, 78, 26) + P('ol', '26,82 62,64 196,56 268,66 294,82') + P('pl', '262,64 297,48 297,66') + D('dk', 'M80 70 H220') + ring(130, 57); } },
+    { id: 'titan', mt: [150, 34], art: function () { return tracks(40, 222, 72, 32) + P('ol', '44,76 52,44 248,44 262,76') + R('ol', 92, 34, 118, 12, 3) + R('pl', 60, 54, 180, 8, 2) + C('cy', 70, 68, 3) + C('cy', 230, 68, 3) + ring(150, 34); } },
+    { id: 'ares', mt: [150, 50], art: function () { return tracks(38, 226, 74, 30) + D('ol', 'M34 80 Q48 52 150 50 Q252 52 266 80 Z') + hex(150, 66, 24) + C('cy', 150, 66, 4) + ring(150, 50); } },
+    { id: 'mammoth', mt: [150, 30], art: function () { return tracks(24, 254, 70, 34) + P('ol', '28,76 34,42 266,42 276,76') + R('ol', 84, 30, 132, 14, 3) + R('pl', 50, 52, 200, 9, 2) + R('pl', 50, 64, 200, 6, 2) + ring(150, 30); } }
+  ];
+
+  function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return list[0]; }
+
+  var sel = { turret: 'railgun', hull: 'hunter' };
+  var heroHull = document.getElementById('heroHull');
+  var heroTurret = document.getElementById('heroTurret');
+  var counts = null;
+
+  function renderHero() {
+    var tu = byId(TURRETS, sel.turret), hu = byId(HULLS, sel.hull);
+    heroHull.innerHTML = hu.art();
+    var x = 50 + hu.mt[0], y = 116 + hu.mt[1];
+    heroTurret.setAttribute('transform', 'translate(' + x + ' ' + y + ')');
+    heroTurret.innerHTML = '<g class="recoil">' + tu.art() +
+      '<g class="flash" transform="translate(' + tu.mz[0] + ' ' + tu.mz[1] + ')"><polygon points="0,0 34,-16 22,0 44,8 20,10 30,28 0,12" fill="url(#gFlash)"/></g></g>';
+    var label = nameOf(sel.hull) + ' + ' + nameOf(sel.turret);
+    document.getElementById('capName').textContent = label;
+    document.getElementById('heroSvg').setAttribute('aria-label', t('heroLabel')(label));
+    renderCaptionCount();
+    var tiles = document.querySelectorAll('.tile');
+    for (var i = 0; i < tiles.length; i++) {
+      var tile = tiles[i];
+      tile.classList.toggle('on', tile.getAttribute('data-id') === (tile.getAttribute('data-kind') === 'turret' ? sel.turret : sel.hull));
+    }
+  }
+
+  function renderCaptionCount() {
+    var el = document.getElementById('capCount');
+    var n = counts ? counts[sel.turret] : undefined;
+    el.innerHTML = typeof n === 'number' ? t('aug')(n) : '&nbsp;';
+  }
+
+  function fitThumb(svg) {
+    var g = svg.firstChild, b = g.getBBox();
+    svg.setAttribute('viewBox', [b.x - 6, b.y - 6, b.width + 12, b.height + 12].join(' '));
+  }
+
+  function buildTiles() {
+    var tt = document.getElementById('turretTiles'), ht = document.getElementById('hullTiles');
+    TURRETS.forEach(function (tu) { tt.appendChild(makeTile('turret', tu.id, 'tile ' + tu.range, '<g>' + tu.art() + '</g>')); });
+    HULLS.forEach(function (hu) { ht.appendChild(makeTile('hull', hu.id, 'tile hull', '<g>' + hu.art() + '</g>')); });
+    var thumbs = document.querySelectorAll('.thumb');
+    for (var i = 0; i < thumbs.length; i++) fitThumb(thumbs[i]);
+  }
+
+  function makeTile(kind, id, cls, art) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = cls; b.setAttribute('data-kind', kind); b.setAttribute('data-id', id);
+    b.innerHTML = '<svg class="thumb" aria-hidden="true">' + art + '</svg><span class="tn"></span><span class="tc"></span>';
+    b.addEventListener('click', function () { auto = false; sel[kind] = id; renderHero(); });
+    return b;
+  }
+
+  function renderTileText() {
+    var tiles = document.querySelectorAll('.tile');
+    for (var i = 0; i < tiles.length; i++) {
+      var tile = tiles[i], id = tile.getAttribute('data-id'), isTurret = tile.getAttribute('data-kind') === 'turret';
+      tile.querySelector('.tn').textContent = nameOf(id);
+      var n = counts ? counts[id] : undefined;
+      tile.querySelector('.tc').textContent = isTurret ? (typeof n === 'number' ? t('aug')(n) : '') : t('shared');
+    }
+    var hn = counts && typeof counts.hulls === 'number' ? t('aug')(counts.hulls) + ' · ' : '';
+    document.getElementById('hullNote').textContent = hn + t('hullNote');
+  }
+
+  /* ---------- live data ---------- */
+  var summaries = [];
+  var formatter = null;
 
   function ago(iso) {
     var then = Date.parse(iso);
@@ -267,10 +535,10 @@ footer a:hover { color: #fff; }
 
   function nextScrapeLabel() {
     var now = new Date();
-    var next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), SCRAPE_HOUR, SCRAPE_MINUTE));
+    var next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 5, 30));
     if (next <= now) next = new Date(next.getTime() + 86400000);
     var minutes = Math.round((next - now) / 60000);
-    return Math.floor(minutes / 60) + 'h ' + String(minutes % 60).padStart(2, '0') + 'm';
+    return t('hm')(Math.floor(minutes / 60), minutes % 60);
   }
 
   function setText(root, name, value) {
@@ -280,42 +548,67 @@ footer a:hover { color: #fff; }
 
   function summarize(data) {
     var items = Object.keys(data.items || {});
-    var augments = items.reduce(function (total, item) { return total + Object.keys(data.items[item]).length; }, 0);
-    return { items: items.length, augments: augments, generatedAt: data.generatedAt };
+    var per = {};
+    var augments = items.reduce(function (total, item) { var n = Object.keys(data.items[item]).length; per[item] = n; return total + n; }, 0);
+    return { items: items.length, augments: augments, generatedAt: data.generatedAt, per: per };
+  }
+
+  function renderCards() {
+    var cards = document.querySelectorAll('.card');
+    for (var i = 0; i < cards.length; i++) {
+      var s = summaries[i];
+      if (s) { setText(cards[i], 'items', s.items); setText(cards[i], 'augments', s.augments); setText(cards[i], 'updated', ago(s.generatedAt)); }
+      else if (summaries.length === cards.length) { setText(cards[i], 'items', '-'); setText(cards[i], 'augments', '-'); setText(cards[i], 'updated', t('unavailable')); }
+    }
+    var ok = summaries.filter(Boolean);
+    if (ok[0]) {
+      document.getElementById('chipItems').textContent = ok[0].items;
+      document.getElementById('chipAugments').textContent = ok[0].augments + (ok[1] ? ' / ' + ok[1].augments : '');
+    }
+  }
+
+  function renderLive() {
+    var live = document.getElementById('live'), text = document.getElementById('liveText');
+    if (summaries.length === 0) { text.textContent = t('checking'); return; }
+    var ok = summaries.filter(Boolean).length;
+    text.textContent = ok === summaries.length ? t('live') : (ok ? t('partly') : t('down'));
+    live.classList.toggle('off', ok !== summaries.length);
   }
 
   function loadCard(card) {
     return fetch(card.getAttribute('data-file'), { cache: 'no-cache' })
       .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
-      .then(function (data) {
-        var s = summarize(data);
-        setText(card, 'items', s.items);
-        setText(card, 'augments', s.augments);
-        setText(card, 'updated', ago(s.generatedAt));
-        return s;
-      })
-      .catch(function () {
-        setText(card, 'items', '-'); setText(card, 'augments', '-'); setText(card, 'updated', 'unavailable');
-        return null;
-      });
+      .then(summarize)
+      .catch(function () { return null; });
   }
 
-  var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
-  Promise.all(cards.map(loadCard)).then(function (results) {
-    var ok = results.filter(Boolean);
-    var live = document.getElementById('live');
-    document.getElementById('liveText').textContent = ok.length === results.length ? 'Live data' : (ok.length ? 'Partly available' : 'Data unavailable');
-    if (ok.length !== results.length) live.classList.add('off');
-    var first = ok[0];
-    if (first) {
-      document.getElementById('chipItems').textContent = first.items;
-      document.getElementById('chipAugments').textContent = first.augments + (ok[1] ? ' / ' + ok[1].augments : '');
-    }
-  });
+  /* ---------- language ---------- */
+  function applyLang() {
+    document.documentElement.lang = lang.toLowerCase();
+    document.title = t('title');
+    document.getElementById('metaDesc').setAttribute('content', t('desc'));
+    formatter = typeof Intl !== 'undefined' && Intl.RelativeTimeFormat ? new Intl.RelativeTimeFormat(lang.toLowerCase(), { numeric: 'auto' }) : null;
+    var nodes = document.querySelectorAll('[data-i18n]');
+    for (var i = 0; i < nodes.length; i++) nodes[i].textContent = t(nodes[i].getAttribute('data-i18n'));
+    document.getElementById('h1').innerHTML = t('h1');
+    var buttons = document.querySelectorAll('.lang button');
+    for (var j = 0; j < buttons.length; j++) buttons[j].setAttribute('aria-pressed', String(buttons[j].getAttribute('data-lang') === lang));
+    renderLive(); renderCards(); renderTileText(); renderHero(); tickNext();
+  }
 
+  var langButtons = document.querySelectorAll('.lang button');
+  for (var b = 0; b < langButtons.length; b++) {
+    langButtons[b].addEventListener('click', function (event) {
+      lang = event.currentTarget.getAttribute('data-lang');
+      try { localStorage.setItem('lang', lang); } catch (e) { /* storage may be blocked */ }
+      applyLang();
+    });
+  }
+
+  /* ---------- small helpers ---------- */
   var nextEl = document.getElementById('chipNext');
-  function tick() { nextEl.textContent = nextScrapeLabel(); }
-  tick(); setInterval(tick, 30000);
+  function tickNext() { nextEl.textContent = nextScrapeLabel(); }
+  setInterval(tickNext, 30000);
 
   var toast = document.getElementById('toast'), toastTimer = 0;
   function say(message) {
@@ -325,10 +618,32 @@ footer a:hover { color: #fff; }
   document.querySelectorAll('button.copy').forEach(function (button) {
     button.addEventListener('click', function () {
       var url = new URL(button.getAttribute('data-copy'), location.href).href;
-      var done = function () { say('Link copied'); };
-      var fail = function () { window.prompt('Copy this link:', url); };
+      var done = function () { say(t('copied')); };
+      var fail = function () { window.prompt(t('copyPrompt'), url); };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, fail); else fail();
     });
+  });
+
+  /* ---------- go ---------- */
+  var auto = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var combos = [['railgun', 'hunter'], ['hammer', 'viking'], ['shaft', 'wasp'], ['vulcan', 'mammoth'], ['tesla', 'hornet'], ['smoky', 'crusader'], ['twins', 'dictator'], ['firebird', 'titan'], ['magnum', 'ares'], ['striker', 'paladin'], ['tsunami', 'hopper']];
+  var comboAt = 0;
+  setInterval(function () {
+    if (!auto) return;
+    comboAt = (comboAt + 1) % combos.length;
+    sel.turret = combos[comboAt][0]; sel.hull = combos[comboAt][1];
+    renderHero();
+  }, 6500);
+
+  buildTiles();
+  applyLang();
+
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+  Promise.all(cards.map(loadCard)).then(function (results) {
+    summaries = results;
+    var source = results[0] || results[1];
+    counts = source ? source.per : null;
+    renderLive(); renderCards(); renderTileText(); renderCaptionCount();
   });
 })();
 </script>
