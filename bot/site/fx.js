@@ -498,6 +498,97 @@
     }
   };
 
+  // Ricochet: one barrel, a slower stream of orange-red plasma balls in a straight line. A small angled steel plate stands in their path,
+  // and each ball that touches it throws sparks and glances off up and back, which is the turret's trademark.
+  var RICO_SHOTS = [];
+  for (var rs = 800; rs <= 2900; rs += 300) RICO_SHOTS.push(rs);
+  var RICO_TILT = 0.21; // the plate leans this many radians to the right at the top
+  function emberTint(f) { return [255, lerp(150, 50, f), lerp(40, 10, f), 0.6 * (1 - f)]; }
+  function sparkOrangeTint(f) { return [255, lerp(210, 90, f), lerp(80, 20, f), 1 - f]; }
+  recipes.ricochet = {
+    shots: RICO_SHOTS,
+    muzzles: null,
+    recoilFn: function (e) { return Math.min(1, recoilAt(e.t, RICO_SHOTS) * 0.8); },
+    update: function (e, dt) {
+      var tp = e.turretPx, st = e.store, m = e.muzzles[0], d = dt / 1000;
+      var balls = st.balls || (st.balls = []), trail = st.trail || (st.trail = stream.create(260)), sparks = st.sparks || (st.sparks = stream.create(200)), hits = st.hits || (st.hits = []);
+      st.wallX = m.x + Math.min(e.reach * 0.7, tp * 1.4);
+      st.n = st.n || 0;
+      while (st.n < RICO_SHOTS.length && e.t >= RICO_SHOTS[st.n]) {
+        st.n++;
+        var speed = (st.wallX - m.x) / 0.42;
+        balls.push({ x: m.x + tp * 0.06, y: m.y, vx: speed, vy: 0, age: 0, life: 1.2, len: tp * 0.26, r: Math.max(5, tp * 0.045), core: [255, 236, 205], glow: [255, 110, 30], trail: [255, 100, 30], tail: [200, 40, 10], halo: 3.4, hit: false });
+      }
+      for (var i = balls.length - 1; i >= 0; i--) {
+        var b = balls[i];
+        b.age += d;
+        if (b.age >= b.life) { balls.splice(i, 1); continue; }
+        b.x += b.vx * d;
+        b.y += b.vy * d;
+        if (!b.hit && b.x >= st.wallX - tp * 0.03) {
+          // glance off the plate: reflect the velocity about the plate's normal (pointing left and up), and lose some speed
+          var nx = -Math.cos(RICO_TILT), ny = -Math.sin(RICO_TILT), dot = b.vx * nx + b.vy * ny, jit = 1 + (e.rand() - 0.5) * 0.3;
+          b.vx = (b.vx - 2 * dot * nx) * 0.7 * jit;
+          b.vy = (b.vy - 2 * dot * ny) * 0.7 * jit;
+          b.hit = true;
+          b.life = b.age + 0.4;
+          b.x = st.wallX - tp * 0.03;
+          hits.push({ x: b.x, y: b.y, t: e.t });
+          stream.emit(sparks, { x: b.x, y: b.y, angle: Math.atan2(b.vy, b.vx), spread: 0.9, speed: [tp * 0.4, tp * 1.2], life: [0.2, 0.5], size: [tp * 0.007, tp * 0.016], rise: -tp * 2, drag: 1.8, jitter: tp * 0.012 }, 22000 / dt, dt, e.rand);
+        }
+        e.store.acc = (e.store.acc || 0) + 120 * d;
+        while (e.store.acc >= 1) {
+          e.store.acc -= 1;
+          stream.emit(trail, { x: b.x - e.rand() * b.vx * d, y: b.y - e.rand() * b.vy * d, angle: 0, spread: 3.1, speed: [0, tp * 0.04], life: [0.2, 0.4], size: [b.r * 0.8, b.r * 0.25], jitter: b.r * 0.2 }, 1000 / dt, dt, e.rand);
+        }
+      }
+      stream.update(trail, dt);
+      stream.update(sparks, dt);
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx, st = e.store, m = e.muzzles[0];
+      if (st.wallX) {
+        // the plate: dark steel with a light edge on the side the balls hit, fading in before the first shot and out after the last
+        var fade = ramp(e.t, 500, 3400, 250, 500);
+        if (fade > 0) {
+          var w = tp * 0.075, h = tp * 0.7, heat = 0;
+          for (var q = 0; q < st.hits.length; q++) { var ha = e.t - st.hits[q].t; if (ha >= 0 && ha < 300) heat = Math.max(heat, 1 - ha / 300); }
+          c.save();
+          c.globalCompositeOperation = 'source-over';
+          c.globalAlpha = fade;
+          c.translate(st.wallX, m.y);
+          c.rotate(RICO_TILT);
+          var g = c.createLinearGradient(-w / 2, 0, w / 2, 0);
+          g.addColorStop(0, 'rgb(150,160,176)');
+          g.addColorStop(0.25, 'rgb(96,104,120)');
+          g.addColorStop(1, 'rgb(48,54,66)');
+          c.fillStyle = g;
+          c.beginPath();
+          if (c.roundRect) c.roundRect(-w / 2, -h / 2, w, h, w * 0.3); else c.rect(-w / 2, -h / 2, w, h);
+          c.fill();
+          c.globalCompositeOperation = 'lighter';
+          if (heat) { c.globalAlpha = fade * heat * 0.6; c.fillStyle = 'rgb(255,110,30)'; c.fillRect(-w / 2, -h * 0.12, w * 0.4, h * 0.24); }
+          c.restore();
+        }
+      }
+      if (st.trail) stream.draw(c, st.trail, emberTint);
+      if (st.sparks) stream.draw(c, st.sparks, sparkOrangeTint);
+      if (st.balls) for (var i = 0; i < st.balls.length; i++) {
+        var bl = st.balls[i], base = Math.max(5, tp * 0.045);
+        bl.r = base * (1 + 0.1 * Math.sin(bl.age * 45));
+        drawBall(c, bl);
+      }
+      if (st.hits) for (var k = 0; k < st.hits.length; k++) {
+        var age = e.t - st.hits[k].t;
+        if (age >= 0 && age < 160) { var f = 1 - age / 160; glow(c, st.hits[k].x, st.hits[k].y, tp * 0.09, '255,120,40', 0.8 * f); glow(c, st.hits[k].x, st.hits[k].y, tp * 0.04, '255,235,200', 0.9 * f); }
+      }
+      for (var s = 0; s < RICO_SHOTS.length; s++) {
+        var a = e.t - RICO_SHOTS[s];
+        if (a >= 0 && a < 110) { var ff = 1 - a / 110; glow(c, m.x, m.y, tp * 0.08, '255,110,30', 0.8 * ff); glow(c, m.x, m.y, tp * 0.04, '255,235,205', 0.9 * ff); }
+      }
+    }
+  };
+
   function recipeFor(id) { return recipes[id] || generic; }
 
   function recoilAt(t, shots) {
