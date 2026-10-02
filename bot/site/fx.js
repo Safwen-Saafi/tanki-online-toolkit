@@ -284,6 +284,56 @@
     }
   };
 
+  // Grey gun smoke: warm and a little dense at first, cooling to grey, fading out. Drawn with source-over so it stays grey.
+  function smokeTint(f) {
+    var a = f < 0.12 ? f / 0.12 * 0.5 : 0.5 * (1 - (f - 0.12) / 0.88);
+    return [lerp(200, 120, f), lerp(180, 120, f), lerp(155, 125, f), a];
+  }
+  function trailTint(f) { return [150, 145, 140, 0.17 * (1 - f)]; }
+  function drawSmoke(c, s, trail) {
+    c.globalCompositeOperation = 'source-over';
+    stream.draw(c, s, smokeTint);
+    if (trail) stream.draw(c, trail, trailTint);
+    c.globalCompositeOperation = 'lighter';
+  }
+
+  // Smoky: one orange-yellow shell with a flash, a smoke puff at the muzzle and a thin smoke trail behind the shell.
+  recipes.smoky = {
+    shots: [1200],
+    muzzles: null,
+    update: function (e, dt) {
+      var tp = e.turretPx, m = e.muzzles[0];
+      var shell = e.store.shell || (e.store.shell = bullets.create(1));
+      var puff = e.store.puff || (e.store.puff = stream.create(220)), trail = e.store.trail || (e.store.trail = stream.create(420));
+      if (!e.store.fired && e.t >= 1200) {
+        e.store.fired = true;
+        var maxDist = Math.min(e.reach * 0.95, tp * 1.9), speed = maxDist / 0.6, len = tp * 0.14;
+        bullets.fire(shell, { x: m.x + len + tp * 0.012, y: m.y, vx: speed, vy: 0, life: maxDist / speed, len: len, width: Math.max(3, tp * 0.026), head: [255, 226, 130], tail: [255, 120, 30] });
+        // the puff: a burst forward, then a thin lingering wisp at the muzzle
+        stream.emit(puff, { x: m.x, y: m.y, angle: 0, spread: 0.55, speed: [tp * 0.25, tp * 1.0], life: [1.2, 2.2], size: [tp * 0.025, tp * 0.1], rise: tp * 0.12, drag: 3, jitter: tp * 0.02 }, 46000 / dt, dt, e.rand);
+      }
+      if (e.store.fired && e.t < 1900) stream.emit(puff, { x: m.x, y: m.y, angle: -0.3, spread: 0.7, speed: [tp * 0.03, tp * 0.2], life: [1.0, 1.8], size: [tp * 0.02, tp * 0.07], rise: tp * 0.16, drag: 2, jitter: tp * 0.02 }, 55, dt, e.rand);
+      if (shell.p.length && e.t < 1700) {
+        var sh = shell.p[0];
+        // the shell moves far in one step, so place each wisp somewhere along that step to keep the trail unbroken
+        e.store.trailAcc = (e.store.trailAcc || 0) + 560 * dt / 1000;
+        while (e.store.trailAcc >= 1) {
+          e.store.trailAcc -= 1;
+          stream.emit(trail, { x: sh.x - sh.len - e.rand() * sh.vx * dt / 1000, y: sh.y, angle: 0, spread: 3.1, speed: [0, tp * 0.03], life: [0.5, 0.8], size: [tp * 0.014, tp * 0.035], rise: tp * 0.05, drag: 2, jitter: tp * 0.008 }, 1000 / dt, dt, e.rand);
+        }
+      }
+      bullets.update(shell, dt);
+      stream.update(puff, dt);
+      stream.update(trail, dt);
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx, age = e.t - 1200;
+      if (e.store.puff) drawSmoke(c, e.store.puff, e.store.trail);
+      if (e.store.shell) bullets.draw(c, e.store.shell);
+      if (age >= 0 && age < 140) drawFlash(c, e.muzzles[0], tp * 0.11, 1 - age / 140);
+    }
+  };
+
   function recipeFor(id) { return recipes[id] || generic; }
 
   function recoilAt(t, shots) {
