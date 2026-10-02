@@ -362,6 +362,106 @@
   // Thunder: a heavier, slower shell, a much bigger flash and puff, a smoke ring and a hard kick.
   recipes.thunder = shellRecipe({ at: 1200, flight: 0.75, dist: 1.9, len: 0.18, width: 0.042, head: [255, 210, 110], tail: [235, 90, 20], flash: 0.2, shift: 0.45, flashMs: 200, burst: 90, puff: 1.55, wisp: 90, ring: 1, kick: 3 });
 
+  // Hammer: a shotgun. Five volleys in a row, both barrels at once (three yellow pellets each, with a spray of sparks and a small
+  // puff), then a pause while it reloads and the five spent shells pop out of the top of the turret and fall.
+  // The muzzle points are measured by eye on the turret picture: the two barrels stacked in the cap, then the ejection port.
+  var HAMMER_VOLLEYS = [900, 1230, 1560, 1890, 2220], HAMMER_EJECT = [2700, 2960, 3220, 3480, 3740];
+  function sparkTint(f) { return [255, lerp(225, 120, f), lerp(90, 30, f), 1 - f]; }
+  recipes.hammer = {
+    shots: HAMMER_VOLLEYS,
+    muzzles: [[484, 58], [484, 84], [240, 28]],
+    recoilFn: function (e) { return Math.min(1.8, recoilAt(e.t, HAMMER_VOLLEYS) * 1.6); },
+    update: function (e, dt) {
+      var tp = e.turretPx, st = e.store;
+      var b = st.pellets || (st.pellets = bullets.create(90)), puff = st.puff || (st.puff = stream.create(220)), sparks = st.sparks || (st.sparks = stream.create(320));
+      var cases = st.cases || (st.cases = []);
+      st.vol = st.vol || 0;
+      st.ej = st.ej || 0;
+      while (st.vol < HAMMER_VOLLEYS.length && e.t >= HAMMER_VOLLEYS[st.vol]) {
+        st.vol++;
+        var dist = Math.min(e.reach * 0.9, tp * 1.1);
+        // a shotgun load: seven round pellets from each barrel, in a wide cone, at slightly different speeds
+        for (var i = 0; i < 14; i++) {
+          var m = e.muzzles[i % 2], ang = ((Math.floor(i / 2) - 3) / 3) * 0.2 + (e.rand() - 0.5) * 0.07, speed = dist / 0.55 * (0.8 + e.rand() * 0.35), len = tp * 0.05;
+          bullets.fire(b, { x: m.x + tp * 0.02, y: m.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: dist / speed, len: len, width: Math.max(1.5, tp * 0.006), head: [255, 214, 80], tail: [255, 135, 30] });
+        }
+        for (var k = 0; k < 2; k++) {
+          var mz = e.muzzles[k];
+          stream.emit(sparks, { x: mz.x, y: mz.y, angle: 0, spread: 0.5, speed: [tp * 0.6, tp * 1.7], life: [0.2, 0.5], size: [tp * 0.008, tp * 0.018], drag: 2.2, jitter: tp * 0.012 }, 26000 / dt, dt, e.rand);
+          stream.emit(puff, { x: mz.x, y: mz.y, angle: 0, spread: 0.6, speed: [tp * 0.15, tp * 0.6], life: [0.9, 1.6], size: [tp * 0.03, tp * 0.1], rise: tp * 0.12, drag: 3, jitter: tp * 0.02 }, 18000 / dt, dt, e.rand);
+        }
+      }
+      while (st.ej < HAMMER_EJECT.length && e.t >= HAMMER_EJECT[st.ej]) {
+        st.ej++;
+        var port = e.muzzles[2];
+        cases.push({ x: port.x, y: port.y, vx: -tp * (0.3 + e.rand() * 0.45), vy: -tp * (1.0 + e.rand() * 0.35), rot: e.rand() * 6.28, vr: (e.rand() < 0.5 ? -1 : 1) * (6 + e.rand() * 6), age: 0 });
+      }
+      for (var j = cases.length - 1; j >= 0; j--) {
+        var q = cases[j], d = dt / 1000;
+        q.age += d;
+        if (q.age > 0.6) { cases.splice(j, 1); continue; }
+        q.vy += tp * 5 * d;
+        q.x += q.vx * d;
+        q.y += q.vy * d;
+        q.rot += q.vr * d;
+      }
+      bullets.update(b, dt);
+      stream.update(puff, dt);
+      stream.update(sparks, dt);
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx, st = e.store;
+      if (st.puff) drawSmoke(c, st.puff);
+      if (st.sparks) stream.draw(c, st.sparks, sparkTint);
+      if (st.pellets) {
+        // pellets are small solid balls with a soft glow and a short faint trail, so they read as shot and not as tracers
+        for (var pi = 0; pi < st.pellets.p.length; pi++) {
+          var pl = st.pellets.p[pi], fade = Math.min(1, (pl.life - pl.age) / 0.1), sp = Math.sqrt(pl.vx * pl.vx + pl.vy * pl.vy), r = Math.max(2.2, tp * 0.012);
+          var g = c.createLinearGradient(pl.x - pl.vx / sp * pl.len, pl.y - pl.vy / sp * pl.len, pl.x, pl.y);
+          g.addColorStop(0, 'rgba(255,135,30,0)');
+          g.addColorStop(1, 'rgba(255,190,60,' + (0.7 * fade).toFixed(3) + ')');
+          c.strokeStyle = g;
+          c.lineWidth = r * 0.9;
+          c.lineCap = 'round';
+          c.beginPath();
+          c.moveTo(pl.x - pl.vx / sp * pl.len, pl.y - pl.vy / sp * pl.len);
+          c.lineTo(pl.x, pl.y);
+          c.stroke();
+          c.globalAlpha = fade * 0.75;
+          c.drawImage(sprite(255, 180, 50), pl.x - r * 2.6, pl.y - r * 2.6, r * 5.2, r * 5.2);
+          c.globalAlpha = fade;
+          c.fillStyle = 'rgb(255,226,110)';
+          c.beginPath();
+          c.arc(pl.x, pl.y, r, 0, Math.PI * 2);
+          c.fill();
+          c.globalAlpha = 1;
+        }
+      }
+      for (var v = 0; v < HAMMER_VOLLEYS.length; v++) {
+        var age = e.t - HAMMER_VOLLEYS[v];
+        if (age >= 0 && age < 130) for (var m = 0; m < 2; m++) drawFlash(c, e.muzzles[m], tp * 0.08, 1 - age / 130);
+      }
+      // the spent shells: a brown body with a lighter brown base, tumbling, drawn solid so they do not glow
+      if (st.cases && st.cases.length) {
+        c.globalCompositeOperation = 'source-over';
+        for (var i = 0; i < st.cases.length; i++) {
+          var q = st.cases[i], w = tp * 0.14, h = tp * 0.068;
+          c.save();
+          c.translate(q.x, q.y);
+          c.rotate(q.rot);
+          c.globalAlpha = Math.min(1, (0.6 - q.age) / 0.2);
+          c.fillStyle = '#6e3f1f';
+          c.fillRect(-w / 2, -h / 2, w * 0.68, h);
+          c.fillStyle = '#8f5d30';
+          c.fillRect(-w / 2 + w * 0.68, -h / 2, w * 0.32, h);
+          c.restore();
+        }
+        c.globalAlpha = 1;
+        c.globalCompositeOperation = 'lighter';
+      }
+    }
+  };
+
   function recipeFor(id) { return recipes[id] || generic; }
 
   function recoilAt(t, shots) {
