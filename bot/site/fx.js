@@ -284,6 +284,30 @@
     }
   };
 
+  // A round projectile: a soft glow, a solid core and a short fading trail. Hammer's pellets and Twins' plasma use it.
+  // b: x, y, vx, vy, age, life, len (px of trail), r (core radius px), core, glow, trail, tail (colours [r, g, b]), halo (glow radius in cores).
+  function drawBall(c, b) {
+    var fade = Math.min(1, (b.life - b.age) / 0.1), sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy), r = b.r, tx = b.x - b.vx / sp * b.len, ty = b.y - b.vy / sp * b.len;
+    var g = c.createLinearGradient(tx, ty, b.x, b.y), halo = b.halo || 2.6;
+    g.addColorStop(0, 'rgba(' + b.tail.join(',') + ',0)');
+    g.addColorStop(1, 'rgba(' + b.trail.join(',') + ',' + (0.7 * fade).toFixed(3) + ')');
+    c.strokeStyle = g;
+    c.lineWidth = r * 0.9;
+    c.lineCap = 'round';
+    c.beginPath();
+    c.moveTo(tx, ty);
+    c.lineTo(b.x, b.y);
+    c.stroke();
+    c.globalAlpha = fade * 0.75;
+    c.drawImage(sprite(b.glow[0], b.glow[1], b.glow[2]), b.x - r * halo, b.y - r * halo, r * halo * 2, r * halo * 2);
+    c.globalAlpha = fade;
+    c.fillStyle = 'rgb(' + b.core.join(',') + ')';
+    c.beginPath();
+    c.arc(b.x, b.y, r, 0, Math.PI * 2);
+    c.fill();
+    c.globalAlpha = 1;
+  }
+
   // Grey gun smoke: warm and a little dense at first, cooling to grey, fading out. Drawn with source-over so it stays grey.
   function smokeTint(f) {
     var a = f < 0.12 ? f / 0.12 * 0.5 : 0.5 * (1 - (f - 0.12) / 0.88);
@@ -383,7 +407,7 @@
         // a shotgun load: seven round pellets from each barrel, in a wide cone, at slightly different speeds
         for (var i = 0; i < 14; i++) {
           var m = e.muzzles[i % 2], ang = ((Math.floor(i / 2) - 3) / 3) * 0.2 + (e.rand() - 0.5) * 0.07, speed = dist / 0.55 * (0.8 + e.rand() * 0.35), len = tp * 0.05;
-          bullets.fire(b, { x: m.x + tp * 0.02, y: m.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: dist / speed, len: len, width: Math.max(1.5, tp * 0.006), head: [255, 214, 80], tail: [255, 135, 30] });
+          bullets.fire(b, { x: m.x + tp * 0.02, y: m.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: dist / speed, len: len, r: Math.max(2.2, tp * 0.012), core: [255, 226, 110], glow: [255, 180, 50], trail: [255, 190, 60], tail: [255, 135, 30] });
         }
         for (var k = 0; k < 2; k++) {
           var mz = e.muzzles[k];
@@ -415,27 +439,7 @@
       if (st.sparks) stream.draw(c, st.sparks, sparkTint);
       if (st.pellets) {
         // pellets are small solid balls with a soft glow and a short faint trail, so they read as shot and not as tracers
-        for (var pi = 0; pi < st.pellets.p.length; pi++) {
-          var pl = st.pellets.p[pi], fade = Math.min(1, (pl.life - pl.age) / 0.1), sp = Math.sqrt(pl.vx * pl.vx + pl.vy * pl.vy), r = Math.max(2.2, tp * 0.012);
-          var g = c.createLinearGradient(pl.x - pl.vx / sp * pl.len, pl.y - pl.vy / sp * pl.len, pl.x, pl.y);
-          g.addColorStop(0, 'rgba(255,135,30,0)');
-          g.addColorStop(1, 'rgba(255,190,60,' + (0.7 * fade).toFixed(3) + ')');
-          c.strokeStyle = g;
-          c.lineWidth = r * 0.9;
-          c.lineCap = 'round';
-          c.beginPath();
-          c.moveTo(pl.x - pl.vx / sp * pl.len, pl.y - pl.vy / sp * pl.len);
-          c.lineTo(pl.x, pl.y);
-          c.stroke();
-          c.globalAlpha = fade * 0.75;
-          c.drawImage(sprite(255, 180, 50), pl.x - r * 2.6, pl.y - r * 2.6, r * 5.2, r * 5.2);
-          c.globalAlpha = fade;
-          c.fillStyle = 'rgb(255,226,110)';
-          c.beginPath();
-          c.arc(pl.x, pl.y, r, 0, Math.PI * 2);
-          c.fill();
-          c.globalAlpha = 1;
-        }
+        for (var pi = 0; pi < st.pellets.p.length; pi++) drawBall(c, st.pellets.p[pi]);
       }
       for (var v = 0; v < HAMMER_VOLLEYS.length; v++) {
         var age = e.t - HAMMER_VOLLEYS[v];
@@ -458,6 +462,38 @@
         }
         c.globalAlpha = 1;
         c.globalCompositeOperation = 'lighter';
+      }
+    }
+  };
+
+  // Twins: plasma balls from the two barrels in turn, a steady alternating stream with a cyan-green glow.
+  // The two barrels sit one behind the other in the side view, so the muzzle points are just a little above and below the tip.
+  var TWINS_SHOTS = [];
+  for (var ts = 800; ts <= 3000; ts += 220) TWINS_SHOTS.push(ts);
+  recipes.twins = {
+    shots: TWINS_SHOTS,
+    muzzles: [[533, 61.5], [533, 79.5]],
+    recoilFn: function (e) { return Math.min(1, recoilAt(e.t, TWINS_SHOTS) * 0.55); },
+    update: function (e, dt) {
+      var tp = e.turretPx, st = e.store, b = st.balls || (st.balls = bullets.create(24));
+      st.n = st.n || 0;
+      while (st.n < TWINS_SHOTS.length && e.t >= TWINS_SHOTS[st.n]) {
+        var m = e.muzzles[st.n % 2], dist = Math.min(e.reach * 0.95, tp * 1.9), speed = dist / 0.6 * (0.96 + e.rand() * 0.08), ang = (e.rand() - 0.5) * 0.012;
+        bullets.fire(b, { x: m.x + tp * 0.02, y: m.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: dist / speed, len: tp * 0.2, r: Math.max(4, tp * 0.032), core: [215, 255, 240], glow: [60, 255, 170], trail: [70, 240, 170], tail: [20, 160, 200], halo: 3.4 });
+        st.n++;
+      }
+      bullets.update(b, dt);
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx;
+      if (e.store.balls) for (var i = 0; i < e.store.balls.p.length; i++) {
+        var q = e.store.balls.p[i];
+        q.r = Math.max(4, tp * 0.032) * (1 + 0.1 * Math.sin(q.age * 50));
+        drawBall(c, q);
+      }
+      for (var k = 0; k < TWINS_SHOTS.length; k++) {
+        var age = e.t - TWINS_SHOTS[k];
+        if (age >= 0 && age < 110) { var f = 1 - age / 110, mz = e.muzzles[k % 2]; glow(c, mz.x, mz.y, tp * 0.07, '70,255,180', 0.8 * f); glow(c, mz.x, mz.y, tp * 0.035, '225,255,245', 0.9 * f); }
       }
     }
   };
