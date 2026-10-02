@@ -127,6 +127,42 @@
     }
   };
 
+  // Fast tracer bullets: a short bright streak with a head, flying straight and fading at the end of their range.
+  // b: x, y, vx, vy (px/s), life (s), len (px of trail), width (px), head and tail colours [r, g, b].
+  var bullets = {
+    create: function (cap) { return { p: [], cap: cap }; },
+    fire: function (s, b) { if (s.p.length < s.cap) { b.age = 0; s.p.push(b); } },
+    update: function (s, dtMs) {
+      var dt = dtMs / 1000;
+      for (var i = s.p.length - 1; i >= 0; i--) {
+        var b = s.p[i];
+        b.age += dt;
+        if (b.age >= b.life) { s.p.splice(i, 1); continue; }
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+      }
+    },
+    draw: function (c, s) {
+      c.lineCap = 'round';
+      for (var i = 0; i < s.p.length; i++) {
+        var b = s.p[i], fade = Math.min(1, (b.life - b.age) / 0.06), sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        var tx = b.x - b.vx / sp * b.len, ty = b.y - b.vy / sp * b.len;
+        var g = c.createLinearGradient(tx, ty, b.x, b.y);
+        g.addColorStop(0, 'rgba(' + b.tail.join(',') + ',0)');
+        g.addColorStop(1, 'rgba(' + b.head.join(',') + ',' + fade.toFixed(3) + ')');
+        c.strokeStyle = g;
+        c.lineWidth = b.width;
+        c.beginPath();
+        c.moveTo(tx, ty);
+        c.lineTo(b.x, b.y);
+        c.stroke();
+        c.globalAlpha = fade * 0.9;
+        c.drawImage(sprite(b.head[0], b.head[1], b.head[2]), b.x - b.width * 1.4, b.y - b.width * 1.4, b.width * 2.8, b.width * 2.8);
+        c.globalAlpha = 1;
+      }
+    }
+  };
+
   /* ---------- recipes: one per turret ---------- */
 
   // The default recipe, used by every turret until it gets its own: a muzzle flash and a recoil.
@@ -219,6 +255,35 @@
     }
   };
 
+  // Vulcan: a rapid stream of yellow tracers from across the barrel cluster, spinning up to speed, with a flickering
+  // flash and a light steady shake instead of a single kick.
+  recipes.vulcan = {
+    shots: [],
+    muzzles: null,
+    recoilFn: function (e) { return (e.store.fire || 0) * (0.3 + 0.12 * Math.sin(e.t / 16)); },
+    update: function (e, dt) {
+      var tp = e.turretPx, m = e.muzzles[0];
+      var b = e.store.bullets || (e.store.bullets = bullets.create(24));
+      var flashes = e.store.flashes || (e.store.flashes = []);
+      var a = e.store.fire = ramp(e.t, 700, 3100, 450, 150);
+      e.store.acc = (e.store.acc || 0) + 22 * a * dt / 1000;
+      var maxDist = Math.min(e.reach * 0.95, tp * 1.5);
+      while (e.store.acc >= 1) {
+        e.store.acc -= 1;
+        var speed = maxDist / 0.2 * (0.92 + e.rand() * 0.16), ang = (e.rand() - 0.5) * 0.03;
+        bullets.fire(b, { x: m.x + speed * 0.04 + tp * 0.012, y: m.y + (e.rand() - 0.5) * 2 * tp * 0.045, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: maxDist / speed, len: speed * 0.04, width: Math.max(1.5, tp * 0.007), head: [255, 244, 160], tail: [255, 170, 40] });
+        flashes.push(e.t);
+      }
+      bullets.update(b, dt);
+      while (flashes.length && e.t - flashes[0] > 70) flashes.shift();
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx, m = e.muzzles[0], flashes = e.store.flashes || [];
+      if (e.store.bullets) bullets.draw(c, e.store.bullets);
+      for (var i = 0; i < flashes.length; i++) drawFlash(c, { x: m.x, y: m.y + ((i * 37 % 7) - 3) * tp * 0.01 }, tp * 0.045, 1 - (e.t - flashes[i]) / 70);
+    }
+  };
+
   function recipeFor(id) { return recipes[id] || generic; }
 
   function recoilAt(t, shots) {
@@ -283,7 +348,7 @@
     ctx.globalCompositeOperation = 'lighter';
     recipe.draw(ctx, env);
     ctx.globalCompositeOperation = 'source-over';
-    applyRecoil(recoilAt(env.t, recipe.shots || []));
+    applyRecoil(recipe.recoilFn ? recipe.recoilFn(env) : recoilAt(env.t, recipe.shots || []));
   }
 
   function applyRecoil(v) {
@@ -353,7 +418,7 @@
 
   window.TankFx = {
     recipes: recipes,
-    helpers: { glow: glow, drawFlash: drawFlash, lerp: lerp, ramp: ramp, sprite: sprite, stream: stream },
+    helpers: { glow: glow, drawFlash: drawFlash, lerp: lerp, ramp: ramp, sprite: sprite, stream: stream, bullets: bullets },
 
     init: function (opts) {
       frame = opts.frame; real = opts.real; canvas = opts.canvas;
