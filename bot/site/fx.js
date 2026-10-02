@@ -308,6 +308,30 @@
     c.globalAlpha = 1;
   }
 
+  // A straight horizontal beam from (x, y) running `len` px to the right. Built from short slices so it can be brightest at the start and
+  // fade with distance: a wide soft halo, a coloured body and a thin pale core. a is the overall strength, 0..1.
+  // tint: { halo, body, core } as [r, g, b]. Railgun and Shaft share it.
+  function drawBeam(c, x, y, len, width, a, tint) {
+    if (a <= 0 || len <= 0) return;
+    var N = 60, dpr = c.getTransform().a || 1;
+    var layers = [[width * 7, tint.halo, 0.4], [width * 2.4, tint.body, 0.85], [width * 0.7, tint.core, 1]];
+    for (var l = 0; l < layers.length; l++) {
+      var h = layers[l][0], col = layers[l][1].join(','), base = layers[l][2];
+      var g = c.createLinearGradient(0, y - h / 2, 0, y + h / 2);
+      g.addColorStop(0, 'rgba(' + col + ',0)');
+      g.addColorStop(0.5, 'rgba(' + col + ',1)');
+      g.addColorStop(1, 'rgba(' + col + ',0)');
+      c.fillStyle = g;
+      for (var i = 0; i < N; i++) {
+        // slice edges are snapped to device pixels so neighbouring slices neither overlap nor leave a seam
+        var u = (i + 0.5) / N, x0 = Math.round((x + len * i / N) * dpr) / dpr, x1 = Math.round((x + len * (i + 1) / N) * dpr) / dpr;
+        c.globalAlpha = a * base * (1 - 0.75 * Math.pow(u, 1.2)) * (l < 2 ? Math.min(1, 0.3 + u / 0.06) : 1);
+        c.fillRect(x0, y - h / 2, x1 - x0, h);
+      }
+    }
+    c.globalAlpha = 1;
+  }
+
   // Grey gun smoke: warm and a little dense at first, cooling to grey, fading out. Drawn with source-over so it stays grey.
   function smokeTint(f) {
     var a = f < 0.12 ? f / 0.12 * 0.5 : 0.5 * (1 - (f - 0.12) / 0.88);
@@ -585,6 +609,51 @@
       for (var s = 0; s < RICO_SHOTS.length; s++) {
         var a = e.t - RICO_SHOTS[s];
         if (a >= 0 && a < 110) { var ff = 1 - a / 110; glow(c, m.x, m.y, tp * 0.08, '255,110,30', 0.8 * ff); glow(c, m.x, m.y, tp * 0.04, '255,235,205', 0.9 * ff); }
+      }
+    }
+  };
+
+  // Railgun: a short charge (glow growing at the muzzle, motes pulled in), then an instant bright beam that fades along its length and
+  // over time, with ripples running down it. Two shots a loop, the second after a long reload.
+  var RAIL_SHOTS = [1200, 2900], RAIL_CHARGE = 650, RAIL_TINT = { halo: [40, 140, 255], body: [90, 215, 255], core: [235, 252, 255] };
+  recipes.railgun = {
+    shots: RAIL_SHOTS,
+    muzzles: null,
+    recoilFn: function (e) { return Math.min(1.8, recoilAt(e.t, RAIL_SHOTS) * 2.2); },
+    update: function () {},
+    draw: function (c, e) {
+      var tp = e.turretPx, m = e.muzzles[0];
+      for (var s = 0; s < RAIL_SHOTS.length; s++) {
+        var shot = RAIL_SHOTS[s], age = e.t - shot, until = shot - e.t;
+        if (until > 0 && until < RAIL_CHARGE) {
+          // charging: the glow swells and motes spiral in toward the muzzle
+          var k = 1 - until / RAIL_CHARGE;
+          glow(c, m.x, m.y, tp * (0.03 + 0.07 * k), '80,200,255', 0.4 + 0.5 * k);
+          glow(c, m.x, m.y, tp * (0.012 + 0.025 * k), '230,250,255', 0.3 + 0.6 * k);
+          for (var j = 0; j < 12; j++) {
+            var kk = (k * 1.4 + j * 0.083) % 1, rad = tp * 0.15 * (1 - kk), ang = j * 0.52 + kk * 2.2;
+            c.globalAlpha = kk * 0.9;
+            c.drawImage(sprite(120, 220, 255), m.x + Math.cos(ang) * rad - tp * 0.012, m.y + Math.sin(ang) * rad - tp * 0.012, tp * 0.024, tp * 0.024);
+          }
+          c.globalAlpha = 1;
+        }
+        if (age >= 0 && age < 1000) {
+          var len = e.reach * 0.98, w = tp * 0.04 * (1 - 0.6 * Math.min(1, age / 700)), a = Math.exp(-age / 300) * Math.min(1, age / 25 + 0.2);
+          drawBeam(c, m.x, m.y, len, w, a, RAIL_TINT);
+          // the muzzle burst
+          if (age < 220) { var f = 1 - age / 220; glow(c, m.x + tp * 0.05, m.y, tp * 0.17, '70,190,255', 0.7 * f); glow(c, m.x + tp * 0.04, m.y, tp * 0.07, '235,252,255', 0.95 * f); }
+          // ripples that run out along the beam one after another
+          c.lineWidth = Math.max(1.2, tp * 0.006);
+          for (var r = 0; r < 6; r++) {
+            var ra = age - 40 - r * 55;
+            if (ra < 0 || ra > 420) continue;
+            var rf = ra / 420, rx = m.x + (r + 1) * len / 7, ry = tp * (0.02 + 0.09 * rf);
+            c.strokeStyle = 'rgba(' + RAIL_TINT.body.join(',') + ',' + (0.7 * (1 - rf) * (1 - 0.6 * (r / 6))).toFixed(3) + ')';
+            c.beginPath();
+            c.ellipse(rx, m.y, ry * 0.3, ry, 0, 0, Math.PI * 2);
+            c.stroke();
+          }
+        }
       }
     }
   };
