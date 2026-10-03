@@ -856,6 +856,66 @@
     }
   };
 
+  // A jagged lightning path from (ax, ay) to (bx, by): repeated midpoint displacement, so every call with a fresh seed gives a new bolt.
+  function jaggedPath(ax, ay, bx, by, rand, rough) {
+    var pts = [{ x: ax, y: ay }, { x: bx, y: by }];
+    for (var it = 0; it < 5; it++) {
+      var out = [pts[0]];
+      for (var i = 1; i < pts.length; i++) {
+        var p0 = pts[i - 1], p1 = pts[i], dx = p1.x - p0.x, dy = p1.y - p0.y, l = Math.sqrt(dx * dx + dy * dy) || 1, d = (rand() - 0.5) * l * rough;
+        out.push({ x: (p0.x + p1.x) / 2 - dy / l * d, y: (p0.y + p1.y) / 2 + dx / l * d });
+        out.push(p1);
+      }
+      pts = out;
+    }
+    return pts;
+  }
+  function strokePath(c, pts) {
+    c.beginPath();
+    for (var i = 0; i < pts.length; i++) { if (i) c.lineTo(pts[i].x, pts[i].y); else c.moveTo(pts[i].x, pts[i].y); }
+    c.stroke();
+  }
+
+  // Tesla: chain lightning. Two jagged blue-white bolts leave the two prong tips on the front of the housing and reach forward, throwing
+  // short forks off to the side. The whole bolt is redrawn with a fresh random shape about 18 times a second, so it flickers and crackles,
+  // and each prong tip glows. Short range, no recoil. The two prong points are measured by eye on the turret picture.
+  var TESLA_START = 700, TESLA_END = 3100;
+  recipes.tesla = {
+    shots: [],
+    muzzles: [[557, 72], [557, 110]],
+    recoilFn: function () { return 0; },
+    update: function () {},
+    draw: function (c, e) {
+      var tp = e.turretPx, a = ramp(e.t, TESLA_START, TESLA_END, 150, 250);
+      if (a <= 0) return;
+      var fr = Math.floor(e.t / 55), rand = makeRand(fr * 7919 + 17), len = Math.min(e.reach * 0.85, tp * 1.0) * Math.min(1, (e.t - TESLA_START + 200) / 260);
+      var flick = 0.75 + 0.25 * rand();
+      var tints = [['50,120,255', '125,195,255', '238,246,255']];
+      var ends = [{ x: e.muzzles[0].x + len, y: e.muzzles[0].y - tp * 0.035 }, { x: e.muzzles[1].x + len * 0.92, y: e.muzzles[1].y + tp * 0.04 }];
+      c.lineCap = 'round';
+      c.lineJoin = 'round';
+      for (var k = 0; k < 2; k++) {
+        var A = e.muzzles[k], B = ends[k], main = jaggedPath(A.x, A.y, B.x, B.y, rand, 0.17), forks = [];
+        // forks: a few short side branches from points along the bolt
+        for (var f = 0; f < 3; f++) {
+          var at = main[Math.floor((0.25 + rand() * 0.6) * (main.length - 1))], ang = (rand() < 0.5 ? -1 : 1) * (0.4 + rand() * 0.5), fl = tp * (0.12 + rand() * 0.2);
+          forks.push(jaggedPath(at.x, at.y, at.x + Math.cos(ang) * fl, at.y + Math.sin(ang) * fl, rand, 0.3));
+        }
+        var paths = [main].concat(forks);
+        for (var layer = 0; layer < 3; layer++) {
+          c.strokeStyle = 'rgba(' + tints[0][layer] + ',' + (a * flick * (layer === 0 ? 0.2 : layer === 1 ? 0.75 : 0.95)).toFixed(3) + ')';
+          for (var q = 0; q < paths.length; q++) {
+            c.lineWidth = tp * (layer === 0 ? 0.03 : layer === 1 ? 0.011 : 0.005) * (q ? 0.6 : 1);
+            strokePath(c, paths[q]);
+          }
+        }
+        glow(c, A.x, A.y, tp * 0.06 * (0.8 + 0.4 * rand()), '70,140,255', 0.8 * a);
+        glow(c, A.x, A.y, tp * 0.026, '235,245,255', 0.9 * a);
+        glow(c, B.x, B.y, tp * 0.05 * (0.8 + 0.4 * rand()), '70,140,255', 0.6 * a);
+      }
+    }
+  };
+
   function recipeFor(id) { return recipes[id] || generic; }
 
   function recoilAt(t, shots) {
