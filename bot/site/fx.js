@@ -917,14 +917,14 @@
   };
 
   // A rocket seen from the side: a grey body with a red nose, nose to the right. Drawn solid, centred on (0, 0) in its own frame.
-  function drawRocketBody(c, len, th) {
+  function drawRocketBody(c, len, th, nose) {
     c.fillStyle = 'rgb(150,156,166)';
     c.beginPath();
     if (c.roundRect) c.roundRect(-len * 0.5, -th / 2, len * 0.72, th, th * 0.3); else c.rect(-len * 0.5, -th / 2, len * 0.72, th);
     c.fill();
     c.fillStyle = 'rgb(96,102,114)';
     c.fillRect(-len * 0.5, -th / 2, len * 0.14, th);
-    c.fillStyle = 'rgb(220,50,40)';
+    c.fillStyle = nose || 'rgb(220,50,40)';
     c.beginPath();
     c.moveTo(len * 0.2, -th / 2);
     c.lineTo(len * 0.5, 0);
@@ -1016,6 +1016,104 @@
         var ba = e.t - bs[i].t, bk = ba / 600;
         glow(c, bs[i].x, bs[i].y, tp * (0.06 + 0.16 * bk), '255,120,40', 0.85 * (1 - bk));
         if (ba < 200) glow(c, bs[i].x, bs[i].y, tp * 0.06, '255,240,205', 0.95 * (1 - ba / 200));
+      }
+    }
+  };
+
+  // Scorpion: two firing modes, as on the wiki. First the long barrel fires a normal shell like Smoky's but of a bigger calibre, with a hard
+  // kick. Then two lines of four rockets climb out above the round hatch on top of the turret (the launcher), arcs over and drops onto the ground
+  // line far ahead, each landing in a flash, a low shockwave and a puff of dust. Amber exhaust and thick grey smoke trails. The hatch point is
+  // measured by eye on the turret picture, and the barrel tip is the default muzzle.
+  var SCORPION_SHELL_AT = 800, SCORPION_SHOTS = [1500, 1620, 1880, 2000, 2260, 2380, 2640, 2760]; // two lines of four, the right line 120 ms behind the left
+  var scorpionShell = shellRecipe({ at: SCORPION_SHELL_AT, flight: 0.5, dist: 2.2, len: 0.13, width: 0.04, head: [255, 226, 130], tail: [255, 120, 30], flash: 0.15, shift: 0.25, flashMs: 170, burst: 62, puff: 1.2, wisp: 62, ring: 0, kick: 2.6 });
+  function dustTint(f) { return [lerp(190, 135, f), lerp(175, 130, f), lerp(155, 125, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)]; }
+  recipes.scorpion = {
+    shots: [SCORPION_SHELL_AT],
+    muzzles: [[798.6, 90.9], [152, -45], [265, -45]],
+    recoilFn: function (e) { return scorpionShell.recoilFn(e); },
+    update: function (e, dt) {
+      scorpionShell.update(e, dt);
+      var tp = e.turretPx, st = e.store, tip = e.muzzles[0], d = dt / 1000;
+      var rockets = st.rockets || (st.rockets = []), smoke = st.smoke || (st.smoke = stream.create(1200)), dust = st.dust || (st.dust = stream.create(300)), blast = st.blast || (st.blast = stream.create(260)), lands = st.lands || (st.lands = []);
+      var gy = e.groundY - tp * 0.02;
+      st.n = st.n || 0;
+      while (st.n < SCORPION_SHOTS.length && e.t >= SCORPION_SHOTS[st.n]) {
+        // a lob from the hatch: it climbs to a peak, then drops onto the ground line ahead of the barrel. g follows from the peak height h and the drop D.
+        var line = st.n % 2, wave = Math.floor(st.n / 2), m = e.muzzles[1 + line];
+        var dist = tip.x + e.reach * (0.74 + 0.12 * wave / 3 + 0.07 * line) - m.x, T = 1.25, h = Math.max(tp * 0.2, dist * 0.17) * (1 + 0.15 * (wave % 2)), D = gy - m.y, sg = (Math.sqrt(2 * h) + Math.sqrt(2 * h + 2 * D)) / T, g = sg * sg;
+        rockets.push({ x0: m.x, y0: m.y, vx: dist / T, vy0: -Math.sqrt(2 * g * h), g: g, age: 0, life: T, ph: e.rand() * 6.28 });
+        stream.emit(blast, { x: m.x, y: m.y, angle: -1.57, spread: 0.5, speed: [tp * 0.1, tp * 0.4], life: [0.6, 1.1], size: [tp * 0.02, tp * 0.06], rise: tp * 0.1, drag: 3, jitter: tp * 0.012 }, 14000 / dt, dt, e.rand);
+        st.n++;
+      }
+      for (var i = rockets.length - 1; i >= 0; i--) {
+        var r = rockets[i], px = r.x === undefined ? r.x0 : r.x, py = r.y === undefined ? r.y0 : r.y;
+        r.age += d;
+        if (r.age >= r.life) {
+          lands.push({ x: r.x, t: e.t });
+          stream.emit(dust, { x: r.x, y: gy, angle: -1.57, spread: 1.1, speed: [tp * 0.1, tp * 0.45], life: [0.8, 1.4], size: [tp * 0.02, tp * 0.065], rise: -tp * 0.07, drag: 2.5, jitter: tp * 0.035 }, 34000 / dt, dt, e.rand);
+          rockets.splice(i, 1);
+          continue;
+        }
+        r.x = r.x0 + r.vx * r.age;
+        r.y = r.y0 + r.vy0 * r.age + 0.5 * r.g * r.age * r.age;
+        r.ang = Math.atan2(r.y - py, Math.max(0.001, r.x - px));
+        r.acc = (r.acc || 0) + 300 * d;
+        while (r.acc >= 1) {
+          r.acc -= 1;
+          var back = e.rand();
+          stream.emit(smoke, { x: r.x - Math.cos(r.ang) * tp * 0.08 - back * (r.x - px), y: r.y - Math.sin(r.ang) * tp * 0.08 - back * (r.y - py), angle: 0, spread: 3.1, speed: [0, tp * 0.04], life: [1.0, 1.5], size: [tp * 0.018, tp * 0.055], rise: tp * 0.05, drag: 2, jitter: tp * 0.01 }, 1000 / dt, dt, e.rand);
+        }
+      }
+      while (lands.length && e.t - lands[0].t > 700) lands.shift();
+      stream.update(smoke, dt);
+      stream.update(dust, dt);
+      stream.update(blast, dt);
+    },
+    draw: function (c, e) {
+      scorpionShell.draw(c, e);
+      var tp = e.turretPx, st = e.store, i;
+      c.globalCompositeOperation = 'source-over';
+      if (st.smoke) stream.draw(c, st.smoke, rocketSmokeTint);
+      if (st.blast) stream.draw(c, st.blast, rocketSmokeTint);
+      if (st.dust) stream.draw(c, st.dust, dustTint);
+      c.globalCompositeOperation = 'lighter';
+      var rk = st.rockets || [];
+      for (i = 0; i < rk.length; i++) {
+        var r = rk[i], fl = 1 + 0.2 * Math.sin(e.t * 0.08 + i * 2);
+        if (r.x === undefined) continue;
+        c.save();
+        c.translate(r.x, r.y);
+        c.rotate(r.ang || 0);
+        glow(c, -tp * 0.08, 0, tp * 0.05 * fl, '255,170,50', 0.9);
+        glow(c, -tp * 0.07, 0, tp * 0.025 * fl, '255,235,180', 0.95);
+        c.drawImage(sprite(255, 190, 70), -tp * 0.22 * fl, -tp * 0.013, tp * 0.16 * fl, tp * 0.026);
+        c.restore();
+      }
+      c.globalCompositeOperation = 'source-over';
+      for (i = 0; i < rk.length; i++) {
+        var q = rk[i];
+        if (q.x === undefined) continue;
+        c.save();
+        c.translate(q.x, q.y);
+        c.rotate(q.ang || 0);
+        drawRocketBody(c, tp * 0.14, tp * 0.04, 'rgb(236,160,40)');
+        c.restore();
+      }
+      c.globalCompositeOperation = 'lighter';
+      // the launch flash at the hatch, and the landings
+      for (var sIdx = 0; sIdx < SCORPION_SHOTS.length; sIdx++) {
+        var age = e.t - SCORPION_SHOTS[sIdx];
+        if (age >= 0 && age < 160) { var f = 1 - age / 160, hm = e.muzzles[1 + sIdx % 2]; glow(c, hm.x, hm.y, tp * 0.09, '255,160,50', 0.85 * f); glow(c, hm.x, hm.y, tp * 0.04, '255,240,200', 0.95 * f); }
+      }
+      var gy = e.groundY - tp * 0.02, ls = st.lands || [];
+      for (i = 0; i < ls.length; i++) {
+        var la = e.t - ls[i].t, k = la / 700;
+        if (la < 220) { var fl2 = 1 - la / 220; glow(c, ls[i].x, gy, tp * 0.13, '255,150,40', 0.85 * fl2); glow(c, ls[i].x, gy, tp * 0.06, '255,240,205', 0.95 * fl2); }
+        c.strokeStyle = 'rgba(255,190,100,' + (0.6 * (1 - k)).toFixed(3) + ')';
+        c.lineWidth = Math.max(1.5, tp * 0.012 * (1 - k));
+        c.beginPath();
+        c.ellipse(ls[i].x, gy, tp * (0.04 + 0.2 * k), tp * (0.01 + 0.035 * k), 0, 0, Math.PI * 2);
+        c.stroke();
       }
     }
   };
