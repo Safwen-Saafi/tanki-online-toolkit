@@ -335,6 +335,27 @@
     c.globalAlpha = 1;
   }
 
+  // A flat, long glowing slug: solid from end to end with no fading tail, in a soft halo, a coloured body and a pale core.
+  // Used for energy shots that are not round bullets (Shaft, Gauss). col: { halo, body, core } as 'r,g,b' strings.
+  function drawSlug(c, headX, tailX, y, th, fade, col) {
+    c.lineCap = 'round';
+    c.strokeStyle = 'rgb(' + col.halo + ')';
+    for (var hw = 0; hw < 4; hw++) {
+      c.globalAlpha = fade * 0.13;
+      c.lineWidth = th * (3 + hw * 2.2);
+      c.beginPath(); c.moveTo(tailX, y); c.lineTo(headX, y); c.stroke();
+    }
+    c.globalAlpha = fade * 0.9;
+    c.strokeStyle = 'rgb(' + col.body + ')';
+    c.lineWidth = th * 2.2;
+    c.beginPath(); c.moveTo(tailX, y); c.lineTo(headX, y); c.stroke();
+    c.globalAlpha = fade;
+    c.strokeStyle = 'rgb(' + col.core + ')';
+    c.lineWidth = th;
+    c.beginPath(); c.moveTo(tailX, y); c.lineTo(headX, y); c.stroke();
+    c.globalAlpha = 1;
+  }
+
   // Grey gun smoke: warm and a little dense at first, cooling to grey, fading out. Drawn with source-over so it stays grey.
   function smokeTint(f) {
     var a = f < 0.12 ? f / 0.12 * 0.5 : 0.5 * (1 - (f - 0.12) / 0.88);
@@ -687,29 +708,91 @@
       // the shot: a thin, long glowing slug, solid from end to end with no fading tail. It grows out of the barrel, then flies as a whole.
       if (st.balls) for (var i = 0; i < st.balls.p.length; i++) {
         var q = st.balls.p[i], fade = Math.min(1, (q.life - q.age) / 0.06), L = Math.max(1, Math.min(tp * 0.3, q.x - q.x0)), tx = q.x - L, th = Math.max(1.6, tp * 0.012);
-        c.lineCap = 'round';
-        // a soft halo built from a few wide, faint strokes so it has no hard edge
-        c.strokeStyle = 'rgb(255,60,25)';
-        for (var hw = 0; hw < 4; hw++) {
-          c.globalAlpha = fade * 0.13;
-          c.lineWidth = th * (3 + hw * 2.2);
-          c.beginPath(); c.moveTo(tx, q.y); c.lineTo(q.x, q.y); c.stroke();
-        }
-        c.globalAlpha = fade * 0.9;
-        c.strokeStyle = 'rgb(255,110,45)';
-        c.lineWidth = th * 2.2;
-        c.beginPath(); c.moveTo(tx, q.y); c.lineTo(q.x, q.y); c.stroke();
-        c.globalAlpha = fade;
-        c.strokeStyle = 'rgb(255,238,200)';
-        c.lineWidth = th;
-        c.beginPath(); c.moveTo(tx, q.y); c.lineTo(q.x, q.y); c.stroke();
-        c.globalAlpha = 1;
+        drawSlug(c, q.x, tx, q.y, th, fade, { halo: '255,60,25', body: '255,110,45', core: '255,238,200' });
       }
       // the barrel tip: glows hot while aiming, flares at the shot, then cools
       var heat = e.t < SHAFT_SHOT ? ramp(e.t, SHAFT_AIM_FROM, SHAFT_SHOT, 500, 0) * (0.3 + 0.7 * (e.t - SHAFT_AIM_FROM) / (SHAFT_SHOT - SHAFT_AIM_FROM)) : ramp(e.t, SHAFT_SHOT, SHAFT_SHOT, 1, 900);
       if (heat > 0) { glow(c, m.x, m.y, tp * 0.07, '255,60,30', 0.75 * heat); glow(c, m.x, m.y, tp * 0.03, '255,200,150', 0.6 * heat); }
       var age = e.t - SHAFT_SHOT;
       if (age >= 0 && age < 150) { var f = 1 - age / 150; glow(c, m.x + tp * 0.04, m.y, tp * 0.13, '255,90,30', 0.85 * f); glow(c, m.x + tp * 0.03, m.y, tp * 0.055, '255,240,210', 0.95 * f); }
+    }
+  };
+
+  // Gauss: two firing modes, as on the wiki. An arcade shot: a flat, long blue-violet plasma slug. Then the aimed salvo: the
+  // barrel charges (a violet glow swells, motes are pulled in), and a much longer, thicker slug leaves with a hard kick and bursts with a
+  // shockwave ring where it lands, since the salvo has big splash damage.
+  function ventTint(f) { return [lerp(176, 140, f), lerp(178, 142, f), lerp(184, 148, f), 0.42 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)]; }
+  var GAUSS_ARCADE = 1200, GAUSS_CHARGE_FROM = 2700, GAUSS_SALVO = 3500;
+  recipes.gauss = {
+    shots: [GAUSS_ARCADE, GAUSS_SALVO],
+    muzzles: null,
+    recoilFn: function (e) { return Math.min(2, recoilAt(e.t, [GAUSS_ARCADE]) * 0.9 + recoilAt(e.t, [GAUSS_SALVO]) * 2.4); },
+    update: function (e, dt) {
+      var tp = e.turretPx, st = e.store, m = e.muzzles[0], b = st.bolts || (st.bolts = bullets.create(4));
+      if (!st.arcade && e.t >= GAUSS_ARCADE) {
+        st.arcade = true;
+        var d1 = Math.min(e.reach * 0.95, tp * 2.2), sp1 = d1 / 0.2;
+        bullets.fire(b, { x: m.x + tp * 0.05, x0: m.x + tp * 0.05, y: m.y, vx: sp1, vy: 0, life: d1 / sp1, len: 0, full: tp * 0.17, th: Math.max(1.8, tp * 0.013) });
+      }
+      if (!st.salvo && e.t >= GAUSS_SALVO) {
+        st.salvo = true;
+        var d2 = Math.min(e.reach * 0.88, tp * 2.0), sp2 = d2 / 0.18;
+        st.impact = { x: m.x + d2, y: m.y, at: GAUSS_SALVO + 180 };
+        bullets.fire(b, { x: m.x + tp * 0.07, x0: m.x + tp * 0.07, y: m.y, vx: sp2, vy: 0, life: d2 / sp2, len: 0, full: tp * 0.3, th: Math.max(3.4, tp * 0.027) });
+      }
+      var vent = st.vent || (st.vent = stream.create(560)), vx = m.x - tp * 0.66, vy = m.y - tp * 0.06;
+      // and a great deal of long, dense smoke pours up out of the middle of the turret: the salvo is very powerful and drains the energy
+      if (e.t >= GAUSS_SALVO && e.t < GAUSS_SALVO + 900) stream.emit(vent, { x: vx, y: vy, angle: -1.85, spread: 0.45, speed: [tp * 0.15, tp * 0.55], life: [0.9, 1.4], size: [tp * 0.022, tp * 0.075], rise: tp * 0.08, drag: 0.9, jitter: tp * 0.12 }, 70, dt, e.rand);
+      // a steady breeze from the front pushes the smoke backward as it rises
+      for (var wi = 0; wi < vent.p.length; wi++) vent.p[wi].vx -= tp * 0.45 * dt / 1000;
+      bullets.update(b, dt);
+      stream.update(vent, dt);
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx, st = e.store, m = e.muzzles[0];
+      if (st.vent) {
+        // the smoke is drawn solid so it stays grey instead of glowing
+        c.globalCompositeOperation = 'source-over';
+        stream.draw(c, st.vent, ventTint);
+        c.globalCompositeOperation = 'lighter';
+      }
+      // charging for the salvo
+      var until = GAUSS_SALVO - e.t;
+      if (until > 0 && e.t >= GAUSS_CHARGE_FROM) {
+        var k = 1 - until / (GAUSS_SALVO - GAUSS_CHARGE_FROM);
+        glow(c, m.x, m.y, tp * (0.03 + 0.09 * k), '140,100,255', 0.35 + 0.55 * k);
+        glow(c, m.x, m.y, tp * (0.012 + 0.03 * k), '236,226,255', 0.3 + 0.6 * k);
+        for (var j = 0; j < 12; j++) {
+          var kk = (k * 1.4 + j * 0.083) % 1, rad = tp * 0.13 * (1 - kk), ang = j * 0.52 + kk * 2.2;
+          c.globalAlpha = kk * 0.9;
+          c.drawImage(sprite(160, 130, 255), m.x + Math.cos(ang) * rad - tp * 0.012, m.y + Math.sin(ang) * rad - tp * 0.012, tp * 0.024, tp * 0.024);
+        }
+        c.globalAlpha = 1;
+      }
+      if (st.bolts) for (var i = 0; i < st.bolts.p.length; i++) {
+        var q = st.bolts.p[i];
+        // flat, long slugs that grow out of the barrel, like Shaft's shot but violet
+        drawSlug(c, q.x, q.x - Math.max(1, Math.min(q.full, q.x - q.x0)), q.y, q.th * (1 + 0.06 * Math.sin(q.age * 60 + i)), Math.min(1, (q.life - q.age) / 0.06), { halo: '120,80,255', body: '150,115,255', core: '240,232,255' });
+      }
+      // muzzle flashes
+      var shots = [GAUSS_ARCADE, GAUSS_SALVO];
+      for (var s = 0; s < shots.length; s++) {
+        var age = e.t - shots[s], big = s === 1;
+        if (age >= 0 && age < (big ? 200 : 120)) { var f = 1 - age / (big ? 200 : 120), sz = big ? 0.15 : 0.08; glow(c, m.x + tp * 0.04, m.y, tp * sz, '120,80,255', 0.8 * f); glow(c, m.x + tp * 0.03, m.y, tp * sz * 0.45, '240,232,255', 0.95 * f); }
+      }
+      // the salvo's burst: a flash and an expanding shockwave ring where it lands
+      if (st.impact) {
+        var ia = e.t - st.impact.at;
+        if (ia >= 0 && ia < 600) {
+          var ik = ia / 600, x = st.impact.x, y = st.impact.y;
+          if (ia < 220) { var fl = 1 - ia / 220; glow(c, x, y, tp * 0.2, '120,80,255', 0.8 * fl); glow(c, x, y, tp * 0.09, '240,232,255', 0.95 * fl); }
+          c.strokeStyle = 'rgba(160,125,255,' + (0.8 * (1 - ik)).toFixed(3) + ')';
+          c.lineWidth = Math.max(1.5, tp * 0.012 * (1 - ik));
+          c.beginPath();
+          c.ellipse(x, y, tp * (0.04 + 0.2 * ik) * 0.55, tp * (0.04 + 0.2 * ik), 0, 0, Math.PI * 2);
+          c.stroke();
+        }
+      }
     }
   };
 
