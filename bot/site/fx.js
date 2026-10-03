@@ -362,9 +362,9 @@
     return [lerp(200, 120, f), lerp(180, 120, f), lerp(155, 125, f), a];
   }
   function trailTint(f) { return [150, 145, 140, 0.17 * (1 - f)]; }
-  function drawSmoke(c, s, trail) {
+  function drawSmoke(c, s, trail, tint) {
     c.globalCompositeOperation = 'source-over';
-    stream.draw(c, s, smokeTint);
+    stream.draw(c, s, tint || smokeTint);
     if (trail) stream.draw(c, trail, trailTint);
     c.globalCompositeOperation = 'lighter';
   }
@@ -385,32 +385,43 @@
     c.globalCompositeOperation = 'lighter';
   }
 
-  // A single shell with a muzzle flash, a smoke puff at the muzzle and a faint trail behind the shell. Smoky and Thunder share it.
-  // cfg: at (ms), flight (s), dist (turret widths), len, width (turret widths), head, tail (colours), flash (turret widths),
-  //      shift (flash pushed forward by this share of its size, so a big flash bursts out of the barrel), flashMs, burst (puff particle count), puff (size scale), wisp (wisp rate), ring (smoke ring size, 0 for none), kick (recoil scale).
+  // A shell with a muzzle flash, a smoke puff at the muzzle and a faint trail behind the shell. Smoky, Thunder, Scorpion and Tsunami share it.
+  // cfg: at (ms) or times (ms, one entry per shell; shell i leaves muzzle i modulo the number of muzzles), flight (s), dist (turret widths),
+  //      len, width (turret widths), head, tail (colours), flash (turret widths), shift (flash pushed forward by this share of its size, so a
+  //      big flash bursts out of the barrel), flashMs, burst (puff particle count), puff (size scale), wisp (wisp rate),
+  //      ring (smoke ring size, 0 for none), kick (recoil scale), gaussSmoke (true for Gauss's sparse grey wind-blown puffs instead of the
+  //      warm round puff).
   function shellRecipe(cfg) {
+    var times = cfg.times || [cfg.at];
     return {
-      shots: [cfg.at],
-      muzzles: null,
-      recoilFn: function (e) { return Math.min(1.8, recoilAt(e.t, [cfg.at]) * cfg.kick); },
+      shots: times,
+      muzzles: cfg.muzzles || null,
+      recoilFn: function (e) { return Math.min(1.8, recoilAt(e.t, times) * cfg.kick); },
       update: function (e, dt) {
-        var tp = e.turretPx, m = e.muzzles[0];
-        var shell = e.store.shell || (e.store.shell = bullets.create(1));
-        var puff = e.store.puff || (e.store.puff = stream.create(320)), trail = e.store.trail || (e.store.trail = stream.create(420));
-        if (!e.store.fired && e.t >= cfg.at) {
-          e.store.fired = true;
-          var maxDist = Math.min(e.reach * 0.95, tp * cfg.dist), speed = maxDist / cfg.flight, len = tp * cfg.len;
-          bullets.fire(shell, { x: m.x + len + tp * 0.012, y: m.y, vx: speed, vy: 0, life: maxDist / speed, len: len, width: Math.max(3, tp * cfg.width), head: cfg.head, tail: cfg.tail });
+        var tp = e.turretPx, st = e.store;
+        var shell = st.shell || (st.shell = bullets.create(times.length));
+        var puff = st.puff || (st.puff = stream.create(320)), trail = st.trail || (st.trail = stream.create(420));
+        st.n = st.n || 0;
+        while (st.n < times.length && e.t >= times[st.n]) {
+          var m = e.muzzles[st.n % e.muzzles.length], maxDist = Math.min(e.reach * 0.95, tp * cfg.dist), speed = maxDist / cfg.flight, len = tp * cfg.len;
+          bullets.fire(shell, { x: m.x + len + tp * 0.012, y: m.y, vx: speed, vy: 0, life: maxDist / speed, len: len, width: Math.max(3, tp * cfg.width), head: cfg.head, tail: cfg.tail, born: times[st.n] });
           // the puff: a burst forward, then a thin lingering wisp at the muzzle
-          stream.emit(puff, { x: m.x, y: m.y, angle: 0, spread: 0.55, speed: [tp * 0.25, tp * 1.0], life: [1.2, 2.2], size: [tp * 0.025 * cfg.puff, tp * 0.1 * cfg.puff], rise: tp * 0.12, drag: 3, jitter: tp * 0.02 }, cfg.burst * 1000 / dt, dt, e.rand);
+          if (!cfg.gaussSmoke) stream.emit(puff, { x: m.x, y: m.y, angle: 0, spread: 0.55, speed: [tp * 0.25, tp * 1.0], life: [1.2, 2.2], size: [tp * 0.025 * cfg.puff, tp * 0.1 * cfg.puff], rise: tp * 0.12, drag: 3, jitter: tp * 0.02 }, cfg.burst * 1000 / dt, dt, e.rand);
+          st.last = times[st.n];
+          st.lastMuzzle = m;
+          st.n++;
         }
-        if (e.store.fired && e.t < cfg.at + 700) stream.emit(puff, { x: m.x, y: m.y, angle: -0.3, spread: 0.7, speed: [tp * 0.03, tp * 0.2], life: [1.0, 1.8], size: [tp * 0.02 * cfg.puff, tp * 0.07 * cfg.puff], rise: tp * 0.16, drag: 2, jitter: tp * 0.02 }, cfg.wisp, dt, e.rand);
-        if (shell.p.length && e.t < cfg.at + cfg.flight * 1000 + 100) {
-          var sh = shell.p[0];
+        if (cfg.gaussSmoke) {
+          // Gauss's smoke: a handful of small grey puffs that rise, and a steady breeze from the front pushes them backward
+          if (st.n && e.t < st.last + 450) stream.emit(puff, { x: st.lastMuzzle.x, y: st.lastMuzzle.y, angle: -1.85, spread: 0.45, speed: [tp * 0.15, tp * 0.55], life: [0.9, 1.4], size: [tp * 0.022, tp * 0.075], rise: tp * 0.08, drag: 0.9, jitter: tp * 0.03 }, 70, dt, e.rand);
+          for (var wi = 0; wi < puff.p.length; wi++) puff.p[wi].vx -= tp * 0.45 * dt / 1000;
+        } else if (st.n && e.t < st.last + 700) stream.emit(puff, { x: st.lastMuzzle.x, y: st.lastMuzzle.y, angle: -0.3, spread: 0.7, speed: [tp * 0.03, tp * 0.2], life: [1.0, 1.8], size: [tp * 0.02 * cfg.puff, tp * 0.07 * cfg.puff], rise: tp * 0.16, drag: 2, jitter: tp * 0.02 }, cfg.wisp, dt, e.rand);
+        for (var i = 0; i < shell.p.length; i++) {
+          var sh = shell.p[i];
           // the shell moves far in one step, so place each wisp somewhere along that step to keep the trail unbroken
-          e.store.trailAcc = (e.store.trailAcc || 0) + 560 * dt / 1000;
-          while (e.store.trailAcc >= 1) {
-            e.store.trailAcc -= 1;
+          sh.acc = (sh.acc || 0) + 560 * dt / 1000;
+          while (sh.acc >= 1) {
+            sh.acc -= 1;
             stream.emit(trail, { x: sh.x - sh.len - e.rand() * sh.vx * dt / 1000, y: sh.y, angle: 0, spread: 3.1, speed: [0, tp * 0.03], life: [0.5, 0.8], size: [tp * 0.014 * cfg.puff, tp * 0.035 * cfg.puff], rise: tp * 0.05, drag: 2, jitter: tp * 0.008 }, 1000 / dt, dt, e.rand);
           }
         }
@@ -419,11 +430,13 @@
         stream.update(trail, dt);
       },
       draw: function (c, e) {
-        var age = e.t - cfg.at;
-        if (e.store.puff) drawSmoke(c, e.store.puff, e.store.trail);
-        if (cfg.ring) drawRing(c, e, cfg.at, cfg.ring);
+        if (e.store.puff) drawSmoke(c, e.store.puff, e.store.trail, cfg.gaussSmoke ? ventTint : null);
+        if (cfg.ring) drawRing(c, e, times[0], cfg.ring);
         if (e.store.shell) bullets.draw(c, e.store.shell);
-        if (age >= 0 && age < cfg.flashMs) drawFlash(c, { x: e.muzzles[0].x + e.turretPx * cfg.flash * cfg.shift, y: e.muzzles[0].y }, e.turretPx * cfg.flash, 1 - age / cfg.flashMs);
+        for (var i = 0; i < times.length; i++) {
+          var age = e.t - times[i], m = e.muzzles[i % e.muzzles.length];
+          if (age >= 0 && age < cfg.flashMs) drawFlash(c, { x: m.x + e.turretPx * cfg.flash * cfg.shift, y: m.y }, e.turretPx * cfg.flash, 1 - age / cfg.flashMs);
+        }
       }
     };
   }
@@ -1117,6 +1130,11 @@
       }
     }
   };
+
+  // Tsunami: a two-shot combo, as on the wiki. The first shell is fired by hand from the upper barrel and the second follows by itself from
+  // the lower barrel a moment later. Both are ordinary shells, like Smoky's and Thunder's, with a muzzle flash, a puff of smoke and a trail.
+  // Two combos per loop with a long pause between them. The two barrel points are measured by eye on the turret picture.
+  recipes.tsunami = shellRecipe({ times: [1200, 1450, 3200, 3450], muzzles: [[609, 50], [609, 66]], flight: 0.5, dist: 2.1, len: 0.11, width: 0.03, head: [255, 226, 130], tail: [255, 120, 30], flash: 0.1, shift: 0.35, flashMs: 150, burst: 50, puff: 1.05, wisp: 55, ring: 0, kick: 1.5, gaussSmoke: true });
 
   function recipeFor(id) { return recipes[id] || generic; }
 
