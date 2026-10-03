@@ -796,6 +796,66 @@
     }
   };
 
+  // Isida: a continuous nanobot beam from the muzzle, short in range, made of three braided wavy strands with bright motes streaming
+  // along it. It alternates every loop: orange-red when it damages (motes stream out to the target), green when it heals (motes stream
+  // back toward the tank). A glowing node and sparks sit where the beam ends. No recoil, like the other continuous weapons.
+  var ISIDA_START = 700, ISIDA_END = 3100;
+  var ISIDA_MODES = {
+    damage: { halo: '255,70,20', body: '255,135,45', core: '255,236,205', spark: [255, 160, 60], dir: 1 },
+    heal: { halo: '30,200,90', body: '95,240,135', core: '226,255,232', spark: [120, 255, 160], dir: -1 }
+  };
+  recipes.isida = {
+    shots: [],
+    muzzles: null,
+    forceMode: null, // test hook: 'damage' or 'heal' instead of alternating by loop
+    recoilFn: function () { return 0; },
+    update: function (e, dt) {
+      var tp = e.turretPx, m = e.muzzles[0], a = ramp(e.t, ISIDA_START, ISIDA_END, 200, 280);
+      var mode = ISIDA_MODES[this.forceMode || (e.cycle % 2 ? 'heal' : 'damage')], sparks = e.store.sparks || (e.store.sparks = stream.create(160));
+      e.store.a = a;
+      e.store.len = Math.min(e.reach * 0.85, tp * 1.05) * Math.min(1, Math.max(0, (e.t - ISIDA_START) / 220));
+      if (a > 0.3) stream.emit(sparks, { x: m.x + e.store.len, y: m.y, angle: mode.dir > 0 ? -0.4 : -1.57, spread: mode.dir > 0 ? 1.6 : 0.8, speed: [tp * 0.1, tp * 0.45], life: [0.25, 0.55], size: [tp * 0.011, tp * 0.003], rise: mode.dir > 0 ? 0 : tp * 0.2, drag: 2, jitter: tp * 0.012 }, 70 * a, dt, e.rand);
+      stream.update(sparks, dt);
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx, m = e.muzzles[0], st = e.store, a = st.a || 0, len = st.len || 0;
+      var mode = ISIDA_MODES[this.forceMode || (e.cycle % 2 ? 'heal' : 'damage')];
+      if (st.sparks) stream.draw(c, st.sparks, function (f) { return [mode.spark[0], mode.spark[1], mode.spark[2], 1 - f]; });
+      if (a <= 0 || len < 2) return;
+      var N = 44, ph = e.t * 0.011;
+      // the point on strand k at fraction u along the beam: a travelling sine wave, pinned at the muzzle and loose at the far end
+      var pt = function (u, k) {
+        var amp = tp * 0.032 * Math.pow(Math.sin(Math.PI * Math.min(1, u * 0.5 + 0.0)) , 0.8) * (u < 0.1 ? u / 0.1 : 1);
+        return { x: m.x + u * len, y: m.y + amp * Math.sin(u * 14 - ph * 2 + k * 2.1) * (0.8 + 0.2 * Math.sin(ph * 0.7 + k)) };
+      };
+      c.lineCap = 'round';
+      c.lineJoin = 'round';
+      for (var layer = 0; layer < 3; layer++) {
+        for (var k = 0; k < 3; k++) {
+          if (layer === 2 && k > 0) break;
+          c.strokeStyle = 'rgba(' + (layer === 0 ? mode.halo : layer === 1 ? mode.body : mode.core) + ',' + (a * (layer === 0 ? 0.16 : layer === 1 ? 0.7 : 0.95)).toFixed(3) + ')';
+          c.lineWidth = tp * (layer === 0 ? 0.034 : layer === 1 ? 0.011 : 0.006);
+          c.beginPath();
+          for (var i = 0; i <= N; i++) { var q = pt(i / N, layer === 2 ? 1 : k); if (i) c.lineTo(q.x, q.y); else c.moveTo(q.x, q.y); }
+          c.stroke();
+        }
+      }
+      // motes streaming along the beam
+      for (var j = 0; j < 14; j++) {
+        var u = (e.t * 0.0011 * mode.dir + j / 14) % 1; if (u < 0) u += 1;
+        var p = pt(u, j % 3);
+        c.globalAlpha = a * (0.4 + 0.6 * Math.sin(Math.PI * u));
+        c.drawImage(sprite(mode.spark[0], mode.spark[1], mode.spark[2]), p.x - tp * 0.017, p.y - tp * 0.017, tp * 0.034, tp * 0.034);
+      }
+      c.globalAlpha = 1;
+      // the muzzle glow and the node where the beam ends
+      glow(c, m.x, m.y, tp * 0.05, mode.halo, 0.7 * a);
+      var pulse = 1 + 0.15 * Math.sin(e.t * 0.03), tip = pt(1, 0);
+      glow(c, tip.x, tip.y, tp * 0.09 * pulse, mode.halo, 0.7 * a);
+      glow(c, tip.x, tip.y, tp * 0.04 * pulse, mode.core, 0.9 * a);
+    }
+  };
+
   function recipeFor(id) { return recipes[id] || generic; }
 
   function recoilAt(t, shots) {
