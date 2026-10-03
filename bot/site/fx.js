@@ -916,6 +916,110 @@
     }
   };
 
+  // A rocket seen from the side: a grey body with a red nose, nose to the right. Drawn solid, centred on (0, 0) in its own frame.
+  function drawRocketBody(c, len, th) {
+    c.fillStyle = 'rgb(150,156,166)';
+    c.beginPath();
+    if (c.roundRect) c.roundRect(-len * 0.5, -th / 2, len * 0.72, th, th * 0.3); else c.rect(-len * 0.5, -th / 2, len * 0.72, th);
+    c.fill();
+    c.fillStyle = 'rgb(96,102,114)';
+    c.fillRect(-len * 0.5, -th / 2, len * 0.14, th);
+    c.fillStyle = 'rgb(220,50,40)';
+    c.beginPath();
+    c.moveTo(len * 0.2, -th / 2);
+    c.lineTo(len * 0.5, 0);
+    c.lineTo(len * 0.2, th / 2);
+    c.closePath();
+    c.fill();
+    c.fillStyle = 'rgb(120,126,138)';
+    c.beginPath();
+    c.moveTo(-len * 0.5, -th / 2); c.lineTo(-len * 0.62, -th * 1.1); c.lineTo(-len * 0.32, -th / 2);
+    c.moveTo(-len * 0.5, th / 2); c.lineTo(-len * 0.62, th * 1.1); c.lineTo(-len * 0.32, th / 2);
+    c.fill();
+  }
+  function rocketSmokeTint(f) { return [lerp(205, 150, f), lerp(200, 148, f), lerp(195, 148, f), 0.34 * (f < 0.08 ? f / 0.08 : 1 - (f - 0.08) / 0.92)]; }
+
+  // Striker: a salvo of guided rockets. Ten rockets leave the two pods on the front of the launcher one after another, slowly at first and
+  // accelerating, each with a bright exhaust flame and a long grey smoke trail, with a small backblast puff at the pod. Where each
+  // rocket reaches the end of its range it bursts. The two pod mouths are measured by eye on the turret picture.
+  var STRIKER_SHOTS = [];
+  for (var sk = 700; sk <= 2500; sk += 200) STRIKER_SHOTS.push(sk);
+  recipes.striker = {
+    shots: STRIKER_SHOTS,
+    muzzles: [[284, 52], [266, 89]],
+    recoilFn: function (e) { return Math.min(1.5, recoilAt(e.t, STRIKER_SHOTS) * 0.55); },
+    update: function (e, dt) {
+      var tp = e.turretPx, st = e.store, d = dt / 1000;
+      var rockets = st.rockets || (st.rockets = []), smoke = st.smoke || (st.smoke = stream.create(1900)), blast = st.blast || (st.blast = stream.create(160)), bursts = st.bursts || (st.bursts = []);
+      st.n = st.n || 0;
+      while (st.n < STRIKER_SHOTS.length && e.t >= STRIKER_SHOTS[st.n]) {
+        var pod = e.muzzles[st.n % 2], dist = Math.min(e.reach * 0.93, tp * 2.1) - tp * 0.12, flight = 0.55 + e.rand() * 0.04, v0 = tp * 2.2;
+        rockets.push({ x: pod.x + tp * 0.14, y: pod.y, x0: pod.x, y0: pod.y, v0: v0, a: 2 * (dist - v0 * flight) / (flight * flight), age: 0, life: flight, ph: e.rand() * 6.28 });
+        stream.emit(blast, { x: pod.x, y: pod.y, angle: Math.PI, spread: 0.9, speed: [tp * 0.1, tp * 0.45], life: [0.4, 0.8], size: [tp * 0.03, tp * 0.09], rise: tp * 0.1, drag: 3, jitter: tp * 0.01 }, 14000 / dt, dt, e.rand);
+        st.n++;
+      }
+      for (var i = rockets.length - 1; i >= 0; i--) {
+        var r = rockets[i], px = r.x;
+        r.age += d;
+        if (r.age >= r.life) { bursts.push({ x: r.x, y: r.y, t: e.t }); rockets.splice(i, 1); continue; }
+        r.vx = r.v0 + r.a * r.age;
+        r.x = r.x0 + tp * 0.14 + r.v0 * r.age + 0.5 * r.a * r.age * r.age;
+        r.y = r.y0 - tp * 0.02 * Math.min(1, r.age / 0.3) + tp * 0.004 * Math.sin(r.age * 22 + r.ph);
+        r.ang = Math.atan2(r.y - (r.py === undefined ? r.y : r.py), Math.max(0.001, r.x - px)) ;
+        r.py = r.y;
+        // smoke from the tail, spread along the distance moved in this step so the trail has no gaps
+        r.acc = (r.acc || 0) + 420 * d;
+        while (r.acc >= 1) {
+          r.acc -= 1;
+          stream.emit(smoke, { x: r.x - tp * 0.2 - e.rand() * (r.x - px), y: r.y, angle: 0, spread: 3.1, speed: [0, tp * 0.05], life: [0.9, 1.4], size: [tp * 0.034, tp * 0.1], rise: tp * 0.06, drag: 2, jitter: tp * 0.008 }, 1000 / dt, dt, e.rand);
+        }
+      }
+      while (bursts.length && e.t - bursts[0].t > 600) bursts.shift();
+      stream.update(smoke, dt);
+      stream.update(blast, dt);
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx, st = e.store;
+      c.globalCompositeOperation = 'source-over';
+      if (st.smoke) stream.draw(c, st.smoke, rocketSmokeTint);
+      if (st.blast) stream.draw(c, st.blast, rocketSmokeTint);
+      c.globalCompositeOperation = 'lighter';
+      var rk = st.rockets || [], i;
+      for (i = 0; i < rk.length; i++) {
+        var r = rk[i], fl = 1 + 0.2 * Math.sin(e.t * 0.08 + i * 2);
+        c.save();
+        c.translate(r.x, r.y);
+        c.rotate(r.ang || 0);
+        // exhaust flame: a hot glow and a short tapered flame behind the tail
+        glow(c, -tp * 0.2, 0, tp * 0.12 * fl, '255,150,40', 0.9);
+        glow(c, -tp * 0.17, 0, tp * 0.06 * fl, '255,240,200', 0.95);
+        c.drawImage(sprite(255, 170, 60), -tp * 0.5 * fl, -tp * 0.03, tp * 0.36 * fl, tp * 0.06);
+        c.restore();
+      }
+      c.globalCompositeOperation = 'source-over';
+      for (i = 0; i < rk.length; i++) {
+        var q = rk[i];
+        c.save();
+        c.translate(q.x, q.y);
+        c.rotate(q.ang || 0);
+        drawRocketBody(c, tp * 0.32, tp * 0.088);
+        c.restore();
+      }
+      c.globalCompositeOperation = 'lighter';
+      // launch flashes at the pods, and the burst where a rocket reaches the end of its range
+      for (var s = 0; s < STRIKER_SHOTS.length; s++) {
+        var age = e.t - STRIKER_SHOTS[s];
+        if (age >= 0 && age < 110) { var f = 1 - age / 110, pod = e.muzzles[s % 2]; glow(c, pod.x, pod.y, tp * 0.07, '255,140,40', 0.8 * f); glow(c, pod.x, pod.y, tp * 0.03, '255,240,200', 0.95 * f); }
+      }
+      var bs = st.bursts || [];
+      for (i = 0; i < bs.length; i++) {
+        var ba = e.t - bs[i].t, bk = ba / 600;
+        glow(c, bs[i].x, bs[i].y, tp * (0.06 + 0.16 * bk), '255,120,40', 0.85 * (1 - bk));
+        if (ba < 200) glow(c, bs[i].x, bs[i].y, tp * 0.06, '255,240,205', 0.95 * (1 - ba / 200));
+      }
+    }
+  };
+
   function recipeFor(id) { return recipes[id] || generic; }
 
   function recoilAt(t, shots) {
