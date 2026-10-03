@@ -285,19 +285,22 @@
   };
 
   // A round projectile: a soft glow, a solid core and a short fading trail. Hammer's pellets and Twins' plasma use it.
-  // b: x, y, vx, vy, age, life, len (px of trail), r (core radius px), core, glow, trail, tail (colours [r, g, b]), halo (glow radius in cores).
+  // b: x, y, vx, vy, age, life, len (px of trail, 0 for none), r (core radius px), core, glow, trail, tail (colours [r, g, b]), halo (glow radius in cores).
   function drawBall(c, b) {
     var fade = Math.min(1, (b.life - b.age) / 0.1), sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy), r = b.r, tx = b.x - b.vx / sp * b.len, ty = b.y - b.vy / sp * b.len;
-    var g = c.createLinearGradient(tx, ty, b.x, b.y), halo = b.halo || 2.6;
-    g.addColorStop(0, 'rgba(' + b.tail.join(',') + ',0)');
-    g.addColorStop(1, 'rgba(' + b.trail.join(',') + ',' + (0.7 * fade).toFixed(3) + ')');
-    c.strokeStyle = g;
-    c.lineWidth = r * 0.9;
-    c.lineCap = 'round';
-    c.beginPath();
-    c.moveTo(tx, ty);
-    c.lineTo(b.x, b.y);
-    c.stroke();
+    var halo = b.halo || 2.6;
+    if (b.len > 0) {
+      var g = c.createLinearGradient(tx, ty, b.x, b.y);
+      g.addColorStop(0, 'rgba(' + b.tail.join(',') + ',0)');
+      g.addColorStop(1, 'rgba(' + b.trail.join(',') + ',' + (0.7 * fade).toFixed(3) + ')');
+      c.strokeStyle = g;
+      c.lineWidth = r * 0.9;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(tx, ty);
+      c.lineTo(b.x, b.y);
+      c.stroke();
+    }
     c.globalAlpha = fade * 0.75;
     c.drawImage(sprite(b.glow[0], b.glow[1], b.glow[2]), b.x - r * halo, b.y - r * halo, r * halo * 2, r * halo * 2);
     c.globalAlpha = fade;
@@ -655,6 +658,58 @@
           }
         }
       }
+    }
+  };
+
+  // Shaft: the sniper. A thin red laser sight fades in and flickers while it takes aim, then one fast red-hot shot leaves the barrel as a
+  // single glowing fireball with no trail, and the sight goes out. The barrel tip glows hot while aiming and for a moment after the shot.
+  var SHAFT_SHOT = 2500, SHAFT_AIM_FROM = 500;
+  recipes.shaft = {
+    shots: [SHAFT_SHOT],
+    muzzles: null,
+    recoilFn: function (e) { return Math.min(1.8, recoilAt(e.t, [SHAFT_SHOT]) * 1.9); },
+    update: function (e, dt) {
+      var tp = e.turretPx, st = e.store, m = e.muzzles[0], balls = st.balls || (st.balls = bullets.create(2));
+      if (!st.fired && e.t >= SHAFT_SHOT) {
+        st.fired = true;
+        var dist = Math.min(e.reach * 0.97, tp * 2.6), speed = dist / 0.09;
+        bullets.fire(balls, { x: m.x + tp * 0.05, x0: m.x + tp * 0.05, y: m.y, vx: speed, vy: 0, life: dist / speed, len: 0 });
+      }
+      bullets.update(balls, dt);
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx, st = e.store, m = e.muzzles[0], full = e.reach * 0.98;
+      // aiming: the laser fades in, grows a little stronger and flickers, then is gone the instant the shot leaves
+      if (e.t >= SHAFT_AIM_FROM && e.t < SHAFT_SHOT) {
+        var k = (e.t - SHAFT_AIM_FROM) / (SHAFT_SHOT - SHAFT_AIM_FROM), flick = 0.82 + 0.18 * Math.sin(e.t * 0.09) * Math.sin(e.t * 0.31);
+        drawBeam(c, m.x, m.y, full, tp * (0.0045 + 0.002 * k), Math.min(1, (e.t - SHAFT_AIM_FROM) / 300) * (0.55 + 0.35 * k) * flick, { halo: [255, 40, 30], body: [255, 70, 50], core: [255, 170, 150] });
+      }
+      // the shot: a thin, long glowing slug, solid from end to end with no fading tail. It grows out of the barrel, then flies as a whole.
+      if (st.balls) for (var i = 0; i < st.balls.p.length; i++) {
+        var q = st.balls.p[i], fade = Math.min(1, (q.life - q.age) / 0.06), L = Math.max(1, Math.min(tp * 0.3, q.x - q.x0)), tx = q.x - L, th = Math.max(1.6, tp * 0.012);
+        c.lineCap = 'round';
+        // a soft halo built from a few wide, faint strokes so it has no hard edge
+        c.strokeStyle = 'rgb(255,60,25)';
+        for (var hw = 0; hw < 4; hw++) {
+          c.globalAlpha = fade * 0.13;
+          c.lineWidth = th * (3 + hw * 2.2);
+          c.beginPath(); c.moveTo(tx, q.y); c.lineTo(q.x, q.y); c.stroke();
+        }
+        c.globalAlpha = fade * 0.9;
+        c.strokeStyle = 'rgb(255,110,45)';
+        c.lineWidth = th * 2.2;
+        c.beginPath(); c.moveTo(tx, q.y); c.lineTo(q.x, q.y); c.stroke();
+        c.globalAlpha = fade;
+        c.strokeStyle = 'rgb(255,238,200)';
+        c.lineWidth = th;
+        c.beginPath(); c.moveTo(tx, q.y); c.lineTo(q.x, q.y); c.stroke();
+        c.globalAlpha = 1;
+      }
+      // the barrel tip: glows hot while aiming, flares at the shot, then cools
+      var heat = e.t < SHAFT_SHOT ? ramp(e.t, SHAFT_AIM_FROM, SHAFT_SHOT, 500, 0) * (0.3 + 0.7 * (e.t - SHAFT_AIM_FROM) / (SHAFT_SHOT - SHAFT_AIM_FROM)) : ramp(e.t, SHAFT_SHOT, SHAFT_SHOT, 1, 900);
+      if (heat > 0) { glow(c, m.x, m.y, tp * 0.07, '255,60,30', 0.75 * heat); glow(c, m.x, m.y, tp * 0.03, '255,200,150', 0.6 * heat); }
+      var age = e.t - SHAFT_SHOT;
+      if (age >= 0 && age < 150) { var f = 1 - age / 150; glow(c, m.x + tp * 0.04, m.y, tp * 0.13, '255,90,30', 0.85 * f); glow(c, m.x + tp * 0.03, m.y, tp * 0.055, '255,240,210', 0.95 * f); }
     }
   };
 
