@@ -256,7 +256,9 @@
   };
 
   // Vulcan: a rapid stream of yellow tracers from across the barrel cluster, spinning up to speed, with a flickering
-  // flash and a light steady shake instead of a single kick.
+  // flash and a light steady shake instead of a single kick. After two seconds of firing it overheats: the barrel cluster glows red-hot,
+  // glowing embers drift off it, and Gauss-style grey wind-blown smoke vents from the middle of the turret. It cools after the burst.
+  function heatEmberTint(f) { return [255, lerp(170, 50, f), lerp(60, 15, f), 0.9 * (1 - f)]; }
   recipes.vulcan = {
     shots: [],
     muzzles: null,
@@ -276,9 +278,32 @@
       }
       bullets.update(b, dt);
       while (flashes.length && e.t - flashes[0] > 70) flashes.shift();
+      // overheating: smoke from the middle of the turret from two seconds into the burst, and embers off the hot barrels
+      var st = e.store, vent = st.vent || (st.vent = stream.create(260)), embers = st.embers || (st.embers = stream.create(120));
+      var heat = st.heat = ramp(e.t, 1700, 3100, 1300, 1000);
+      if (e.t >= 2700 && e.t < 3900) stream.emit(vent, { x: m.x - tp * 0.5, y: m.y - tp * 0.09, angle: -1.85, spread: 0.45, speed: [tp * 0.15, tp * 0.55], life: [0.9, 1.4], size: [tp * 0.022, tp * 0.075], rise: tp * 0.08, drag: 0.9, jitter: tp * 0.06 }, 70, dt, e.rand);
+      for (var wi = 0; wi < vent.p.length; wi++) vent.p[wi].vx -= tp * 0.45 * dt / 1000;
+      if (heat > 0.3) stream.emit(embers, { x: m.x - e.rand() * tp * 0.3, y: m.y, angle: -1.57, spread: 0.9, speed: [tp * 0.05, tp * 0.25], life: [0.4, 0.8], size: [tp * 0.01, tp * 0.003], rise: tp * 0.05, drag: 1.2, jitter: tp * 0.03 }, 28 * heat, dt, e.rand);
+      stream.update(vent, dt);
+      stream.update(embers, dt);
     },
     draw: function (c, e) {
-      var tp = e.turretPx, m = e.muzzles[0], flashes = e.store.flashes || [];
+      var tp = e.turretPx, m = e.muzzles[0], flashes = e.store.flashes || [], st = e.store, heat = st.heat || 0;
+      if (st.vent) {
+        // the smoke is drawn solid so it stays grey instead of glowing
+        c.globalCompositeOperation = 'source-over';
+        stream.draw(c, st.vent, ventTint);
+        c.globalCompositeOperation = 'lighter';
+      }
+      if (heat > 0) {
+        // the barrel cluster glows red-hot: a long soft glow along the barrels, a hotter one at the muzzle, and a flicker
+        var fk = 0.85 + 0.15 * Math.sin(e.t * 0.05) * Math.sin(e.t * 0.13);
+        c.globalAlpha = 0.55 * heat * fk;
+        c.drawImage(sprite(255, 70, 20), m.x - tp * 0.5, m.y - tp * 0.075, tp * 0.55, tp * 0.15);
+        c.globalAlpha = 1;
+        glow(c, m.x - tp * 0.04, m.y, tp * 0.09, '255,80,25', 0.6 * heat * fk);
+        if (st.embers) stream.draw(c, st.embers, heatEmberTint);
+      }
       if (e.store.bullets) bullets.draw(c, e.store.bullets);
       for (var i = 0; i < flashes.length; i++) drawFlash(c, { x: m.x, y: m.y + ((i * 37 % 7) - 3) * tp * 0.01 }, tp * 0.045, 1 - (e.t - flashes[i]) / 70);
     }
@@ -442,10 +467,10 @@
   }
 
   // Smoky: a light shell, a small flash and a small puff.
-  recipes.smoky = shellRecipe({ at: 1200, flight: 0.6, dist: 1.9, len: 0.14, width: 0.026, head: [255, 226, 130], tail: [255, 120, 30], flash: 0.11, shift: 0, flashMs: 140, burst: 46, puff: 1, wisp: 55, ring: 0, kick: 1.6 });
+  recipes.smoky = shellRecipe({ times: [1200, 2000, 2800, 3600], flight: 0.6, dist: 1.9, len: 0.14, width: 0.026, head: [255, 226, 130], tail: [255, 120, 30], flash: 0.11, shift: 0, flashMs: 140, burst: 46, puff: 1, wisp: 55, ring: 0, kick: 1.6, gaussSmoke: true });
 
   // Thunder: a heavier, slower shell, a much bigger flash and puff, a smoke ring and a hard kick.
-  recipes.thunder = shellRecipe({ at: 1200, flight: 0.75, dist: 1.9, len: 0.18, width: 0.042, head: [255, 210, 110], tail: [235, 90, 20], flash: 0.2, shift: 0.45, flashMs: 200, burst: 90, puff: 1.55, wisp: 90, ring: 1, kick: 3 });
+  recipes.thunder = shellRecipe({ at: 1200, flight: 0.75, dist: 1.9, len: 0.18, width: 0.042, head: [255, 210, 110], tail: [235, 90, 20], flash: 0.2, shift: 0.45, flashMs: 200, burst: 90, puff: 1.55, wisp: 90, ring: 0, kick: 3, gaussSmoke: true });
 
   // Hammer: a shotgun. Five volleys in a row, both barrels at once (three yellow pellets each, with a spray of sparks and a small
   // puff), then a pause while it reloads and the five spent shells pop out of the top of the turret and fall.
@@ -1038,7 +1063,7 @@
   // line far ahead, each landing in a flash, a low shockwave and a puff of dust. Amber exhaust and thick grey smoke trails. The hatch point is
   // measured by eye on the turret picture, and the barrel tip is the default muzzle.
   var SCORPION_SHELL_AT = 800, SCORPION_SHOTS = [1500, 1620, 1880, 2000, 2260, 2380, 2640, 2760]; // two lines of four, the right line 120 ms behind the left
-  var scorpionShell = shellRecipe({ at: SCORPION_SHELL_AT, flight: 0.5, dist: 2.2, len: 0.13, width: 0.04, head: [255, 226, 130], tail: [255, 120, 30], flash: 0.15, shift: 0.25, flashMs: 170, burst: 62, puff: 1.2, wisp: 62, ring: 0, kick: 2.6 });
+  var scorpionShell = shellRecipe({ at: SCORPION_SHELL_AT, flight: 0.5, dist: 2.2, len: 0.13, width: 0.04, head: [255, 226, 130], tail: [255, 120, 30], flash: 0.15, shift: 0.25, flashMs: 170, burst: 62, puff: 1.2, wisp: 62, ring: 0, kick: 2.6, gaussSmoke: true });
   function dustTint(f) { return [lerp(190, 135, f), lerp(175, 130, f), lerp(155, 125, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)]; }
   recipes.scorpion = {
     shots: [SCORPION_SHELL_AT],
@@ -1135,6 +1160,52 @@
   // the lower barrel a moment later. Both are ordinary shells, like Smoky's and Thunder's, with a muzzle flash, a puff of smoke and a trail.
   // Two combos per loop with a long pause between them. The two barrel points are measured by eye on the turret picture.
   recipes.tsunami = shellRecipe({ times: [1200, 1450, 3200, 3450], muzzles: [[609, 50], [609, 66]], flight: 0.5, dist: 2.1, len: 0.11, width: 0.03, head: [255, 226, 130], tail: [255, 120, 30], flash: 0.1, shift: 0.35, flashMs: 150, burst: 50, puff: 1.05, wisp: 55, ring: 0, kick: 1.5, gaussSmoke: true });
+
+  // Magnum: the barrel is level, so it fires like Thunder: a heavy shell flies straight out of the barrel, with a huge flash, Gauss-style grey
+  // wind-blown smoke at the barrel tip and a hard kick, but where Thunder's shell just fades out the Magnum shell bursts at the end of its range, for its very
+  // large splash: a big flash, a round shockwave, fast sparks and a lingering cloud. Two shells a loop, with a long reload between them.
+  var MAGNUM_SHOTS = [1000, 2900], MAGNUM_FLIGHT = 0.7, MAGNUM_DIST = 2.2;
+  function magnumDustTint(f) { return [lerp(200, 140, f), lerp(185, 135, f), lerp(160, 128, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)]; }
+  function magnumSparkTint(f) { return [255, lerp(200, 80, f), lerp(80, 20, f), 1 - f]; }
+  var magnumShell = shellRecipe({ times: MAGNUM_SHOTS, flight: MAGNUM_FLIGHT, dist: MAGNUM_DIST, len: 0.2, width: 0.05, head: [255, 214, 120], tail: [235, 90, 20], flash: 0.2, shift: 0.6, flashMs: 210, burst: 100, puff: 1.6, wisp: 100, ring: 0, kick: 3.2, gaussSmoke: true });
+  recipes.magnum = {
+    shots: MAGNUM_SHOTS,
+    muzzles: null,
+    recoilFn: function (e) { return magnumShell.recoilFn(e); },
+    update: function (e, dt) {
+      magnumShell.update(e, dt);
+      var tp = e.turretPx, st = e.store, m = e.muzzles[0];
+      var sparks = st.sparks || (st.sparks = stream.create(220)), dust = st.dust || (st.dust = stream.create(300));
+      st.nb = st.nb || 0;
+      while (st.nb < MAGNUM_SHOTS.length && e.t >= MAGNUM_SHOTS[st.nb] + MAGNUM_FLIGHT * 1000) {
+        var x = m.x + Math.min(e.reach * 0.95, tp * MAGNUM_DIST);
+        (st.bursts || (st.bursts = [])).push({ x: x, y: m.y, t: MAGNUM_SHOTS[st.nb] + MAGNUM_FLIGHT * 1000 });
+        stream.emit(sparks, { x: x, y: m.y, angle: 0, spread: 3.14, speed: [tp * 0.4, tp * 1.4], life: [0.3, 0.7], size: [tp * 0.012, tp * 0.004], drag: 1.6, jitter: tp * 0.03 }, 60000 / dt, dt, e.rand);
+        stream.emit(dust, { x: x, y: m.y, angle: 0, spread: 3.14, speed: [tp * 0.1, tp * 0.5], life: [0.9, 1.4], size: [tp * 0.04, tp * 0.12], rise: tp * 0.04, drag: 2.2, jitter: tp * 0.07 }, 50000 / dt, dt, e.rand);
+        st.nb++;
+      }
+      stream.update(sparks, dt);
+      stream.update(dust, dt);
+    },
+    draw: function (c, e) {
+      var tp = e.turretPx, st = e.store, bs = st.bursts || [], i;
+      c.globalCompositeOperation = 'source-over';
+      if (st.dust) stream.draw(c, st.dust, magnumDustTint);
+      c.globalCompositeOperation = 'lighter';
+      magnumShell.draw(c, e);
+      if (st.sparks) stream.draw(c, st.sparks, magnumSparkTint);
+      for (i = 0; i < bs.length; i++) {
+        var la = e.t - bs[i].t, k = la / 800;
+        if (la < 0 || la > 800) continue;
+        if (la < 260) { var fl = 1 - la / 260; glow(c, bs[i].x, bs[i].y, tp * 0.28, '255,140,40', 0.85 * fl); glow(c, bs[i].x, bs[i].y, tp * 0.12, '255,240,205', 0.95 * fl); }
+        c.strokeStyle = 'rgba(255,200,120,' + (0.7 * (1 - k)).toFixed(3) + ')';
+        c.lineWidth = Math.max(1.5, tp * 0.016 * (1 - k));
+        c.beginPath();
+        c.arc(bs[i].x, bs[i].y, tp * (0.05 + 0.3 * k), 0, Math.PI * 2);
+        c.stroke();
+      }
+    }
+  };
 
   function recipeFor(id) { return recipes[id] || generic; }
 
