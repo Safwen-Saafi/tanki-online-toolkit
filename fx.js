@@ -5,14 +5,19 @@
   'use strict';
 
   var CYCLE_MS = 6000;   // idle, fire, rest, then repeat
-  var STEP_MS = 16;      // simulation step, so recipes behave the same at any frame rate
-  var MAX_DPR = 2;
+  var STEP_MS = 16;      // the simulation only ever moves in whole steps of this size, the leftover time waits for the next frame
+  var MAX_DPR = 2;       // pixels per CSS pixel on a desktop screen
+  var COMPACT_DPR = 1.5; // on a phone or a touch screen, where the fill cost matters more than the extra sharpness
+  var COMPACT_LOAD = 0.5;    // share of the particles the heaviest smoke trails (Striker and Scorpion rockets) keep on a phone or a touch screen
+  var COMPACT_WIDTH = 820;   // the page's own single column breakpoint
   var FLASH_MS = 150;
 
-  var reducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  var reducedMotion = !!(motionQuery && motionQuery.matches);
   var params = new URLSearchParams(location.search);
   // ?fx=<ms> freezes the effect clock at that moment of the cycle, for screenshots and checks
-  var frozenAt = params.has('fx') && isFinite(Number(params.get('fx'))) ? Math.max(0, Number(params.get('fx')) % CYCLE_MS) : null;
+  var fxParam = (params.get('fx') || '').trim();
+  var frozenAt = fxParam !== '' && isFinite(Number(fxParam)) ? Math.max(0, Number(fxParam) % CYCLE_MS) : null;
 
   var canvas = null, ctx = null, frame = null, real = null;
   var tank = null;        // { id, layout, turretEl }
@@ -20,6 +25,8 @@
   var env = null;         // what a recipe sees: time, muzzle points in pixels, scale, room to the right
   var onScreen = true, running = false, rafId = 0, lastNow = 0, lastTurret = null;
   var dpr = 1;
+  var owed = 0;           // time not yet simulated because it is less than one step
+  var waitingForLayout = false;   // setTank ran while the hero had no size, so the cycle has not started
 
   function makeRand(seed) {
     var a = seed >>> 0;
@@ -55,6 +62,22 @@
     c.restore();
   }
 
+  // Two stacked glows at (x, y): a coloured halo and a small pale core, both fading with f (1 at the start, 0 at the end).
+  // spec: { halo: [size, rgb, alpha], core: [size, rgb, alpha], haloDx, coreDx }, sizes and offsets in turret widths (tp).
+  function flashPair(c, tp, x, y, f, spec) {
+    glow(c, x + tp * (spec.haloDx || 0), y, tp * spec.halo[0], spec.halo[1], spec.halo[2] * f);
+    glow(c, x + tp * (spec.coreDx || 0), y, tp * spec.core[0], spec.core[1], spec.core[2] * f);
+  }
+
+  // An expanding shockwave ring, an ellipse seen from the side. k runs from 0 to 1 over the ring's life, and the ring fades and thins as it grows.
+  function ringBurst(c, x, y, rx, ry, rgb, alpha, width, k) {
+    c.strokeStyle = 'rgba(' + rgb + ',' + (alpha * (1 - k)).toFixed(3) + ')';
+    c.lineWidth = Math.max(1.5, width * (1 - k));
+    c.beginPath();
+    c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    c.stroke();
+  }
+
   function lerp(a, b, k) { return a + (b - a) * k; }
 
   // 0 before start, fades in over `up`, 1 until end, fades out over `down`, then 0.
@@ -66,22 +89,32 @@
   }
 
   // A soft round sprite per tint, drawn instead of building a gradient for every particle.
-  var sprites = {};
+  // Each channel is rounded to one of 17 levels (0, 16 ... 240, 255), so a sprite is found by a number and nothing is built per call.
+  // The cache is cleared when it holds too many sprites (every effect together uses far fewer), so it can never grow without limit.
+  var sprites = [], spriteCount = 0, SPRITE_LIMIT = 400;
+  function level(v) { var n = Math.round(v / 16); return n < 0 ? 0 : n > 16 ? 16 : n; }
   function sprite(r, g, b) {
-    var q = function (v) { return Math.max(0, Math.min(255, Math.round(v / 16) * 16)); };
-    var key = q(r) + ',' + q(g) + ',' + q(b);
-    if (sprites[key]) return sprites[key];
+    var ri = level(r), gi = level(g), bi = level(b), key = (ri * 17 + gi) * 17 + bi;
+    var cached = sprites[key];
+    if (cached) return cached;
+    if (spriteCount >= SPRITE_LIMIT) { sprites = []; spriteCount = 0; }
+    var rgb = Math.min(255, ri * 16) + ',' + Math.min(255, gi * 16) + ',' + Math.min(255, bi * 16);
     var s = document.createElement('canvas');
     s.width = s.height = 64;
     var x = s.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, 'rgba(' + key + ',1)');
-    gr.addColorStop(0.45, 'rgba(' + key + ',0.55)');
-    gr.addColorStop(1, 'rgba(' + key + ',0)');
+    gr.addColorStop(0, 'rgba(' + rgb + ',1)');
+    gr.addColorStop(0.45, 'rgba(' + rgb + ',0.55)');
+    gr.addColorStop(1, 'rgba(' + rgb + ',0)');
     x.fillStyle = gr;
     x.fillRect(0, 0, 64, 64);
     sprites[key] = s;
+    spriteCount++;
     return s;
   }
+
+  // What a tint function returns. One array is reused for every call, so the caller must read it before calling a tint again.
+  var tintOut = [0, 0, 0, 0];
+  function rgba(r, g, b, a) { tintOut[0] = r; tintOut[1] = g; tintOut[2] = b; tintOut[3] = a; return tintOut; }
 
   // The particle stream: a cone of soft particles that move, grow and fade. Used for flames, mist and smoke.
   // cfg: x, y (origin), angle, spread (radians, either side), speed [min,max] px/s, life [min,max] s,
@@ -105,16 +138,19 @@
       }
     },
     update: function (s, dtMs) {
-      var dt = dtMs / 1000;
-      for (var i = s.p.length - 1; i >= 0; i--) {
-        var q = s.p[i];
+      // survivors are moved down in one pass, which keeps their drawing order (smoke is drawn with source-over, so the order shows)
+      var dt = dtMs / 1000, p = s.p, kept = 0;
+      for (var i = 0; i < p.length; i++) {
+        var q = p[i];
         q.age += dt;
-        if (q.age >= q.life) { s.p.splice(i, 1); continue; }
+        if (q.age >= q.life) continue;
         q.vy -= q.rise * dt;
         if (q.drag) { var d = Math.exp(-q.drag * dt); q.vx *= d; q.vy *= d; }
         q.x += q.vx * dt;
         q.y += q.vy * dt;
+        p[kept++] = q;
       }
+      p.length = kept;
     },
     // tint(f, seed) gets the particle's age as 0..1 and returns [r, g, b, alpha]
     draw: function (c, s, tint) {
@@ -133,14 +169,16 @@
     create: function (cap) { return { p: [], cap: cap }; },
     fire: function (s, b) { if (s.p.length < s.cap) { b.age = 0; s.p.push(b); } },
     update: function (s, dtMs) {
-      var dt = dtMs / 1000;
-      for (var i = s.p.length - 1; i >= 0; i--) {
-        var b = s.p[i];
+      var dt = dtMs / 1000, p = s.p, kept = 0;
+      for (var i = 0; i < p.length; i++) {
+        var b = p[i];
         b.age += dt;
-        if (b.age >= b.life) { s.p.splice(i, 1); continue; }
+        if (b.age >= b.life) continue;
         b.x += b.vx * dt;
         b.y += b.vy * dt;
+        p[kept++] = b;
       }
+      p.length = kept;
     },
     draw: function (c, s) {
       c.lineCap = 'round';
@@ -162,6 +200,28 @@
       }
     }
   };
+
+  // Gauss-style grey smoke: puffs rise from (x, y), and a steady breeze from the front pushes every puff in the stream backward.
+  // x is null on a step where no new puffs are added. jitter is how far from (x, y) a puff may start, in turret widths.
+  function windSmoke(s, tp, dt, rand, x, y, jitter) {
+    if (x !== null) stream.emit(s, { x: x, y: y, angle: -1.85, spread: 0.45, speed: [tp * 0.15, tp * 0.55], life: [0.9, 1.4], size: [tp * 0.022, tp * 0.075], rise: tp * 0.08, drag: 0.9, jitter: tp * jitter }, 70, dt, rand);
+    for (var i = 0; i < s.p.length; i++) s.p[i].vx -= tp * 0.45 * dt / 1000;
+  }
+
+  // How many trail particles a moving object (a shell, a rocket, a ball) is owed this step. `owed` is its share for the step; the fraction
+  // that does not make a whole particle stays on the object for the next step. The caller places each particle somewhere along the step.
+  function trailDue(obj, owed) {
+    obj.acc = (obj.acc || 0) + owed;
+    var n = 0;
+    while (obj.acc >= 1) { obj.acc -= 1; n++; }
+    return n;
+  }
+
+  // Adds particles to a stream from a spec written in turret widths: speed, size, rise and jitter are multiplied by tp, so a recipe's table
+  // says how far a particle goes and not how many pixels. angle, spread, life and drag are used as they are.
+  function spawn(s, tp, x, y, spec, rate, dt, rand) {
+    stream.emit(s, { x: x, y: y, angle: spec.angle, spread: spec.spread, speed: [tp * spec.speed[0], tp * spec.speed[1]], life: spec.life, size: [tp * spec.size[0], tp * spec.size[1]], rise: tp * (spec.rise || 0), drag: spec.drag, jitter: tp * (spec.jitter || 0) }, rate, dt, rand);
+  }
 
   /* ---------- recipes: one per turret ---------- */
 
@@ -189,14 +249,14 @@
     if (f < 0.3) { k = f / 0.3; r = 255; g = lerp(246, 170, k); b = lerp(190, 50, k); }
     else if (f < 0.7) { k = (f - 0.3) / 0.4; r = 255; g = lerp(170, 95, k); b = lerp(50, 20, k); }
     else { k = (f - 0.7) / 0.3; r = lerp(255, 150, k); g = lerp(95, 25, k); b = lerp(20, 10, k); }
-    return [r, g, b, (f < 0.12 ? f / 0.12 : (1 - f) / 0.88) * 0.8];
+    return rgba(r, g, b, (f < 0.12 ? f / 0.12 : (1 - f) / 0.88) * 0.8);
   }
   recipes.firebird = {
     shots: [],
     muzzles: null,
     update: function (e, dt) {
       var tp = e.turretPx, m = e.muzzles[0];
-      var st = e.store.flame || (e.store.flame = stream.create(e.w < 520 ? 150 : 300));
+      var st = e.store.flame || (e.store.flame = stream.create(e.small ? 150 : 300));
       var a = e.store.fire = ramp(e.t, 800, 3200, 160, 380);
       var reach = Math.min(tp * 0.95, e.reach * 0.9);
       stream.emit(st, { x: m.x, y: m.y, angle: 0, spread: 0.14, speed: [reach / 0.8, reach / 0.5], life: [0.5, 0.85], size: [tp * 0.024, tp * 0.088], rise: tp * 0.8, jitter: tp * 0.014 }, 300 * a, dt, e.rand);
@@ -216,13 +276,13 @@
     // deep blue at the nozzle, getting lighter with age (and so with distance), never pure white
     if (f < 0.5) { k = f / 0.5; r = lerp(25, 105, k); g = lerp(115, 190, k); b = lerp(225, 255, k); }
     else { k = (f - 0.5) / 0.5; r = lerp(105, 170, k); g = lerp(190, 225, k); b = 255; }
-    return [r, g, b, (f < 0.07 ? f / 0.07 : (1 - f) / 0.93) * 0.5];
+    return rgba(r, g, b, (f < 0.07 ? f / 0.07 : (1 - f) / 0.93) * 0.5);
   }
   recipes.freeze = {
     shots: [],
     muzzles: null,
     update: function (e, dt) {
-      var tp = e.turretPx, m = e.muzzles[0], small = e.w < 520;
+      var tp = e.turretPx, m = e.muzzles[0], small = e.small;
       var mist = e.store.mist || (e.store.mist = stream.create(small ? 320 : 620));
       var ice = e.store.ice || (e.store.ice = stream.create(small ? 60 : 120));
       var a = e.store.fire = ramp(e.t, 800, 3200, 200, 420);
@@ -258,37 +318,50 @@
   // Vulcan: a rapid stream of yellow tracers from across the barrel cluster, spinning up to speed, with a flickering
   // flash and a light steady shake instead of a single kick. After two seconds of firing it overheats: the barrel cluster glows red-hot,
   // glowing embers drift off it, and Gauss-style grey wind-blown smoke vents from the middle of the turret. It cools after the burst.
-  function heatEmberTint(f) { return [255, lerp(170, 50, f), lerp(60, 15, f), 0.9 * (1 - f)]; }
+  function heatEmberTint(f) { return rgba(255, lerp(170, 50, f), lerp(60, 15, f), 0.9 * (1 - f)); }
+  // Vulcan's numbers. Times are in ms, lengths in turret widths (tp) unless a name says pixels.
+  var VULCAN = {
+    fire: { from: 700, to: 3100, up: 450, down: 150, perSecond: 22 },
+    shake: { base: 0.3, swing: 0.12, period: 16 },
+    // a tracer flies min(room * reach, tp * widths) in `flight` seconds, in a narrow cone, from a random spot across the barrel cluster
+    reach: 0.95, widths: 1.5, flight: 0.2, speedLow: 0.92, speedSpread: 0.16, cone: 0.03, spreadY: 0.045,
+    tracer: { cap: 24, headStart: 0.04, dx: 0.012, trail: 0.04, width: 0.007, minWidth: 1.5, head: [255, 244, 160], tail: [255, 170, 40] },
+    flash: { ms: 70, size: 0.045, stagger: 0.01 },
+    // after two seconds of firing: the barrels glow red-hot, embers drift off them and grey smoke vents from the middle of the turret
+    heat: { from: 1700, to: 3100, up: 1300, down: 1000, embersAbove: 0.3 },
+    vent: { cap: 260, from: 2700, to: 3900, dx: -0.5, dy: -0.09, jitter: 0.06 },
+    embers: { cap: 120, perSecond: 28, spread: 0.3, spec: { angle: -1.57, spread: 0.9, speed: [0.05, 0.25], life: [0.4, 0.8], size: [0.01, 0.003], rise: 0.05, drag: 1.2, jitter: 0.03 } },
+    glow: { x: -0.5, y: -0.075, w: 0.55, h: 0.15, alpha: 0.55, rgb: [255, 70, 20], flicker: [0.85, 0.15, 0.05, 0.13], muzzle: { dx: -0.04, size: 0.09, rgb: '255,80,25', alpha: 0.6 } }
+  };
   recipes.vulcan = {
     shots: [],
     muzzles: null,
-    recoilFn: function (e) { return (e.store.fire || 0) * (0.3 + 0.12 * Math.sin(e.t / 16)); },
+    recoilFn: function (e) { return (e.store.fire || 0) * (VULCAN.shake.base + VULCAN.shake.swing * Math.sin(e.t / VULCAN.shake.period)); },
     update: function (e, dt) {
-      var tp = e.turretPx, m = e.muzzles[0];
-      var b = e.store.bullets || (e.store.bullets = bullets.create(24));
+      var V = VULCAN, T = V.tracer, F = V.fire, tp = e.turretPx, m = e.muzzles[0];
+      var b = e.store.bullets || (e.store.bullets = bullets.create(T.cap));
       var flashes = e.store.flashes || (e.store.flashes = []);
-      var a = e.store.fire = ramp(e.t, 700, 3100, 450, 150);
-      e.store.acc = (e.store.acc || 0) + 22 * a * dt / 1000;
-      var maxDist = Math.min(e.reach * 0.95, tp * 1.5);
+      var a = e.store.fire = ramp(e.t, F.from, F.to, F.up, F.down);
+      e.store.acc = (e.store.acc || 0) + F.perSecond * a * dt / 1000;
+      var maxDist = Math.min(e.reach * V.reach, tp * V.widths);
       while (e.store.acc >= 1) {
         e.store.acc -= 1;
-        var speed = maxDist / 0.2 * (0.92 + e.rand() * 0.16), ang = (e.rand() - 0.5) * 0.03;
-        bullets.fire(b, { x: m.x + speed * 0.04 + tp * 0.012, y: m.y + (e.rand() - 0.5) * 2 * tp * 0.045, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: maxDist / speed, len: speed * 0.04, width: Math.max(1.5, tp * 0.007), head: [255, 244, 160], tail: [255, 170, 40] });
+        var speed = maxDist / V.flight * (V.speedLow + e.rand() * V.speedSpread), ang = (e.rand() - 0.5) * V.cone;
+        bullets.fire(b, { x: m.x + speed * T.headStart + tp * T.dx, y: m.y + (e.rand() - 0.5) * 2 * tp * V.spreadY, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: maxDist / speed, len: speed * T.trail, width: Math.max(T.minWidth, tp * T.width), head: T.head, tail: T.tail });
         flashes.push(e.t);
       }
       bullets.update(b, dt);
-      while (flashes.length && e.t - flashes[0] > 70) flashes.shift();
+      while (flashes.length && e.t - flashes[0] > V.flash.ms) flashes.shift();
       // overheating: smoke from the middle of the turret from two seconds into the burst, and embers off the hot barrels
-      var st = e.store, vent = st.vent || (st.vent = stream.create(260)), embers = st.embers || (st.embers = stream.create(120));
-      var heat = st.heat = ramp(e.t, 1700, 3100, 1300, 1000);
-      if (e.t >= 2700 && e.t < 3900) stream.emit(vent, { x: m.x - tp * 0.5, y: m.y - tp * 0.09, angle: -1.85, spread: 0.45, speed: [tp * 0.15, tp * 0.55], life: [0.9, 1.4], size: [tp * 0.022, tp * 0.075], rise: tp * 0.08, drag: 0.9, jitter: tp * 0.06 }, 70, dt, e.rand);
-      for (var wi = 0; wi < vent.p.length; wi++) vent.p[wi].vx -= tp * 0.45 * dt / 1000;
-      if (heat > 0.3) stream.emit(embers, { x: m.x - e.rand() * tp * 0.3, y: m.y, angle: -1.57, spread: 0.9, speed: [tp * 0.05, tp * 0.25], life: [0.4, 0.8], size: [tp * 0.01, tp * 0.003], rise: tp * 0.05, drag: 1.2, jitter: tp * 0.03 }, 28 * heat, dt, e.rand);
+      var st = e.store, vent = st.vent || (st.vent = stream.create(V.vent.cap)), embers = st.embers || (st.embers = stream.create(V.embers.cap));
+      var heat = st.heat = ramp(e.t, V.heat.from, V.heat.to, V.heat.up, V.heat.down);
+      windSmoke(vent, tp, dt, e.rand, e.t >= V.vent.from && e.t < V.vent.to ? m.x + tp * V.vent.dx : null, m.y + tp * V.vent.dy, V.vent.jitter);
+      if (heat > V.heat.embersAbove) spawn(embers, tp, m.x - e.rand() * tp * V.embers.spread, m.y, V.embers.spec, V.embers.perSecond * heat, dt, e.rand);
       stream.update(vent, dt);
       stream.update(embers, dt);
     },
     draw: function (c, e) {
-      var tp = e.turretPx, m = e.muzzles[0], flashes = e.store.flashes || [], st = e.store, heat = st.heat || 0;
+      var V = VULCAN, G = V.glow, tp = e.turretPx, m = e.muzzles[0], flashes = e.store.flashes || [], st = e.store, heat = st.heat || 0;
       if (st.vent) {
         // the smoke is drawn solid so it stays grey instead of glowing
         c.globalCompositeOperation = 'source-over';
@@ -297,15 +370,15 @@
       }
       if (heat > 0) {
         // the barrel cluster glows red-hot: a long soft glow along the barrels, a hotter one at the muzzle, and a flicker
-        var fk = 0.85 + 0.15 * Math.sin(e.t * 0.05) * Math.sin(e.t * 0.13);
-        c.globalAlpha = 0.55 * heat * fk;
-        c.drawImage(sprite(255, 70, 20), m.x - tp * 0.5, m.y - tp * 0.075, tp * 0.55, tp * 0.15);
+        var fk = G.flicker[0] + G.flicker[1] * Math.sin(e.t * G.flicker[2]) * Math.sin(e.t * G.flicker[3]);
+        c.globalAlpha = G.alpha * heat * fk;
+        c.drawImage(sprite(G.rgb[0], G.rgb[1], G.rgb[2]), m.x + tp * G.x, m.y + tp * G.y, tp * G.w, tp * G.h);
         c.globalAlpha = 1;
-        glow(c, m.x - tp * 0.04, m.y, tp * 0.09, '255,80,25', 0.6 * heat * fk);
+        glow(c, m.x + tp * G.muzzle.dx, m.y, tp * G.muzzle.size, G.muzzle.rgb, G.muzzle.alpha * heat * fk);
         if (st.embers) stream.draw(c, st.embers, heatEmberTint);
       }
       if (e.store.bullets) bullets.draw(c, e.store.bullets);
-      for (var i = 0; i < flashes.length; i++) drawFlash(c, { x: m.x, y: m.y + ((i * 37 % 7) - 3) * tp * 0.01 }, tp * 0.045, 1 - (e.t - flashes[i]) / 70);
+      for (var i = 0; i < flashes.length; i++) drawFlash(c, { x: m.x, y: m.y + ((i * 37 % 7) - 3) * tp * V.flash.stagger }, tp * V.flash.size, 1 - (e.t - flashes[i]) / V.flash.ms);
     }
   };
 
@@ -341,7 +414,7 @@
   // tint: { halo, body, core } as [r, g, b]. Railgun and Shaft share it.
   function drawBeam(c, x, y, len, width, a, tint) {
     if (a <= 0 || len <= 0) return;
-    var N = 60, dpr = c.getTransform().a || 1;
+    var N = 60;
     var layers = [[width * 7, tint.halo, 0.4], [width * 2.4, tint.body, 0.85], [width * 0.7, tint.core, 1]];
     for (var l = 0; l < layers.length; l++) {
       var h = layers[l][0], col = layers[l][1].join(','), base = layers[l][2];
@@ -384,9 +457,9 @@
   // Grey gun smoke: warm and a little dense at first, cooling to grey, fading out. Drawn with source-over so it stays grey.
   function smokeTint(f) {
     var a = f < 0.12 ? f / 0.12 * 0.5 : 0.5 * (1 - (f - 0.12) / 0.88);
-    return [lerp(200, 120, f), lerp(180, 120, f), lerp(155, 125, f), a];
+    return rgba(lerp(200, 120, f), lerp(180, 120, f), lerp(155, 125, f), a);
   }
-  function trailTint(f) { return [150, 145, 140, 0.17 * (1 - f)]; }
+  function trailTint(f) { return rgba(150, 145, 140, 0.17 * (1 - f)); }
   function drawSmoke(c, s, trail, tint) {
     c.globalCompositeOperation = 'source-over';
     stream.draw(c, s, tint || smokeTint);
@@ -438,15 +511,13 @@
         }
         if (cfg.gaussSmoke) {
           // Gauss's smoke: a handful of small grey puffs that rise, and a steady breeze from the front pushes them backward
-          if (st.n && e.t < st.last + 450) stream.emit(puff, { x: st.lastMuzzle.x, y: st.lastMuzzle.y, angle: -1.85, spread: 0.45, speed: [tp * 0.15, tp * 0.55], life: [0.9, 1.4], size: [tp * 0.022, tp * 0.075], rise: tp * 0.08, drag: 0.9, jitter: tp * 0.03 }, 70, dt, e.rand);
-          for (var wi = 0; wi < puff.p.length; wi++) puff.p[wi].vx -= tp * 0.45 * dt / 1000;
+          var venting = st.n && e.t < st.last + 450;
+          windSmoke(puff, tp, dt, e.rand, venting ? st.lastMuzzle.x : null, venting ? st.lastMuzzle.y : 0, 0.03);
         } else if (st.n && e.t < st.last + 700) stream.emit(puff, { x: st.lastMuzzle.x, y: st.lastMuzzle.y, angle: -0.3, spread: 0.7, speed: [tp * 0.03, tp * 0.2], life: [1.0, 1.8], size: [tp * 0.02 * cfg.puff, tp * 0.07 * cfg.puff], rise: tp * 0.16, drag: 2, jitter: tp * 0.02 }, cfg.wisp, dt, e.rand);
         for (var i = 0; i < shell.p.length; i++) {
           var sh = shell.p[i];
           // the shell moves far in one step, so place each wisp somewhere along that step to keep the trail unbroken
-          sh.acc = (sh.acc || 0) + 560 * dt / 1000;
-          while (sh.acc >= 1) {
-            sh.acc -= 1;
+          for (var due = trailDue(sh, 560 * dt / 1000); due > 0; due--) {
             stream.emit(trail, { x: sh.x - sh.len - e.rand() * sh.vx * dt / 1000, y: sh.y, angle: 0, spread: 3.1, speed: [0, tp * 0.03], life: [0.5, 0.8], size: [tp * 0.014 * cfg.puff, tp * 0.035 * cfg.puff], rise: tp * 0.05, drag: 2, jitter: tp * 0.008 }, 1000 / dt, dt, e.rand);
           }
         }
@@ -475,42 +546,56 @@
   // Hammer: a shotgun. Five volleys in a row, both barrels at once (three yellow pellets each, with a spray of sparks and a small
   // puff), then a pause while it reloads and the five spent shells pop out of the top of the turret and fall.
   // The muzzle points are measured by eye on the turret picture: the two barrels stacked in the cap, then the ejection port.
-  var HAMMER_VOLLEYS = [900, 1230, 1560, 1890, 2220], HAMMER_EJECT = [2700, 2960, 3220, 3480, 3740];
-  function sparkTint(f) { return [255, lerp(225, 120, f), lerp(90, 30, f), 1 - f]; }
+  // Hammer's numbers. Times are in ms, lengths in turret widths (tp) unless a name says pixels.
+  var HAMMER = {
+    volleys: [900, 1230, 1560, 1890, 2220],
+    eject: [2700, 2960, 3220, 3480, 3740],
+    muzzles: [[484, 58], [484, 84], [240, 28]],   // the two barrels, then the ejection port
+    kick: 1.6,
+    // a volley: perBarrel pellets from each barrel in a cone `fan` radians wide, flying min(room * reach, tp * widths) in `flight` seconds
+    perBarrel: 7, fan: 0.2, shake: 0.07, reach: 0.9, widths: 1.1, flight: 0.55, speedLow: 0.8, speedSpread: 0.35,
+    pellet: { cap: 90, dx: 0.02, trail: 0.05, radius: 0.012, minRadius: 2.2, core: [255, 226, 110], glow: [255, 180, 50], trailRgb: [255, 190, 60], tail: [255, 135, 30] },
+    sparks: { cap: 320, count: 26, spec: { angle: 0, spread: 0.5, speed: [0.6, 1.7], life: [0.2, 0.5], size: [0.008, 0.018], drag: 2.2, jitter: 0.012 } },
+    puff: { cap: 220, count: 18, spec: { angle: 0, spread: 0.6, speed: [0.15, 0.6], life: [0.9, 1.6], size: [0.03, 0.1], rise: 0.12, drag: 3, jitter: 0.02 } },
+    flash: { ms: 130, size: 0.08 },
+    // the spent shells: launch speed is the first number plus a random share of the second, in turret widths a second
+    shell: { life: 0.6, fade: 0.2, gravity: 5, vx: [0.3, 0.45], vy: [1.0, 0.35], spin: [6, 6], w: 0.14, h: 0.068, body: '#6e3f1f', bodyShare: 0.68, base: '#8f5d30', baseShare: 0.32 }
+  };
+  function sparkTint(f) { return rgba(255, lerp(225, 120, f), lerp(90, 30, f), 1 - f); }
   recipes.hammer = {
-    shots: HAMMER_VOLLEYS,
-    muzzles: [[484, 58], [484, 84], [240, 28]],
-    recoilFn: function (e) { return Math.min(1.8, recoilAt(e.t, HAMMER_VOLLEYS) * 1.6); },
+    shots: HAMMER.volleys,
+    muzzles: HAMMER.muzzles,
+    recoilFn: function (e) { return Math.min(1.8, recoilAt(e.t, HAMMER.volleys) * HAMMER.kick); },
     update: function (e, dt) {
-      var tp = e.turretPx, st = e.store;
-      var b = st.pellets || (st.pellets = bullets.create(90)), puff = st.puff || (st.puff = stream.create(220)), sparks = st.sparks || (st.sparks = stream.create(320));
+      var H = HAMMER, P = H.pellet, S = H.shell, tp = e.turretPx, st = e.store;
+      var b = st.pellets || (st.pellets = bullets.create(P.cap)), puff = st.puff || (st.puff = stream.create(H.puff.cap)), sparks = st.sparks || (st.sparks = stream.create(H.sparks.cap));
       var cases = st.cases || (st.cases = []);
       st.vol = st.vol || 0;
       st.ej = st.ej || 0;
-      while (st.vol < HAMMER_VOLLEYS.length && e.t >= HAMMER_VOLLEYS[st.vol]) {
+      while (st.vol < H.volleys.length && e.t >= H.volleys[st.vol]) {
         st.vol++;
-        var dist = Math.min(e.reach * 0.9, tp * 1.1);
-        // a shotgun load: seven round pellets from each barrel, in a wide cone, at slightly different speeds
-        for (var i = 0; i < 14; i++) {
-          var m = e.muzzles[i % 2], ang = ((Math.floor(i / 2) - 3) / 3) * 0.2 + (e.rand() - 0.5) * 0.07, speed = dist / 0.55 * (0.8 + e.rand() * 0.35), len = tp * 0.05;
-          bullets.fire(b, { x: m.x + tp * 0.02, y: m.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: dist / speed, len: len, r: Math.max(2.2, tp * 0.012), core: [255, 226, 110], glow: [255, 180, 50], trail: [255, 190, 60], tail: [255, 135, 30] });
+        var dist = Math.min(e.reach * H.reach, tp * H.widths), half = (H.perBarrel - 1) / 2;
+        // a shotgun load: round pellets from each barrel, in a wide cone, at slightly different speeds
+        for (var i = 0; i < H.perBarrel * 2; i++) {
+          var m = e.muzzles[i % 2], ang = ((Math.floor(i / 2) - half) / half) * H.fan + (e.rand() - 0.5) * H.shake, speed = dist / H.flight * (H.speedLow + e.rand() * H.speedSpread), len = tp * P.trail;
+          bullets.fire(b, { x: m.x + tp * P.dx, y: m.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: dist / speed, len: len, r: Math.max(P.minRadius, tp * P.radius), core: P.core, glow: P.glow, trail: P.trailRgb, tail: P.tail });
         }
         for (var k = 0; k < 2; k++) {
           var mz = e.muzzles[k];
-          stream.emit(sparks, { x: mz.x, y: mz.y, angle: 0, spread: 0.5, speed: [tp * 0.6, tp * 1.7], life: [0.2, 0.5], size: [tp * 0.008, tp * 0.018], drag: 2.2, jitter: tp * 0.012 }, 26000 / dt, dt, e.rand);
-          stream.emit(puff, { x: mz.x, y: mz.y, angle: 0, spread: 0.6, speed: [tp * 0.15, tp * 0.6], life: [0.9, 1.6], size: [tp * 0.03, tp * 0.1], rise: tp * 0.12, drag: 3, jitter: tp * 0.02 }, 18000 / dt, dt, e.rand);
+          spawn(sparks, tp, mz.x, mz.y, H.sparks.spec, H.sparks.count * 1000 / dt, dt, e.rand);
+          spawn(puff, tp, mz.x, mz.y, H.puff.spec, H.puff.count * 1000 / dt, dt, e.rand);
         }
       }
-      while (st.ej < HAMMER_EJECT.length && e.t >= HAMMER_EJECT[st.ej]) {
+      while (st.ej < H.eject.length && e.t >= H.eject[st.ej]) {
         st.ej++;
         var port = e.muzzles[2];
-        cases.push({ x: port.x, y: port.y, vx: -tp * (0.3 + e.rand() * 0.45), vy: -tp * (1.0 + e.rand() * 0.35), rot: e.rand() * 6.28, vr: (e.rand() < 0.5 ? -1 : 1) * (6 + e.rand() * 6), age: 0 });
+        cases.push({ x: port.x, y: port.y, vx: -tp * (S.vx[0] + e.rand() * S.vx[1]), vy: -tp * (S.vy[0] + e.rand() * S.vy[1]), rot: e.rand() * 6.28, vr: (e.rand() < 0.5 ? -1 : 1) * (S.spin[0] + e.rand() * S.spin[1]), age: 0 });
       }
       for (var j = cases.length - 1; j >= 0; j--) {
         var q = cases[j], d = dt / 1000;
         q.age += d;
-        if (q.age > 0.6) { cases.splice(j, 1); continue; }
-        q.vy += tp * 5 * d;
+        if (q.age > S.life) { cases.splice(j, 1); continue; }
+        q.vy += tp * S.gravity * d;
         q.x += q.vx * d;
         q.y += q.vy * d;
         q.rot += q.vr * d;
@@ -520,30 +605,30 @@
       stream.update(sparks, dt);
     },
     draw: function (c, e) {
-      var tp = e.turretPx, st = e.store;
+      var H = HAMMER, S = H.shell, tp = e.turretPx, st = e.store;
       if (st.puff) drawSmoke(c, st.puff);
       if (st.sparks) stream.draw(c, st.sparks, sparkTint);
       if (st.pellets) {
         // pellets are small solid balls with a soft glow and a short faint trail, so they read as shot and not as tracers
         for (var pi = 0; pi < st.pellets.p.length; pi++) drawBall(c, st.pellets.p[pi]);
       }
-      for (var v = 0; v < HAMMER_VOLLEYS.length; v++) {
-        var age = e.t - HAMMER_VOLLEYS[v];
-        if (age >= 0 && age < 130) for (var m = 0; m < 2; m++) drawFlash(c, e.muzzles[m], tp * 0.08, 1 - age / 130);
+      for (var v = 0; v < H.volleys.length; v++) {
+        var age = e.t - H.volleys[v];
+        if (age >= 0 && age < H.flash.ms) for (var m = 0; m < 2; m++) drawFlash(c, e.muzzles[m], tp * H.flash.size, 1 - age / H.flash.ms);
       }
       // the spent shells: a brown body with a lighter brown base, tumbling, drawn solid so they do not glow
       if (st.cases && st.cases.length) {
         c.globalCompositeOperation = 'source-over';
         for (var i = 0; i < st.cases.length; i++) {
-          var q = st.cases[i], w = tp * 0.14, h = tp * 0.068;
+          var q = st.cases[i], w = tp * S.w, h = tp * S.h;
           c.save();
           c.translate(q.x, q.y);
           c.rotate(q.rot);
-          c.globalAlpha = Math.min(1, (0.6 - q.age) / 0.2);
-          c.fillStyle = '#6e3f1f';
-          c.fillRect(-w / 2, -h / 2, w * 0.68, h);
-          c.fillStyle = '#8f5d30';
-          c.fillRect(-w / 2 + w * 0.68, -h / 2, w * 0.32, h);
+          c.globalAlpha = Math.min(1, (S.life - q.age) / S.fade);
+          c.fillStyle = S.body;
+          c.fillRect(-w / 2, -h / 2, w * S.bodyShare, h);
+          c.fillStyle = S.base;
+          c.fillRect(-w / 2 + w * S.bodyShare, -h / 2, w * S.baseShare, h);
           c.restore();
         }
         c.globalAlpha = 1;
@@ -554,6 +639,7 @@
 
   // Twins: plasma balls from the two barrels in turn, a steady alternating stream with a cyan-green glow.
   // The two barrels sit one behind the other in the side view, so the muzzle points are just a little above and below the tip.
+  var TWINS_FLASH = { halo: [0.07, '70,255,180', 0.8], core: [0.035, '225,255,245', 0.9] };
   var TWINS_SHOTS = [];
   for (var ts = 800; ts <= 3000; ts += 220) TWINS_SHOTS.push(ts);
   recipes.twins = {
@@ -569,17 +655,14 @@
         st.n++;
       }
       bullets.update(b, dt);
+      for (var i = 0; i < b.p.length; i++) b.p[i].r = Math.max(4, tp * 0.032) * (1 + 0.1 * Math.sin(b.p[i].age * 50));
     },
     draw: function (c, e) {
       var tp = e.turretPx;
-      if (e.store.balls) for (var i = 0; i < e.store.balls.p.length; i++) {
-        var q = e.store.balls.p[i];
-        q.r = Math.max(4, tp * 0.032) * (1 + 0.1 * Math.sin(q.age * 50));
-        drawBall(c, q);
-      }
+      if (e.store.balls) for (var i = 0; i < e.store.balls.p.length; i++) drawBall(c, e.store.balls.p[i]);
       for (var k = 0; k < TWINS_SHOTS.length; k++) {
         var age = e.t - TWINS_SHOTS[k];
-        if (age >= 0 && age < 110) { var f = 1 - age / 110, mz = e.muzzles[k % 2]; glow(c, mz.x, mz.y, tp * 0.07, '70,255,180', 0.8 * f); glow(c, mz.x, mz.y, tp * 0.035, '225,255,245', 0.9 * f); }
+        if (age >= 0 && age < 110) { var f = 1 - age / 110, mz = e.muzzles[k % 2]; flashPair(c, tp, mz.x, mz.y, f, TWINS_FLASH); }
       }
     }
   };
@@ -589,8 +672,10 @@
   var RICO_SHOTS = [];
   for (var rs = 800; rs <= 2900; rs += 300) RICO_SHOTS.push(rs);
   var RICO_TILT = 0.21; // the plate leans this many radians to the right at the top
-  function emberTint(f) { return [255, lerp(150, 50, f), lerp(40, 10, f), 0.6 * (1 - f)]; }
-  function sparkOrangeTint(f) { return [255, lerp(210, 90, f), lerp(80, 20, f), 1 - f]; }
+  var RICO_HIT_FLASH = { halo: [0.09, '255,120,40', 0.8], core: [0.04, '255,235,200', 0.9] };
+  var RICO_MUZZLE_FLASH = { halo: [0.08, '255,110,30', 0.8], core: [0.04, '255,235,205', 0.9] };
+  function emberTint(f) { return rgba(255, lerp(150, 50, f), lerp(40, 10, f), 0.6 * (1 - f)); }
+  function sparkOrangeTint(f) { return rgba(255, lerp(210, 90, f), lerp(80, 20, f), 1 - f); }
   recipes.ricochet = {
     shots: RICO_SHOTS,
     muzzles: null,
@@ -622,11 +707,10 @@
           hits.push({ x: b.x, y: b.y, t: e.t });
           stream.emit(sparks, { x: b.x, y: b.y, angle: Math.atan2(b.vy, b.vx), spread: 0.9, speed: [tp * 0.4, tp * 1.2], life: [0.2, 0.5], size: [tp * 0.007, tp * 0.016], rise: -tp * 2, drag: 1.8, jitter: tp * 0.012 }, 22000 / dt, dt, e.rand);
         }
-        e.store.acc = (e.store.acc || 0) + 120 * d;
-        while (e.store.acc >= 1) {
-          e.store.acc -= 1;
+        for (var due = trailDue(b, 120 * d); due > 0; due--) {
           stream.emit(trail, { x: b.x - e.rand() * b.vx * d, y: b.y - e.rand() * b.vy * d, angle: 0, spread: 3.1, speed: [0, tp * 0.04], life: [0.2, 0.4], size: [b.r * 0.8, b.r * 0.25], jitter: b.r * 0.2 }, 1000 / dt, dt, e.rand);
         }
+        b.r = Math.max(5, tp * 0.045) * (1 + 0.1 * Math.sin(b.age * 45));
       }
       stream.update(trail, dt);
       stream.update(sparks, dt);
@@ -659,24 +743,35 @@
       }
       if (st.trail) stream.draw(c, st.trail, emberTint);
       if (st.sparks) stream.draw(c, st.sparks, sparkOrangeTint);
-      if (st.balls) for (var i = 0; i < st.balls.length; i++) {
-        var bl = st.balls[i], base = Math.max(5, tp * 0.045);
-        bl.r = base * (1 + 0.1 * Math.sin(bl.age * 45));
-        drawBall(c, bl);
-      }
+      if (st.balls) for (var i = 0; i < st.balls.length; i++) drawBall(c, st.balls[i]);
       if (st.hits) for (var k = 0; k < st.hits.length; k++) {
         var age = e.t - st.hits[k].t;
-        if (age >= 0 && age < 160) { var f = 1 - age / 160; glow(c, st.hits[k].x, st.hits[k].y, tp * 0.09, '255,120,40', 0.8 * f); glow(c, st.hits[k].x, st.hits[k].y, tp * 0.04, '255,235,200', 0.9 * f); }
+        if (age >= 0 && age < 160) flashPair(c, tp, st.hits[k].x, st.hits[k].y, 1 - age / 160, RICO_HIT_FLASH);
       }
       for (var s = 0; s < RICO_SHOTS.length; s++) {
         var a = e.t - RICO_SHOTS[s];
-        if (a >= 0 && a < 110) { var ff = 1 - a / 110; glow(c, m.x, m.y, tp * 0.08, '255,110,30', 0.8 * ff); glow(c, m.x, m.y, tp * 0.04, '255,235,205', 0.9 * ff); }
+        if (a >= 0 && a < 110) flashPair(c, tp, m.x, m.y, 1 - a / 110, RICO_MUZZLE_FLASH);
       }
     }
   };
 
+  // The charge before a shot: a halo and a core swell at the muzzle while motes spiral in toward it. k runs from 0 to 1 over the charge.
+  // C: { halo, core: [size at the start, growth, rgb, alpha at the start, alpha growth], motes: { radius, rgb } }, sizes in turret widths.
+  function drawCharge(c, tp, m, k, C) {
+    glow(c, m.x, m.y, tp * (C.halo[0] + C.halo[1] * k), C.halo[2], C.halo[3] + C.halo[4] * k);
+    glow(c, m.x, m.y, tp * (C.core[0] + C.core[1] * k), C.core[2], C.core[3] + C.core[4] * k);
+    for (var j = 0; j < 12; j++) {
+      var kk = (k * 1.4 + j * 0.083) % 1, rad = tp * C.motes.radius * (1 - kk), ang = j * 0.52 + kk * 2.2;
+      c.globalAlpha = kk * 0.9;
+      c.drawImage(sprite(C.motes.rgb[0], C.motes.rgb[1], C.motes.rgb[2]), m.x + Math.cos(ang) * rad - tp * 0.012, m.y + Math.sin(ang) * rad - tp * 0.012, tp * 0.024, tp * 0.024);
+    }
+    c.globalAlpha = 1;
+  }
+
   // Railgun: a short charge (glow growing at the muzzle, motes pulled in), then an instant bright beam that fades along its length and
   // over time, with ripples running down it. Two shots a loop, the second after a long reload.
+  var RAIL_CHARGE_LOOK = { halo: [0.03, 0.07, '80,200,255', 0.4, 0.5], core: [0.012, 0.025, '230,250,255', 0.3, 0.6], motes: { radius: 0.15, rgb: [120, 220, 255] } };
+  var RAIL_BURST_FLASH = { halo: [0.17, '70,190,255', 0.7], core: [0.07, '235,252,255', 0.95], haloDx: 0.05, coreDx: 0.04 };
   var RAIL_SHOTS = [1200, 2900], RAIL_CHARGE = 650, RAIL_TINT = { halo: [40, 140, 255], body: [90, 215, 255], core: [235, 252, 255] };
   recipes.railgun = {
     shots: RAIL_SHOTS,
@@ -687,23 +782,13 @@
       var tp = e.turretPx, m = e.muzzles[0];
       for (var s = 0; s < RAIL_SHOTS.length; s++) {
         var shot = RAIL_SHOTS[s], age = e.t - shot, until = shot - e.t;
-        if (until > 0 && until < RAIL_CHARGE) {
-          // charging: the glow swells and motes spiral in toward the muzzle
-          var k = 1 - until / RAIL_CHARGE;
-          glow(c, m.x, m.y, tp * (0.03 + 0.07 * k), '80,200,255', 0.4 + 0.5 * k);
-          glow(c, m.x, m.y, tp * (0.012 + 0.025 * k), '230,250,255', 0.3 + 0.6 * k);
-          for (var j = 0; j < 12; j++) {
-            var kk = (k * 1.4 + j * 0.083) % 1, rad = tp * 0.15 * (1 - kk), ang = j * 0.52 + kk * 2.2;
-            c.globalAlpha = kk * 0.9;
-            c.drawImage(sprite(120, 220, 255), m.x + Math.cos(ang) * rad - tp * 0.012, m.y + Math.sin(ang) * rad - tp * 0.012, tp * 0.024, tp * 0.024);
-          }
-          c.globalAlpha = 1;
-        }
+        // charging: the glow swells and motes spiral in toward the muzzle
+        if (until > 0 && until < RAIL_CHARGE) drawCharge(c, tp, m, 1 - until / RAIL_CHARGE, RAIL_CHARGE_LOOK);
         if (age >= 0 && age < 1000) {
           var len = e.reach * 0.98, w = tp * 0.04 * (1 - 0.6 * Math.min(1, age / 700)), a = Math.exp(-age / 300) * Math.min(1, age / 25 + 0.2);
           drawBeam(c, m.x, m.y, len, w, a, RAIL_TINT);
           // the muzzle burst
-          if (age < 220) { var f = 1 - age / 220; glow(c, m.x + tp * 0.05, m.y, tp * 0.17, '70,190,255', 0.7 * f); glow(c, m.x + tp * 0.04, m.y, tp * 0.07, '235,252,255', 0.95 * f); }
+          if (age < 220) flashPair(c, tp, m.x, m.y, 1 - age / 220, RAIL_BURST_FLASH);
           // ripples that run out along the beam one after another
           c.lineWidth = Math.max(1.2, tp * 0.006);
           for (var r = 0; r < 6; r++) {
@@ -723,6 +808,7 @@
   // Shaft: the sniper. A thin red laser sight fades in and flickers while it takes aim, then one fast red-hot shot leaves the barrel as a
   // single glowing fireball with no trail, and the sight goes out. The barrel tip glows hot while aiming and for a moment after the shot.
   var SHAFT_SHOT = 2500, SHAFT_AIM_FROM = 500;
+  var SHAFT_FLASH = { halo: [0.13, '255,90,30', 0.85], core: [0.055, '255,240,210', 0.95], haloDx: 0.04, coreDx: 0.03 };
   recipes.shaft = {
     shots: [SHAFT_SHOT],
     muzzles: null,
@@ -752,42 +838,58 @@
       var heat = e.t < SHAFT_SHOT ? ramp(e.t, SHAFT_AIM_FROM, SHAFT_SHOT, 500, 0) * (0.3 + 0.7 * (e.t - SHAFT_AIM_FROM) / (SHAFT_SHOT - SHAFT_AIM_FROM)) : ramp(e.t, SHAFT_SHOT, SHAFT_SHOT, 1, 900);
       if (heat > 0) { glow(c, m.x, m.y, tp * 0.07, '255,60,30', 0.75 * heat); glow(c, m.x, m.y, tp * 0.03, '255,200,150', 0.6 * heat); }
       var age = e.t - SHAFT_SHOT;
-      if (age >= 0 && age < 150) { var f = 1 - age / 150; glow(c, m.x + tp * 0.04, m.y, tp * 0.13, '255,90,30', 0.85 * f); glow(c, m.x + tp * 0.03, m.y, tp * 0.055, '255,240,210', 0.95 * f); }
+      if (age >= 0 && age < 150) flashPair(c, tp, m.x, m.y, 1 - age / 150, SHAFT_FLASH);
     }
   };
 
   // Gauss: two firing modes, as on the wiki. An arcade shot: a flat, long blue-violet plasma slug. Then the aimed salvo: the
   // barrel charges (a violet glow swells, motes are pulled in), and a much longer, thicker slug leaves with a hard kick and bursts with a
   // shockwave ring where it lands, since the salvo has big splash damage.
-  function ventTint(f) { return [lerp(176, 140, f), lerp(178, 142, f), lerp(184, 148, f), 0.42 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)]; }
-  var GAUSS_ARCADE = 1200, GAUSS_CHARGE_FROM = 2700, GAUSS_SALVO = 3500;
+  function ventTint(f) { return rgba(lerp(176, 140, f), lerp(178, 142, f), lerp(184, 148, f), 0.42 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)); }
+  // Gauss's numbers. Times are in ms, lengths in turret widths (tp) unless a name says pixels.
+  var GAUSS = {
+    arcade: 1200, chargeFrom: 2700, salvo: 3500,
+    kick: [0.9, 2.4], kickCap: 2,
+    // each shot flies min(room * reach, tp * widths) in `flight` seconds, grows out of the barrel up to `full` long and `thick` wide (minThick in pixels)
+    arcadeShot: { reach: 0.95, widths: 2.2, flight: 0.2, dx: 0.05, full: 0.17, thick: 0.013, minThick: 1.8 },
+    salvoShot: { reach: 0.88, widths: 2.0, flight: 0.18, dx: 0.07, full: 0.3, thick: 0.027, minThick: 3.4, burstAfter: 180 },
+    boltCap: 4,
+    slug: { halo: '120,80,255', body: '150,115,255', core: '240,232,255' },
+    pulse: { size: 0.06, speed: 60, fade: 0.06 },
+    charge: { halo: [0.03, 0.09, '140,100,255', 0.35, 0.55], core: [0.012, 0.03, '236,226,255', 0.3, 0.6], motes: { radius: 0.13, rgb: [160, 130, 255] } },
+    // the muzzle flash of the arcade shot and of the salvo
+    flash: [
+      { ms: 120, look: { halo: [0.08, '120,80,255', 0.8], core: [0.08 * 0.45, '240,232,255', 0.95], haloDx: 0.04, coreDx: 0.03 } },
+      { ms: 200, look: { halo: [0.15, '120,80,255', 0.8], core: [0.15 * 0.45, '240,232,255', 0.95], haloDx: 0.04, coreDx: 0.03 } }
+    ],
+    // a great deal of long, dense smoke pours up out of the middle of the turret after the salvo: it is very powerful and drains the energy
+    vent: { cap: 560, ms: 900, dx: -0.66, dy: -0.06, jitter: 0.12 },
+    impact: { ms: 600, flashMs: 220, flash: { halo: [0.2, '120,80,255', 0.8], core: [0.09, '240,232,255', 0.95] }, ring: { start: 0.04, grow: 0.2, squash: 0.55, rgb: '160,125,255', alpha: 0.8, width: 0.012 } }
+  };
   recipes.gauss = {
-    shots: [GAUSS_ARCADE, GAUSS_SALVO],
+    shots: [GAUSS.arcade, GAUSS.salvo],
     muzzles: null,
-    recoilFn: function (e) { return Math.min(2, recoilAt(e.t, [GAUSS_ARCADE]) * 0.9 + recoilAt(e.t, [GAUSS_SALVO]) * 2.4); },
+    recoilFn: function (e) { return Math.min(GAUSS.kickCap, recoilAt(e.t, [GAUSS.arcade]) * GAUSS.kick[0] + recoilAt(e.t, [GAUSS.salvo]) * GAUSS.kick[1]); },
     update: function (e, dt) {
-      var tp = e.turretPx, st = e.store, m = e.muzzles[0], b = st.bolts || (st.bolts = bullets.create(4));
-      if (!st.arcade && e.t >= GAUSS_ARCADE) {
+      var G = GAUSS, A = G.arcadeShot, S = G.salvoShot, tp = e.turretPx, st = e.store, m = e.muzzles[0], b = st.bolts || (st.bolts = bullets.create(G.boltCap));
+      if (!st.arcade && e.t >= G.arcade) {
         st.arcade = true;
-        var d1 = Math.min(e.reach * 0.95, tp * 2.2), sp1 = d1 / 0.2;
-        bullets.fire(b, { x: m.x + tp * 0.05, x0: m.x + tp * 0.05, y: m.y, vx: sp1, vy: 0, life: d1 / sp1, len: 0, full: tp * 0.17, th: Math.max(1.8, tp * 0.013) });
+        var d1 = Math.min(e.reach * A.reach, tp * A.widths), sp1 = d1 / A.flight;
+        bullets.fire(b, { x: m.x + tp * A.dx, x0: m.x + tp * A.dx, y: m.y, vx: sp1, vy: 0, life: d1 / sp1, len: 0, full: tp * A.full, th: Math.max(A.minThick, tp * A.thick) });
       }
-      if (!st.salvo && e.t >= GAUSS_SALVO) {
+      if (!st.salvo && e.t >= G.salvo) {
         st.salvo = true;
-        var d2 = Math.min(e.reach * 0.88, tp * 2.0), sp2 = d2 / 0.18;
-        st.impact = { x: m.x + d2, y: m.y, at: GAUSS_SALVO + 180 };
-        bullets.fire(b, { x: m.x + tp * 0.07, x0: m.x + tp * 0.07, y: m.y, vx: sp2, vy: 0, life: d2 / sp2, len: 0, full: tp * 0.3, th: Math.max(3.4, tp * 0.027) });
+        var d2 = Math.min(e.reach * S.reach, tp * S.widths), sp2 = d2 / S.flight;
+        st.impact = { x: m.x + d2, y: m.y, at: G.salvo + S.burstAfter };
+        bullets.fire(b, { x: m.x + tp * S.dx, x0: m.x + tp * S.dx, y: m.y, vx: sp2, vy: 0, life: d2 / sp2, len: 0, full: tp * S.full, th: Math.max(S.minThick, tp * S.thick) });
       }
-      var vent = st.vent || (st.vent = stream.create(560)), vx = m.x - tp * 0.66, vy = m.y - tp * 0.06;
-      // and a great deal of long, dense smoke pours up out of the middle of the turret: the salvo is very powerful and drains the energy
-      if (e.t >= GAUSS_SALVO && e.t < GAUSS_SALVO + 900) stream.emit(vent, { x: vx, y: vy, angle: -1.85, spread: 0.45, speed: [tp * 0.15, tp * 0.55], life: [0.9, 1.4], size: [tp * 0.022, tp * 0.075], rise: tp * 0.08, drag: 0.9, jitter: tp * 0.12 }, 70, dt, e.rand);
-      // a steady breeze from the front pushes the smoke backward as it rises
-      for (var wi = 0; wi < vent.p.length; wi++) vent.p[wi].vx -= tp * 0.45 * dt / 1000;
+      var vent = st.vent || (st.vent = stream.create(G.vent.cap)), vx = m.x + tp * G.vent.dx, vy = m.y + tp * G.vent.dy;
+      windSmoke(vent, tp, dt, e.rand, e.t >= G.salvo && e.t < G.salvo + G.vent.ms ? vx : null, vy, G.vent.jitter);
       bullets.update(b, dt);
       stream.update(vent, dt);
     },
     draw: function (c, e) {
-      var tp = e.turretPx, st = e.store, m = e.muzzles[0];
+      var G = GAUSS, tp = e.turretPx, st = e.store, m = e.muzzles[0];
       if (st.vent) {
         // the smoke is drawn solid so it stays grey instead of glowing
         c.globalCompositeOperation = 'source-over';
@@ -795,40 +897,26 @@
         c.globalCompositeOperation = 'lighter';
       }
       // charging for the salvo
-      var until = GAUSS_SALVO - e.t;
-      if (until > 0 && e.t >= GAUSS_CHARGE_FROM) {
-        var k = 1 - until / (GAUSS_SALVO - GAUSS_CHARGE_FROM);
-        glow(c, m.x, m.y, tp * (0.03 + 0.09 * k), '140,100,255', 0.35 + 0.55 * k);
-        glow(c, m.x, m.y, tp * (0.012 + 0.03 * k), '236,226,255', 0.3 + 0.6 * k);
-        for (var j = 0; j < 12; j++) {
-          var kk = (k * 1.4 + j * 0.083) % 1, rad = tp * 0.13 * (1 - kk), ang = j * 0.52 + kk * 2.2;
-          c.globalAlpha = kk * 0.9;
-          c.drawImage(sprite(160, 130, 255), m.x + Math.cos(ang) * rad - tp * 0.012, m.y + Math.sin(ang) * rad - tp * 0.012, tp * 0.024, tp * 0.024);
-        }
-        c.globalAlpha = 1;
-      }
+      var until = G.salvo - e.t;
+      if (until > 0 && e.t >= G.chargeFrom) drawCharge(c, tp, m, 1 - until / (G.salvo - G.chargeFrom), G.charge);
       if (st.bolts) for (var i = 0; i < st.bolts.p.length; i++) {
         var q = st.bolts.p[i];
         // flat, long slugs that grow out of the barrel, like Shaft's shot but violet
-        drawSlug(c, q.x, q.x - Math.max(1, Math.min(q.full, q.x - q.x0)), q.y, q.th * (1 + 0.06 * Math.sin(q.age * 60 + i)), Math.min(1, (q.life - q.age) / 0.06), { halo: '120,80,255', body: '150,115,255', core: '240,232,255' });
+        drawSlug(c, q.x, q.x - Math.max(1, Math.min(q.full, q.x - q.x0)), q.y, q.th * (1 + G.pulse.size * Math.sin(q.age * G.pulse.speed + i)), Math.min(1, (q.life - q.age) / G.pulse.fade), G.slug);
       }
       // muzzle flashes
-      var shots = [GAUSS_ARCADE, GAUSS_SALVO];
+      var shots = [G.arcade, G.salvo];
       for (var s = 0; s < shots.length; s++) {
-        var age = e.t - shots[s], big = s === 1;
-        if (age >= 0 && age < (big ? 200 : 120)) { var f = 1 - age / (big ? 200 : 120), sz = big ? 0.15 : 0.08; glow(c, m.x + tp * 0.04, m.y, tp * sz, '120,80,255', 0.8 * f); glow(c, m.x + tp * 0.03, m.y, tp * sz * 0.45, '240,232,255', 0.95 * f); }
+        var age = e.t - shots[s], F = G.flash[s];
+        if (age >= 0 && age < F.ms) flashPair(c, tp, m.x, m.y, 1 - age / F.ms, F.look);
       }
       // the salvo's burst: a flash and an expanding shockwave ring where it lands
       if (st.impact) {
-        var ia = e.t - st.impact.at;
-        if (ia >= 0 && ia < 600) {
-          var ik = ia / 600, x = st.impact.x, y = st.impact.y;
-          if (ia < 220) { var fl = 1 - ia / 220; glow(c, x, y, tp * 0.2, '120,80,255', 0.8 * fl); glow(c, x, y, tp * 0.09, '240,232,255', 0.95 * fl); }
-          c.strokeStyle = 'rgba(160,125,255,' + (0.8 * (1 - ik)).toFixed(3) + ')';
-          c.lineWidth = Math.max(1.5, tp * 0.012 * (1 - ik));
-          c.beginPath();
-          c.ellipse(x, y, tp * (0.04 + 0.2 * ik) * 0.55, tp * (0.04 + 0.2 * ik), 0, 0, Math.PI * 2);
-          c.stroke();
+        var I = G.impact, ia = e.t - st.impact.at;
+        if (ia >= 0 && ia < I.ms) {
+          var ik = ia / I.ms, x = st.impact.x, y = st.impact.y, ry = tp * (I.ring.start + I.ring.grow * ik);
+          if (ia < I.flashMs) flashPair(c, tp, x, y, 1 - ia / I.flashMs, I.flash);
+          ringBurst(c, x, y, ry * I.ring.squash, ry, I.ring.rgb, I.ring.alpha, tp * I.ring.width, ik);
         }
       }
     }
@@ -975,25 +1063,70 @@
     c.moveTo(-len * 0.5, th / 2); c.lineTo(-len * 0.62, th * 1.1); c.lineTo(-len * 0.32, th / 2);
     c.fill();
   }
-  function rocketSmokeTint(f) { return [lerp(205, 150, f), lerp(200, 148, f), lerp(195, 148, f), 0.34 * (f < 0.08 ? f / 0.08 : 1 - (f - 0.08) / 0.92)]; }
+  function rocketSmokeTint(f) { return rgba(lerp(205, 150, f), lerp(200, 148, f), lerp(195, 148, f), 0.34 * (f < 0.08 ? f / 0.08 : 1 - (f - 0.08) / 0.92)); }
+
+  // Rockets seen from the side, each with its flight angle: first an exhaust flame behind it (added light), then the solid body on top.
+  // R: { flame, core: [dx, size, rgb, alpha], tongue: { rgb, x, y, w, h }, body: { len, th, nose } }, all in turret widths. A rocket whose
+  // x is not set yet has not moved, so it is skipped.
+  function drawRockets(c, e, rockets, R) {
+    var tp = e.turretPx, i, r;
+    c.globalCompositeOperation = 'lighter';
+    for (i = 0; i < rockets.length; i++) {
+      r = rockets[i];
+      var fl = 1 + 0.2 * Math.sin(e.t * 0.08 + i * 2);
+      if (r.x === undefined) continue;
+      c.save();
+      c.translate(r.x, r.y);
+      c.rotate(r.ang || 0);
+      glow(c, tp * R.flame[0], 0, tp * R.flame[1] * fl, R.flame[2], R.flame[3]);
+      glow(c, tp * R.core[0], 0, tp * R.core[1] * fl, R.core[2], R.core[3]);
+      c.drawImage(sprite(R.tongue.rgb[0], R.tongue.rgb[1], R.tongue.rgb[2]), tp * R.tongue.x * fl, tp * R.tongue.y, tp * R.tongue.w * fl, tp * R.tongue.h);
+      c.restore();
+    }
+    c.globalCompositeOperation = 'source-over';
+    for (i = 0; i < rockets.length; i++) {
+      r = rockets[i];
+      if (r.x === undefined) continue;
+      c.save();
+      c.translate(r.x, r.y);
+      c.rotate(r.ang || 0);
+      drawRocketBody(c, tp * R.body.len, tp * R.body.th, R.body.nose);
+      c.restore();
+    }
+  }
 
   // Striker: a salvo of guided rockets. Ten rockets leave the two pods on the front of the launcher one after another, slowly at first and
   // accelerating, each with a bright exhaust flame and a long grey smoke trail, with a small backblast puff at the pod. Where each
   // rocket reaches the end of its range it bursts. The two pod mouths are measured by eye on the turret picture.
   var STRIKER_SHOTS = [];
   for (var sk = 700; sk <= 2500; sk += 200) STRIKER_SHOTS.push(sk);
-  recipes.striker = {
+  // Striker's numbers. Times are in ms, lengths in turret widths (tp) unless a name says pixels.
+  var STRIKER = {
     shots: STRIKER_SHOTS,
-    muzzles: [[284, 52], [266, 89]],
-    recoilFn: function (e) { return Math.min(1.5, recoilAt(e.t, STRIKER_SHOTS) * 0.55); },
+    muzzles: [[284, 52], [266, 89]],   // the two pod mouths
+    kick: 0.55, kickCap: 1.5,
+    // a rocket leaves a pod, flies min(room * reach, tp * widths) minus `margin` in about `flight` seconds, starting at startSpeed (turret widths a second) and speeding up
+    reach: 0.93, widths: 2.1, margin: 0.12, flight: 0.55, flightSpread: 0.04, startSpeed: 2.2, startDx: 0.14,
+    // it climbs `lift` over liftTime seconds and wobbles a little
+    lift: 0.02, liftTime: 0.3, wobble: 0.004, wobbleSpeed: 22,
+    smoke: { cap: 1900, perSecond: 420, behind: 0.2, spec: { angle: 0, spread: 3.1, speed: [0, 0.05], life: [0.9, 1.4], size: [0.034, 0.1], rise: 0.06, drag: 2, jitter: 0.008 } },
+    blast: { cap: 160, count: 14, spec: { angle: Math.PI, spread: 0.9, speed: [0.1, 0.45], life: [0.4, 0.8], size: [0.03, 0.09], rise: 0.1, drag: 3, jitter: 0.01 } },
+    podFlash: { ms: 110, look: { halo: [0.07, '255,140,40', 0.8], core: [0.03, '255,240,200', 0.95] } },
+    burst: { ms: 600, halo: [0.06, 0.16, '255,120,40', 0.85], coreMs: 200, core: [0.06, '255,240,205', 0.95] },
+    rocket: { flame: [-0.2, 0.12, '255,150,40', 0.9], core: [-0.17, 0.06, '255,240,200', 0.95], tongue: { rgb: [255, 170, 60], x: -0.5, y: -0.03, w: 0.36, h: 0.06 }, body: { len: 0.32, th: 0.088, nose: null } }
+  };
+  recipes.striker = {
+    shots: STRIKER.shots,
+    muzzles: STRIKER.muzzles,
+    recoilFn: function (e) { return Math.min(STRIKER.kickCap, recoilAt(e.t, STRIKER.shots) * STRIKER.kick); },
     update: function (e, dt) {
-      var tp = e.turretPx, st = e.store, d = dt / 1000;
-      var rockets = st.rockets || (st.rockets = []), smoke = st.smoke || (st.smoke = stream.create(1900)), blast = st.blast || (st.blast = stream.create(160)), bursts = st.bursts || (st.bursts = []);
+      var K = STRIKER, tp = e.turretPx, st = e.store, d = dt / 1000;
+      var rockets = st.rockets || (st.rockets = []), smoke = st.smoke || (st.smoke = stream.create(Math.round(K.smoke.cap * e.load))), blast = st.blast || (st.blast = stream.create(K.blast.cap)), bursts = st.bursts || (st.bursts = []);
       st.n = st.n || 0;
-      while (st.n < STRIKER_SHOTS.length && e.t >= STRIKER_SHOTS[st.n]) {
-        var pod = e.muzzles[st.n % 2], dist = Math.min(e.reach * 0.93, tp * 2.1) - tp * 0.12, flight = 0.55 + e.rand() * 0.04, v0 = tp * 2.2;
-        rockets.push({ x: pod.x + tp * 0.14, y: pod.y, x0: pod.x, y0: pod.y, v0: v0, a: 2 * (dist - v0 * flight) / (flight * flight), age: 0, life: flight, ph: e.rand() * 6.28 });
-        stream.emit(blast, { x: pod.x, y: pod.y, angle: Math.PI, spread: 0.9, speed: [tp * 0.1, tp * 0.45], life: [0.4, 0.8], size: [tp * 0.03, tp * 0.09], rise: tp * 0.1, drag: 3, jitter: tp * 0.01 }, 14000 / dt, dt, e.rand);
+      while (st.n < K.shots.length && e.t >= K.shots[st.n]) {
+        var pod = e.muzzles[st.n % 2], dist = Math.min(e.reach * K.reach, tp * K.widths) - tp * K.margin, flight = K.flight + e.rand() * K.flightSpread, v0 = tp * K.startSpeed;
+        rockets.push({ x: pod.x + tp * K.startDx, y: pod.y, x0: pod.x, y0: pod.y, v0: v0, a: 2 * (dist - v0 * flight) / (flight * flight), age: 0, life: flight, ph: e.rand() * 6.28 });
+        spawn(blast, tp, pod.x, pod.y, K.blast.spec, K.blast.count * 1000 / dt, dt, e.rand);
         st.n++;
       }
       for (var i = rockets.length - 1; i >= 0; i--) {
@@ -1001,59 +1134,36 @@
         r.age += d;
         if (r.age >= r.life) { bursts.push({ x: r.x, y: r.y, t: e.t }); rockets.splice(i, 1); continue; }
         r.vx = r.v0 + r.a * r.age;
-        r.x = r.x0 + tp * 0.14 + r.v0 * r.age + 0.5 * r.a * r.age * r.age;
-        r.y = r.y0 - tp * 0.02 * Math.min(1, r.age / 0.3) + tp * 0.004 * Math.sin(r.age * 22 + r.ph);
+        r.x = r.x0 + tp * K.startDx + r.v0 * r.age + 0.5 * r.a * r.age * r.age;
+        r.y = r.y0 - tp * K.lift * Math.min(1, r.age / K.liftTime) + tp * K.wobble * Math.sin(r.age * K.wobbleSpeed + r.ph);
         r.ang = Math.atan2(r.y - (r.py === undefined ? r.y : r.py), Math.max(0.001, r.x - px)) ;
         r.py = r.y;
         // smoke from the tail, spread along the distance moved in this step so the trail has no gaps
-        r.acc = (r.acc || 0) + 420 * d;
-        while (r.acc >= 1) {
-          r.acc -= 1;
-          stream.emit(smoke, { x: r.x - tp * 0.2 - e.rand() * (r.x - px), y: r.y, angle: 0, spread: 3.1, speed: [0, tp * 0.05], life: [0.9, 1.4], size: [tp * 0.034, tp * 0.1], rise: tp * 0.06, drag: 2, jitter: tp * 0.008 }, 1000 / dt, dt, e.rand);
+        for (var due = trailDue(r, K.smoke.perSecond * e.load * d); due > 0; due--) {
+          spawn(smoke, tp, r.x - tp * K.smoke.behind - e.rand() * (r.x - px), r.y, K.smoke.spec, 1000 / dt, dt, e.rand);
         }
       }
-      while (bursts.length && e.t - bursts[0].t > 600) bursts.shift();
+      while (bursts.length && e.t - bursts[0].t > K.burst.ms) bursts.shift();
       stream.update(smoke, dt);
       stream.update(blast, dt);
     },
     draw: function (c, e) {
-      var tp = e.turretPx, st = e.store;
+      var K = STRIKER, tp = e.turretPx, st = e.store;
       c.globalCompositeOperation = 'source-over';
       if (st.smoke) stream.draw(c, st.smoke, rocketSmokeTint);
       if (st.blast) stream.draw(c, st.blast, rocketSmokeTint);
-      c.globalCompositeOperation = 'lighter';
-      var rk = st.rockets || [], i;
-      for (i = 0; i < rk.length; i++) {
-        var r = rk[i], fl = 1 + 0.2 * Math.sin(e.t * 0.08 + i * 2);
-        c.save();
-        c.translate(r.x, r.y);
-        c.rotate(r.ang || 0);
-        // exhaust flame: a hot glow and a short tapered flame behind the tail
-        glow(c, -tp * 0.2, 0, tp * 0.12 * fl, '255,150,40', 0.9);
-        glow(c, -tp * 0.17, 0, tp * 0.06 * fl, '255,240,200', 0.95);
-        c.drawImage(sprite(255, 170, 60), -tp * 0.5 * fl, -tp * 0.03, tp * 0.36 * fl, tp * 0.06);
-        c.restore();
-      }
-      c.globalCompositeOperation = 'source-over';
-      for (i = 0; i < rk.length; i++) {
-        var q = rk[i];
-        c.save();
-        c.translate(q.x, q.y);
-        c.rotate(q.ang || 0);
-        drawRocketBody(c, tp * 0.32, tp * 0.088);
-        c.restore();
-      }
+      drawRockets(c, e, st.rockets || [], K.rocket);
       c.globalCompositeOperation = 'lighter';
       // launch flashes at the pods, and the burst where a rocket reaches the end of its range
-      for (var s = 0; s < STRIKER_SHOTS.length; s++) {
-        var age = e.t - STRIKER_SHOTS[s];
-        if (age >= 0 && age < 110) { var f = 1 - age / 110, pod = e.muzzles[s % 2]; glow(c, pod.x, pod.y, tp * 0.07, '255,140,40', 0.8 * f); glow(c, pod.x, pod.y, tp * 0.03, '255,240,200', 0.95 * f); }
+      for (var s = 0; s < K.shots.length; s++) {
+        var age = e.t - K.shots[s];
+        if (age >= 0 && age < K.podFlash.ms) { var pod = e.muzzles[s % 2]; flashPair(c, tp, pod.x, pod.y, 1 - age / K.podFlash.ms, K.podFlash.look); }
       }
-      var bs = st.bursts || [];
+      var bs = st.bursts || [], B = K.burst, i;
       for (i = 0; i < bs.length; i++) {
-        var ba = e.t - bs[i].t, bk = ba / 600;
-        glow(c, bs[i].x, bs[i].y, tp * (0.06 + 0.16 * bk), '255,120,40', 0.85 * (1 - bk));
-        if (ba < 200) glow(c, bs[i].x, bs[i].y, tp * 0.06, '255,240,205', 0.95 * (1 - ba / 200));
+        var ba = e.t - bs[i].t, bk = ba / B.ms;
+        glow(c, bs[i].x, bs[i].y, tp * (B.halo[0] + B.halo[1] * bk), B.halo[2], B.halo[3] * (1 - bk));
+        if (ba < B.coreMs) glow(c, bs[i].x, bs[i].y, tp * B.core[0], B.core[1], B.core[2] * (1 - ba / B.coreMs));
       }
     }
   };
@@ -1062,25 +1172,41 @@
   // kick. Then two lines of four rockets climb out above the round hatch on top of the turret (the launcher), arcs over and drops onto the ground
   // line far ahead, each landing in a flash, a low shockwave and a puff of dust. Amber exhaust and thick grey smoke trails. The hatch point is
   // measured by eye on the turret picture, and the barrel tip is the default muzzle.
-  var SCORPION_SHELL_AT = 800, SCORPION_SHOTS = [1500, 1620, 1880, 2000, 2260, 2380, 2640, 2760]; // two lines of four, the right line 120 ms behind the left
-  var scorpionShell = shellRecipe({ at: SCORPION_SHELL_AT, flight: 0.5, dist: 2.2, len: 0.13, width: 0.04, head: [255, 226, 130], tail: [255, 120, 30], flash: 0.15, shift: 0.25, flashMs: 170, burst: 62, puff: 1.2, wisp: 62, ring: 0, kick: 2.6, gaussSmoke: true });
-  function dustTint(f) { return [lerp(190, 135, f), lerp(175, 130, f), lerp(155, 125, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)]; }
+  // Scorpion's numbers. Times are in ms, lengths in turret widths (tp) unless a name says pixels.
+  var SCORPION = {
+    shellAt: 800,
+    shots: [1500, 1620, 1880, 2000, 2260, 2380, 2640, 2760],   // two lines of four, the right line 120 ms behind the left
+    muzzles: [[798.6, 90.9], [152, -45], [265, -45]],            // the barrel tip, then the two rocket lines at the hatch
+    // a lob from the hatch: it lands ground.drop above the ground line, reach is [first, per wave, per line] shares of the room ahead of the barrel,
+    // the peak is the larger of peakMin and peakShare of the distance, and every second wave peaks peakWave higher
+    drop: 0.02, reach: [0.74, 0.12, 0.07], flight: 1.25, peakMin: 0.2, peakShare: 0.17, peakWave: 0.15,
+    smoke: { cap: 1200, perSecond: 300, behind: 0.08, spec: { angle: 0, spread: 3.1, speed: [0, 0.04], life: [1.0, 1.5], size: [0.018, 0.055], rise: 0.05, drag: 2, jitter: 0.01 } },
+    blast: { cap: 260, count: 14, spec: { angle: -1.57, spread: 0.5, speed: [0.1, 0.4], life: [0.6, 1.1], size: [0.02, 0.06], rise: 0.1, drag: 3, jitter: 0.012 } },
+    dust: { cap: 300, count: 34, spec: { angle: -1.57, spread: 1.1, speed: [0.1, 0.45], life: [0.8, 1.4], size: [0.02, 0.065], rise: -0.07, drag: 2.5, jitter: 0.035 } },
+    landMs: 700,
+    hatchFlash: { ms: 160, look: { halo: [0.09, '255,160,50', 0.85], core: [0.04, '255,240,200', 0.95] } },
+    landFlash: { ms: 220, look: { halo: [0.13, '255,150,40', 0.85], core: [0.06, '255,240,205', 0.95] } },
+    ring: { rx: [0.04, 0.2], ry: [0.01, 0.035], rgb: '255,190,100', alpha: 0.6, width: 0.012 },
+    rocket: { flame: [-0.08, 0.05, '255,170,50', 0.9], core: [-0.07, 0.025, '255,235,180', 0.95], tongue: { rgb: [255, 190, 70], x: -0.22, y: -0.013, w: 0.16, h: 0.026 }, body: { len: 0.14, th: 0.04, nose: 'rgb(236,160,40)' } }
+  };
+  var scorpionShell = shellRecipe({ at: SCORPION.shellAt, flight: 0.5, dist: 2.2, len: 0.13, width: 0.04, head: [255, 226, 130], tail: [255, 120, 30], flash: 0.15, shift: 0.25, flashMs: 170, burst: 62, puff: 1.2, wisp: 62, ring: 0, kick: 2.6, gaussSmoke: true });
+  function dustTint(f) { return rgba(lerp(190, 135, f), lerp(175, 130, f), lerp(155, 125, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)); }
   recipes.scorpion = {
-    shots: [SCORPION_SHELL_AT],
-    muzzles: [[798.6, 90.9], [152, -45], [265, -45]],
+    shots: [SCORPION.shellAt],
+    muzzles: SCORPION.muzzles,
     recoilFn: function (e) { return scorpionShell.recoilFn(e); },
     update: function (e, dt) {
       scorpionShell.update(e, dt);
-      var tp = e.turretPx, st = e.store, tip = e.muzzles[0], d = dt / 1000;
-      var rockets = st.rockets || (st.rockets = []), smoke = st.smoke || (st.smoke = stream.create(1200)), dust = st.dust || (st.dust = stream.create(300)), blast = st.blast || (st.blast = stream.create(260)), lands = st.lands || (st.lands = []);
-      var gy = e.groundY - tp * 0.02;
+      var K = SCORPION, tp = e.turretPx, st = e.store, tip = e.muzzles[0], d = dt / 1000;
+      var rockets = st.rockets || (st.rockets = []), smoke = st.smoke || (st.smoke = stream.create(Math.round(K.smoke.cap * e.load))), dust = st.dust || (st.dust = stream.create(K.dust.cap)), blast = st.blast || (st.blast = stream.create(K.blast.cap)), lands = st.lands || (st.lands = []);
+      var gy = e.groundY - tp * K.drop;
       st.n = st.n || 0;
-      while (st.n < SCORPION_SHOTS.length && e.t >= SCORPION_SHOTS[st.n]) {
+      while (st.n < K.shots.length && e.t >= K.shots[st.n]) {
         // a lob from the hatch: it climbs to a peak, then drops onto the ground line ahead of the barrel. g follows from the peak height h and the drop D.
         var line = st.n % 2, wave = Math.floor(st.n / 2), m = e.muzzles[1 + line];
-        var dist = tip.x + e.reach * (0.74 + 0.12 * wave / 3 + 0.07 * line) - m.x, T = 1.25, h = Math.max(tp * 0.2, dist * 0.17) * (1 + 0.15 * (wave % 2)), D = gy - m.y, sg = (Math.sqrt(2 * h) + Math.sqrt(2 * h + 2 * D)) / T, g = sg * sg;
+        var dist = tip.x + e.reach * (K.reach[0] + K.reach[1] * wave / 3 + K.reach[2] * line) - m.x, T = K.flight, h = Math.max(tp * K.peakMin, dist * K.peakShare) * (1 + K.peakWave * (wave % 2)), D = gy - m.y, sg = (Math.sqrt(2 * h) + Math.sqrt(2 * h + 2 * D)) / T, g = sg * sg;
         rockets.push({ x0: m.x, y0: m.y, vx: dist / T, vy0: -Math.sqrt(2 * g * h), g: g, age: 0, life: T, ph: e.rand() * 6.28 });
-        stream.emit(blast, { x: m.x, y: m.y, angle: -1.57, spread: 0.5, speed: [tp * 0.1, tp * 0.4], life: [0.6, 1.1], size: [tp * 0.02, tp * 0.06], rise: tp * 0.1, drag: 3, jitter: tp * 0.012 }, 14000 / dt, dt, e.rand);
+        spawn(blast, tp, m.x, m.y, K.blast.spec, K.blast.count * 1000 / dt, dt, e.rand);
         st.n++;
       }
       for (var i = rockets.length - 1; i >= 0; i--) {
@@ -1088,70 +1214,42 @@
         r.age += d;
         if (r.age >= r.life) {
           lands.push({ x: r.x, t: e.t });
-          stream.emit(dust, { x: r.x, y: gy, angle: -1.57, spread: 1.1, speed: [tp * 0.1, tp * 0.45], life: [0.8, 1.4], size: [tp * 0.02, tp * 0.065], rise: -tp * 0.07, drag: 2.5, jitter: tp * 0.035 }, 34000 / dt, dt, e.rand);
+          spawn(dust, tp, r.x, gy, K.dust.spec, K.dust.count * 1000 / dt, dt, e.rand);
           rockets.splice(i, 1);
           continue;
         }
         r.x = r.x0 + r.vx * r.age;
         r.y = r.y0 + r.vy0 * r.age + 0.5 * r.g * r.age * r.age;
         r.ang = Math.atan2(r.y - py, Math.max(0.001, r.x - px));
-        r.acc = (r.acc || 0) + 300 * d;
-        while (r.acc >= 1) {
-          r.acc -= 1;
+        for (var due = trailDue(r, K.smoke.perSecond * e.load * d); due > 0; due--) {
           var back = e.rand();
-          stream.emit(smoke, { x: r.x - Math.cos(r.ang) * tp * 0.08 - back * (r.x - px), y: r.y - Math.sin(r.ang) * tp * 0.08 - back * (r.y - py), angle: 0, spread: 3.1, speed: [0, tp * 0.04], life: [1.0, 1.5], size: [tp * 0.018, tp * 0.055], rise: tp * 0.05, drag: 2, jitter: tp * 0.01 }, 1000 / dt, dt, e.rand);
+          spawn(smoke, tp, r.x - Math.cos(r.ang) * tp * K.smoke.behind - back * (r.x - px), r.y - Math.sin(r.ang) * tp * K.smoke.behind - back * (r.y - py), K.smoke.spec, 1000 / dt, dt, e.rand);
         }
       }
-      while (lands.length && e.t - lands[0].t > 700) lands.shift();
+      while (lands.length && e.t - lands[0].t > K.landMs) lands.shift();
       stream.update(smoke, dt);
       stream.update(dust, dt);
       stream.update(blast, dt);
     },
     draw: function (c, e) {
       scorpionShell.draw(c, e);
-      var tp = e.turretPx, st = e.store, i;
+      var K = SCORPION, tp = e.turretPx, st = e.store, i;
       c.globalCompositeOperation = 'source-over';
       if (st.smoke) stream.draw(c, st.smoke, rocketSmokeTint);
       if (st.blast) stream.draw(c, st.blast, rocketSmokeTint);
       if (st.dust) stream.draw(c, st.dust, dustTint);
-      c.globalCompositeOperation = 'lighter';
-      var rk = st.rockets || [];
-      for (i = 0; i < rk.length; i++) {
-        var r = rk[i], fl = 1 + 0.2 * Math.sin(e.t * 0.08 + i * 2);
-        if (r.x === undefined) continue;
-        c.save();
-        c.translate(r.x, r.y);
-        c.rotate(r.ang || 0);
-        glow(c, -tp * 0.08, 0, tp * 0.05 * fl, '255,170,50', 0.9);
-        glow(c, -tp * 0.07, 0, tp * 0.025 * fl, '255,235,180', 0.95);
-        c.drawImage(sprite(255, 190, 70), -tp * 0.22 * fl, -tp * 0.013, tp * 0.16 * fl, tp * 0.026);
-        c.restore();
-      }
-      c.globalCompositeOperation = 'source-over';
-      for (i = 0; i < rk.length; i++) {
-        var q = rk[i];
-        if (q.x === undefined) continue;
-        c.save();
-        c.translate(q.x, q.y);
-        c.rotate(q.ang || 0);
-        drawRocketBody(c, tp * 0.14, tp * 0.04, 'rgb(236,160,40)');
-        c.restore();
-      }
+      drawRockets(c, e, st.rockets || [], K.rocket);
       c.globalCompositeOperation = 'lighter';
       // the launch flash at the hatch, and the landings
-      for (var sIdx = 0; sIdx < SCORPION_SHOTS.length; sIdx++) {
-        var age = e.t - SCORPION_SHOTS[sIdx];
-        if (age >= 0 && age < 160) { var f = 1 - age / 160, hm = e.muzzles[1 + sIdx % 2]; glow(c, hm.x, hm.y, tp * 0.09, '255,160,50', 0.85 * f); glow(c, hm.x, hm.y, tp * 0.04, '255,240,200', 0.95 * f); }
+      for (var sIdx = 0; sIdx < K.shots.length; sIdx++) {
+        var age = e.t - K.shots[sIdx];
+        if (age >= 0 && age < K.hatchFlash.ms) { var hm = e.muzzles[1 + sIdx % 2]; flashPair(c, tp, hm.x, hm.y, 1 - age / K.hatchFlash.ms, K.hatchFlash.look); }
       }
-      var gy = e.groundY - tp * 0.02, ls = st.lands || [];
+      var gy = e.groundY - tp * K.drop, ls = st.lands || [], R = K.ring;
       for (i = 0; i < ls.length; i++) {
-        var la = e.t - ls[i].t, k = la / 700;
-        if (la < 220) { var fl2 = 1 - la / 220; glow(c, ls[i].x, gy, tp * 0.13, '255,150,40', 0.85 * fl2); glow(c, ls[i].x, gy, tp * 0.06, '255,240,205', 0.95 * fl2); }
-        c.strokeStyle = 'rgba(255,190,100,' + (0.6 * (1 - k)).toFixed(3) + ')';
-        c.lineWidth = Math.max(1.5, tp * 0.012 * (1 - k));
-        c.beginPath();
-        c.ellipse(ls[i].x, gy, tp * (0.04 + 0.2 * k), tp * (0.01 + 0.035 * k), 0, 0, Math.PI * 2);
-        c.stroke();
+        var la = e.t - ls[i].t, k = la / K.landMs;
+        if (la < K.landFlash.ms) flashPair(c, tp, ls[i].x, gy, 1 - la / K.landFlash.ms, K.landFlash.look);
+        ringBurst(c, ls[i].x, gy, tp * (R.rx[0] + R.rx[1] * k), tp * (R.ry[0] + R.ry[1] * k), R.rgb, R.alpha, tp * R.width, k);
       }
     }
   };
@@ -1164,45 +1262,50 @@
   // Magnum: the barrel is level, so it fires like Thunder: a heavy shell flies straight out of the barrel, with a huge flash, Gauss-style grey
   // wind-blown smoke at the barrel tip and a hard kick, but where Thunder's shell just fades out the Magnum shell bursts at the end of its range, for its very
   // large splash: a big flash, a round shockwave, fast sparks and a lingering cloud. Two shells a loop, with a long reload between them.
-  var MAGNUM_SHOTS = [1000, 2900], MAGNUM_FLIGHT = 0.7, MAGNUM_DIST = 2.2;
-  function magnumDustTint(f) { return [lerp(200, 140, f), lerp(185, 135, f), lerp(160, 128, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)]; }
-  function magnumSparkTint(f) { return [255, lerp(200, 80, f), lerp(80, 20, f), 1 - f]; }
-  var magnumShell = shellRecipe({ times: MAGNUM_SHOTS, flight: MAGNUM_FLIGHT, dist: MAGNUM_DIST, len: 0.2, width: 0.05, head: [255, 214, 120], tail: [235, 90, 20], flash: 0.2, shift: 0.6, flashMs: 210, burst: 100, puff: 1.6, wisp: 100, ring: 0, kick: 3.2, gaussSmoke: true });
+  // Magnum's numbers. Times are in ms, lengths in turret widths (tp) unless a name says pixels.
+  var MAGNUM = {
+    shots: [1000, 2900], flight: 0.7, dist: 2.2, reach: 0.95,
+    sparks: { cap: 220, count: 60, spec: { angle: 0, spread: 3.14, speed: [0.4, 1.4], life: [0.3, 0.7], size: [0.012, 0.004], drag: 1.6, jitter: 0.03 } },
+    dust: { cap: 300, count: 50, spec: { angle: 0, spread: 3.14, speed: [0.1, 0.5], life: [0.9, 1.4], size: [0.04, 0.12], rise: 0.04, drag: 2.2, jitter: 0.07 } },
+    burstMs: 800,
+    flash: { ms: 260, look: { halo: [0.28, '255,140,40', 0.85], core: [0.12, '255,240,205', 0.95] } },
+    ring: { start: 0.05, grow: 0.3, rgb: '255,200,120', alpha: 0.7, width: 0.016 }
+  };
+  function magnumDustTint(f) { return rgba(lerp(200, 140, f), lerp(185, 135, f), lerp(160, 128, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)); }
+  function magnumSparkTint(f) { return rgba(255, lerp(200, 80, f), lerp(80, 20, f), 1 - f); }
+  var magnumShell = shellRecipe({ times: MAGNUM.shots, flight: MAGNUM.flight, dist: MAGNUM.dist, len: 0.2, width: 0.05, head: [255, 214, 120], tail: [235, 90, 20], flash: 0.2, shift: 0.6, flashMs: 210, burst: 100, puff: 1.6, wisp: 100, ring: 0, kick: 3.2, gaussSmoke: true });
   recipes.magnum = {
-    shots: MAGNUM_SHOTS,
+    shots: MAGNUM.shots,
     muzzles: null,
     recoilFn: function (e) { return magnumShell.recoilFn(e); },
     update: function (e, dt) {
       magnumShell.update(e, dt);
-      var tp = e.turretPx, st = e.store, m = e.muzzles[0];
-      var sparks = st.sparks || (st.sparks = stream.create(220)), dust = st.dust || (st.dust = stream.create(300));
+      var K = MAGNUM, tp = e.turretPx, st = e.store, m = e.muzzles[0];
+      var sparks = st.sparks || (st.sparks = stream.create(K.sparks.cap)), dust = st.dust || (st.dust = stream.create(K.dust.cap));
       st.nb = st.nb || 0;
-      while (st.nb < MAGNUM_SHOTS.length && e.t >= MAGNUM_SHOTS[st.nb] + MAGNUM_FLIGHT * 1000) {
-        var x = m.x + Math.min(e.reach * 0.95, tp * MAGNUM_DIST);
-        (st.bursts || (st.bursts = [])).push({ x: x, y: m.y, t: MAGNUM_SHOTS[st.nb] + MAGNUM_FLIGHT * 1000 });
-        stream.emit(sparks, { x: x, y: m.y, angle: 0, spread: 3.14, speed: [tp * 0.4, tp * 1.4], life: [0.3, 0.7], size: [tp * 0.012, tp * 0.004], drag: 1.6, jitter: tp * 0.03 }, 60000 / dt, dt, e.rand);
-        stream.emit(dust, { x: x, y: m.y, angle: 0, spread: 3.14, speed: [tp * 0.1, tp * 0.5], life: [0.9, 1.4], size: [tp * 0.04, tp * 0.12], rise: tp * 0.04, drag: 2.2, jitter: tp * 0.07 }, 50000 / dt, dt, e.rand);
+      while (st.nb < K.shots.length && e.t >= K.shots[st.nb] + K.flight * 1000) {
+        var x = m.x + Math.min(e.reach * K.reach, tp * K.dist);
+        (st.bursts || (st.bursts = [])).push({ x: x, y: m.y, t: K.shots[st.nb] + K.flight * 1000 });
+        spawn(sparks, tp, x, m.y, K.sparks.spec, K.sparks.count * 1000 / dt, dt, e.rand);
+        spawn(dust, tp, x, m.y, K.dust.spec, K.dust.count * 1000 / dt, dt, e.rand);
         st.nb++;
       }
       stream.update(sparks, dt);
       stream.update(dust, dt);
     },
     draw: function (c, e) {
-      var tp = e.turretPx, st = e.store, bs = st.bursts || [], i;
+      var K = MAGNUM, tp = e.turretPx, st = e.store, bs = st.bursts || [], i;
       c.globalCompositeOperation = 'source-over';
       if (st.dust) stream.draw(c, st.dust, magnumDustTint);
       c.globalCompositeOperation = 'lighter';
       magnumShell.draw(c, e);
       if (st.sparks) stream.draw(c, st.sparks, magnumSparkTint);
       for (i = 0; i < bs.length; i++) {
-        var la = e.t - bs[i].t, k = la / 800;
-        if (la < 0 || la > 800) continue;
-        if (la < 260) { var fl = 1 - la / 260; glow(c, bs[i].x, bs[i].y, tp * 0.28, '255,140,40', 0.85 * fl); glow(c, bs[i].x, bs[i].y, tp * 0.12, '255,240,205', 0.95 * fl); }
-        c.strokeStyle = 'rgba(255,200,120,' + (0.7 * (1 - k)).toFixed(3) + ')';
-        c.lineWidth = Math.max(1.5, tp * 0.016 * (1 - k));
-        c.beginPath();
-        c.arc(bs[i].x, bs[i].y, tp * (0.05 + 0.3 * k), 0, Math.PI * 2);
-        c.stroke();
+        var la = e.t - bs[i].t, k = la / K.burstMs;
+        if (la < 0 || la > K.burstMs) continue;
+        if (la < K.flash.ms) flashPair(c, tp, bs[i].x, bs[i].y, 1 - la / K.flash.ms, K.flash.look);
+        var r = tp * (K.ring.start + K.ring.grow * k);
+        ringBurst(c, bs[i].x, bs[i].y, r, r, K.ring.rgb, K.ring.alpha, tp * K.ring.width, k);
       }
     }
   };
@@ -1221,9 +1324,19 @@
 
   /* ---------- geometry ---------- */
 
+  function compactScreen() {
+    return document.documentElement.clientWidth <= COMPACT_WIDTH || !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  }
+
   function sizeCanvas() {
-    var r = canvas.getBoundingClientRect();
-    dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    // what is past the right edge of the screen cannot be seen, so the canvas stops there instead of being filled for nothing
+    canvas.style.width = '';
+    var r = canvas.getBoundingClientRect(), screenRight = document.documentElement.clientWidth;
+    if (r.right > screenRight + 1) {
+      canvas.style.width = Math.max(1, screenRight - r.left) + 'px';
+      r = canvas.getBoundingClientRect();
+    }
+    dpr = Math.min(window.devicePixelRatio || 1, compactScreen() ? COMPACT_DPR : MAX_DPR);
     canvas.width = Math.max(1, Math.round(r.width * dpr));
     canvas.height = Math.max(1, Math.round(r.height * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1241,6 +1354,9 @@
     env.turretPx = tu.w * unit;
     env.w = cr.width;
     env.h = cr.height;
+    // judged from the hero frame and not the canvas, so cutting the canvas down never changes how many particles a recipe allows
+    env.small = frame.getBoundingClientRect().width * 1.5 < 520;
+    env.load = compactScreen() ? COMPACT_LOAD : 1;
     env.groundY = oy + rr.height;
     // the page can cut the canvas off at the screen edge, so the room to the right is what is actually visible
     env.reach = Math.min(cr.right, document.documentElement.clientWidth) - cr.left - env.muzzles[0].x;
@@ -1263,7 +1379,8 @@
   }
 
   function advance(dt) {
-    while (dt > 0) { var s = Math.min(STEP_MS, dt); step(s); dt -= s; }
+    owed += dt;
+    while (owed >= STEP_MS) { step(STEP_MS); owed -= STEP_MS; }
   }
 
   function paint() {
@@ -1289,7 +1406,7 @@
 
   /* ---------- lifecycle ---------- */
 
-  function shouldRun() { return !!tank && onScreen && !document.hidden && !reducedMotion && frozenAt === null; }
+  function shouldRun() { return !!tank && !waitingForLayout && onScreen && !document.hidden && !reducedMotion && frozenAt === null; }
 
   function tick(now) {
     rafId = 0;
@@ -1305,6 +1422,7 @@
     var want = shouldRun();
     if (want && !running) {
       running = true;
+      owed = 0;
       lastNow = performance.now();
       rafId = requestAnimationFrame(tick);
     } else if (!want && running) {
@@ -1330,23 +1448,52 @@
     })(t0);
   }
 
+  // Starts a fresh cycle for the current tank. Needs a computed env.
+  function begin(changedTurret) {
+    startCycle(0);
+    owed = 0;
+    if (frozenAt !== null) { simulateTo(frozenAt); return; }
+    if (reducedMotion) { if (changedTurret) flashOnce(); return; }
+    clearCanvas();
+    sync();
+  }
+
   function rebuild() {
     if (!canvas) return;
     sizeCanvas();
-    if (!tank || !computeEnv()) return;
-    if (frozenAt !== null) simulateTo(frozenAt);
+    if (!tank) return;
+    var before = { w: env.w, h: env.h, unit: env.unit };
+    if (!computeEnv()) return;
+    if (waitingForLayout) { waitingForLayout = false; begin(true); return; }
+    // particles are stored in pixels, so a real size change would leave them in the wrong place: start the shot again
+    var resized = Math.abs(env.w - before.w) > 0.5 || Math.abs(env.h - before.h) > 0.5 || Math.abs(env.unit - before.unit) > 0.0005;
+    if (resized) begin(false);
+    else if (frozenAt !== null) simulateTo(frozenAt);
+  }
+
+  function onMotionChange(event) {
+    reducedMotion = event.matches;
+    if (!tank) return;
+    if (reducedMotion) {
+      sync();
+      clearCanvas();
+      applyRecoil(0);
+    } else if (env.w) {
+      begin(false);
+    }
   }
 
   /* ---------- public API ---------- */
 
   window.TankFx = {
     recipes: recipes,
-    helpers: { glow: glow, drawFlash: drawFlash, lerp: lerp, ramp: ramp, sprite: sprite, stream: stream, bullets: bullets },
+    cycleMs: CYCLE_MS,
+    helpers: { glow: glow, drawFlash: drawFlash, lerp: lerp, ramp: ramp, sprite: sprite, stream: stream, bullets: bullets, drawBall: drawBall, drawSlug: drawSlug, drawBeam: drawBeam, shellRecipe: shellRecipe },
 
     init: function (opts) {
       frame = opts.frame; real = opts.real; canvas = opts.canvas;
       ctx = canvas.getContext('2d');
-      env = { t: 0, cycle: 0, store: {}, rand: makeRand(13), muzzles: [], unit: 1, turretPx: 100, w: 0, h: 0, groundY: 0, reach: 0 };
+      env = { t: 0, cycle: 0, store: {}, rand: makeRand(13), muzzles: [], unit: 1, turretPx: 100, w: 0, h: 0, groundY: 0, reach: 0, small: false, load: 1 };
       recipe = generic;
       if (window.ResizeObserver) {
         var ro = new ResizeObserver(function () { rebuild(); });
@@ -1358,6 +1505,7 @@
       }
       document.addEventListener('visibilitychange', sync);
       window.addEventListener('resize', rebuild);
+      if (motionQuery && motionQuery.addEventListener) motionQuery.addEventListener('change', onMotionChange);
     },
 
     // Call after the hero shows a new tank. turretEl is the element that recoils.
@@ -1369,17 +1517,14 @@
       recipe = recipeFor(info.id);
       if (info.turretEl) info.turretEl.style.transform = '';
       sizeCanvas();
-      if (!computeEnv()) return;
-      startCycle(0);
-      if (frozenAt !== null) { simulateTo(frozenAt); return; }
-      if (reducedMotion) { if (changedTurret) flashOnce(); return; }
-      clearCanvas();
-      sync();
+      waitingForLayout = !computeEnv();
+      if (!waitingForLayout) begin(changedTurret);
     },
 
     // Call when the hero shows the fallback drawing instead of the real images.
     clear: function () {
       tank = null;
+      waitingForLayout = false;
       sync();
       clearCanvas();
     },
