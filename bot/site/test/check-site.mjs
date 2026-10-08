@@ -444,6 +444,27 @@ async function checkHelpersExported(browser, base) {
   await context.close();
 }
 
+async function checkSpriteCache(browser, base) {
+  const { page, context } = await openPage(browser, base, '?tank=hammer,viking', { viewport: { width: 1280, height: 800 } });
+  const problems = [];
+  const result = await page.evaluate(() => {
+    const sprite = window.TankFx.helpers.sprite;
+    const first = sprite(10, 20, 30);
+    const reused = sprite(12, 18, 28) === first;
+    const bucketed = sprite(255, 0, 0) === sprite(250, 5, 3);
+    for (let i = 0; i < 450; i++) sprite((i % 17) * 16, (Math.floor(i / 17) % 17) * 16, (Math.floor(i / 289) % 17) * 16);
+    const flushed = sprite(10, 20, 30) !== first;
+    const again = sprite(10, 20, 30);
+    return { reused, bucketed, flushed, size: [again.width, again.height] };
+  });
+  if (!result.reused) problems.push('two colours in the same bucket did not share a sprite');
+  if (!result.bucketed) problems.push('colours that round to the same levels did not share a sprite');
+  if (!result.flushed) problems.push('the cache kept every sprite after 450 different colours, so it is not bounded');
+  if (result.size.join() !== '64,64') problems.push(`sprite size is ${result.size.join('x')}`);
+  record('the sprite cache reuses sprites and stays bounded', problems);
+  await context.close();
+}
+
 async function checkScrapeTimeMirrorsCron() {
   const problems = [];
   const html = await readFile(join(HERE, '..', 'index.html'), 'utf8');
@@ -477,6 +498,28 @@ async function reportCost(browser, base) {
   }
 }
 
+const sumSelfSize = (node) => node.selfSize + node.children.reduce((sum, child) => sum + sumSelfSize(child), 0);
+
+async function reportAllocations(browser, base) {
+  console.log('\nMemory allocated per animation frame, collected objects included (informational, no threshold)');
+  for (const turret of HEAVY) {
+    const { page, context } = await openPage(browser, base, `?tank=${turret},hunter`, { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
+    await page.evaluate(() => {
+      window.__count = 0;
+      const raf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = (cb) => raf((ts) => { window.__count++; cb(ts); });
+    });
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('HeapProfiler.enable');
+    await cdp.send('HeapProfiler.startSampling', { samplingInterval: 512, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
+    await pause(COST_RUN_MS);
+    const { profile } = await cdp.send('HeapProfiler.stopSampling');
+    const frames = await page.evaluate(() => window.__count);
+    console.log(`  ${turret.padEnd(9)} ${(sumSelfSize(profile.head) / 1024 / (frames || 1)).toFixed(1)} KB per frame   ${frames} frames`);
+    await context.close();
+  }
+}
+
 const { server, base } = await serve();
 const browser = await chromium.launch();
 try {
@@ -494,7 +537,8 @@ try {
   await checkReducedMotionToggle(browser, base);
   await checkResize(browser, base);
   await checkHelpersExported(browser, base);
-  if (!skipCost) await reportCost(browser, base);
+  await checkSpriteCache(browser, base);
+  if (!skipCost) { await reportCost(browser, base); await reportAllocations(browser, base); }
 } finally {
   await browser.close();
   server.close();

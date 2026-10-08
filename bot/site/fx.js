@@ -70,22 +70,32 @@
   }
 
   // A soft round sprite per tint, drawn instead of building a gradient for every particle.
-  var sprites = {};
+  // Each channel is rounded to one of 17 levels (0, 16 ... 240, 255), so a sprite is found by a number and nothing is built per call.
+  // The cache is cleared when it holds too many sprites (every effect together uses far fewer), so it can never grow without limit.
+  var sprites = [], spriteCount = 0, SPRITE_LIMIT = 400;
+  function level(v) { var n = Math.round(v / 16); return n < 0 ? 0 : n > 16 ? 16 : n; }
   function sprite(r, g, b) {
-    var q = function (v) { return Math.max(0, Math.min(255, Math.round(v / 16) * 16)); };
-    var key = q(r) + ',' + q(g) + ',' + q(b);
-    if (sprites[key]) return sprites[key];
+    var ri = level(r), gi = level(g), bi = level(b), key = (ri * 17 + gi) * 17 + bi;
+    var cached = sprites[key];
+    if (cached) return cached;
+    if (spriteCount >= SPRITE_LIMIT) { sprites = []; spriteCount = 0; }
+    var rgb = Math.min(255, ri * 16) + ',' + Math.min(255, gi * 16) + ',' + Math.min(255, bi * 16);
     var s = document.createElement('canvas');
     s.width = s.height = 64;
     var x = s.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, 'rgba(' + key + ',1)');
-    gr.addColorStop(0.45, 'rgba(' + key + ',0.55)');
-    gr.addColorStop(1, 'rgba(' + key + ',0)');
+    gr.addColorStop(0, 'rgba(' + rgb + ',1)');
+    gr.addColorStop(0.45, 'rgba(' + rgb + ',0.55)');
+    gr.addColorStop(1, 'rgba(' + rgb + ',0)');
     x.fillStyle = gr;
     x.fillRect(0, 0, 64, 64);
     sprites[key] = s;
+    spriteCount++;
     return s;
   }
+
+  // What a tint function returns. One array is reused for every call, so the caller must read it before calling a tint again.
+  var tintOut = [0, 0, 0, 0];
+  function rgba(r, g, b, a) { tintOut[0] = r; tintOut[1] = g; tintOut[2] = b; tintOut[3] = a; return tintOut; }
 
   // The particle stream: a cone of soft particles that move, grow and fade. Used for flames, mist and smoke.
   // cfg: x, y (origin), angle, spread (radians, either side), speed [min,max] px/s, life [min,max] s,
@@ -109,16 +119,19 @@
       }
     },
     update: function (s, dtMs) {
-      var dt = dtMs / 1000;
-      for (var i = s.p.length - 1; i >= 0; i--) {
-        var q = s.p[i];
+      // survivors are moved down in one pass, which keeps their drawing order (smoke is drawn with source-over, so the order shows)
+      var dt = dtMs / 1000, p = s.p, kept = 0;
+      for (var i = 0; i < p.length; i++) {
+        var q = p[i];
         q.age += dt;
-        if (q.age >= q.life) { s.p.splice(i, 1); continue; }
+        if (q.age >= q.life) continue;
         q.vy -= q.rise * dt;
         if (q.drag) { var d = Math.exp(-q.drag * dt); q.vx *= d; q.vy *= d; }
         q.x += q.vx * dt;
         q.y += q.vy * dt;
+        p[kept++] = q;
       }
+      p.length = kept;
     },
     // tint(f, seed) gets the particle's age as 0..1 and returns [r, g, b, alpha]
     draw: function (c, s, tint) {
@@ -137,14 +150,16 @@
     create: function (cap) { return { p: [], cap: cap }; },
     fire: function (s, b) { if (s.p.length < s.cap) { b.age = 0; s.p.push(b); } },
     update: function (s, dtMs) {
-      var dt = dtMs / 1000;
-      for (var i = s.p.length - 1; i >= 0; i--) {
-        var b = s.p[i];
+      var dt = dtMs / 1000, p = s.p, kept = 0;
+      for (var i = 0; i < p.length; i++) {
+        var b = p[i];
         b.age += dt;
-        if (b.age >= b.life) { s.p.splice(i, 1); continue; }
+        if (b.age >= b.life) continue;
         b.x += b.vx * dt;
         b.y += b.vy * dt;
+        p[kept++] = b;
       }
+      p.length = kept;
     },
     draw: function (c, s) {
       c.lineCap = 'round';
@@ -193,7 +208,7 @@
     if (f < 0.3) { k = f / 0.3; r = 255; g = lerp(246, 170, k); b = lerp(190, 50, k); }
     else if (f < 0.7) { k = (f - 0.3) / 0.4; r = 255; g = lerp(170, 95, k); b = lerp(50, 20, k); }
     else { k = (f - 0.7) / 0.3; r = lerp(255, 150, k); g = lerp(95, 25, k); b = lerp(20, 10, k); }
-    return [r, g, b, (f < 0.12 ? f / 0.12 : (1 - f) / 0.88) * 0.8];
+    return rgba(r, g, b, (f < 0.12 ? f / 0.12 : (1 - f) / 0.88) * 0.8);
   }
   recipes.firebird = {
     shots: [],
@@ -220,7 +235,7 @@
     // deep blue at the nozzle, getting lighter with age (and so with distance), never pure white
     if (f < 0.5) { k = f / 0.5; r = lerp(25, 105, k); g = lerp(115, 190, k); b = lerp(225, 255, k); }
     else { k = (f - 0.5) / 0.5; r = lerp(105, 170, k); g = lerp(190, 225, k); b = 255; }
-    return [r, g, b, (f < 0.07 ? f / 0.07 : (1 - f) / 0.93) * 0.5];
+    return rgba(r, g, b, (f < 0.07 ? f / 0.07 : (1 - f) / 0.93) * 0.5);
   }
   recipes.freeze = {
     shots: [],
@@ -262,7 +277,7 @@
   // Vulcan: a rapid stream of yellow tracers from across the barrel cluster, spinning up to speed, with a flickering
   // flash and a light steady shake instead of a single kick. After two seconds of firing it overheats: the barrel cluster glows red-hot,
   // glowing embers drift off it, and Gauss-style grey wind-blown smoke vents from the middle of the turret. It cools after the burst.
-  function heatEmberTint(f) { return [255, lerp(170, 50, f), lerp(60, 15, f), 0.9 * (1 - f)]; }
+  function heatEmberTint(f) { return rgba(255, lerp(170, 50, f), lerp(60, 15, f), 0.9 * (1 - f)); }
   recipes.vulcan = {
     shots: [],
     muzzles: null,
@@ -345,7 +360,7 @@
   // tint: { halo, body, core } as [r, g, b]. Railgun and Shaft share it.
   function drawBeam(c, x, y, len, width, a, tint) {
     if (a <= 0 || len <= 0) return;
-    var N = 60, dpr = c.getTransform().a || 1;
+    var N = 60;
     var layers = [[width * 7, tint.halo, 0.4], [width * 2.4, tint.body, 0.85], [width * 0.7, tint.core, 1]];
     for (var l = 0; l < layers.length; l++) {
       var h = layers[l][0], col = layers[l][1].join(','), base = layers[l][2];
@@ -388,9 +403,9 @@
   // Grey gun smoke: warm and a little dense at first, cooling to grey, fading out. Drawn with source-over so it stays grey.
   function smokeTint(f) {
     var a = f < 0.12 ? f / 0.12 * 0.5 : 0.5 * (1 - (f - 0.12) / 0.88);
-    return [lerp(200, 120, f), lerp(180, 120, f), lerp(155, 125, f), a];
+    return rgba(lerp(200, 120, f), lerp(180, 120, f), lerp(155, 125, f), a);
   }
-  function trailTint(f) { return [150, 145, 140, 0.17 * (1 - f)]; }
+  function trailTint(f) { return rgba(150, 145, 140, 0.17 * (1 - f)); }
   function drawSmoke(c, s, trail, tint) {
     c.globalCompositeOperation = 'source-over';
     stream.draw(c, s, tint || smokeTint);
@@ -480,7 +495,7 @@
   // puff), then a pause while it reloads and the five spent shells pop out of the top of the turret and fall.
   // The muzzle points are measured by eye on the turret picture: the two barrels stacked in the cap, then the ejection port.
   var HAMMER_VOLLEYS = [900, 1230, 1560, 1890, 2220], HAMMER_EJECT = [2700, 2960, 3220, 3480, 3740];
-  function sparkTint(f) { return [255, lerp(225, 120, f), lerp(90, 30, f), 1 - f]; }
+  function sparkTint(f) { return rgba(255, lerp(225, 120, f), lerp(90, 30, f), 1 - f); }
   recipes.hammer = {
     shots: HAMMER_VOLLEYS,
     muzzles: [[484, 58], [484, 84], [240, 28]],
@@ -573,14 +588,11 @@
         st.n++;
       }
       bullets.update(b, dt);
+      for (var i = 0; i < b.p.length; i++) b.p[i].r = Math.max(4, tp * 0.032) * (1 + 0.1 * Math.sin(b.p[i].age * 50));
     },
     draw: function (c, e) {
       var tp = e.turretPx;
-      if (e.store.balls) for (var i = 0; i < e.store.balls.p.length; i++) {
-        var q = e.store.balls.p[i];
-        q.r = Math.max(4, tp * 0.032) * (1 + 0.1 * Math.sin(q.age * 50));
-        drawBall(c, q);
-      }
+      if (e.store.balls) for (var i = 0; i < e.store.balls.p.length; i++) drawBall(c, e.store.balls.p[i]);
       for (var k = 0; k < TWINS_SHOTS.length; k++) {
         var age = e.t - TWINS_SHOTS[k];
         if (age >= 0 && age < 110) { var f = 1 - age / 110, mz = e.muzzles[k % 2]; glow(c, mz.x, mz.y, tp * 0.07, '70,255,180', 0.8 * f); glow(c, mz.x, mz.y, tp * 0.035, '225,255,245', 0.9 * f); }
@@ -593,8 +605,8 @@
   var RICO_SHOTS = [];
   for (var rs = 800; rs <= 2900; rs += 300) RICO_SHOTS.push(rs);
   var RICO_TILT = 0.21; // the plate leans this many radians to the right at the top
-  function emberTint(f) { return [255, lerp(150, 50, f), lerp(40, 10, f), 0.6 * (1 - f)]; }
-  function sparkOrangeTint(f) { return [255, lerp(210, 90, f), lerp(80, 20, f), 1 - f]; }
+  function emberTint(f) { return rgba(255, lerp(150, 50, f), lerp(40, 10, f), 0.6 * (1 - f)); }
+  function sparkOrangeTint(f) { return rgba(255, lerp(210, 90, f), lerp(80, 20, f), 1 - f); }
   recipes.ricochet = {
     shots: RICO_SHOTS,
     muzzles: null,
@@ -607,7 +619,7 @@
       while (st.n < RICO_SHOTS.length && e.t >= RICO_SHOTS[st.n]) {
         st.n++;
         var speed = (st.wallX - m.x) / 0.42;
-        balls.push({ x: m.x + tp * 0.06, y: m.y, vx: speed, vy: 0, age: 0, life: 1.2, len: tp * 0.26, r: Math.max(5, tp * 0.045), core: [255, 236, 205], glow: [255, 110, 30], trail: [255, 100, 30], tail: [200, 40, 10], halo: 3.4, hit: false });
+        balls.push({ x: m.x + tp * 0.06, y: m.y, vx: speed, vy: 0, age: 0, trailOwed: 0, life: 1.2, len: tp * 0.26, r: Math.max(5, tp * 0.045), core: [255, 236, 205], glow: [255, 110, 30], trail: [255, 100, 30], tail: [200, 40, 10], halo: 3.4, hit: false });
       }
       for (var i = balls.length - 1; i >= 0; i--) {
         var b = balls[i];
@@ -626,11 +638,12 @@
           hits.push({ x: b.x, y: b.y, t: e.t });
           stream.emit(sparks, { x: b.x, y: b.y, angle: Math.atan2(b.vy, b.vx), spread: 0.9, speed: [tp * 0.4, tp * 1.2], life: [0.2, 0.5], size: [tp * 0.007, tp * 0.016], rise: -tp * 2, drag: 1.8, jitter: tp * 0.012 }, 22000 / dt, dt, e.rand);
         }
-        e.store.acc = (e.store.acc || 0) + 120 * d;
-        while (e.store.acc >= 1) {
-          e.store.acc -= 1;
+        b.trailOwed += 120 * d;
+        while (b.trailOwed >= 1) {
+          b.trailOwed -= 1;
           stream.emit(trail, { x: b.x - e.rand() * b.vx * d, y: b.y - e.rand() * b.vy * d, angle: 0, spread: 3.1, speed: [0, tp * 0.04], life: [0.2, 0.4], size: [b.r * 0.8, b.r * 0.25], jitter: b.r * 0.2 }, 1000 / dt, dt, e.rand);
         }
+        b.r = Math.max(5, tp * 0.045) * (1 + 0.1 * Math.sin(b.age * 45));
       }
       stream.update(trail, dt);
       stream.update(sparks, dt);
@@ -663,11 +676,7 @@
       }
       if (st.trail) stream.draw(c, st.trail, emberTint);
       if (st.sparks) stream.draw(c, st.sparks, sparkOrangeTint);
-      if (st.balls) for (var i = 0; i < st.balls.length; i++) {
-        var bl = st.balls[i], base = Math.max(5, tp * 0.045);
-        bl.r = base * (1 + 0.1 * Math.sin(bl.age * 45));
-        drawBall(c, bl);
-      }
+      if (st.balls) for (var i = 0; i < st.balls.length; i++) drawBall(c, st.balls[i]);
       if (st.hits) for (var k = 0; k < st.hits.length; k++) {
         var age = e.t - st.hits[k].t;
         if (age >= 0 && age < 160) { var f = 1 - age / 160; glow(c, st.hits[k].x, st.hits[k].y, tp * 0.09, '255,120,40', 0.8 * f); glow(c, st.hits[k].x, st.hits[k].y, tp * 0.04, '255,235,200', 0.9 * f); }
@@ -763,7 +772,7 @@
   // Gauss: two firing modes, as on the wiki. An arcade shot: a flat, long blue-violet plasma slug. Then the aimed salvo: the
   // barrel charges (a violet glow swells, motes are pulled in), and a much longer, thicker slug leaves with a hard kick and bursts with a
   // shockwave ring where it lands, since the salvo has big splash damage.
-  function ventTint(f) { return [lerp(176, 140, f), lerp(178, 142, f), lerp(184, 148, f), 0.42 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)]; }
+  function ventTint(f) { return rgba(lerp(176, 140, f), lerp(178, 142, f), lerp(184, 148, f), 0.42 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)); }
   var GAUSS_ARCADE = 1200, GAUSS_CHARGE_FROM = 2700, GAUSS_SALVO = 3500;
   recipes.gauss = {
     shots: [GAUSS_ARCADE, GAUSS_SALVO],
@@ -979,7 +988,7 @@
     c.moveTo(-len * 0.5, th / 2); c.lineTo(-len * 0.62, th * 1.1); c.lineTo(-len * 0.32, th / 2);
     c.fill();
   }
-  function rocketSmokeTint(f) { return [lerp(205, 150, f), lerp(200, 148, f), lerp(195, 148, f), 0.34 * (f < 0.08 ? f / 0.08 : 1 - (f - 0.08) / 0.92)]; }
+  function rocketSmokeTint(f) { return rgba(lerp(205, 150, f), lerp(200, 148, f), lerp(195, 148, f), 0.34 * (f < 0.08 ? f / 0.08 : 1 - (f - 0.08) / 0.92)); }
 
   // Striker: a salvo of guided rockets. Ten rockets leave the two pods on the front of the launcher one after another, slowly at first and
   // accelerating, each with a bright exhaust flame and a long grey smoke trail, with a small backblast puff at the pod. Where each
@@ -1068,7 +1077,7 @@
   // measured by eye on the turret picture, and the barrel tip is the default muzzle.
   var SCORPION_SHELL_AT = 800, SCORPION_SHOTS = [1500, 1620, 1880, 2000, 2260, 2380, 2640, 2760]; // two lines of four, the right line 120 ms behind the left
   var scorpionShell = shellRecipe({ at: SCORPION_SHELL_AT, flight: 0.5, dist: 2.2, len: 0.13, width: 0.04, head: [255, 226, 130], tail: [255, 120, 30], flash: 0.15, shift: 0.25, flashMs: 170, burst: 62, puff: 1.2, wisp: 62, ring: 0, kick: 2.6, gaussSmoke: true });
-  function dustTint(f) { return [lerp(190, 135, f), lerp(175, 130, f), lerp(155, 125, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)]; }
+  function dustTint(f) { return rgba(lerp(190, 135, f), lerp(175, 130, f), lerp(155, 125, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)); }
   recipes.scorpion = {
     shots: [SCORPION_SHELL_AT],
     muzzles: [[798.6, 90.9], [152, -45], [265, -45]],
@@ -1169,8 +1178,8 @@
   // wind-blown smoke at the barrel tip and a hard kick, but where Thunder's shell just fades out the Magnum shell bursts at the end of its range, for its very
   // large splash: a big flash, a round shockwave, fast sparks and a lingering cloud. Two shells a loop, with a long reload between them.
   var MAGNUM_SHOTS = [1000, 2900], MAGNUM_FLIGHT = 0.7, MAGNUM_DIST = 2.2;
-  function magnumDustTint(f) { return [lerp(200, 140, f), lerp(185, 135, f), lerp(160, 128, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)]; }
-  function magnumSparkTint(f) { return [255, lerp(200, 80, f), lerp(80, 20, f), 1 - f]; }
+  function magnumDustTint(f) { return rgba(lerp(200, 140, f), lerp(185, 135, f), lerp(160, 128, f), 0.5 * (f < 0.1 ? f / 0.1 : 1 - (f - 0.1) / 0.9)); }
+  function magnumSparkTint(f) { return rgba(255, lerp(200, 80, f), lerp(80, 20, f), 1 - f); }
   var magnumShell = shellRecipe({ times: MAGNUM_SHOTS, flight: MAGNUM_FLIGHT, dist: MAGNUM_DIST, len: 0.2, width: 0.05, head: [255, 214, 120], tail: [235, 90, 20], flash: 0.2, shift: 0.6, flashMs: 210, burst: 100, puff: 1.6, wisp: 100, ring: 0, kick: 3.2, gaussSmoke: true });
   recipes.magnum = {
     shots: MAGNUM_SHOTS,
