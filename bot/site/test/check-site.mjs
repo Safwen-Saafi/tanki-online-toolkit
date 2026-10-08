@@ -209,6 +209,57 @@ async function checkReducedMotion(browser, base) {
   await context.close();
 }
 
+async function checkPageBasics(browser, base) {
+  const problems = [];
+  const raw = await (await fetch(`${base}/`)).text();
+  if (/Artwork is original fan art/i.test(raw)) problems.push('static footer still says the artwork is original fan art');
+  if (!/belong to Tanki Online/.test(raw)) problems.push('static footer does not credit the images to Tanki Online');
+  if (!/<meta property="og:title"/.test(raw) || !/<meta property="og:description"/.test(raw) || !/<meta property="og:type"/.test(raw)) problems.push('Open Graph title, description or type is missing');
+  record('static HTML: right image credit and Open Graph tags', problems);
+
+  // aria-pressed follows the selected tile
+  const tiles = await openPage(browser, base, '?tank=railgun,hunter', { viewport: { width: 1280, height: 800 } });
+  const tileProblems = [];
+  const pressed = () => tiles.page.evaluate(() => [...document.querySelectorAll('.tile')].filter((t) => t.getAttribute('aria-pressed') === 'true').map((t) => `${t.dataset.kind}:${t.dataset.id}`).sort());
+  const unset = await tiles.page.evaluate(() => [...document.querySelectorAll('.tile')].filter((t) => t.getAttribute('aria-pressed') === null).length);
+  if (unset) tileProblems.push(`${unset} tiles have no aria-pressed`);
+  let now = await pressed();
+  if (now.join() !== 'hull:hunter,turret:railgun') tileProblems.push(`expected railgun and hunter pressed, got ${now.join() || 'none'}`);
+  await tiles.page.click('.tile[data-kind="turret"][data-id="tesla"]');
+  await tiles.page.click('.tile[data-kind="hull"][data-id="mammoth"]');
+  now = await pressed();
+  if (now.join() !== 'hull:mammoth,turret:tesla') tileProblems.push(`after clicking tesla and mammoth, got ${now.join() || 'none'}`);
+  record('tiles announce the selected turret and hull with aria-pressed', tileProblems);
+  await tiles.context.close();
+
+  // an old 'lang' choice is still honoured, and the new choice is saved under the prefixed key
+  const langProblems = [];
+  const lang = await openPage(browser, base, '?tank=railgun,hunter', { viewport: { width: 1280, height: 800 } });
+  await lang.page.evaluate(() => { localStorage.clear(); localStorage.setItem('lang', 'RU'); });
+  await lang.page.reload();
+  await lang.page.waitForFunction(() => window.TankFx && window.TankFx.info().muzzles.length > 0);
+  if (await lang.page.evaluate(() => document.documentElement.lang) !== 'ru') langProblems.push('an old lang=RU choice was not honoured');
+  await lang.page.click('.lang button[data-lang="EN"]');
+  const saved = await lang.page.evaluate(() => ({ next: localStorage.getItem('tanki-augments-lang'), old: localStorage.getItem('lang') }));
+  if (saved.next !== 'EN') langProblems.push(`new choice saved as ${saved.next} under the prefixed key`);
+  if (saved.old !== 'RU') langProblems.push('the shared lang key was changed, other projects on this origin may use it');
+  await lang.page.reload();
+  await lang.page.waitForFunction(() => window.TankFx && window.TankFx.info().muzzles.length > 0);
+  if (await lang.page.evaluate(() => document.documentElement.lang) !== 'en') langProblems.push('the prefixed key does not win over the old one');
+  record('language choice: old key read once, prefixed key saved', langProblems);
+  await lang.context.close();
+
+  // an empty ?fx= means "not set", so the loop runs
+  const empty = await openPage(browser, base, '?tank=railgun,hunter&fx=', { viewport: { width: 1280, height: 800 } });
+  await pause(400);
+  const emptyInfo = await info(empty.page);
+  const emptyProblems = [];
+  if (emptyInfo.frozenAt !== null) emptyProblems.push(`empty fx= froze the clock at ${emptyInfo.frozenAt}`);
+  if (!emptyInfo.running) emptyProblems.push('loop is not running with an empty fx=');
+  record('empty ?fx= is treated as not set', emptyProblems);
+  await empty.context.close();
+}
+
 async function reportCost(browser, base) {
   console.log('\nScript time per animation frame at 2x density (informational, no threshold)');
   for (const turret of HEAVY) {
@@ -236,6 +287,7 @@ try {
   await checkPausing(browser, base);
   await checkReducedMotion(browser, base);
   await checkPhoneWidth(browser, base);
+  await checkPageBasics(browser, base);
   if (!skipCost) await reportCost(browser, base);
 } finally {
   await browser.close();

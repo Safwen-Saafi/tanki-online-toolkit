@@ -12,7 +12,8 @@
   var reducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var params = new URLSearchParams(location.search);
   // ?fx=<ms> freezes the effect clock at that moment of the cycle, for screenshots and checks
-  var frozenAt = params.has('fx') && isFinite(Number(params.get('fx'))) ? Math.max(0, Number(params.get('fx')) % CYCLE_MS) : null;
+  var fxParam = (params.get('fx') || '').trim();
+  var frozenAt = fxParam !== '' && isFinite(Number(fxParam)) ? Math.max(0, Number(fxParam) % CYCLE_MS) : null;
 
   var canvas = null, ctx = null, frame = null, real = null;
   var tank = null;        // { id, layout, turretEl }

@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tanki Augments Database</title>
 <meta id="metaDesc" name="description" content="Daily-updated Tanki Online augment data in English and Russian, scraped from the Tanki Online wiki.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Tanki Augments Database">
+<meta property="og:description" content="Daily-updated Tanki Online augment data in English and Russian, scraped from the Tanki Online wiki.">
 <meta name="theme-color" content="#090c10">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23090c10'/%3E%3Cpath d='M6 20h20l-3 5H9z' fill='%23ffbc09'/%3E%3Crect x='10' y='12' width='11' height='7' rx='2' fill='%23ff5309'/%3E%3Crect x='20' y='14' width='8' height='2.5' fill='%23ffbc09'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -327,7 +330,7 @@ footer a:hover { color: #fff; }
   </section>
 
   <footer>
-    <p><span data-i18n="foot1">Data comes from the community</span> <a href="https://en.tankiwiki.com/Augments" rel="noopener" data-i18n="wiki">Tanki Online wiki</a>. <span data-i18n="foot2">Tanki Online belongs to its owners.</span> <span data-i18n="art">Artwork is original fan art inspired by Tanki Online.</span></p>
+    <p><span data-i18n="foot1">Data comes from the community</span> <a href="https://en.tankiwiki.com/Augments" rel="noopener" data-i18n="wiki">Tanki Online wiki</a>. <span data-i18n="foot2">Tanki Online belongs to its owners.</span> <span data-i18n="art">Tank images are exported from the game and belong to Tanki Online.</span></p>
     <span class="links">
       <a href="https://tankionline.com" rel="noopener" data-i18n="site">Official game site</a>
       <a href="https://github.com/Safwen-Saafi/tanki-online-toolkit" rel="noopener" data-i18n="src">Source on GitHub</a>
@@ -336,7 +339,7 @@ footer a:hover { color: #fff; }
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="fx.js"></script>
+<script src="fx.js?v=2"></script>
 <script>
 (function () {
   'use strict';
@@ -410,8 +413,13 @@ footer a:hover { color: #fff; }
     dictator: ['Dictator', 'Диктатор'], titan: ['Titan', 'Титан'], ares: ['Ares', 'Арес'], mammoth: ['Mammoth', 'Мамонт']
   };
 
+  // 'lang' was the first key name; every project on this github.io origin shares storage, so it is only read once for people who already picked a language
+  var LANG_KEY = 'tanki-augments-lang';
   var lang = 'EN';
-  try { var saved = localStorage.getItem('lang'); if (saved === 'EN' || saved === 'RU') lang = saved; else if (/^ru/i.test(navigator.language || '')) lang = 'RU'; } catch (e) { if (/^ru/i.test(navigator.language || '')) lang = 'RU'; }
+  try {
+    var saved = localStorage.getItem(LANG_KEY) || localStorage.getItem('lang');
+    if (saved === 'EN' || saved === 'RU') lang = saved; else if (/^ru/i.test(navigator.language || '')) lang = 'RU';
+  } catch (e) { if (/^ru/i.test(navigator.language || '')) lang = 'RU'; }
   function t(key) { return T[lang][key]; }
   function nameOf(id) { return NAMES[id][lang === 'RU' ? 1 : 0]; }
 
@@ -580,7 +588,9 @@ footer a:hover { color: #fff; }
     var tiles = document.querySelectorAll('.tile');
     for (var i = 0; i < tiles.length; i++) {
       var tile = tiles[i];
-      tile.classList.toggle('on', tile.getAttribute('data-id') === (tile.getAttribute('data-kind') === 'turret' ? sel.turret : sel.hull));
+      var on = tile.getAttribute('data-id') === (tile.getAttribute('data-kind') === 'turret' ? sel.turret : sel.hull);
+      tile.classList.toggle('on', on);
+      tile.setAttribute('aria-pressed', String(on));
     }
   }
 
@@ -707,7 +717,7 @@ footer a:hover { color: #fff; }
   for (var b = 0; b < langButtons.length; b++) {
     langButtons[b].addEventListener('click', function (event) {
       lang = event.currentTarget.getAttribute('data-lang');
-      try { localStorage.setItem('lang', lang); } catch (e) { /* storage may be blocked */ }
+      try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* storage may be blocked */ }
       applyLang();
     });
   }
