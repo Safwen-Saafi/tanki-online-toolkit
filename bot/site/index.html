@@ -316,7 +316,7 @@ footer a:hover { color: #fff; }
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="fx.js?v=2"></script>
+<script src="fx.js?v=3"></script>
 <script>
 (function () {
   'use strict';
@@ -480,20 +480,33 @@ footer a:hover { color: #fff; }
   })();
   var FIT = Math.min(90 / REF.w, 90 / (FRAME_ASPECT * REF.h));
 
+  var sel = { turret: 'railgun', hull: 'hunter' };
+  var shown = { turret: null, hull: null };
+  var counts = null;
   var heroReal = document.getElementById('heroReal');
-  function renderReal() {
-    var layout = realLayout(sel.turret, sel.hull);
-    heroReal.style.width = (layout.w * FIT).toFixed(2) + '%';
-    heroReal.style.aspectRatio = layout.w + ' / ' + layout.h;
-    heroReal.innerHTML = '<div class="rshadow"></div>' +
-      '<div class="rpart" style="' + box(layout.hull, layout) + '"><img src="' + layout.hull.src + '" alt=""></div>' +
-      '<div class="rpart rturret" style="' + box(layout.turret, layout) + '"><img src="' + layout.turret.src + '" alt=""></div>';
-    // the shot effect canvas works out where the muzzle is from this layout
-    if (window.TankFx) window.TankFx.setTank({ id: sel.turret, layout: layout, turretEl: heroReal.querySelector('.rturret') });
+
+  function place(part, p, layout) {
+    part.style.cssText = box(p, layout);
+    var img = part.firstChild;
+    if (img.getAttribute('src') !== p.src) img.setAttribute('src', p.src);
   }
 
-  var sel = { turret: 'railgun', hull: 'hunter' };
-  var counts = null;
+  // Only runs when the tank itself changed, so switching the language never restarts the shot.
+  function renderReal() {
+    if (shown.turret === sel.turret && shown.hull === sel.hull) return;
+    shown.turret = sel.turret; shown.hull = sel.hull;
+    var layout = realLayout(sel.turret, sel.hull);
+    if (!heroReal.firstChild) {
+      heroReal.innerHTML = '<div class="rshadow"></div><div class="rpart"><img alt=""></div><div class="rpart rturret"><img alt=""></div>';
+    }
+    heroReal.style.width = (layout.w * FIT).toFixed(2) + '%';
+    heroReal.style.aspectRatio = layout.w + ' / ' + layout.h;
+    var turretEl = heroReal.querySelector('.rturret');
+    place(heroReal.querySelector('.rpart'), layout.hull, layout);
+    place(turretEl, layout.turret, layout);
+    // the shot effect canvas works out where the muzzle is from this layout
+    if (window.TankFx) window.TankFx.setTank({ id: sel.turret, layout: layout, turretEl: turretEl });
+  }
 
   function renderHero() {
     renderReal();
@@ -557,9 +570,12 @@ footer a:hover { color: #fff; }
     return formatter.format(Math.round(minutes / 1440), 'day');
   }
 
+  // Mirrors the cron in .github/workflows/augments-bot.yml ('30 5 * * *'); npm run test:site fails if the two drift apart.
+  var SCRAPE_UTC = { hour: 5, minute: 30 };
+
   function nextScrapeLabel() {
     var now = new Date();
-    var next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 5, 30));
+    var next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), SCRAPE_UTC.hour, SCRAPE_UTC.minute));
     if (next <= now) next = new Date(next.getTime() + 86400000);
     var minutes = Math.round((next - now) / 60000);
     return t('hm')(Math.floor(minutes / 60), minutes % 60);
@@ -650,19 +666,16 @@ footer a:hover { color: #fff; }
 
   /* ---------- go ---------- */
   var auto = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  var combos = [['railgun', 'hunter'], ['hammer', 'viking'], ['shaft', 'wasp'], ['vulcan', 'mammoth'], ['tesla', 'hornet'], ['smoky', 'crusader'], ['twins', 'dictator'], ['firebird', 'titan'], ['magnum', 'ares'], ['striker', 'paladin'], ['tsunami', 'hopper']];
-  // While only some parts have real images, rotate only through combos that are fully real.
-  var anyReal = Object.keys(REAL.turret).length + Object.keys(REAL.hull).length > 0;
-  var pool = anyReal ? combos.filter(function (c) { return realLayout(c[0], c[1]); }) : combos;
-  if (pool.length < 2) auto = false;
-  var comboAt = 0;
-  // two full shot cycles per tank (the cycle is 6 s in fx.js), so every turret is seen firing, resting and firing again
+  // two full shot cycles per tank, so every turret is seen firing, resting and firing again
+  var cycleMs = window.TankFx ? window.TankFx.cycleMs : 6000;
   setInterval(function () {
     if (!auto) return;
-    comboAt = (comboAt + 1) % pool.length;
-    sel.turret = pool[comboAt][0]; sel.hull = pool[comboAt][1];
+    var at = TURRETS.map(function (tu) { return tu.id; }).indexOf(sel.turret);
+    var hulls = HULLS.filter(function (id) { return id !== sel.hull; });
+    sel.turret = TURRETS[(at + 1) % TURRETS.length].id;
+    sel.hull = hulls[Math.floor(Math.random() * hulls.length)];
     renderHero();
-  }, 12000);
+  }, 2 * cycleMs);
 
   // ?tank=<turret>,<hull> starts on that tank with no auto-rotation (used for checks and screenshots)
   var tankParam = (new URLSearchParams(location.search).get('tank') || '').split(',');

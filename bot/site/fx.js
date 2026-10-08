@@ -1342,6 +1342,7 @@
 
   window.TankFx = {
     recipes: recipes,
+    cycleMs: CYCLE_MS,
     helpers: { glow: glow, drawFlash: drawFlash, lerp: lerp, ramp: ramp, sprite: sprite, stream: stream, bullets: bullets },
 
     init: function (opts) {

@@ -260,6 +260,72 @@ async function checkPageBasics(browser, base) {
   await empty.context.close();
 }
 
+async function checkRotation(browser, base) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await context.route((url) => url.hostname !== '127.0.0.1', (route) => route.fulfill({ status: 200, body: '' }));
+  const page = await context.newPage();
+  await page.clock.install();
+  await page.goto(`${base}/`, { waitUntil: 'load' });
+  await page.waitForFunction(() => window.TankFx && window.TankFx.info().muzzles.length > 0);
+  const problems = [];
+  const cycleMs = await page.evaluate(() => window.TankFx.cycleMs);
+  if (!(cycleMs > 0)) problems.push('TankFx.cycleMs is not exported');
+  const seen = new Set();
+  const selected = () => page.evaluate(() => ({
+    turret: document.querySelector('.tile[data-kind="turret"][aria-pressed="true"]')?.dataset.id,
+    hull: document.querySelector('.tile[data-kind="hull"][aria-pressed="true"]')?.dataset.id,
+    src: [...document.querySelectorAll('#heroReal img')].map((i) => i.getAttribute('src')),
+  }));
+  seen.add((await selected()).turret);
+  // one rotation step is two shot cycles; a step must not come sooner than that
+  await page.clock.fastForward(2 * cycleMs - 1000);
+  if ((await selected()).turret !== [...seen][0]) problems.push('the tank changed before two shot cycles had passed');
+  await page.clock.fastForward(1000);
+  for (let i = 0; i < TURRETS.length + 2; i++) {
+    const now = await selected();
+    seen.add(now.turret);
+    if (!HULLS.includes(now.hull)) problems.push(`rotation chose an unknown hull: ${now.hull}`);
+    if (now.src.length !== 2 || now.src.some((s) => !s || !s.startsWith('img/'))) problems.push(`hero pictures not set after step ${i}: ${now.src}`);
+    await page.clock.fastForward(2 * cycleMs);
+  }
+  const missing = TURRETS.filter((t) => !seen.has(t));
+  if (missing.length) problems.push(`never shown in the rotation: ${missing.join(', ')}`);
+  record('auto rotation shows all 17 turrets, one step every two shot cycles', problems);
+  await context.close();
+}
+
+async function checkLanguageKeepsShot(browser, base) {
+  const { page, context } = await openPage(browser, base, '?tank=hammer,viking', { viewport: { width: 1280, height: 800 } });
+  const problems = [];
+  await pause(1200);
+  const before = await info(page);
+  const heroNode = await page.evaluateHandle(() => document.querySelector('#heroReal .rturret'));
+  await page.click('.lang button[data-lang="RU"]');
+  const after = await info(page);
+  if (after.cycle !== before.cycle || after.t < before.t) problems.push(`switching language restarted the shot (t ${Math.round(before.t)} to ${Math.round(after.t)})`);
+  const sameNode = await page.evaluate((node) => node === document.querySelector('#heroReal .rturret'), heroNode);
+  if (!sameNode) problems.push('switching language rebuilt the turret picture');
+  await page.click('.lang button[data-lang="EN"]');
+  const back = await info(page);
+  if (back.cycle !== before.cycle || back.t < after.t) problems.push('switching back restarted the shot');
+  record('switching the language does not restart the shot or rebuild the pictures', problems);
+  await context.close();
+}
+
+async function checkScrapeTimeMirrorsCron() {
+  const problems = [];
+  const html = await readFile(join(HERE, '..', 'index.html'), 'utf8');
+  const workflow = await readFile(join(HERE, '..', '..', '..', '.github', 'workflows', 'augments-bot.yml'), 'utf8');
+  const cron = /cron:\s*'(\d+) (\d+) \* \* \*'/.exec(workflow);
+  const page = /SCRAPE_UTC = \{ hour: (\d+), minute: (\d+) \}/.exec(html);
+  if (!cron) problems.push('no daily cron found in augments-bot.yml');
+  if (!page) problems.push('SCRAPE_UTC not found in index.html');
+  if (cron && page && (Number(cron[2]) !== Number(page[1]) || Number(cron[1]) !== Number(page[2]))) {
+    problems.push(`workflow runs at ${cron[2]}:${cron[1]} UTC but the page says ${page[1]}:${page[2]}`);
+  }
+  record('"Next scrape" time matches the workflow cron', problems);
+}
+
 async function reportCost(browser, base) {
   console.log('\nScript time per animation frame at 2x density (informational, no threshold)');
   for (const turret of HEAVY) {
@@ -288,6 +354,9 @@ try {
   await checkReducedMotion(browser, base);
   await checkPhoneWidth(browser, base);
   await checkPageBasics(browser, base);
+  await checkRotation(browser, base);
+  await checkLanguageKeepsShot(browser, base);
+  await checkScrapeTimeMirrorsCron();
   if (!skipCost) await reportCost(browser, base);
 } finally {
   await browser.close();
