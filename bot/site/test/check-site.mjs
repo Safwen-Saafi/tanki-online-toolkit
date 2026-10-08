@@ -1,7 +1,7 @@
 // Browser checks for the landing page and its shot effects. Run from bot/ with `npm run test:site`.
 // It serves bot/site (plus bot/out for the data files) on a free local port and drives a real Chromium.
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -609,8 +609,52 @@ async function reportAllocations(browser, base) {
   }
 }
 
+// Refactor guard: `--save-frames <file>` writes a fingerprint of the canvas for every turret at five moments, and `--compare-frames <file>`
+// runs the same pass later and lists every frame that changed. Fingerprints depend on the machine's graphics, so the file is not committed.
+const FRAME_MOMENTS = [700, 1260, 2100, 3100, 4400];
+
+async function frameFingerprints(browser, base) {
+  const out = {};
+  for (const ms of FRAME_MOMENTS) {
+    const { page, context } = await openPage(browser, base, `?tank=railgun,hunter&fx=${ms}`, { viewport: { width: 1280, height: 800 } });
+    const row = await page.evaluate((turrets) => {
+      const res = {};
+      for (const t of turrets) {
+        document.querySelector(`.tile[data-kind="turret"][data-id="${t}"]`).click();
+        const canvas = document.getElementById('heroFx');
+        const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let h = 2166136261;
+        for (let i = 0; i < data.length; i++) h = Math.imul(h ^ data[i], 16777619) >>> 0;
+        res[t] = h;
+      }
+      return res;
+    }, TURRETS);
+    for (const t of TURRETS) (out[t] ??= {})[ms] = row[t];
+    await context.close();
+  }
+  return out;
+}
+
+const flagValue = (name) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : null; };
+
 const { server, base } = await serve();
 const browser = await chromium.launch();
+const saveFrames = flagValue('--save-frames'), compareFrames = flagValue('--compare-frames');
+if (saveFrames || compareFrames) {
+  const now = await frameFingerprints(browser, base);
+  await browser.close();
+  server.close();
+  if (saveFrames) {
+    await writeFile(saveFrames, JSON.stringify(now, null, 1));
+    console.log(`saved ${TURRETS.length * FRAME_MOMENTS.length} frame fingerprints to ${saveFrames}`);
+    process.exit(0);
+  }
+  const before = JSON.parse(await readFile(compareFrames, 'utf8'));
+  const changed = [];
+  for (const t of TURRETS) for (const ms of FRAME_MOMENTS) if (before[t]?.[ms] !== now[t][ms]) changed.push(`${t} at ${ms} ms`);
+  console.log(changed.length ? `${changed.length} of ${TURRETS.length * FRAME_MOMENTS.length} frames changed:\n  ${changed.join('\n  ')}` : `all ${TURRETS.length * FRAME_MOMENTS.length} frames are identical to ${compareFrames}`);
+  process.exit(changed.length ? 1 : 0);
+}
 try {
   await checkEffectAtMuzzle(browser, base);
   await checkEmptyAtRest(browser, base);
