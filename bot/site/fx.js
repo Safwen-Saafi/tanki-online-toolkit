@@ -5,11 +5,12 @@
   'use strict';
 
   var CYCLE_MS = 6000;   // idle, fire, rest, then repeat
-  var STEP_MS = 16;      // simulation step, so recipes behave the same at any frame rate
+  var STEP_MS = 16;      // the simulation only ever moves in whole steps of this size, the leftover time waits for the next frame
   var MAX_DPR = 2;
   var FLASH_MS = 150;
 
-  var reducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  var reducedMotion = !!(motionQuery && motionQuery.matches);
   var params = new URLSearchParams(location.search);
   // ?fx=<ms> freezes the effect clock at that moment of the cycle, for screenshots and checks
   var fxParam = (params.get('fx') || '').trim();
@@ -21,6 +22,8 @@
   var env = null;         // what a recipe sees: time, muzzle points in pixels, scale, room to the right
   var onScreen = true, running = false, rafId = 0, lastNow = 0, lastTurret = null;
   var dpr = 1;
+  var owed = 0;           // time not yet simulated because it is less than one step
+  var waitingForLayout = false;   // setTank ran while the hero had no size, so the cycle has not started
 
   function makeRand(seed) {
     var a = seed >>> 0;
@@ -1264,7 +1267,8 @@
   }
 
   function advance(dt) {
-    while (dt > 0) { var s = Math.min(STEP_MS, dt); step(s); dt -= s; }
+    owed += dt;
+    while (owed >= STEP_MS) { step(STEP_MS); owed -= STEP_MS; }
   }
 
   function paint() {
@@ -1290,7 +1294,7 @@
 
   /* ---------- lifecycle ---------- */
 
-  function shouldRun() { return !!tank && onScreen && !document.hidden && !reducedMotion && frozenAt === null; }
+  function shouldRun() { return !!tank && !waitingForLayout && onScreen && !document.hidden && !reducedMotion && frozenAt === null; }
 
   function tick(now) {
     rafId = 0;
@@ -1306,6 +1310,7 @@
     var want = shouldRun();
     if (want && !running) {
       running = true;
+      owed = 0;
       lastNow = performance.now();
       rafId = requestAnimationFrame(tick);
     } else if (!want && running) {
@@ -1331,11 +1336,39 @@
     })(t0);
   }
 
+  // Starts a fresh cycle for the current tank. Needs a computed env.
+  function begin(changedTurret) {
+    startCycle(0);
+    owed = 0;
+    if (frozenAt !== null) { simulateTo(frozenAt); return; }
+    if (reducedMotion) { if (changedTurret) flashOnce(); return; }
+    clearCanvas();
+    sync();
+  }
+
   function rebuild() {
     if (!canvas) return;
     sizeCanvas();
-    if (!tank || !computeEnv()) return;
-    if (frozenAt !== null) simulateTo(frozenAt);
+    if (!tank) return;
+    var before = { w: env.w, h: env.h, unit: env.unit };
+    if (!computeEnv()) return;
+    if (waitingForLayout) { waitingForLayout = false; begin(true); return; }
+    // particles are stored in pixels, so a real size change would leave them in the wrong place: start the shot again
+    var resized = Math.abs(env.w - before.w) > 0.5 || Math.abs(env.h - before.h) > 0.5 || Math.abs(env.unit - before.unit) > 0.0005;
+    if (resized) begin(false);
+    else if (frozenAt !== null) simulateTo(frozenAt);
+  }
+
+  function onMotionChange(event) {
+    reducedMotion = event.matches;
+    if (!tank) return;
+    if (reducedMotion) {
+      sync();
+      clearCanvas();
+      applyRecoil(0);
+    } else if (env.w) {
+      begin(false);
+    }
   }
 
   /* ---------- public API ---------- */
@@ -1343,7 +1376,7 @@
   window.TankFx = {
     recipes: recipes,
     cycleMs: CYCLE_MS,
-    helpers: { glow: glow, drawFlash: drawFlash, lerp: lerp, ramp: ramp, sprite: sprite, stream: stream, bullets: bullets },
+    helpers: { glow: glow, drawFlash: drawFlash, lerp: lerp, ramp: ramp, sprite: sprite, stream: stream, bullets: bullets, drawBall: drawBall, drawSlug: drawSlug, drawBeam: drawBeam, shellRecipe: shellRecipe },
 
     init: function (opts) {
       frame = opts.frame; real = opts.real; canvas = opts.canvas;
@@ -1360,6 +1393,7 @@
       }
       document.addEventListener('visibilitychange', sync);
       window.addEventListener('resize', rebuild);
+      if (motionQuery && motionQuery.addEventListener) motionQuery.addEventListener('change', onMotionChange);
     },
 
     // Call after the hero shows a new tank. turretEl is the element that recoils.
@@ -1371,17 +1405,14 @@
       recipe = recipeFor(info.id);
       if (info.turretEl) info.turretEl.style.transform = '';
       sizeCanvas();
-      if (!computeEnv()) return;
-      startCycle(0);
-      if (frozenAt !== null) { simulateTo(frozenAt); return; }
-      if (reducedMotion) { if (changedTurret) flashOnce(); return; }
-      clearCanvas();
-      sync();
+      waitingForLayout = !computeEnv();
+      if (!waitingForLayout) begin(changedTurret);
     },
 
     // Call when the hero shows the fallback drawing instead of the real images.
     clear: function () {
       tank = null;
+      waitingForLayout = false;
       sync();
       clearCanvas();
     },

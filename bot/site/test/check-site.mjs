@@ -312,6 +312,138 @@ async function checkLanguageKeepsShot(browser, base) {
   await context.close();
 }
 
+// The frame is the canvas pixels folded into one number, so two frames can be compared without saving images.
+const hashCanvas = () => {
+  const canvas = document.getElementById('heroFx');
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  let h = 2166136261;
+  for (let i = 0; i < data.length; i++) h = Math.imul(h ^ data[i], 16777619) >>> 0;
+  return h;
+};
+
+async function checkFrameRateIndependence(browser, base) {
+  const problems = [];
+  // frames of each refresh rate, keyed by the simulated time they show (only some moments are painted at every rate)
+  const frames = {};
+  for (const hz of [30, 60, 120, 144]) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.route((url) => url.hostname !== '127.0.0.1', (route) => route.fulfill({ status: 200, body: '' }));
+    // frames and the clock are driven by hand, so the frame rate is exactly what the test says
+    await context.addInitScript(() => {
+      let now = 1000, pending = null;
+      performance.now = () => now;
+      window.requestAnimationFrame = (cb) => { pending = cb; return 1; };
+      window.cancelAnimationFrame = () => { pending = null; };
+      window.__frame = (dt) => { now += dt; const cb = pending; pending = null; if (cb) cb(now); };
+    });
+    const page = await context.newPage();
+    await page.goto(`${base}/?tank=railgun,hunter`, { waitUntil: 'load' });
+    await page.waitForFunction(() => window.TankFx && window.TankFx.info().muzzles.length > 0, null, { polling: 100 });
+    frames[hz] = await page.evaluate(({ dt, hashSource }) => {
+      const hash = new Function(`return (${hashSource})`)();
+      const seen = {};
+      for (let n = 0; n < 100000; n++) {
+        window.__frame(dt);
+        const i = window.TankFx.info();
+        if (i.cycle > 0 || i.t > 2400) break;
+        if (i.t >= 960 && i.t % 96 === 0 && !(i.t in seen)) seen[i.t] = hash();
+      }
+      return seen;
+    }, { dt: 1000 / hz, hashSource: hashCanvas.toString() });
+    await context.close();
+  }
+  const rates = Object.keys(frames);
+  for (const a of rates) {
+    for (const b of rates) {
+      if (a >= b) continue;
+      const common = Object.keys(frames[a]).filter((t) => t in frames[b]);
+      if (common.length < 3) problems.push(`${a} Hz and ${b} Hz paint only ${common.length} moments in common, nothing to compare`);
+      for (const t of common) if (frames[a][t] !== frames[b][t]) problems.push(`the frame at t=${t} differs between ${a} Hz and ${b} Hz`);
+    }
+  }
+  record('the same moment looks the same at 30, 60, 120 and 144 Hz', problems);
+}
+
+async function checkLayoutArrivesLate(browser, base) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await context.route((url) => url.hostname !== '127.0.0.1', (route) => route.fulfill({ status: 200, body: '' }));
+  // the tank picture is served with no size, as if the layout had not happened yet; the frame itself stays on screen
+  await context.route(`${base}/?*`, async (route) => {
+    const response = await route.fetch();
+    const html = (await response.text()).replace('<head>', '<head><style id="hold-back">.real { display: none !important; }</style>');
+    await route.fulfill({ response, body: html });
+  });
+  const page = await context.newPage();
+  const problems = [];
+  page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
+  await page.goto(`${base}/?tank=railgun,hunter`, { waitUntil: 'load' });
+  await page.waitForFunction(() => window.TankFx);
+  await pause(300);
+  if ((await info(page)).running) problems.push('loop runs although the hero has no size');
+  await page.evaluate(() => document.getElementById('hold-back').remove());
+  try {
+    await page.waitForFunction(() => window.TankFx.info().running === true, null, { timeout: 3000 });
+    await pause(300);
+    const later = await info(page);
+    if (later.muzzles.length === 0) problems.push('loop started but the muzzle points were never computed');
+    if (later.t <= 0) problems.push('loop started but the clock does not move');
+  } catch {
+    problems.push('loop never started after the hero got its size');
+  }
+  record('a hero that gets its size late still starts the loop', problems);
+  await context.close();
+}
+
+async function checkReducedMotionToggle(browser, base) {
+  const { page, context } = await openPage(browser, base, '?tank=hammer,viking', { viewport: { width: 1280, height: 800 } });
+  const problems = [];
+  await pause(1500);
+  if (!(await info(page)).running) problems.push('loop is not running to begin with');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await pause(300);
+  let now = await info(page);
+  if (!now.reduced || now.running) problems.push('turning on reduced motion did not stop the loop');
+  const left = await page.evaluate(() => {
+    const canvas = document.getElementById('heroFx');
+    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let n = 0;
+    for (let i = 3; i < data.length; i += 4) if (data[i] > 8) n++;
+    return n;
+  });
+  if (left !== 0) problems.push(`${left} pixels stayed on the canvas after reduced motion was turned on`);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await pause(500);
+  now = await info(page);
+  if (now.reduced || !now.running) problems.push('turning reduced motion off did not bring the loop back');
+  record('the loop follows a change of the reduced motion setting', problems);
+  await context.close();
+}
+
+async function checkResize(browser, base) {
+  const { page, context } = await openPage(browser, base, '?tank=hammer,viking', { viewport: { width: 1280, height: 800 } });
+  const problems = [];
+  await pause(1500);
+  const before = await info(page);
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+  await pause(100);
+  const same = await info(page);
+  if (same.cycle !== before.cycle || same.t < before.t) problems.push('a resize event with no size change restarted the shot');
+  await page.setViewportSize({ width: 900, height: 800 });
+  await pause(200);
+  const after = await info(page);
+  if (after.cycle === same.cycle && after.t >= same.t) problems.push('the shot kept its old pixel positions after the hero changed size');
+  record('a real size change restarts the shot, an unchanged size does not', problems);
+  await context.close();
+}
+
+async function checkHelpersExported(browser, base) {
+  const { page, context } = await openPage(browser, base, '?tank=hammer,viking', { viewport: { width: 1280, height: 800 } });
+  const names = await page.evaluate(() => Object.keys(window.TankFx.helpers));
+  const wanted = ['glow', 'drawFlash', 'lerp', 'ramp', 'sprite', 'stream', 'bullets', 'drawBall', 'drawSlug', 'drawBeam', 'shellRecipe'];
+  record('TankFx.helpers exports everything AGENTS.md lists', wanted.filter((n) => !names.includes(n)).map((n) => `missing helper: ${n}`));
+  await context.close();
+}
+
 async function checkScrapeTimeMirrorsCron() {
   const problems = [];
   const html = await readFile(join(HERE, '..', 'index.html'), 'utf8');
@@ -357,6 +489,11 @@ try {
   await checkRotation(browser, base);
   await checkLanguageKeepsShot(browser, base);
   await checkScrapeTimeMirrorsCron();
+  await checkFrameRateIndependence(browser, base);
+  await checkLayoutArrivesLate(browser, base);
+  await checkReducedMotionToggle(browser, base);
+  await checkResize(browser, base);
+  await checkHelpersExported(browser, base);
   if (!skipCost) await reportCost(browser, base);
 } finally {
   await browser.close();
