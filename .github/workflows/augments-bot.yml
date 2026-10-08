@@ -67,9 +67,10 @@ jobs:
       - name: Commit and push the data branch
         run: |
           cat "$RUNNER_TEMP/publish.txt" >> "$GITHUB_STEP_SUMMARY" || true
-          cp bot/site/index.html bot/site/fx.js data-branch/
-          rm -rf data-branch/img
+          cp bot/site/index.html bot/site/site.css bot/site/site.js bot/site/fx.js data-branch/
+          rm -rf data-branch/img data-branch/fonts
           cp -r bot/site/img data-branch/img
+          cp -r bot/site/fonts data-branch/fonts
           cd data-branch
           touch .nojekyll
           git add -A

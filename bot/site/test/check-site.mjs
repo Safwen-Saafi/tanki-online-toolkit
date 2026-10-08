@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOTS = [join(HERE, '..'), join(HERE, '..', '..', 'out')];
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webp': 'image/webp', '.woff2': 'font/woff2' };
 
 const TURRETS = ['firebird', 'freeze', 'isida', 'tesla', 'hammer', 'twins', 'ricochet', 'vulcan', 'smoky', 'striker', 'thunder', 'tsunami', 'scorpion', 'magnum', 'railgun', 'gauss', 'shaft'];
 const HULLS = ['wasp', 'hopper', 'hornet', 'viking', 'crusader', 'hunter', 'paladin', 'dictator', 'titan', 'ares', 'mammoth'];
@@ -529,14 +529,62 @@ async function checkNothingClipped(browser, base) {
   }
 }
 
+// Nothing may be fetched from another host, and the self-hosted fonts must really be the ones in use.
+async function checkSelfHostedFonts(browser, base) {
+  const problems = [];
+  for (const lang of ['EN', 'RU']) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const outside = [], fontFiles = [];
+    await context.route((url) => url.hostname !== '127.0.0.1', (route) => { outside.push(route.request().url()); route.abort(); });
+    await context.addInitScript((l) => { try { localStorage.setItem('tanki-augments-lang', l); } catch { /* storage may be blocked */ } }, lang);
+    const page = await context.newPage();
+    page.on('response', (r) => { if (r.url().endsWith('.woff2')) fontFiles.push(`${r.status()} ${new URL(r.url()).pathname}`); });
+    await page.goto(`${base}/?tank=railgun,hunter&fx=1260`, { waitUntil: 'networkidle' });
+    await page.evaluate(() => document.fonts.ready);
+    const loaded = await page.evaluate(() => [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/['"]/g, '')));
+    if (outside.length) problems.push(`${lang}: requests to other hosts: ${outside.join(', ')}`);
+    for (const f of fontFiles) if (!f.startsWith('200 ')) problems.push(`${lang}: font file not served: ${f}`);
+    for (const family of lang === 'EN' ? ['Orbitron', 'Rajdhani'] : ['Orbitron', 'Rajdhani', 'Exo 2', 'Russo One']) {
+      if (!loaded.includes(family)) problems.push(`${lang}: ${family} was not loaded from the self-hosted files`);
+    }
+    await context.close();
+  }
+  record('no request leaves the site, and the self-hosted fonts are the ones in use', problems);
+}
+
+// Every file the page points at must be copied to the data branch by the workflow, or it works here and is missing online.
+async function checkWorkflowCopiesWhatThePageUses() {
+  const problems = [];
+  const site = join(HERE, '..');
+  const workflow = await readFile(join(site, '..', '..', '.github', 'workflows', 'augments-bot.yml'), 'utf8');
+  const html = await readFile(join(site, 'index.html'), 'utf8');
+  const css = await readFile(join(site, 'site.css'), 'utf8');
+  const js = await readFile(join(site, 'site.js'), 'utf8');
+  const used = new Set();
+  for (const m of html.matchAll(/(?:src|href)="([^"#?]+)(?:\?[^"]*)?"/g)) if (!/^(?:[a-z]+:|\/)/i.test(m[1])) used.add(m[1]);
+  for (const m of css.matchAll(/url\('([^')]+)'\)/g)) if (!/^(?:[a-z]+:|data:)/i.test(m[1])) used.add(m[1]);
+  for (const m of js.matchAll(/'((?:img|fonts)\/[\w./-]+)'/g)) used.add(m[1]);
+  // the two data files are written by the scrape's publish step, not copied from bot/site
+  for (const path of [...used].filter((p) => !/^augments\.\w+\.json$/.test(p))) {
+    try { await readFile(join(site, path)); } catch { problems.push(`${path} is used by the page but is not in bot/site`); continue; }
+    const top = path.split('/')[0];
+    const copied = path.includes('/')
+      ? workflow.split('\n').some((line) => line.includes('cp -r bot/site/' + top + ' '))
+      : workflow.split('\n').some((line) => line.includes('cp ') && line.split(/\s+/).includes('bot/site/' + top));
+    if (!copied) problems.push(`${path} is used by the page but the workflow does not copy ${path.includes('/') ? top + '/' : top}`);
+  }
+  if (!used.size) problems.push('found no files used by the page, so the check proves nothing');
+  record(`the workflow copies every file the page uses (${used.size} found)`, problems);
+}
+
 async function checkScrapeTimeMirrorsCron() {
   const problems = [];
-  const html = await readFile(join(HERE, '..', 'index.html'), 'utf8');
+  const html = await readFile(join(HERE, '..', 'site.js'), 'utf8');
   const workflow = await readFile(join(HERE, '..', '..', '..', '.github', 'workflows', 'augments-bot.yml'), 'utf8');
   const cron = /cron:\s*'(\d+) (\d+) \* \* \*'/.exec(workflow);
   const page = /SCRAPE_UTC = \{ hour: (\d+), minute: (\d+) \}/.exec(html);
   if (!cron) problems.push('no daily cron found in augments-bot.yml');
-  if (!page) problems.push('SCRAPE_UTC not found in index.html');
+  if (!page) problems.push('SCRAPE_UTC not found in site.js');
   if (cron && page && (Number(cron[2]) !== Number(page[1]) || Number(cron[1]) !== Number(page[2]))) {
     problems.push(`workflow runs at ${cron[2]}:${cron[1]} UTC but the page says ${page[1]}:${page[2]}`);
   }
@@ -665,6 +713,8 @@ try {
   await checkRotation(browser, base);
   await checkLanguageKeepsShot(browser, base);
   await checkScrapeTimeMirrorsCron();
+  await checkSelfHostedFonts(browser, base);
+  await checkWorkflowCopiesWhatThePageUses();
   await checkFrameRateIndependence(browser, base);
   await checkLayoutArrivesLate(browser, base);
   await checkReducedMotionToggle(browser, base);
