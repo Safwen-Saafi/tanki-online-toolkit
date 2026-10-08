@@ -6,7 +6,10 @@
 
   var CYCLE_MS = 6000;   // idle, fire, rest, then repeat
   var STEP_MS = 16;      // the simulation only ever moves in whole steps of this size, the leftover time waits for the next frame
-  var MAX_DPR = 2;
+  var MAX_DPR = 2;       // pixels per CSS pixel on a desktop screen
+  var COMPACT_DPR = 1.5; // on a phone or a touch screen, where the fill cost matters more than the extra sharpness
+  var COMPACT_LOAD = 0.5;    // share of the particles the heaviest smoke trails (Striker and Scorpion rockets) keep on a phone or a touch screen
+  var COMPACT_WIDTH = 820;   // the page's own single column breakpoint
   var FLASH_MS = 150;
 
   var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -215,7 +218,7 @@
     muzzles: null,
     update: function (e, dt) {
       var tp = e.turretPx, m = e.muzzles[0];
-      var st = e.store.flame || (e.store.flame = stream.create(e.w < 520 ? 150 : 300));
+      var st = e.store.flame || (e.store.flame = stream.create(e.small ? 150 : 300));
       var a = e.store.fire = ramp(e.t, 800, 3200, 160, 380);
       var reach = Math.min(tp * 0.95, e.reach * 0.9);
       stream.emit(st, { x: m.x, y: m.y, angle: 0, spread: 0.14, speed: [reach / 0.8, reach / 0.5], life: [0.5, 0.85], size: [tp * 0.024, tp * 0.088], rise: tp * 0.8, jitter: tp * 0.014 }, 300 * a, dt, e.rand);
@@ -241,7 +244,7 @@
     shots: [],
     muzzles: null,
     update: function (e, dt) {
-      var tp = e.turretPx, m = e.muzzles[0], small = e.w < 520;
+      var tp = e.turretPx, m = e.muzzles[0], small = e.small;
       var mist = e.store.mist || (e.store.mist = stream.create(small ? 320 : 620));
       var ice = e.store.ice || (e.store.ice = stream.create(small ? 60 : 120));
       var a = e.store.fire = ramp(e.t, 800, 3200, 200, 420);
@@ -1001,7 +1004,7 @@
     recoilFn: function (e) { return Math.min(1.5, recoilAt(e.t, STRIKER_SHOTS) * 0.55); },
     update: function (e, dt) {
       var tp = e.turretPx, st = e.store, d = dt / 1000;
-      var rockets = st.rockets || (st.rockets = []), smoke = st.smoke || (st.smoke = stream.create(1900)), blast = st.blast || (st.blast = stream.create(160)), bursts = st.bursts || (st.bursts = []);
+      var rockets = st.rockets || (st.rockets = []), smoke = st.smoke || (st.smoke = stream.create(Math.round(1900 * e.load))), blast = st.blast || (st.blast = stream.create(160)), bursts = st.bursts || (st.bursts = []);
       st.n = st.n || 0;
       while (st.n < STRIKER_SHOTS.length && e.t >= STRIKER_SHOTS[st.n]) {
         var pod = e.muzzles[st.n % 2], dist = Math.min(e.reach * 0.93, tp * 2.1) - tp * 0.12, flight = 0.55 + e.rand() * 0.04, v0 = tp * 2.2;
@@ -1019,7 +1022,7 @@
         r.ang = Math.atan2(r.y - (r.py === undefined ? r.y : r.py), Math.max(0.001, r.x - px)) ;
         r.py = r.y;
         // smoke from the tail, spread along the distance moved in this step so the trail has no gaps
-        r.acc = (r.acc || 0) + 420 * d;
+        r.acc = (r.acc || 0) + 420 * e.load * d;
         while (r.acc >= 1) {
           r.acc -= 1;
           stream.emit(smoke, { x: r.x - tp * 0.2 - e.rand() * (r.x - px), y: r.y, angle: 0, spread: 3.1, speed: [0, tp * 0.05], life: [0.9, 1.4], size: [tp * 0.034, tp * 0.1], rise: tp * 0.06, drag: 2, jitter: tp * 0.008 }, 1000 / dt, dt, e.rand);
@@ -1085,7 +1088,7 @@
     update: function (e, dt) {
       scorpionShell.update(e, dt);
       var tp = e.turretPx, st = e.store, tip = e.muzzles[0], d = dt / 1000;
-      var rockets = st.rockets || (st.rockets = []), smoke = st.smoke || (st.smoke = stream.create(1200)), dust = st.dust || (st.dust = stream.create(300)), blast = st.blast || (st.blast = stream.create(260)), lands = st.lands || (st.lands = []);
+      var rockets = st.rockets || (st.rockets = []), smoke = st.smoke || (st.smoke = stream.create(Math.round(1200 * e.load))), dust = st.dust || (st.dust = stream.create(300)), blast = st.blast || (st.blast = stream.create(260)), lands = st.lands || (st.lands = []);
       var gy = e.groundY - tp * 0.02;
       st.n = st.n || 0;
       while (st.n < SCORPION_SHOTS.length && e.t >= SCORPION_SHOTS[st.n]) {
@@ -1108,7 +1111,7 @@
         r.x = r.x0 + r.vx * r.age;
         r.y = r.y0 + r.vy0 * r.age + 0.5 * r.g * r.age * r.age;
         r.ang = Math.atan2(r.y - py, Math.max(0.001, r.x - px));
-        r.acc = (r.acc || 0) + 300 * d;
+        r.acc = (r.acc || 0) + 300 * e.load * d;
         while (r.acc >= 1) {
           r.acc -= 1;
           var back = e.rand();
@@ -1234,9 +1237,19 @@
 
   /* ---------- geometry ---------- */
 
+  function compactScreen() {
+    return document.documentElement.clientWidth <= COMPACT_WIDTH || !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  }
+
   function sizeCanvas() {
-    var r = canvas.getBoundingClientRect();
-    dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    // what is past the right edge of the screen cannot be seen, so the canvas stops there instead of being filled for nothing
+    canvas.style.width = '';
+    var r = canvas.getBoundingClientRect(), screenRight = document.documentElement.clientWidth;
+    if (r.right > screenRight + 1) {
+      canvas.style.width = Math.max(1, screenRight - r.left) + 'px';
+      r = canvas.getBoundingClientRect();
+    }
+    dpr = Math.min(window.devicePixelRatio || 1, compactScreen() ? COMPACT_DPR : MAX_DPR);
     canvas.width = Math.max(1, Math.round(r.width * dpr));
     canvas.height = Math.max(1, Math.round(r.height * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1254,6 +1267,9 @@
     env.turretPx = tu.w * unit;
     env.w = cr.width;
     env.h = cr.height;
+    // judged from the hero frame and not the canvas, so cutting the canvas down never changes how many particles a recipe allows
+    env.small = frame.getBoundingClientRect().width * 1.5 < 520;
+    env.load = compactScreen() ? COMPACT_LOAD : 1;
     env.groundY = oy + rr.height;
     // the page can cut the canvas off at the screen edge, so the room to the right is what is actually visible
     env.reach = Math.min(cr.right, document.documentElement.clientWidth) - cr.left - env.muzzles[0].x;
@@ -1390,7 +1406,7 @@
     init: function (opts) {
       frame = opts.frame; real = opts.real; canvas = opts.canvas;
       ctx = canvas.getContext('2d');
-      env = { t: 0, cycle: 0, store: {}, rand: makeRand(13), muzzles: [], unit: 1, turretPx: 100, w: 0, h: 0, groundY: 0, reach: 0 };
+      env = { t: 0, cycle: 0, store: {}, rand: makeRand(13), muzzles: [], unit: 1, turretPx: 100, w: 0, h: 0, groundY: 0, reach: 0, small: false, load: 1 };
       recipe = generic;
       if (window.ResizeObserver) {
         var ro = new ResizeObserver(function () { rebuild(); });

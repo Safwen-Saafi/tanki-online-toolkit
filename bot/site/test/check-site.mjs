@@ -465,6 +465,70 @@ async function checkSpriteCache(browser, base) {
   await context.close();
 }
 
+async function checkCanvasDensityAndSize(browser, base) {
+  const problems = [];
+  const cases = [
+    { name: 'desktop at 2x', options: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 }, density: 2 },
+    { name: 'phone at 3x', options: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }, density: 1.5 },
+    { name: 'narrow desktop window at 2x', options: { viewport: { width: 700, height: 800 }, deviceScaleFactor: 2 }, density: 1.5 },
+  ];
+  for (const c of cases) {
+    const { page, context } = await openPage(browser, base, '?tank=scorpion,hunter&fx=1260', c.options);
+    const got = await page.evaluate(() => {
+      const canvas = document.getElementById('heroFx'), r = canvas.getBoundingClientRect(), f = document.querySelector('.heroframe').getBoundingClientRect();
+      return { density: canvas.width / r.width, right: r.right, screen: document.documentElement.clientWidth, area: (r.width * r.height) / (f.width * f.height) };
+    });
+    if (Math.abs(got.density - c.density) > 0.02) problems.push(`${c.name}: ${got.density.toFixed(2)} canvas pixels per CSS pixel, wanted ${c.density}`);
+    if (got.right > got.screen + 1) problems.push(`${c.name}: the canvas runs ${Math.round(got.right - got.screen)}px past the right edge of the screen`);
+    if (got.area > 134 * 146 / 10000 + 0.01) problems.push(`${c.name}: the canvas is ${got.area.toFixed(2)} times the hero frame, more than the 1.96 the effects need`);
+    await context.close();
+  }
+  record('canvas density is 2 on desktop and 1.5 on phones, and it stops at the screen edge', problems);
+}
+
+// Left and bottom have room to spare, so any lit pixel there means the canvas was cut too small. The top and the right edge are not checked:
+// some effects already reach them in the original box, and the right edge is the screen edge on a phone.
+async function checkNothingClipped(browser, base) {
+  for (const c of [
+    { name: 'desktop', options: { viewport: { width: 1280, height: 800 } } },
+    { name: '390 px phone', options: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
+  ]) {
+    const context = await browser.newContext(c.options);
+    await context.route((url) => url.hostname !== '127.0.0.1', (route) => route.fulfill({ status: 200, body: '' }));
+    await context.addInitScript(() => {
+      let now = 1000, pending = null;
+      performance.now = () => now;
+      window.requestAnimationFrame = (cb) => { pending = cb; return 1; };
+      window.cancelAnimationFrame = () => { pending = null; };
+      window.__frame = (dt) => { now += dt; const cb = pending; pending = null; if (cb) cb(now); };
+    });
+    const page = await context.newPage();
+    await page.goto(`${base}/?tank=railgun,hunter`, { waitUntil: 'load' });
+    await page.waitForFunction(() => window.TankFx && window.TankFx.info().muzzles.length > 0, null, { polling: 100 });
+    const hits = await page.evaluate(({ turrets, hulls }) => {
+      const canvas = document.getElementById('heroFx'), ctx = canvas.getContext('2d');
+      const found = [];
+      const lit = (x, y, w, h) => { const d = ctx.getImageData(x, y, w, h).data; for (let i = 3; i < d.length; i += 4) if (d[i] > 6) return true; return false; };
+      for (const t of turrets) for (const hu of hulls) {
+        document.querySelector(`.tile[data-kind="turret"][data-id="${t}"]`).click();
+        document.querySelector(`.tile[data-kind="hull"][data-id="${hu}"]`).click();
+        const W = canvas.width, H = canvas.height, edge = Math.max(2, Math.round(W / canvas.getBoundingClientRect().width));
+        let hitLeft = false, hitBottom = false;
+        for (let n = 0; n < 380 && !(hitLeft && hitBottom); n++) {
+          window.__frame(16);
+          if (n % 4) continue;
+          hitLeft = hitLeft || lit(0, 0, edge, H);
+          hitBottom = hitBottom || lit(0, H - edge, W, edge);
+        }
+        if (hitLeft || hitBottom) found.push(`${t} + ${hu}: effect touches the ${hitLeft ? 'left' : ''}${hitLeft && hitBottom ? ' and ' : ''}${hitBottom ? 'bottom' : ''} edge`);
+      }
+      return found;
+    }, { turrets: TURRETS, hulls: HULLS });
+    record(`no effect touches the left or bottom edge of the canvas (${c.name}, every combination, a full cycle)`, hits);
+    await context.close();
+  }
+}
+
 async function checkScrapeTimeMirrorsCron() {
   const problems = [];
   const html = await readFile(join(HERE, '..', 'index.html'), 'utf8');
@@ -495,6 +559,31 @@ async function reportCost(browser, base) {
     const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? 0;
     console.log(`  ${turret.padEnd(9)} mean ${mean.toFixed(2)} ms   p95 ${p95.toFixed(2)} ms   max ${(sorted.at(-1) ?? 0).toFixed(2)} ms   ${frames.length} frames`);
     await context.close();
+  }
+}
+
+async function reportThrottledFps(browser, base) {
+  console.log('\nFrames per second on a phone-sized page with the CPU slowed down (informational, no threshold)');
+  for (const rate of [6, 12]) {
+    const row = [];
+    for (const turret of ['freeze', 'striker', 'scorpion']) {
+      const { page, context } = await openPage(browser, base, `?tank=${turret},hunter`, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+      const cdp = await context.newCDPSession(page);
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate });
+      await page.evaluate(() => {
+        window.__count = 0;
+        const raf = window.requestAnimationFrame.bind(window);
+        window.requestAnimationFrame = (cb) => raf((ts) => { window.__count++; cb(ts); });
+      });
+      await pause(700);
+      const t0 = Date.now();
+      await page.evaluate(() => { window.__count = 0; });
+      await pause(COST_RUN_MS);
+      const frames = await page.evaluate(() => window.__count);
+      row.push(`${turret} ${(frames / ((Date.now() - t0) / 1000)).toFixed(0)}`);
+      await context.close();
+    }
+    console.log(`  CPU x${String(rate).padEnd(2)} ${row.join('   ')} fps`);
   }
 }
 
@@ -538,7 +627,9 @@ try {
   await checkResize(browser, base);
   await checkHelpersExported(browser, base);
   await checkSpriteCache(browser, base);
-  if (!skipCost) { await reportCost(browser, base); await reportAllocations(browser, base); }
+  await checkCanvasDensityAndSize(browser, base);
+  await checkNothingClipped(browser, base);
+  if (!skipCost) { await reportCost(browser, base); await reportAllocations(browser, base); await reportThrottledFps(browser, base); }
 } finally {
   await browser.close();
   server.close();
