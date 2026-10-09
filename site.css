@@ -184,7 +184,8 @@ button.copy:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px;
 .tile.medium { --rc: var(--blue); }
 .tile.long { --rc: var(--gold); }
 .tile.hull { --rc: #8fa3b8; }
-.thumb { width: 100%; height: 54px; }
+/* The box stays 54px tall so every tile keeps its height, but the picture inside may only use 36px of it: a turret that is not long and flat (Striker) would otherwise fill the whole box and look bigger than the rest. */
+.thumb { box-sizing: border-box; width: 100%; height: 54px; padding: 9px 0; }
 .tn { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 15px; line-height: 1.1; }
 .tc { font-size: 12px; letter-spacing: .08em; color: var(--muted); font-weight: 600; text-transform: uppercase; min-height: 1.2em; }
 
@@ -192,7 +193,7 @@ button.copy:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px;
 .shout::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, transparent 0 18px, rgba(255, 188, 9, .05) 18px 36px); pointer-events: none; }
 .shout::after { content: ""; position: absolute; top: 0; bottom: 0; width: 120px; left: -160px; background: linear-gradient(100deg, transparent, rgba(255, 220, 120, .22), transparent); animation: sweep 6s ease-in-out infinite; pointer-events: none; }
 @keyframes sweep { 0%, 55% { transform: translateX(0); } 100% { transform: translateX(1300px); } }
-.emblem { flex: none; width: 92px; height: 92px; filter: drop-shadow(0 0 14px rgba(255, 188, 9, .45)); }
+.emblem { flex: none; width: auto; height: 150px; }
 .shout .label { color: var(--gold); letter-spacing: .3em; font-weight: 700; font-size: 13px; text-transform: uppercase; }
 .shout .clan { font-family: var(--num); font-weight: 900; font-size: clamp(36px, 7vw, 64px); letter-spacing: .14em; line-height: 1.05; margin: 2px 0 4px; background: linear-gradient(180deg, #fff6d6, var(--gold) 45%, #ff8f09); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 14px rgba(255, 143, 9, .45)); }
 .shout p { font-size: 20px; font-weight: 600; color: #e8dcc0; max-width: 34em; line-height: 1.3; }

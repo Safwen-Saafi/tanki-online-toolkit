@@ -577,6 +577,40 @@ async function checkWorkflowCopiesWhatThePageUses() {
   record(`the workflow copies every file the page uses (${used.size} found)`, problems);
 }
 
+// Every link that leaves the site opens in a new tab and cannot reach back into this page.
+async function checkExternalLinks(browser, base) {
+  const { page, context } = await openPage(browser, base, '?tank=railgun,hunter&fx=1260', { viewport: { width: 1280, height: 800 } });
+  const links = await page.evaluate(() => [...document.querySelectorAll('a[href]')].map((a) => ({
+    href: a.href, external: a.origin !== location.origin, target: a.target, rel: a.rel,
+  })));
+  const problems = [];
+  const external = links.filter((l) => l.external);
+  if (external.length < 3) problems.push(`expected at least 3 external links, found ${external.length}`);
+  for (const l of external) {
+    if (l.target !== '_blank') problems.push(`${l.href} does not open in a new tab`);
+    if (!l.rel.split(' ').includes('noopener')) problems.push(`${l.href} is missing rel="noopener"`);
+  }
+  record(`all ${external.length} external links open in a new tab`, problems);
+  await context.close();
+}
+
+// A turret picture must not fill more of its tile than the others do (Striker is the tall one).
+async function checkTilePictureSizes(browser, base) {
+  const { page, context } = await openPage(browser, base, '?tank=railgun,hunter&fx=1260', { viewport: { width: 1280, height: 800 } });
+  const sizes = await page.evaluate(() => [...document.querySelectorAll('.tile img.thumb')].map((img) => {
+    const cs = getComputedStyle(img), w = img.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), h = img.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    return { id: img.parentElement.dataset.id, boxHeight: img.getBoundingClientRect().height, shown: Math.min(h, w * img.naturalHeight / img.naturalWidth) };
+  }));
+  const problems = [];
+  for (const s of sizes) {
+    if (Math.abs(s.boxHeight - 54) > 0.5) problems.push(`${s.id}: the picture box is ${s.boxHeight}px tall, tiles would change height`);
+    if (s.shown > 36.5) problems.push(`${s.id}: the picture is shown ${s.shown.toFixed(1)}px tall, more than the 36px every tile allows`);
+  }
+  if (sizes.length !== TURRETS.length + HULLS.length) problems.push(`expected ${TURRETS.length + HULLS.length} tile pictures, found ${sizes.length}`);
+  record('no tile picture is shown larger than the others (Striker included)', problems);
+  await context.close();
+}
+
 async function checkScrapeTimeMirrorsCron() {
   const problems = [];
   const html = await readFile(join(HERE, '..', 'site.js'), 'utf8');
@@ -713,6 +747,8 @@ try {
   await checkRotation(browser, base);
   await checkLanguageKeepsShot(browser, base);
   await checkScrapeTimeMirrorsCron();
+  await checkExternalLinks(browser, base);
+  await checkTilePictureSizes(browser, base);
   await checkSelfHostedFonts(browser, base);
   await checkWorkflowCopiesWhatThePageUses();
   await checkFrameRateIndependence(browser, base);
