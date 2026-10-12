@@ -348,12 +348,24 @@ per-language JSON. It has its own `package.json` and lockfile; run these inside
   `npm run scrape -- --publish <dir>` copies the validated files from
   `bot/out/` into `<dir>` only when their content changed.
 - Daily run: `.github/workflows/augments-bot.yml` runs the scrape at 05:30 UTC
-  (and on manual dispatch), then commits any changed files to the `data`
-  branch. It never touches `main`.
-- Published at (GitHub Pages, deployed from the `data` branch, folder `/`):
+  (and on manual dispatch; GitHub often starts it hours late). It commits to the
+  `data` branch only when an augment really changed, and the `data` branch holds
+  the two JSON files and nothing else. The commit message names what changed,
+  for example `augments: update EN (2 changed, 1 added)` with one line per
+  augment under the language (`npm run scrape -- --publish <dir> --message-file
+  <path>` writes it). When the data changed, the same workflow calls
+  `.github/workflows/deploy-pages.yml`. It never touches `main`.
+- Publishing: GitHub Pages is set to the "GitHub Actions" source.
+  `deploy-pages.yml` checks out the `site` branch (the landing page) and the
+  `data` branch (the two JSON files), joins them into one folder, and deploys
+  it; nothing is committed back. It also runs by hand from the Actions tab and
+  from the `site` branch's own workflow when the page changes. Settings it
+  needs: Pages source "GitHub Actions", and `site` listed in the
+  `github-pages` environment's deployment branches.
+- Published at (GitHub Pages, deployed by `deploy-pages.yml`, folder `/`):
   `https://safwen-saafi.github.io/tanki-online-toolkit/augments.en.json` and
   `.../augments.ru.json`. Both send `Access-Control-Allow-Origin: *`. The landing
-  page at the same root is `bot/site/index.html` with its `site.css`, `site.js`, `fx.js`, `img/` and `fonts/`, all copied there by the workflow (`npm run test:site` fails if the page uses a file the workflow does not copy). The fonts (Orbitron, Rajdhani, Exo 2 and Russo One, latin and cyrillic parts) are self-hosted under the SIL Open Font License with the licence texts beside them, so the page makes no request to Google or any other host. There is no scanline overlay, and the hex pattern is one static layer over the top screen of the page, so nothing translucent is fixed over the animated canvas.
+  page at the same root is the `site` branch: `index.html` with its `site.css`, `site.js`, `fx.js`, `img/` and `fonts/`, joined with the two data files by the deploy workflow (the page's own tests fail if it uses a file the deploy would leave out). The fonts (Orbitron, Rajdhani, Exo 2 and Russo One, latin and cyrillic parts) are self-hosted under the SIL Open Font License with the licence texts beside them, so the page makes no request to Google or any other host. There is no scanline overlay, and the hex pattern is one static layer over the top screen of the page, so nothing translucent is fixed over the animated canvas.
   It is bilingual (EN and RU: it follows the browser language, has a toggle, and
   remembers the choice) and shows live stats read from the two JSON files. Its
   turret and hull pictures are the game's own garage exports: 28 WebP files in

@@ -1,0 +1,63 @@
+name: Deploy site
+
+# Builds the public site from two branches and publishes it with GitHub Pages:
+#   site - the landing page (index.html, site.css, site.js, fx.js, img/, fonts/)
+#   data - the two augment files written by the Augments bot
+# Nothing is committed back; the joined folder only exists inside this run.
+# It is called by the Augments bot when the data changed, by a push to the site branch,
+# and by hand from the Actions tab.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: site
+          path: site
+
+      - uses: actions/checkout@v4
+        with:
+          ref: data
+          path: data
+
+      # The site branch also holds its own tests and package files; they are not part of the public site.
+      - name: Join the page and the data
+        run: |
+          mkdir _site
+          rsync -a \
+            --exclude='.git' --exclude='.github' --exclude='.gitignore' \
+            --exclude='test' --exclude='node_modules' \
+            --exclude='package.json' --exclude='package-lock.json' --exclude='README.md' \
+            site/ _site/
+          cp data/augments.en.json data/augments.ru.json _site/
+          for file in index.html site.css site.js fx.js augments.en.json augments.ru.json; do
+            test -s "_site/$file" || { echo "missing $file in the joined site"; exit 1; }
+          done
+          ls -R _site | head -60
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

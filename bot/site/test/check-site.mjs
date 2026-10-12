@@ -552,11 +552,13 @@ async function checkSelfHostedFonts(browser, base) {
   record('no request leaves the site, and the self-hosted fonts are the ones in use', problems);
 }
 
-// Every file the page points at must be copied to the data branch by the workflow, or it works here and is missing online.
+// Every file the page points at must reach the published site. The deploy workflow joins the whole site folder minus a short exclude list,
+// so the check is that every file the page uses exists and is not on that list.
 async function checkWorkflowCopiesWhatThePageUses() {
   const problems = [];
   const site = join(HERE, '..');
-  const workflow = await readFile(join(site, '..', '..', '.github', 'workflows', 'augments-bot.yml'), 'utf8');
+  const workflow = await readFile(join(site, '..', '..', '.github', 'workflows', 'deploy-pages.yml'), 'utf8');
+  const excluded = new Set([...workflow.matchAll(/--exclude='([^']+)'/g)].map((m) => m[1]));
   const html = await readFile(join(site, 'index.html'), 'utf8');
   const css = await readFile(join(site, 'site.css'), 'utf8');
   const js = await readFile(join(site, 'site.js'), 'utf8');
@@ -564,17 +566,14 @@ async function checkWorkflowCopiesWhatThePageUses() {
   for (const m of html.matchAll(/(?:src|href)="([^"#?]+)(?:\?[^"]*)?"/g)) if (!/^(?:[a-z]+:|\/)/i.test(m[1])) used.add(m[1]);
   for (const m of css.matchAll(/url\('([^')]+)'\)/g)) if (!/^(?:[a-z]+:|data:)/i.test(m[1])) used.add(m[1]);
   for (const m of js.matchAll(/'((?:img|fonts)\/[\w./-]+)'/g)) used.add(m[1]);
-  // the two data files are written by the scrape's publish step, not copied from bot/site
+  // the two data files come from the data branch, not from the page
   for (const path of [...used].filter((p) => !/^augments\.\w+\.json$/.test(p))) {
     try { await readFile(join(site, path)); } catch { problems.push(`${path} is used by the page but is not in bot/site`); continue; }
     const top = path.split('/')[0];
-    const copied = path.includes('/')
-      ? workflow.split('\n').some((line) => line.includes('cp -r bot/site/' + top + ' '))
-      : workflow.split('\n').some((line) => line.includes('cp ') && line.split(/\s+/).includes('bot/site/' + top));
-    if (!copied) problems.push(`${path} is used by the page but the workflow does not copy ${path.includes('/') ? top + '/' : top}`);
+    if (excluded.has(top)) problems.push(`${path} is used by the page but the deploy workflow leaves out ${top}`);
   }
   if (!used.size) problems.push('found no files used by the page, so the check proves nothing');
-  record(`the workflow copies every file the page uses (${used.size} found)`, problems);
+  record(`the deploy workflow publishes every file the page uses (${used.size} found)`, problems);
 }
 
 // Every link that leaves the site opens in a new tab and cannot reach back into this page.
