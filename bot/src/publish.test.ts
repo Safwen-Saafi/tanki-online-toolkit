@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { SCHEMA_VERSION, fileNameFor, type Augment, type AugmentsFile, type ItemAugments, type Language } from './contract.js';
-import { diffItems, parseAugmentsFile, publishAll, readPublished } from './publish.js';
+import { changeSet, commitMessage, diffItems, parseAugmentsFile, publishAll, readPublished } from './publish.js';
 
 function makeFile(language: Language, generatedAt: string, perItem = 10, tweak = ''): AugmentsFile {
     const items: Record<string, ItemAugments> = {};
@@ -119,4 +119,41 @@ test('readPublished returns null for a missing or corrupt file', () => {
     mkdirSync(published);
     writeFileSync(join(published, 'augments.en.json'), '{ not json');
     assert.equal(readPublished(published, 'EN'), null);
+});
+
+test('changeSet names every added, removed and changed augment as item / name', () => {
+    const before = makeFile('EN', 'a', 3);
+    const kept = before.items['item0']?.['item0 augment 1'];
+    assert.ok(kept);
+    const items: Record<string, ItemAugments> = { ...before.items };
+    items['item0'] = {
+        'item0 augment 0': { name: 'item0 augment 0', advantages: ['different'], disadvantages: [] },
+        'item0 augment 1': kept,
+        brand: { name: 'brand', advantages: [], disadvantages: [] },
+    };
+    assert.deepEqual(changeSet(before, { ...before, items }), {
+        added: ['item0 / brand'],
+        removed: ['item0 / item0 augment 2'],
+        changed: ['item0 / item0 augment 0'],
+    });
+});
+
+test('commitMessage says what changed, per language, and is null when nothing was written', () => {
+    const { out, published } = setup();
+    writeOut(out, makeFile('EN', '2026-10-01T05:00:00Z'));
+    writeOut(out, makeFile('RU', '2026-10-01T05:00:00Z'));
+    assert.equal(commitMessage(publishAll(out, published, both)), 'augments: first publish of EN and RU');
+    assert.equal(commitMessage(publishAll(out, published, both)), null);
+
+    const changed = makeFile('EN', '2026-10-02T05:00:00Z', 10, ' v2');
+    writeOut(out, changed);
+    const message = commitMessage(publishAll(out, published, both));
+    assert.ok(message);
+    const [subject, blank, section] = message.split('\n');
+    assert.equal(subject, 'augments: update EN (120 changed)');
+    assert.equal(blank, '');
+    assert.equal(section, 'EN');
+    assert.ok(message.includes('\n- changed: item0 / item0 augment 0\n'));
+    assert.ok(!message.includes('RU'));
+    assert.ok(message.split('\n').every((line) => !line.startsWith(' ')), 'no wrapped or indented lines');
 });
