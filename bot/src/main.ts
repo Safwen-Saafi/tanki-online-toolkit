@@ -5,7 +5,7 @@ import { buildFile } from './build.js';
 import { countAugments, fileNameFor } from './contract.js';
 import { parseHub, type HubEntry } from './discover.js';
 import { parsePage } from './parse.js';
-import { publishAll } from './publish.js';
+import { commitMessage, publishAll } from './publish.js';
 import { validateFile } from './validate.js';
 import { SITES, WikiSession, type WikiSite } from './wiki.js';
 
@@ -81,13 +81,16 @@ async function scrapeAll(): Promise<number> {
 }
 
 // Copies each validated out/ file into publishedDir, only when its content changed.
-function runPublish(publishedDir: string): number {
+// With a message file, it also writes the commit message for what changed, and leaves the file alone when nothing was written.
+function runPublish(publishedDir: string, messageFile: string | undefined): number {
     const languages = SITES.map((site) => site.language);
     const results = publishAll(fileURLToPath(OUT_DIR), resolve(publishedDir), languages);
     for (const result of results) {
         console.log(`${result.language}: ${result.action}`);
         for (const line of result.lines) console.log(`  ${line}`);
     }
+    const message = commitMessage(results);
+    if (messageFile !== undefined && message !== null) writeFileSync(resolve(messageFile), message);
     return results.some((result) => result.action === 'rejected') ? 1 : 0;
 }
 
@@ -96,10 +99,11 @@ async function main(args: readonly string[]): Promise<number> {
     if (publishAt !== -1) {
         const dir = args[publishAt + 1];
         if (dir === undefined) {
-            console.error('usage: npm run scrape -- --publish <published-dir>');
+            console.error('usage: npm run scrape -- --publish <published-dir> [--message-file <path>]');
             return 1;
         }
-        return runPublish(dir);
+        const messageAt = args.indexOf('--message-file');
+        return runPublish(dir, messageAt === -1 ? undefined : args[messageAt + 1]);
     }
     const pageAt = args.indexOf('--page');
     if (pageAt !== -1) {
@@ -119,7 +123,7 @@ async function main(args: readonly string[]): Promise<number> {
         return 0;
     }
     if (args.length === 0) return scrapeAll();
-    console.error('usage: npm run scrape [-- --discover | --page <en|ru> <item> | --publish <published-dir>]');
+    console.error('usage: npm run scrape [-- --discover | --page <en|ru> <item> | --publish <published-dir> [--message-file <path>]]');
     return 1;
 }
 

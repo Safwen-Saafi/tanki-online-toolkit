@@ -16,6 +16,8 @@ jobs:
   scrape-and-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,6 +47,7 @@ jobs:
         working-directory: bot
         run: npm run scrape
 
+      # The data branch holds the two augment files and nothing else.
       - name: Prepare the data branch
         run: |
           git config user.name "tanki-augments-bot"
@@ -62,23 +65,23 @@ jobs:
         continue-on-error: true
         shell: bash
         working-directory: bot
-        run: npm run --silent scrape -- --publish ../data-branch | tee "$RUNNER_TEMP/publish.txt"
+        run: npm run --silent scrape -- --publish ../data-branch --message-file "$RUNNER_TEMP/commit-message.txt" | tee "$RUNNER_TEMP/publish.txt"
 
+      # A commit is made only when a file really changed, and its message says which augments changed.
       - name: Commit and push the data branch
+        id: commit
         run: |
           cat "$RUNNER_TEMP/publish.txt" >> "$GITHUB_STEP_SUMMARY" || true
-          cp bot/site/index.html bot/site/site.css bot/site/site.js bot/site/fx.js data-branch/
-          rm -rf data-branch/img data-branch/fonts
-          cp -r bot/site/img data-branch/img
-          cp -r bot/site/fonts data-branch/fonts
           cd data-branch
-          touch .nojekyll
           git add -A
           if git diff --cached --quiet; then
             echo "Nothing changed, nothing to publish."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            git commit -m "data: update augments" -m "$(cat "$RUNNER_TEMP/publish.txt")"
+            test -s "$RUNNER_TEMP/commit-message.txt" || echo "augments: update" > "$RUNNER_TEMP/commit-message.txt"
+            git commit -F "$RUNNER_TEMP/commit-message.txt"
             git push origin data
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Fail the run if anything went wrong
@@ -86,3 +89,14 @@ jobs:
         run: |
           echo "The scrape or the publish step failed; see the logs above."
           exit 1
+
+  # Publishing the new files to the site. It runs even when the failure step above fired, because one
+  # language may have been published while the other was rejected.
+  deploy:
+    needs: scrape-and-publish
+    if: always() && needs.scrape-and-publish.outputs.changed == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml
