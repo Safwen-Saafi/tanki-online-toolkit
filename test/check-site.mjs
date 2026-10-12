@@ -53,7 +53,7 @@ async function openPage(browser, base, query, options = {}) {
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
-    if (/augments\.(en|ru)\.json/.test(m.location().url)) return; // the page handles a missing data file
+    if (/(augments\.(en|ru)|status)\.json/.test(m.location().url)) return; // the page handles a missing data file
     errors.push(`console.error: ${m.text()}`);
   });
   await page.goto(`${base}/${query}`, { waitUntil: 'load' });
@@ -576,6 +576,28 @@ async function checkPageFilesArePublished() {
   record(`every file the page uses is in this branch and is published (${used.size} found)`, problems);
 }
 
+// The "Checked" chip shows the time in status.json, and stays hidden when that file is not there.
+async function checkCheckedChip(browser, base) {
+  const problems = [];
+  const shown = await openPage(browser, base, '?tank=railgun,hunter&fx=1260', { viewport: { width: 1280, height: 800 } });
+  await shown.page.waitForFunction(() => !document.getElementById('checkedChip').hidden, null, { timeout: 5000 }).catch(() => problems.push('the chip is not shown although status.json exists'));
+  const text = await shown.page.evaluate(() => document.getElementById('chipChecked').textContent);
+  if (!text || text === '-') problems.push(`the chip shows "${text}" and not a time`);
+  await shown.page.click('.lang button[data-lang="RU"]');
+  const ru = await shown.page.evaluate(() => document.querySelector('#checkedChip span').textContent);
+  if (ru !== '\u041f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043e') problems.push(`the chip label is "${ru}" in Russian`);
+  await shown.context.close();
+
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await context.route((url) => url.hostname !== '127.0.0.1', (route) => route.fulfill({ status: 200, body: '' }));
+  await context.route('**/status.json', (route) => route.fulfill({ status: 404, body: '' }));
+  const page = await context.newPage();
+  await page.goto(`${base}/?tank=railgun,hunter&fx=1260`, { waitUntil: 'networkidle' });
+  if (!(await page.evaluate(() => document.getElementById('checkedChip').hidden))) problems.push('the chip is shown although status.json is missing');
+  await context.close();
+  record('the "Checked" chip shows the last check time, in both languages, and hides when status.json is missing', problems);
+}
+
 // Every link that leaves the site opens in a new tab and cannot reach back into this page.
 async function checkExternalLinks(browser, base) {
   const { page, context } = await openPage(browser, base, '?tank=railgun,hunter&fx=1260', { viewport: { width: 1280, height: 800 } });
@@ -732,6 +754,7 @@ try {
   await checkRotation(browser, base);
   await checkLanguageKeepsShot(browser, base);
   await checkExternalLinks(browser, base);
+  await checkCheckedChip(browser, base);
   await checkTilePictureSizes(browser, base);
   await checkSelfHostedFonts(browser, base);
   await checkPageFilesArePublished();

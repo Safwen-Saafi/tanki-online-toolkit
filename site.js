@@ -10,7 +10,7 @@
       checking: 'Checking data...', live: 'Live data', partly: 'Partly available', down: 'Data unavailable',
       h1: 'Augments<br>Database',
       lead: 'Every augment for every turret and hull, scraped daily from the Tanki Online wiki in English and Russian, ready to load with one request.',
-      items: 'Items', augments: 'Augments', next: 'Next scrape', updated: 'Updated', unavailable: 'unavailable',
+      items: 'Items', augments: 'Augments', checked: 'Checked', next: 'Next scrape', updated: 'Updated', unavailable: 'unavailable',
       pick: 'Pick a language', open: 'Open file', copy: 'Copy link', copied: 'Link copied', copyPrompt: 'Copy this link:',
       garage: 'Build a tank', turrets: 'Turrets', hulls: 'Hulls',
       short: 'Short range', medium: 'Medium range', long: 'Long range',
@@ -35,7 +35,7 @@
       checking: 'Проверка данных...', live: 'Данные актуальны', partly: 'Доступно частично', down: 'Данные недоступны',
       h1: 'База<br>устройств',
       lead: 'Все устройства для каждой пушки и корпуса, раз в день собранные с вики Tanki Online на английском и русском и готовые к загрузке одним запросом.',
-      items: 'Предметы', augments: 'Устройства', next: 'Следующий сбор', updated: 'Обновлено', unavailable: 'недоступно',
+      items: 'Предметы', augments: 'Устройства', checked: 'Проверено', next: 'Следующий сбор', updated: 'Обновлено', unavailable: 'недоступно',
       pick: 'Выберите язык', open: 'Открыть файл', copy: 'Копировать ссылку', copied: 'Ссылка скопирована', copyPrompt: 'Скопируйте ссылку:',
       garage: 'Соберите танк', turrets: 'Пушки', hulls: 'Корпуса',
       short: 'Ближний бой', medium: 'Средняя дистанция', long: 'Дальний бой',
@@ -239,6 +239,7 @@
   /* ---------- live data ---------- */
   var summaries = [];
   var formatter = null;
+  var checkedAt = null;
 
   function ago(iso) {
     var then = Date.parse(iso);
@@ -295,6 +296,24 @@
     live.classList.toggle('off', ok !== summaries.length);
   }
 
+  // status.json is written by the deploy and holds the time of the last wiki check, which is not the time the data last changed.
+  // It is missing on a local copy, and then the chip stays hidden.
+  function renderChecked() {
+    var chip = document.getElementById('checkedChip');
+    chip.hidden = checkedAt === null;
+    if (checkedAt !== null) document.getElementById('chipChecked').textContent = ago(checkedAt);
+  }
+
+  function loadStatus() {
+    return fetch('status.json', { cache: 'no-cache' })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (status) {
+        if (status && status.schemaVersion === 1 && typeof status.checkedAt === 'string' && !isNaN(Date.parse(status.checkedAt))) checkedAt = status.checkedAt;
+        renderChecked();
+      })
+      .catch(function () { /* no status file: the chip stays hidden */ });
+  }
+
   function loadCard(card) {
     return fetch(card.getAttribute('data-file'), { cache: 'no-cache' })
       .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
@@ -313,7 +332,7 @@
     document.getElementById('h1').innerHTML = t('h1');
     var buttons = document.querySelectorAll('.lang button');
     for (var j = 0; j < buttons.length; j++) buttons[j].setAttribute('aria-pressed', String(buttons[j].getAttribute('data-lang') === lang));
-    renderLive(); renderCards(); renderTileText(); renderHero(); tickNext();
+    renderLive(); renderCards(); renderTileText(); renderHero(); renderChecked(); tickNext();
   }
 
   var langButtons = document.querySelectorAll('.lang button');
@@ -368,6 +387,7 @@
   applyLang();
 
   var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+  loadStatus();
   Promise.all(cards.map(loadCard)).then(function (results) {
     summaries = results;
     var source = results[0] || results[1];
