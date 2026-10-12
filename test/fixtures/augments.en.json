@@ -1,0 +1,585 @@
+{
+  "schemaVersion": 1,
+  "language": "EN",
+  "generatedAt": "2026-10-10T16:47:52Z",
+  "items": {
+    "firebird": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤35%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "High-pressure pump": {
+        "name": "High-pressure pump",
+        "advantages": [
+          "Range +50%",
+          "Range (of minimum damage): +50%",
+          "Range of maximum damage: +50%"
+        ],
+        "disadvantages": [
+          "Cone angle: -75%"
+        ]
+      },
+      "Compact fuel tanks": {
+        "name": "Compact fuel tanks",
+        "advantages": [
+          "Upper temperature limit: +1.00",
+          "Heating rate: +1.00 / tick"
+        ],
+        "disadvantages": [
+          "Energy consumption: +50%",
+          "Reload: +100%"
+        ]
+      }
+    },
+    "freeze": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤35%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "High-pressure pump": {
+        "name": "High-pressure pump",
+        "advantages": [
+          "Range (of minimum damage): +50%",
+          "Range of maximum damage: +50%"
+        ],
+        "disadvantages": [
+          "Cone angle: -75%"
+        ]
+      },
+      "Corrosive mix": {
+        "name": "Corrosive mix",
+        "advantages": [
+          "Damage: +10%",
+          "Critical damage: +10%"
+        ],
+        "disadvantages": [
+          "Freezing effect removed"
+        ]
+      }
+    },
+    "isida": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤35%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Broadband radiators": {
+        "name": "Broadband radiators",
+        "advantages": [
+          "Cone angle: +125%"
+        ],
+        "disadvantages": [
+          "Range: -30%"
+        ]
+      },
+      "Support nanobots": {
+        "name": "Support nanobots",
+        "advantages": [
+          "Energy consumption when healing: -50%",
+          "Maximum critical healing chance: +100%"
+        ],
+        "disadvantages": [
+          "Regular damage: -50%"
+        ]
+      }
+    },
+    "tesla": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤35%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Minus-field": {
+        "name": "Minus-field",
+        "advantages": [
+          "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10"
+        ],
+        "disadvantages": []
+      },
+      "Acceleration Protocol": {
+        "name": "Acceleration Protocol",
+        "advantages": [
+          "Lightning ball speed: +100%",
+          "Lightning ball range: +100%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "hammer": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤35%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Slugger": {
+        "name": "Slugger",
+        "advantages": [
+          "Range of minimum damage: +50%: Highlighting range: +25%",
+          "Range of maximum damage: +50%",
+          "Vertical scatter angle: -50%",
+          "Horizontal scatter angle: -75%"
+        ],
+        "disadvantages": [
+          "Impact force: -50%"
+        ]
+      },
+      "High-capacity ammo clip": {
+        "name": "High-capacity ammo clip",
+        "advantages": [
+          "Shots per clip: 5"
+        ],
+        "disadvantages": [
+          "Clip reload: +20%"
+        ]
+      }
+    },
+    "twins": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Stabilized plasma": {
+        "name": "Stabilized plasma",
+        "advantages": [
+          "Impact force: +20%",
+          "Self-damage removed"
+        ],
+        "disadvantages": [
+          "Splash damage removed"
+        ]
+      },
+      "Plasma accelerators": {
+        "name": "Plasma accelerators",
+        "advantages": [
+          "Initial projectile speed: +100%",
+          "Range of minimum damage: +50%",
+          "Range: +50%",
+          "Highlighting distance: +50%",
+          "Projectile acceleration: +20%"
+        ],
+        "disadvantages": [
+          "Reload: +20%"
+        ]
+      }
+    },
+    "ricochet": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Destabilized plasma": {
+        "name": "Destabilized plasma",
+        "advantages": [
+          "Splash damage added: Minimum and critical splash damage radius: 7 m; Average splash damage radius: 2 m; Maximum splash damage radius: 1 m"
+        ],
+        "disadvantages": [
+          "Self-damage possible at close range",
+          "Maximum number of ricochets: 1"
+        ]
+      },
+      "Minus-field stabilization": {
+        "name": "Minus-field stabilization",
+        "advantages": [
+          "Range: +50%",
+          "Range (of minimum damage): +50%",
+          "Projectile speed: +100%"
+        ],
+        "disadvantages": [
+          "Shot reload: +10%"
+        ]
+      }
+    },
+    "vulcan": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Shooting Speed Regulator": {
+        "name": "Shooting Speed Regulator",
+        "advantages": [
+          "Barrel startup time: -50%",
+          "Barrel slowdown time: -50%",
+          "Regular damage: +50%",
+          "Critical chance: +50%",
+          "Time to overheating: +50%"
+        ],
+        "disadvantages": [
+          "Bullet reload: +50%"
+        ]
+      },
+      "Reinforced aiming transmission": {
+        "name": "Reinforced aiming transmission",
+        "advantages": [
+          "Turret rotation speed: +50%",
+          "Turret rotary acceleration: +50%",
+          "Coefficient of turret rotation slowdown while shooting: -50%"
+        ],
+        "disadvantages": [
+          "Upward auto-aim: -80%"
+        ]
+      }
+    },
+    "smoky": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Assault rounds": {
+        "name": "Assault rounds",
+        "advantages": [
+          "Initial projectile speed: +50%",
+          "Final projectile speed: +50%",
+          "Impact force: +35%"
+        ],
+        "disadvantages": [
+          "Critical hits disabled"
+        ]
+      },
+      "High-precision aiming system": {
+        "name": "High-precision aiming system",
+        "advantages": [
+          "Regular damage: +27%",
+          "Critical damage: +29%"
+        ],
+        "disadvantages": [
+          "Reload time: +64%",
+          "Projectile speed: -30%"
+        ]
+      }
+    },
+    "striker": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Remote rocket explosives": {
+        "name": "Remote rocket explosives",
+        "advantages": [
+          "Rockets will explode upon double-pressing fire button",
+          "Minimum rocket speed: 20 m/s"
+        ],
+        "disadvantages": [
+          "Rocket acceleration time: 1.5 s",
+          "Possibility of self-damage if not careful",
+          "Horizontal auto-aim angle: ±0°"
+        ]
+      },
+      "Missile launcher «Hunter»": {
+        "name": "Missile launcher «Hunter»",
+        "advantages": [
+          "Aiming time: -75%",
+          "Salvo reload time: -40%"
+        ],
+        "disadvantages": [
+          "Rockets per salvo: 1",
+          "Aiming recovery time: -30%"
+        ]
+      }
+    },
+    "thunder": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤25%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Small caliber charging machine": {
+        "name": "Small caliber charging machine",
+        "advantages": [
+          "Reload time: -20%"
+        ],
+        "disadvantages": [
+          "Regular damage: -30%"
+        ]
+      },
+      "Subcaliber rounds": {
+        "name": "Subcaliber rounds",
+        "advantages": [
+          "Reload time: -10%",
+          "Projectile speed: +100%",
+          "Impact force: +25%",
+          "Firing speed: +100%",
+          "Self damage removed"
+        ],
+        "disadvantages": [
+          "Splash damage removed"
+        ]
+      }
+    },
+    "tsunami": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Manual Firing Mode": {
+        "name": "Manual Firing Mode",
+        "advantages": [
+          "Reload time -25%"
+        ],
+        "disadvantages": [
+          "Magazine size = 1"
+        ]
+      },
+      "Explosive Shells": {
+        "name": "Explosive Shells",
+        "advantages": [
+          "Radius of maximum area damage = 3 m",
+          "Radius of the average area of ​​damage = 6 m",
+          "Radius of minimum area damage = 9 m",
+          "Radius of critical area damage = 3 m",
+          "Average area damage percentage = 50%",
+          "Minimal area damage percentage = 50%"
+        ],
+        "disadvantages": [
+          "Projectiles can no longer ricochet",
+          "The blast radius damage can cause self-damage"
+        ]
+      }
+    },
+    "scorpion": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Explosive Shells": {
+        "name": "Explosive Shells",
+        "advantages": [
+          "Arcade minimum splash damage radius: 10 m",
+          "Arcade average splash damage radius: 2 m"
+        ],
+        "disadvantages": [
+          "Projectile speed: -50%",
+          "Ricochet effect disabled"
+        ]
+      },
+      "Explosive warheads": {
+        "name": "Explosive warheads",
+        "advantages": [
+          "Rocket minimum splash damage radius: 10 m",
+          "Rocket average splash damage radius: 3 m"
+        ],
+        "disadvantages": []
+      }
+    },
+    "magnum": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Reinforced gun carriage": {
+        "name": "Reinforced gun carriage",
+        "advantages": [
+          "Control mode: vertical aiming"
+        ],
+        "disadvantages": []
+      },
+      "Automated gunpowder loading mechanism": {
+        "name": "Automated gunpowder loading mechanism",
+        "advantages": [
+          "Control mode: vertical aiming",
+          "Amplification time: -15%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "railgun": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Round stabilization": {
+        "name": "Round stabilization",
+        "advantages": [
+          "Penetration: 100%",
+          "Damage is not distance-dependent"
+        ],
+        "disadvantages": [
+          "Regular damage: -5%",
+          "Critical damage: -24%"
+        ]
+      },
+      "Reinforced aiming transmission": {
+        "name": "Reinforced aiming transmission",
+        "advantages": [
+          "Turret rotation speed: +50%",
+          "Turret rotatory acceleration: +50%",
+          "Vertical auto-aim: +50%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "gauss": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Faster Horizontal Tracking": {
+        "name": "Faster Horizontal Tracking",
+        "advantages": [
+          "Turret rotation speed: +100%",
+          "Turret rotatory acceleration: +100%",
+          "Vertical auto-aim: +50%"
+        ],
+        "disadvantages": []
+      },
+      "Hacked Aiming Processor": {
+        "name": "Hacked Aiming Processor",
+        "advantages": [
+          "Aiming recovery time: +400%"
+        ],
+        "disadvantages": []
+      }
+    },
+    "shaft": {
+      "Adrenaline": {
+        "name": "Adrenaline",
+        "advantages": [
+          "Regular and critical damage: +25%"
+        ],
+        "disadvantages": [
+          "Damage bonus only activates when health is ≤20%",
+          "Effect is disabled when the tank has the Freezing status effect."
+        ]
+      },
+      "Short-band emitter": {
+        "name": "Short-band emitter",
+        "advantages": [
+          "Arcade damage: +30%",
+          "Arcade critical damage: +29%",
+          "Minimum sniping damage: +30%"
+        ],
+        "disadvantages": [
+          "Arcade reload: +15%"
+        ]
+      },
+      "Heavy capacitors": {
+        "name": "Heavy capacitors",
+        "advantages": [
+          "Maximum sniping damage: +25%"
+        ],
+        "disadvantages": [
+          "Charge rate in aiming mode: -25%",
+          "Energy consumed by sniping shot: +100%",
+          "Recharge rate after sniping shot: -20%"
+        ]
+      }
+    },
+    "hulls": {
+      "Heat Resistance": {
+        "name": "Heat Resistance",
+        "advantages": [
+          "Damage taken from Burning: -50%",
+          "Heating rate: -50%"
+        ],
+        "disadvantages": []
+      },
+      "Cold Resistance": {
+        "name": "Cold Resistance",
+        "advantages": [
+          "Slowdown from Freezing: -50%",
+          "Freezing rate: -50%"
+        ],
+        "disadvantages": []
+      },
+      "Lightweight Construction": {
+        "name": "Lightweight Construction",
+        "advantages": [
+          "Acceleration: +15%",
+          "Weight: -30%"
+        ],
+        "disadvantages": []
+      }
+    }
+  }
+}

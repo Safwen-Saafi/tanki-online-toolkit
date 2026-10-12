@@ -1,5 +1,5 @@
-// Browser checks for the landing page and its shot effects. Run from bot/ with `npm run test:site`.
-// It serves bot/site (plus bot/out for the data files) on a free local port and drives a real Chromium.
+// Browser checks for the landing page and its shot effects. Run with `npm test` or `npm run test:quick`.
+// It serves this branch (plus test/fixtures for the data files) on a free local port and drives a real Chromium.
 import { createServer } from 'node:http';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, normalize } from 'node:path';
@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOTS = [join(HERE, '..'), join(HERE, '..', '..', 'out')];
+const ROOTS = [join(HERE, '..'), join(HERE, 'fixtures')];
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webp': 'image/webp', '.woff2': 'font/woff2' };
 
 const TURRETS = ['firebird', 'freeze', 'isida', 'tesla', 'hammer', 'twins', 'ricochet', 'vulcan', 'smoky', 'striker', 'thunder', 'tsunami', 'scorpion', 'magnum', 'railgun', 'gauss', 'shaft'];
@@ -53,7 +53,7 @@ async function openPage(browser, base, query, options = {}) {
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
-    if (/augments\.(en|ru)\.json/.test(m.location().url)) return; // bot/out is not committed, a missing file is handled by the page
+    if (/augments\.(en|ru)\.json/.test(m.location().url)) return; // the page handles a missing data file
     errors.push(`console.error: ${m.text()}`);
   });
   await page.goto(`${base}/${query}`, { waitUntil: 'load' });
@@ -440,7 +440,7 @@ async function checkHelpersExported(browser, base) {
   const { page, context } = await openPage(browser, base, '?tank=hammer,viking', { viewport: { width: 1280, height: 800 } });
   const names = await page.evaluate(() => Object.keys(window.TankFx.helpers));
   const wanted = ['glow', 'drawFlash', 'lerp', 'ramp', 'sprite', 'stream', 'bullets', 'drawBall', 'drawSlug', 'drawBeam', 'shellRecipe'];
-  record('TankFx.helpers exports everything AGENTS.md lists', wanted.filter((n) => !names.includes(n)).map((n) => `missing helper: ${n}`));
+  record('TankFx.helpers exports every helper the recipes use', wanted.filter((n) => !names.includes(n)).map((n) => `missing helper: ${n}`));
   await context.close();
 }
 
@@ -552,13 +552,13 @@ async function checkSelfHostedFonts(browser, base) {
   record('no request leaves the site, and the self-hosted fonts are the ones in use', problems);
 }
 
-// Every file the page points at must reach the published site. The deploy workflow joins the whole site folder minus a short exclude list,
-// so the check is that every file the page uses exists and is not on that list.
-async function checkWorkflowCopiesWhatThePageUses() {
+// Every file the page points at must exist in this branch and must not be one of the files the deploy leaves out.
+// Keep NOT_PUBLISHED in step with the --exclude list in main's .github/workflows/deploy-pages.yml.
+const NOT_PUBLISHED = ['.git', '.github', '.gitignore', 'test', 'node_modules', 'package.json', 'package-lock.json', 'README.md'];
+
+async function checkPageFilesArePublished() {
   const problems = [];
   const site = join(HERE, '..');
-  const workflow = await readFile(join(site, '..', '..', '.github', 'workflows', 'deploy-pages.yml'), 'utf8');
-  const excluded = new Set([...workflow.matchAll(/--exclude='([^']+)'/g)].map((m) => m[1]));
   const html = await readFile(join(site, 'index.html'), 'utf8');
   const css = await readFile(join(site, 'site.css'), 'utf8');
   const js = await readFile(join(site, 'site.js'), 'utf8');
@@ -566,14 +566,14 @@ async function checkWorkflowCopiesWhatThePageUses() {
   for (const m of html.matchAll(/(?:src|href)="([^"#?]+)(?:\?[^"]*)?"/g)) if (!/^(?:[a-z]+:|\/)/i.test(m[1])) used.add(m[1]);
   for (const m of css.matchAll(/url\('([^')]+)'\)/g)) if (!/^(?:[a-z]+:|data:)/i.test(m[1])) used.add(m[1]);
   for (const m of js.matchAll(/'((?:img|fonts)\/[\w./-]+)'/g)) used.add(m[1]);
-  // the two data files come from the data branch, not from the page
+  // the two data files come from the data branch, not from this one
   for (const path of [...used].filter((p) => !/^augments\.\w+\.json$/.test(p))) {
-    try { await readFile(join(site, path)); } catch { problems.push(`${path} is used by the page but is not in bot/site`); continue; }
+    try { await readFile(join(site, path)); } catch { problems.push(`${path} is used by the page but is not in this branch`); continue; }
     const top = path.split('/')[0];
-    if (excluded.has(top)) problems.push(`${path} is used by the page but the deploy workflow leaves out ${top}`);
+    if (NOT_PUBLISHED.includes(top)) problems.push(`${path} is used by the page but the deploy leaves out ${top}`);
   }
   if (!used.size) problems.push('found no files used by the page, so the check proves nothing');
-  record(`the deploy workflow publishes every file the page uses (${used.size} found)`, problems);
+  record(`every file the page uses is in this branch and is published (${used.size} found)`, problems);
 }
 
 // Every link that leaves the site opens in a new tab and cannot reach back into this page.
@@ -608,20 +608,6 @@ async function checkTilePictureSizes(browser, base) {
   if (sizes.length !== TURRETS.length + HULLS.length) problems.push(`expected ${TURRETS.length + HULLS.length} tile pictures, found ${sizes.length}`);
   record('no tile picture is shown larger than the others (Striker included)', problems);
   await context.close();
-}
-
-async function checkScrapeTimeMirrorsCron() {
-  const problems = [];
-  const html = await readFile(join(HERE, '..', 'site.js'), 'utf8');
-  const workflow = await readFile(join(HERE, '..', '..', '..', '.github', 'workflows', 'augments-bot.yml'), 'utf8');
-  const cron = /cron:\s*'(\d+) (\d+) \* \* \*'/.exec(workflow);
-  const page = /SCRAPE_UTC = \{ hour: (\d+), minute: (\d+) \}/.exec(html);
-  if (!cron) problems.push('no daily cron found in augments-bot.yml');
-  if (!page) problems.push('SCRAPE_UTC not found in site.js');
-  if (cron && page && (Number(cron[2]) !== Number(page[1]) || Number(cron[1]) !== Number(page[2]))) {
-    problems.push(`workflow runs at ${cron[2]}:${cron[1]} UTC but the page says ${page[1]}:${page[2]}`);
-  }
-  record('"Next scrape" time matches the workflow cron', problems);
 }
 
 async function reportCost(browser, base) {
@@ -745,11 +731,10 @@ try {
   await checkPageBasics(browser, base);
   await checkRotation(browser, base);
   await checkLanguageKeepsShot(browser, base);
-  await checkScrapeTimeMirrorsCron();
   await checkExternalLinks(browser, base);
   await checkTilePictureSizes(browser, base);
   await checkSelfHostedFonts(browser, base);
-  await checkWorkflowCopiesWhatThePageUses();
+  await checkPageFilesArePublished();
   await checkFrameRateIndependence(browser, base);
   await checkLayoutArrivesLate(browser, base);
   await checkReducedMotionToggle(browser, base);

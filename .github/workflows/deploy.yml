@@ -1,0 +1,16 @@
+name: Deploy site
+
+# The page changed, so publish it. The real work is in the reusable workflow on main,
+# which joins this branch with the data branch and deploys the result with GitHub Pages.
+
+on:
+  push:
+    branches: [site]
+
+jobs:
+  deploy:
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: Safwen-Saafi/tanki-online-toolkit/.github/workflows/deploy-pages.yml@main

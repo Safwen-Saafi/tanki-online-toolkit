@@ -1,0 +1,15 @@
+{
+  "name": "tanki-landing-page",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The public landing page of the Tanki Online Toolkit. Deployed with GitHub Pages together with the augment files from the data branch.",
+  "scripts": {
+    "test": "node test/check-site.mjs",
+    "test:quick": "node test/check-site.mjs --skip-cost",
+    "serve": "npx --yes http-server . -p 8000 -c-1"
+  },
+  "devDependencies": {
+    "playwright": "~1.63.0"
+  }
+}
