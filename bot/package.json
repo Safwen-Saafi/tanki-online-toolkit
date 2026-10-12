@@ -7,8 +7,7 @@
   "scripts": {
     "build": "tsc",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
-    "scrape": "node dist/main.js",
-    "test:site": "node site/test/check-site.mjs"
+    "scrape": "node dist/main.js"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",
