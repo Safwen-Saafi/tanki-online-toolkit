@@ -353,8 +353,10 @@ per-language JSON. It has its own `package.json` and lockfile; run these inside
   the two JSON files and nothing else. The commit message names what changed,
   for example `augments: update EN (2 changed, 1 added)` with one line per
   augment under the language (`npm run scrape -- --publish <dir> --message-file
-  <path>` writes it). When the data changed, the same workflow calls
-  `.github/workflows/deploy-pages.yml`. It never touches `main`.
+  <path>` writes it). After every successful check the same workflow calls
+  `.github/workflows/deploy-pages.yml`, which also writes `status.json` (the
+  time of the check) into the published folder; it is never committed. It never
+  touches `main`.
 - Publishing: GitHub Pages is set to the "GitHub Actions" source.
   `deploy-pages.yml` checks out the `site` branch (the landing page) and the
   `data` branch (the two JSON files), joins them into one folder, and deploys

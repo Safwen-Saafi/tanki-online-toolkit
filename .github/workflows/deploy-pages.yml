@@ -4,7 +4,9 @@ name: Deploy site
 #   site - the landing page (index.html, site.css, site.js, fx.js, img/, fonts/)
 #   data - the two augment files written by the Augments bot
 # Nothing is committed back; the joined folder only exists inside this run.
-# It is called by the Augments bot when the data changed, by a push to the site branch,
+# It also writes status.json (the time of this run) into that folder, so the page can say when the wiki was last
+# checked without a commit to any branch.
+# It is called by the Augments bot after every successful daily check, by a push to the site branch,
 # and by hand from the Actions tab.
 
 on:
@@ -48,7 +50,8 @@ jobs:
             --exclude='package.json' --exclude='package-lock.json' --exclude='README.md' \
             site/ _site/
           cp data/augments.en.json data/augments.ru.json _site/
-          for file in index.html site.css site.js fx.js augments.en.json augments.ru.json; do
+          printf '{"schemaVersion":1,"checkedAt":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > _site/status.json
+          for file in index.html site.css site.js fx.js augments.en.json augments.ru.json status.json; do
             test -s "_site/$file" || { echo "missing $file in the joined site"; exit 1; }
           done
           ls -R _site | head -60
