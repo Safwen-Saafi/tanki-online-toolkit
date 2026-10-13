@@ -122,6 +122,7 @@ h1 { font-family: var(--num); font-weight: 900; font-size: clamp(34px, 5.8vw, 64
 .chip { display: flex; align-items: baseline; gap: 8px; padding: 8px 24px 8px 14px; background: rgba(26, 34, 44, .75); border: 1px solid var(--line); border-left: 3px solid var(--gold); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
 .chip b { font-family: var(--num); font-size: 20px; color: #fff; }
 .chip span { text-transform: uppercase; letter-spacing: .14em; font-size: 12px; font-weight: 700; color: var(--muted); }
+.chip[hidden] { display: none; }
 
 .stage { position: relative; }
 .tank { display: block; width: 100%; max-width: 620px; margin: 0 auto; overflow: visible; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .6)); }

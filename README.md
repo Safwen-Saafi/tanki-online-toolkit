@@ -49,6 +49,14 @@ of `fx.js`. The fingerprints depend on the machine's graphics, so keep the file 
 - The effect canvas is empty at the end of each turret's 6 second loop, stays inside its box, and the
   loop pauses when the page is not visible. Reduced motion plays one flash only.
 
+## The "Checked" time
+
+`status.json` (`{ "schemaVersion": 1, "checkedAt": "<ISO time>" }`) is written by the deploy workflow on
+`main` into the published folder, next to the two data files. It is not in any branch. The page shows it as
+the "Checked" chip, because the data files only change when an augment changes, so their own date can be old
+even though the wiki was checked this morning. Locally the sample in `test/fixtures` is used, and the chip is
+hidden when the file is missing.
+
 ## Two things that live elsewhere
 
 - "Next scrape 05:30 UTC" in `site.js` (`SCRAPE_UTC`) mirrors the cron in `main`'s
