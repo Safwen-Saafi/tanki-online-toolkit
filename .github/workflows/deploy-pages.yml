@@ -4,13 +4,20 @@ name: Deploy site
 #   site - the landing page (index.html, site.css, site.js, fx.js, img/, fonts/)
 #   data - the two augment files written by the Augments bot
 # Nothing is committed back; the joined folder only exists inside this run.
-# It also writes status.json (the time of this run) into that folder, so the page can say when the wiki was last
-# checked without a commit to any branch.
+# It also writes status.json (the time of the last wiki check) into that folder, so the page can say when the wiki
+# was last checked without a commit to any branch. The Augments bot passes the time of its check. A deploy that is
+# not a check (a push to the site branch, or a run by hand) keeps the time that is already live.
 # It is called by the Augments bot after every successful daily check, by a push to the site branch,
 # and by hand from the Actions tab.
 
 on:
   workflow_call:
+    inputs:
+      checked_at:
+        description: UTC time of the wiki check that led to this deploy, like 2026-10-13T12:49:00Z. Empty keeps the live one.
+        type: string
+        required: false
+        default: ''
   workflow_dispatch:
 
 permissions:
@@ -42,6 +49,9 @@ jobs:
 
       # The site branch also holds its own tests and package files; they are not part of the public site.
       - name: Join the page and the data
+        env:
+          CHECKED_AT: ${{ inputs.checked_at }}
+          LIVE_STATUS: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/status.json
         run: |
           mkdir _site
           rsync -a \
@@ -50,8 +60,13 @@ jobs:
             --exclude='package.json' --exclude='package-lock.json' --exclude='README.md' \
             site/ _site/
           cp data/augments.en.json data/augments.ru.json _site/
-          printf '{"schemaVersion":1,"checkedAt":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > _site/status.json
-          for file in index.html site.css site.js fx.js augments.en.json augments.ru.json status.json; do
+          # the time of the last wiki check: the bot's own time, or else the one already live (never "now")
+          if [[ "$CHECKED_AT" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+            printf '{"schemaVersion":1,"checkedAt":"%s"}\n' "$CHECKED_AT" > _site/status.json
+          else
+            curl -fsS --max-time 20 "$LIVE_STATUS" -o _site/status.json || rm -f _site/status.json
+          fi
+          for file in index.html site.css site.js fx.js augments.en.json augments.ru.json; do
             test -s "_site/$file" || { echo "missing $file in the joined site"; exit 1; }
           done
           ls -R _site | head -60

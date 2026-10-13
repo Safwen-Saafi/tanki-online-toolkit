@@ -355,9 +355,10 @@ per-language JSON. It has its own `package.json` and lockfile; run these inside
   for example `augments: update EN (2 changed, 1 added)` with one line per
   augment under the language (`npm run scrape -- --publish <dir> --message-file
   <path>` writes it). After every successful check the same workflow calls
-  `.github/workflows/deploy-pages.yml`, which also writes `status.json` (the
-  time of the check) into the published folder; it is never committed. It never
-  touches `main`.
+  `.github/workflows/deploy-pages.yml` with the time of the check, which it
+  writes as `status.json` into the published folder (never committed). A deploy
+  that is not a check, such as a push to `site`, keeps the time already live.
+  It never touches `main`.
 - Publishing: GitHub Pages is set to the "GitHub Actions" source.
   `deploy-pages.yml` checks out the `site` branch (the landing page) and the
   `data` branch (the two JSON files), joins them into one folder, and deploys
