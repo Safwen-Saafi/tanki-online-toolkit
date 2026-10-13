@@ -90,11 +90,12 @@ jobs:
           echo "The scrape or the publish step failed; see the logs above."
           exit 1
 
-  # Publishing the new files to the site. It runs even when the failure step above fired, because one
-  # language may have been published while the other was rejected.
+  # Publishing to the site. It runs after every successful check, even when nothing changed, because the deploy
+  # also records when the wiki was last checked. It also runs when one language was published and the other was
+  # rejected (the failure step above fired), so the language that did change goes live.
   deploy:
     needs: scrape-and-publish
-    if: always() && needs.scrape-and-publish.outputs.changed == 'true'
+    if: always() && (needs.scrape-and-publish.result == 'success' || needs.scrape-and-publish.outputs.changed == 'true')
     permissions:
       contents: read
       pages: write
