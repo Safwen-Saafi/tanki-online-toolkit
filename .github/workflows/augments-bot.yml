@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       changed: ${{ steps.commit.outputs.changed }}
+      checked_at: ${{ steps.commit.outputs.checked_at }}
     steps:
       - uses: actions/checkout@v4
 
@@ -72,6 +73,7 @@ jobs:
         id: commit
         run: |
           cat "$RUNNER_TEMP/publish.txt" >> "$GITHUB_STEP_SUMMARY" || true
+          echo "checked_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
           cd data-branch
           git add -A
           if git diff --cached --quiet; then
@@ -101,3 +103,5 @@ jobs:
       pages: write
       id-token: write
     uses: ./.github/workflows/deploy-pages.yml
+    with:
+      checked_at: ${{ needs.scrape-and-publish.outputs.checked_at }}
