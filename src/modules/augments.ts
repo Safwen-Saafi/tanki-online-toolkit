@@ -217,6 +217,62 @@
         console.log(`${LOG} garage tab: ${tab ?? 'none'} (item ${currentItem ?? 'unknown'})`);
     }
 
+    // On the Augments tab the title block shows the selected augment ("Critical Mix"), or "Standard settings"
+    // when none is picked, which has no entry in the data.
+    const AUGMENT_TITLE_SELECTOR = '.ItemDescriptionComponentStyle-descriptionBlockDevice .ItemDescriptionComponentStyle-nameItem';
+
+    interface AugmentMatch {
+        readonly language: Language;
+        readonly augment: Augment;
+    }
+
+    // Lowercase, and hyphens, dashes and runs of spaces count as one space, so "High pressure pump" matches "High-pressure pump".
+    function normalizeName(text: string): string {
+        return text.toLowerCase().replace(/ё/g, 'е').replace(/[\s\-‐-―]+/g, ' ').trim();
+    }
+
+    const nameIndexes = new Map<string, ReadonlyMap<string, Augment>>();
+
+    // The index of one item's augments by normalised name, built once per file and item.
+    function indexFor(file: AugmentsFile, bucket: string): ReadonlyMap<string, Augment> {
+        const key = `${file.language}:${bucket}`;
+        const cached = nameIndexes.get(key);
+        if (cached !== undefined) return cached;
+        const index = new Map<string, Augment>();
+        for (const [name, augment] of Object.entries(file.items[bucket] ?? {})) index.set(normalizeName(name), augment);
+        nameIndexes.set(key, index);
+        return index;
+    }
+
+    // A hull has no bucket of its own: the data keeps every hull's augments under "hulls".
+    function findAugment(item: string, language: Language, cardName: string): AugmentMatch | null {
+        const file = getAugmentsFile(language);
+        if (file === null) return null;
+        const bucket = file.items[item] === undefined ? 'hulls' : item;
+        const augment = indexFor(file, bucket).get(normalizeName(cardName));
+        return augment === undefined ? null : { language, augment };
+    }
+
+    let lastAugmentKey: string | null = null;
+
+    function augmentTick(): void {
+        const title = window.kaspGarageTab?.read() === 'augments'
+            ? document.querySelector(AUGMENT_TITLE_SELECTOR)?.textContent?.trim() ?? null
+            : null;
+        const language = window.kaspLanguage?.get() ?? 'EN';
+        const key = title === null ? null : `${currentItem}|${language}|${title}`;
+        if (key === lastAugmentKey) return;
+        lastAugmentKey = key;
+        if (title === null || currentItem === null) return;
+        const match = findAugment(currentItem, language, title);
+        if (match === null) {
+            console.log(`${LOG} augment "${title}" (${currentItem}, ${language}): no entry`);
+            return;
+        }
+        const { advantages, disadvantages } = match.augment;
+        console.log(`${LOG} augment "${title}" (${currentItem}, ${language}): ${advantages.length} advantages, ${disadvantages.length} disadvantages`);
+    }
+
     // After the load event, so the game's own start-up is not delayed.
     function start(): void {
         void loadAll();
@@ -225,6 +281,7 @@
         setInterval(() => {
             itemTick();
             tabTick();
+            augmentTick();
         }, ITEM_POLL_MS);
     }
 
