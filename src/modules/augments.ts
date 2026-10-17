@@ -169,9 +169,50 @@
         console.log(`${LOG} ready: ${summary.join(', ')}`);
     }
 
+    // The turret or hull screen prints the item's name in its title ("Tsunami Mk3-8" or "Цунами Mk3-8"); the
+    // Augments tab replaces that block, so the name is remembered while the title is up.
+    const ITEM_TITLE_SELECTOR = '.TanksPartComponentStyle-descriptionContainer .ItemDescriptionComponentStyle-nameItem';
+    const ITEM_POLL_MS = 250;
+
+    let itemNames: ReadonlyMap<string, string> | null = null;
+    let currentItem: string | null = null;
+    let lastItemTitle: string | null = null;
+
+    // skins.json maps the lowercase RU and EN item names to one slug; it is read here as well because scripts share no imports.
+    async function loadItemNames(): Promise<void> {
+        try {
+            const res = await fetch(chrome.runtime.getURL('data/skins.json'));
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data: unknown = await res.json();
+            const names = isRecord(data) ? data['names'] : undefined;
+            if (!isRecord(names)) throw new Error('no names table');
+            const table = new Map<string, string>();
+            for (const [name, slug] of Object.entries(names)) {
+                if (typeof slug === 'string') table.set(name, slug);
+            }
+            itemNames = table;
+        } catch (e) {
+            console.warn(`${LOG} could not load the item names:`, describeError(e));
+        }
+    }
+
+    // Only a visible title changes the remembered item, so leaving the title screen keeps the last one.
+    function itemTick(): void {
+        if (itemNames === null) return;
+        const title = document.querySelector(ITEM_TITLE_SELECTOR)?.textContent?.trim();
+        if (!title || title === lastItemTitle) return;
+        lastItemTitle = title;
+        const firstWord = title.toLowerCase().split(/\s+/)[0];
+        currentItem = itemNames.get(firstWord) ?? null;
+        console.log(`${LOG} item on screen: ${currentItem ?? 'unknown'} (title "${title}")`);
+    }
+
     // After the load event, so the game's own start-up is not delayed.
     function start(): void {
         void loadAll();
+        if (isDisabled()) return;
+        void loadItemNames();
+        setInterval(itemTick, ITEM_POLL_MS);
     }
 
     if (document.readyState === 'complete') start();
