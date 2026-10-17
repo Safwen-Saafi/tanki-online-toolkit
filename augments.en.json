@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "language": "EN",
-  "generatedAt": "2026-10-12T12:51:42Z",
+  "generatedAt": "2026-10-17T22:08:14Z",
   "items": {
     "firebird": {
       "Adrenaline": {
@@ -12,7 +12,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤35%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "High-pressure pump": {
         "name": "High-pressure pump",
@@ -23,7 +24,8 @@
         ],
         "disadvantages": [
           "Cone angle: -75%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Compact fuel tanks": {
         "name": "Compact fuel tanks",
@@ -34,7 +36,8 @@
         "disadvantages": [
           "Energy consumption: +50%",
           "Reload: +100%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Incendiary mix": {
         "name": "Incendiary mix",
@@ -44,7 +47,8 @@
         ],
         "disadvantages": [
           "Afterburn effect removed"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Magnetic Mix": {
         "name": "Magnetic Mix",
@@ -55,7 +59,8 @@
         "disadvantages": [
           "Critical damage: -50%",
           "Heating rate: -70%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Paralyzing mix": {
         "name": "Paralyzing mix",
@@ -66,7 +71,8 @@
         "disadvantages": [
           "Critical damage: -50%",
           "Heating rate: -70%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Toxic Mix": {
         "name": "Toxic Mix",
@@ -77,7 +83,8 @@
         "disadvantages": [
           "Critical damage: -50%",
           "Heating rate: -70%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Mix": {
         "name": "Jamming Mix",
@@ -87,7 +94,8 @@
         "disadvantages": [
           "Critical damage: -50%",
           "Heating rate: -70%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Critical Mix": {
         "name": "Critical Mix",
@@ -96,7 +104,8 @@
           "Max. critical hit chance: +400%",
           "Starting critical hit chance: +400%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -106,7 +115,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 50% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -116,7 +126,8 @@
         "disadvantages": [
           "Critical chance: -25%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -125,7 +136,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -136,7 +148,8 @@
           "Range: +10%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "freeze": {
@@ -148,7 +161,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤35%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "High-pressure pump": {
         "name": "High-pressure pump",
@@ -158,7 +172,8 @@
         ],
         "disadvantages": [
           "Cone angle: -75%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Corrosive mix": {
         "name": "Corrosive mix",
@@ -168,7 +183,8 @@
         ],
         "disadvantages": [
           "Freezing effect removed"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Shock freeze": {
         "name": "Shock freeze",
@@ -178,7 +194,8 @@
         "disadvantages": [
           "Damage: -10%",
           "Critical hits removed"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Magnetic Mix": {
         "name": "Magnetic Mix",
@@ -189,7 +206,8 @@
         "disadvantages": [
           "Critical damage: -50%",
           "Freezing rate: -70%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Paralyzing Mix": {
         "name": "Paralyzing Mix",
@@ -200,7 +218,8 @@
         "disadvantages": [
           "Critical damage: -50%",
           "Freezing rate: -70%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Toxic Mix": {
         "name": "Toxic Mix",
@@ -211,7 +230,8 @@
         "disadvantages": [
           "Critical damage: -50%",
           "Freezing rate: -70%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Mix": {
         "name": "Jamming Mix",
@@ -221,7 +241,8 @@
         "disadvantages": [
           "Critical damage: -50%",
           "Freezing rate: -70%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Critical Mix": {
         "name": "Critical Mix",
@@ -230,7 +251,8 @@
         ],
         "disadvantages": [
           "Freeze per tick: -50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Stable Mix": {
         "name": "Stable Mix",
@@ -241,7 +263,8 @@
         ],
         "disadvantages": [
           "Freezing rate: -50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -251,7 +274,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 50% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -261,7 +285,8 @@
         "disadvantages": [
           "Critical chance: -30%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -270,7 +295,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -281,7 +307,8 @@
           "Range: +10%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "isida": {
@@ -293,7 +320,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤35%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Broadband radiators": {
         "name": "Broadband radiators",
@@ -302,7 +330,8 @@
         ],
         "disadvantages": [
           "Range: -30%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Support nanobots": {
         "name": "Support nanobots",
@@ -312,14 +341,16 @@
         ],
         "disadvantages": [
           "Regular damage: -50%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Nanomass reactor": {
         "name": "Nanomass reactor",
         "advantages": [
           "Energy recovery on target destruction: +50%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Jamming Nanobots": {
         "name": "Jamming Nanobots",
@@ -328,7 +359,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Magnetic Nanobots": {
         "name": "Magnetic Nanobots",
@@ -338,7 +370,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Stunning Nanobots": {
         "name": "Stunning Nanobots",
@@ -348,7 +381,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Toxic Nanobots": {
         "name": "Toxic Nanobots",
@@ -358,7 +392,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Vampire Nanobots": {
         "name": "Vampire Nanobots",
@@ -371,7 +406,8 @@
           "Energy consumption when idle: +200%",
           "Critical hits removed (damage and healing)",
           "Healing rate: -99%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Sustainable Nanobots": {
         "name": "Sustainable Nanobots",
@@ -384,7 +420,8 @@
           "Energy consumption when attacking: +100%",
           "Energy consumption when idle: +100%",
           "Cone angle: -60%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Shock Nanobot Injection": {
         "name": "Shock Nanobot Injection",
@@ -395,7 +432,8 @@
         "disadvantages": [
           "Normal healing rate: -75%",
           "Critical healing: -95%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -405,7 +443,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 50% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -415,7 +454,8 @@
         "disadvantages": [
           "Critical chance: -30%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -424,7 +464,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -435,7 +476,8 @@
           "Range: +10%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "tesla": {
@@ -447,14 +489,16 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤35%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Minus-field": {
         "name": "Minus-field",
         "advantages": [
           "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Acceleration Protocol": {
         "name": "Acceleration Protocol",
@@ -462,7 +506,8 @@
           "Lightning ball speed: +100%",
           "Lightning ball range: +100%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Dilatory Protocol": {
         "name": "Dilatory Protocol",
@@ -472,7 +517,8 @@
         "disadvantages": [
           "Lightning ball range: -50%",
           "Lightning ball reload: +50%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Exothermic Lightning": {
         "name": "Exothermic Lightning",
@@ -486,7 +532,8 @@
           "Ball lightning does not burst until the 11th impact and so is less likely to cause splash damage",
           "Critical damage: -50%",
           "Range from one chain lightning to the next ball lightning: 1 m"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Endothermic Lightning": {
         "name": "Endothermic Lightning",
@@ -499,7 +546,8 @@
           "Ball lightning does not burst until the 11th impact and so is less likely to cause splash damage",
           "Critical damage: -50%",
           "Range from one chain lightning to the next ball lightning: 1 m"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Superconducting Discharge": {
         "name": "Superconducting Discharge",
@@ -513,7 +561,8 @@
           "Ball lightning does not burst until the 11th impact and is less likely to cause splash damage",
           "Critical damage: -50%",
           "Range from one chain lightning to the next ball lightning: 1 m"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Shocking Lightning": {
         "name": "Shocking Lightning",
@@ -527,7 +576,8 @@
           "Ball lightning does not burst until the 11th impact and is less likely to cause splash damage",
           "Critical damage: -50%",
           "Range from one chain lightning to the next ball lightning: 1 m"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Armor-piercing Discharge": {
         "name": "Armor-piercing Discharge",
@@ -541,7 +591,8 @@
           "Ball lightning does not burst until the 11th impact and so is less likely to cause splash damage",
           "Critical damage: -50%",
           "Range from one chain lightning to the next ball lightning: 1 m"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Discharge": {
         "name": "Jamming Discharge",
@@ -552,7 +603,8 @@
         "disadvantages": [
           "Ball lightning does not burst until the 11th impact and so is less likely to cause splash damage",
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Electroturret": {
         "name": "Electroturret",
@@ -564,7 +616,8 @@
         ],
         "disadvantages": [
           "Lightning ball warmup time: +200%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Shock therapy": {
         "name": "Shock therapy",
@@ -579,7 +632,8 @@
           "Highlighting distance: -50%",
           "Radius of adding a tank to the chain (m) : 1 m",
           "Radius of adding ball lightning to the chain (m) : 1 m"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Increased Voltage": {
         "name": "Increased Voltage",
@@ -589,7 +643,8 @@
         "disadvantages": [
           "Standard damage: -100%",
           "Lightning ball damage: -22.5%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -599,7 +654,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 50% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -610,7 +666,8 @@
           "Critical chance: -30%",
           "Critical damage: -90%",
           "Range from one chain lightning to the next ball lightning: 1 m"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -619,7 +676,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -631,7 +689,8 @@
           "Lightning ball vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "hammer": {
@@ -643,7 +702,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤35%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Slugger": {
         "name": "Slugger",
@@ -655,7 +715,8 @@
         ],
         "disadvantages": [
           "Impact force: -50%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "High-capacity ammo clip": {
         "name": "High-capacity ammo clip",
@@ -664,7 +725,8 @@
         ],
         "disadvantages": [
           "Clip reload: +20%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Duplet": {
         "name": "Duplet",
@@ -675,7 +737,8 @@
           "Shots per clip: 2",
           "Clip reload: +25%",
           "Impact force: -50%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Wyvern's Breath": {
         "name": "Wyvern's Breath",
@@ -685,7 +748,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Dragon's Breath": {
         "name": "Dragon's Breath",
@@ -695,7 +759,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Magnetic Pellets": {
         "name": "Magnetic Pellets",
@@ -705,7 +770,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Stunning Pellets": {
         "name": "Stunning Pellets",
@@ -715,7 +781,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Armor-Piercing Shot": {
         "name": "Armor-Piercing Shot",
@@ -725,7 +792,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Shot": {
         "name": "Jamming Shot",
@@ -734,7 +802,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Adaptive reload": {
         "name": "Adaptive reload",
@@ -745,7 +814,8 @@
         ],
         "disadvantages": [
           "Clip reload time: +20%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Blunderbuss": {
         "name": "Blunderbuss",
@@ -759,7 +829,8 @@
         "disadvantages": [
           "Shots per clip: 1",
           "Horizontal Angle of Scatter: +200%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Revolver": {
         "name": "Revolver",
@@ -770,7 +841,8 @@
         ],
         "disadvantages": [
           "Clip reload: +25%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Large Caliber Pellets": {
         "name": "Large Caliber Pellets",
@@ -781,7 +853,8 @@
         "disadvantages": [
           "Shot reload: +80%",
           "Clip reload: +50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Assault Magazine": {
         "name": "Assault Magazine",
@@ -794,7 +867,8 @@
           "Critical chance: -50%",
           "Pellets per shot = 10",
           "Impact force: -80%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Heavy Slugger": {
         "name": "Heavy Slugger",
@@ -807,7 +881,8 @@
           "Turret rotation speed: -35%",
           "Turret rotary acceleration: -35%",
           "Impact force: -50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Hunter Duplet": {
         "name": "Hunter Duplet",
@@ -821,7 +896,8 @@
           "Shots per clip: 2",
           "Clip reload: +15%",
           "Impact force: -50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Boxer": {
         "name": "Boxer",
@@ -833,7 +909,8 @@
         "disadvantages": [
           "Shots per clip: 1",
           "Recoil +10%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Needle Gun": {
         "name": "Needle Gun",
@@ -852,7 +929,8 @@
           "Critical damage -50%",
           "Pellets per shot = 5",
           "Reload time +200%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -862,7 +940,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 50% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -872,7 +951,8 @@
         "disadvantages": [
           "Critical chance: -12%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -881,7 +961,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -892,7 +973,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "twins": {
@@ -904,7 +986,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Stabilized plasma": {
         "name": "Stabilized plasma",
@@ -914,7 +997,8 @@
         ],
         "disadvantages": [
           "Splash damage removed"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Plasma accelerators": {
         "name": "Plasma accelerators",
@@ -927,7 +1011,8 @@
         ],
         "disadvantages": [
           "Reload: +20%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Heavy Plasmagun": {
         "name": "Heavy Plasmagun",
@@ -939,7 +1024,8 @@
           "Range of minimum damage: -45%",
           "Highlighting distance: -45%",
           "Initial projectile speed: -50%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Cryotron": {
         "name": "Cryotron",
@@ -949,7 +1035,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Vaporizer": {
         "name": "Vaporizer",
@@ -959,7 +1046,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Magnetron": {
         "name": "Magnetron",
@@ -969,7 +1057,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Tectonic Plasma": {
         "name": "Tectonic Plasma",
@@ -979,7 +1068,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Plasma Injector": {
         "name": "Plasma Injector",
@@ -989,7 +1079,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Plasma Disruptor": {
         "name": "Plasma Disruptor",
@@ -998,7 +1089,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Plasma Turbo Accelerators": {
         "name": "Plasma Turbo Accelerators",
@@ -1012,7 +1104,8 @@
         "disadvantages": [
           "Regular damage: -60%",
           "Impact force: -70%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Plasmatron": {
         "name": "Plasmatron",
@@ -1022,7 +1115,8 @@
         ],
         "disadvantages": [
           "Recharge time: +300%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Tempest": {
         "name": "Tempest",
@@ -1036,7 +1130,8 @@
         "disadvantages": [
           "Initial projectile speed: -95%",
           "Projectile acceleration time: +25%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -1046,7 +1141,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -1056,7 +1152,8 @@
         "disadvantages": [
           "Critical chance: -25%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -1065,7 +1162,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -1076,7 +1174,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "ricochet": {
@@ -1088,7 +1187,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Destabilized plasma": {
         "name": "Destabilized plasma",
@@ -1098,7 +1198,8 @@
         "disadvantages": [
           "Self-damage possible at close range",
           "Maximum number of ricochets: 1"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Minus-field stabilization": {
         "name": "Minus-field stabilization",
@@ -1109,7 +1210,8 @@
         ],
         "disadvantages": [
           "Shot reload: +10%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Plasma-torch": {
         "name": "Plasma-torch",
@@ -1126,7 +1228,8 @@
           "Projectile speed: -50%",
           "Projectile speed after ricochet: -50%",
           "Maximum number of ricochets: 1"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Cryo field": {
         "name": "Cryo field",
@@ -1136,7 +1239,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Sizzling Field": {
         "name": "Sizzling Field",
@@ -1146,7 +1250,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Magnetron": {
         "name": "Magnetron",
@@ -1156,7 +1261,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Tectonic field": {
         "name": "Tectonic field",
@@ -1166,7 +1272,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Super-smart Minus-Field": {
         "name": "Super-smart Minus-Field",
@@ -1176,7 +1283,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming field": {
         "name": "Jamming field",
@@ -1185,7 +1293,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Berserk": {
         "name": "Berserk",
@@ -1194,7 +1303,8 @@
           "Shot reload: -30%",
           "Charge rate: +7%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Helios": {
         "name": "Helios",
@@ -1209,7 +1319,8 @@
           "Energy recovery rate: -32%",
           "Impact force: -80%",
           "Maximum number of ricochets: 1"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Plasma Resonator": {
         "name": "Plasma Resonator",
@@ -1221,7 +1332,8 @@
         "disadvantages": [
           "Damage: -30%",
           "Critical hits removed"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "BOXER": {
         "name": "BOXER",
@@ -1235,7 +1347,8 @@
           "Initial projectile speed = 30 m/s",
           "Projectile acceleration time = 1.5 s",
           "One shot at a time"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -1245,7 +1358,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -1255,7 +1369,8 @@
         "disadvantages": [
           "Critical chance: -40%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -1264,7 +1379,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -1275,7 +1391,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "vulcan": {
@@ -1287,7 +1404,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Shooting Speed Regulator": {
         "name": "Shooting Speed Regulator",
@@ -1300,7 +1418,8 @@
         ],
         "disadvantages": [
           "Bullet reload: +50%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Reinforced aiming transmission": {
         "name": "Reinforced aiming transmission",
@@ -1311,7 +1430,8 @@
         ],
         "disadvantages": [
           "Upward auto-aim: -80%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Incendiary band": {
         "name": "Incendiary band",
@@ -1322,7 +1442,8 @@
         "disadvantages": [
           "Temperature limit: 1",
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Freezing Band": {
         "name": "Freezing Band",
@@ -1332,7 +1453,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Magnetic Band": {
         "name": "Magnetic Band",
@@ -1342,7 +1464,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Stunning Band": {
         "name": "Stunning Band",
@@ -1352,7 +1475,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Armor-Piercing Band": {
         "name": "Armor-Piercing Band",
@@ -1362,7 +1486,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Band": {
         "name": "Jamming Band",
@@ -1371,7 +1496,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Rubberized Rounds": {
         "name": "Rubberized Rounds",
@@ -1380,7 +1506,8 @@
           "Minimum ricochet angle: 1°",
           "Critical damage: +50%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Explosive Band": {
         "name": "Explosive Band",
@@ -1389,7 +1516,8 @@
           "Minimum ricochet angle: 45°",
           "Splash damage added: Damage at 2m: 100%; Damage at 4m: 50%; Damage at 6m (outer radius): 50%; Critical damage at 4m: 100%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Shredder": {
         "name": "Shredder",
@@ -1403,7 +1531,8 @@
           "Turret slowdown when firing = 100%",
           "Barrel startup time: +900%",
           "Barrel slowdown time: +50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Large Caliber": {
         "name": "Large Caliber",
@@ -1418,7 +1547,8 @@
           "Recoil: +100%",
           "Rotation speed: -50%",
           "Rotation acceleration: -50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -1428,7 +1558,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -1438,7 +1569,8 @@
         "disadvantages": [
           "Critical chance: -40%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -1447,7 +1579,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -1458,7 +1591,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "smoky": {
@@ -1470,7 +1604,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Assault rounds": {
         "name": "Assault rounds",
@@ -1481,7 +1616,8 @@
         ],
         "disadvantages": [
           "Critical hits disabled"
-        ]
+        ],
+        "rarity": "rare"
       },
       "High-precision aiming system": {
         "name": "High-precision aiming system",
@@ -1492,7 +1628,8 @@
         "disadvantages": [
           "Reload time: +64%",
           "Projectile speed: -30%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Supercumulative rounds": {
         "name": "Supercumulative rounds",
@@ -1501,7 +1638,8 @@
         ],
         "disadvantages": [
           "Critical chance step: -60%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Incendiary rounds": {
         "name": "Incendiary rounds",
@@ -1512,7 +1650,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Cryo rounds": {
         "name": "Cryo rounds",
@@ -1523,7 +1662,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "EMP Rounds": {
         "name": "EMP Rounds",
@@ -1534,7 +1674,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Paralyzing Rounds": {
         "name": "Paralyzing Rounds",
@@ -1546,7 +1687,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Armor-Piercing Rounds": {
         "name": "Armor-Piercing Rounds",
@@ -1557,7 +1699,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Rounds": {
         "name": "Jamming Rounds",
@@ -1566,7 +1709,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Autocannon": {
         "name": "Autocannon",
@@ -1578,7 +1722,8 @@
           "Regular damage: -35%",
           "Impact force: -66%",
           "Horizontal auto-aim angle: ±0.6°"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Rubberized Rounds": {
         "name": "Rubberized Rounds",
@@ -1589,7 +1734,8 @@
           "Initial projectile speed: +100%",
           "Final projectile speed: +100%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Explosive Rounds": {
         "name": "Explosive Rounds",
@@ -1600,7 +1746,8 @@
         "disadvantages": [
           "Self damage at close range",
           "Rounds do not ricochet"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Sorted Ammunition": {
         "name": "Sorted Ammunition",
@@ -1609,7 +1756,8 @@
           "The first shot after spawning will be a critical",
           "Reload time: -10%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Hyperspeed Rounds": {
         "name": "Hyperspeed Rounds",
@@ -1624,7 +1772,8 @@
           "Normal damage: -50%",
           "Horizontal auto-aim angle: ±0.4°",
           "Critical hits disabled"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -1634,7 +1783,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -1644,7 +1794,8 @@
         "disadvantages": [
           "Critical chance: -45%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -1653,7 +1804,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -1664,7 +1816,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "striker": {
@@ -1676,7 +1829,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Remote rocket explosives": {
         "name": "Remote rocket explosives",
@@ -1688,7 +1842,8 @@
           "Rocket acceleration time: 1.5 s",
           "Possibility of self-damage if not careful",
           "Horizontal auto-aim angle: ±0°"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Missile launcher «Hunter»": {
         "name": "Missile launcher «Hunter»",
@@ -1699,7 +1854,8 @@
         "disadvantages": [
           "Rockets per salvo: 1",
           "Aiming recovery time: -30%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Missile launcher «Cyclone»": {
         "name": "Missile launcher «Cyclone»",
@@ -1710,7 +1866,8 @@
         ],
         "disadvantages": [
           "Aiming time: +20%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Incendiary Missiles": {
         "name": "Incendiary Missiles",
@@ -1720,7 +1877,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Cryo Missiles": {
         "name": "Cryo Missiles",
@@ -1730,7 +1888,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Magnetic Missiles": {
         "name": "Magnetic Missiles",
@@ -1740,7 +1899,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Stunning Missiles": {
         "name": "Stunning Missiles",
@@ -1750,7 +1910,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Armor-Piercing Missiles": {
         "name": "Armor-Piercing Missiles",
@@ -1760,7 +1921,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Missiles": {
         "name": "Jamming Missiles",
@@ -1769,7 +1931,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Missile launcher «Uranium»": {
         "name": "Missile launcher «Uranium»",
@@ -1784,7 +1947,8 @@
           "Projectile acceleration time: +700%",
           "Single-shot reload time: +12%",
           "Pause between salvo's rockets: +400%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Missile launcher «Tandem»": {
         "name": "Missile launcher «Tandem»",
@@ -1798,7 +1962,8 @@
         "disadvantages": [
           "Recharge time after salvo: +35%",
           "Rockets per salvo: 2"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Missile launcher «Hydra»": {
         "name": "Missile launcher «Hydra»",
@@ -1812,7 +1977,8 @@
           "Normal and critical damage: -40%",
           "Recharge time after salvo: +80%",
           "Rockets angular velocity = 3°/sec"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Missile launcher «Faust»": {
         "name": "Missile launcher «Faust»",
@@ -1824,7 +1990,8 @@
         "disadvantages": [
           "Range = 40m",
           "Reload after salvo: +100%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Vacuum Missiles": {
         "name": "Vacuum Missiles",
@@ -1840,7 +2007,8 @@
           "Rocket acceleration time: 1.5 s",
           "Possibility of self-damage if not careful",
           "Pause between salvo rockets: +6%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Missile Launcher «Meteor»": {
         "name": "Missile Launcher «Meteor»",
@@ -1852,7 +2020,8 @@
         ],
         "disadvantages": [
           "Splash radius = 1m"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Missile Launcher «Brass Knuckles»": {
         "name": "Missile Launcher «Brass Knuckles»",
@@ -1867,7 +2036,8 @@
         "disadvantages": [
           "Reload time after salvo: +111%",
           "Rocket acceleration time: 1.5 s"
-        ]
+        ],
+        "rarity": "exotic"
       },
       "Camper": {
         "name": "Camper",
@@ -1877,7 +2047,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -1887,7 +2058,8 @@
         "disadvantages": [
           "Critical chance: -9%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -1896,7 +2068,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -1907,7 +2080,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "thunder": {
@@ -1919,7 +2093,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Small caliber charging machine": {
         "name": "Small caliber charging machine",
@@ -1928,7 +2103,8 @@
         ],
         "disadvantages": [
           "Regular damage: -30%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Subcaliber rounds": {
         "name": "Subcaliber rounds",
@@ -1941,7 +2117,8 @@
         ],
         "disadvantages": [
           "Splash damage removed"
-        ]
+        ],
+        "rarity": "rare"
       },
       "«Sledgehammer» rounds": {
         "name": "«Sledgehammer» rounds",
@@ -1954,7 +2131,8 @@
           "Projectile speed: -50%",
           "Critical hits disabled",
           "Launch speed -50"
-        ]
+        ],
+        "rarity": "rare"
       },
       "«Wyvern» shells": {
         "name": "«Wyvern» shells",
@@ -1965,7 +2143,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "«Salamander» shells": {
         "name": "«Salamander» shells",
@@ -1976,7 +2155,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "«Magneto» shells": {
         "name": "«Magneto» shells",
@@ -1987,7 +2167,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "«Peacekeeper» shells": {
         "name": "«Peacekeeper» shells",
@@ -1998,7 +2179,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "«Corrosion» shells": {
         "name": "«Corrosion» shells",
@@ -2009,7 +2191,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "«Noise» shells": {
         "name": "«Noise» shells",
@@ -2018,7 +2201,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Strict Ammunition Load": {
         "name": "Strict Ammunition Load",
@@ -2028,7 +2212,8 @@
           "Reload time: -20%",
           "Critical damage: +25%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Hyperspeed shells": {
         "name": "Hyperspeed shells",
@@ -2043,7 +2228,8 @@
           "Regular damage: -50%",
           "Critical hits removed",
           "Horizontal auto-aim angle: ±0.2°"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Vacuum shells": {
         "name": "Vacuum shells",
@@ -2055,7 +2241,8 @@
         ],
         "disadvantages": [
           "Damage: -15%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Adaptive reload": {
         "name": "Adaptive reload",
@@ -2065,7 +2252,8 @@
         "disadvantages": [
           "Base reload time: +15%",
           "Splash damage radius: -25%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "«Nanotech» shells": {
         "name": "«Nanotech» shells",
@@ -2079,7 +2267,8 @@
           "Critical hits disabled",
           "Splash damage does not heal allied tanks",
           "Horizontal auto-aim angle: ±0°"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "«Anvil» shells": {
         "name": "«Anvil» shells",
@@ -2092,7 +2281,8 @@
         "disadvantages": [
           "Range of maximum damage: -50%",
           "Range of minimum damage: -25%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Bolter": {
         "name": "Bolter",
@@ -2106,7 +2296,8 @@
           "Min shell speed: 10 m/s",
           "Projectile acceleration time: 2.5s",
           "Recoil force: +15%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Yamato": {
         "name": "Yamato",
@@ -2121,7 +2312,8 @@
           "Reload: +80%",
           "Rotation speed: -25%",
           "Rotation acceleration: -25%"
-        ]
+        ],
+        "rarity": "exotic"
       },
       "Camper": {
         "name": "Camper",
@@ -2131,7 +2323,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -2141,7 +2334,8 @@
         "disadvantages": [
           "Critical chance: -12%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -2150,7 +2344,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -2161,7 +2356,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "tsunami": {
@@ -2173,7 +2369,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Manual Firing Mode": {
         "name": "Manual Firing Mode",
@@ -2182,7 +2379,8 @@
         ],
         "disadvantages": [
           "Magazine size = 1"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Explosive Shells": {
         "name": "Explosive Shells",
@@ -2197,7 +2395,8 @@
         "disadvantages": [
           "Projectiles can no longer ricochet",
           "The blast radius damage can cause self-damage"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Tungsten Shells": {
         "name": "Tungsten Shells",
@@ -2205,7 +2404,8 @@
           "Maximum number of ricochets = 2",
           "Min ricochet angle: 5°"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "\"Heat\" Shells": {
         "name": "\"Heat\" Shells",
@@ -2215,7 +2415,8 @@
         ],
         "disadvantages": [
           "Critical damage -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "\"Cryo\" Shells": {
         "name": "\"Cryo\" Shells",
@@ -2225,7 +2426,8 @@
         ],
         "disadvantages": [
           "Critical damage -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "\"Drill\" Shells": {
         "name": "\"Drill\" Shells",
@@ -2235,7 +2437,8 @@
         ],
         "disadvantages": [
           "Critical damage -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "\"Shock\" Shells": {
         "name": "\"Shock\" Shells",
@@ -2245,7 +2448,8 @@
         ],
         "disadvantages": [
           "Critical Damage -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "\"Lightning\" Shells": {
         "name": "\"Lightning\" Shells",
@@ -2255,7 +2459,8 @@
         ],
         "disadvantages": [
           "Critical Damage -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "\"Noise\" Shells": {
         "name": "\"Noise\" Shells",
@@ -2264,7 +2469,8 @@
         ],
         "disadvantages": [
           "Critical Damage -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -2274,7 +2480,8 @@
         "disadvantages": [
           "Critical chance: -8%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Duplet": {
         "name": "Duplet",
@@ -2286,7 +2493,8 @@
           "Additional combo damage: 0",
           "Reload time: +15%",
           "Impact force: -25%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Megatsunami": {
         "name": "Megatsunami",
@@ -2306,7 +2514,8 @@
           "Time between two shots +50%",
           "Shots do not ricochet.",
           "Area damage can cause self-damage"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Triplet Firing Mode": {
         "name": "Triplet Firing Mode",
@@ -2318,7 +2527,8 @@
         "disadvantages": [
           "Additional combo damage: 0",
           "Reload time: +25%"
-        ]
+        ],
+        "rarity": "exotic"
       },
       "Camper": {
         "name": "Camper",
@@ -2328,7 +2538,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -2337,7 +2548,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -2348,7 +2560,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "scorpion": {
@@ -2360,7 +2573,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Explosive Shells": {
         "name": "Explosive Shells",
@@ -2371,7 +2585,8 @@
         "disadvantages": [
           "Projectile speed: -50%",
           "Ricochet effect disabled"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Explosive warheads": {
         "name": "Explosive warheads",
@@ -2379,7 +2594,8 @@
           "Rocket minimum splash damage radius: 10 m",
           "Rocket average splash damage radius: 3 m"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Missile launcher «Wolfpack»": {
         "name": "Missile launcher «Wolfpack»",
@@ -2389,7 +2605,8 @@
         "disadvantages": [
           "Pause between salvo's rockets: +20%",
           "Minimum rocket speed = 20 m/s"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Cryo Shells": {
         "name": "Cryo Shells",
@@ -2399,7 +2616,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Incendiary shells": {
         "name": "Incendiary shells",
@@ -2409,7 +2627,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "EMP shells": {
         "name": "EMP shells",
@@ -2420,7 +2639,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Stun shells": {
         "name": "Stun shells",
@@ -2431,7 +2651,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Armor-piercing shells": {
         "name": "Armor-piercing shells",
@@ -2442,7 +2663,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Shells": {
         "name": "Jamming Shells",
@@ -2452,7 +2674,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Missile launcher «Tornado»": {
         "name": "Missile launcher «Tornado»",
@@ -2469,7 +2692,8 @@
         "disadvantages": [
           "Initial rocket angular speed = 80 °/s",
           "Aiming time: +50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Missile launcher «Swarm»": {
         "name": "Missile launcher «Swarm»",
@@ -2483,7 +2707,8 @@
         "disadvantages": [
           "Final rocket speed: -20%",
           "Initial rocket angular speed: -10%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Missile launcher «Spear»": {
         "name": "Missile launcher «Spear»",
@@ -2500,7 +2725,8 @@
           "Initial rocket min. angular velocity: 30 °/s",
           "Pause between salvo's rockets: +30%",
           "Projectile acceleration time: -50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Uranium Shells": {
         "name": "Uranium Shells",
@@ -2515,7 +2741,8 @@
         ],
         "disadvantages": [
           "Minimum Critical Damage Chance: -100%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -2525,7 +2752,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -2535,7 +2763,8 @@
         "disadvantages": [
           "Critical chance: -8%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Vacuum shell": {
         "name": "Vacuum shell",
@@ -2546,7 +2775,8 @@
         ],
         "disadvantages": [
           "Damage: -15%"
-        ]
+        ],
+        "rarity": "exotic"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -2555,7 +2785,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -2566,7 +2797,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "magnum": {
@@ -2578,14 +2810,16 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Reinforced gun carriage": {
         "name": "Reinforced gun carriage",
         "advantages": [
           "Control mode: vertical aiming"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Automated gunpowder loading mechanism": {
         "name": "Automated gunpowder loading mechanism",
@@ -2593,7 +2827,8 @@
           "Control mode: vertical aiming",
           "Amplification time: -15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Harpoon": {
         "name": "Harpoon",
@@ -2609,7 +2844,8 @@
         "disadvantages": [
           "Reload time: +10%",
           "Minimum, average, maximum and critical splash damage radiuses: -60%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Incendiary core": {
         "name": "Incendiary core",
@@ -2619,7 +2855,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Freezing Core": {
         "name": "Freezing Core",
@@ -2629,7 +2866,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Magnetic core": {
         "name": "Magnetic core",
@@ -2639,7 +2877,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Stunning Core": {
         "name": "Stunning Core",
@@ -2649,7 +2888,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Armor-Piercing Core": {
         "name": "Armor-Piercing Core",
@@ -2659,7 +2899,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Core": {
         "name": "Jamming Core",
@@ -2669,7 +2910,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Mortar": {
         "name": "Mortar",
@@ -2679,7 +2921,8 @@
         ],
         "disadvantages": [
           "Critical splash damage radius: -50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Bombard": {
         "name": "Bombard",
@@ -2692,7 +2935,8 @@
         "disadvantages": [
           "Minimum angle of elevation: 45°",
           "Projectile gravity: +50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Vacuum core": {
         "name": "Vacuum core",
@@ -2702,7 +2946,8 @@
         ],
         "disadvantages": [
           "Damage: -45%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Destroyer": {
         "name": "Destroyer",
@@ -2723,7 +2968,8 @@
           "Initial Turret Angle: 6",
           "Recoil force: +33%",
           "Splash Damage Radius: -55%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -2733,7 +2979,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -2743,7 +2990,8 @@
         "disadvantages": [
           "Critical chance: -8%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Carronade": {
         "name": "Carronade",
@@ -2758,7 +3006,8 @@
         "disadvantages": [
           "Damage: -35%",
           "Maximum projectile speed: -9%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -2767,7 +3016,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -2777,7 +3027,8 @@
           "Critical chance: +30%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "railgun": {
@@ -2789,7 +3040,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Round stabilization": {
         "name": "Round stabilization",
@@ -2800,7 +3052,8 @@
         "disadvantages": [
           "Regular damage: -5%",
           "Critical damage: -24%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Reinforced aiming transmission": {
         "name": "Reinforced aiming transmission",
@@ -2809,7 +3062,8 @@
           "Turret rotatory acceleration: +50%",
           "Vertical auto-aim: +50%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Electromagnetic accelerator «Scout»": {
         "name": "Electromagnetic accelerator «Scout»",
@@ -2820,7 +3074,8 @@
         "disadvantages": [
           "Regular damage: -15%",
           "Critical damage: -15%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Cryo Rounds": {
         "name": "Cryo Rounds",
@@ -2831,7 +3086,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Incendiary Rounds": {
         "name": "Incendiary Rounds",
@@ -2841,7 +3097,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "EMP Rounds": {
         "name": "EMP Rounds",
@@ -2851,7 +3108,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Stun Rounds": {
         "name": "Stun Rounds",
@@ -2861,7 +3119,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Super Armor-Piercing Rounds": {
         "name": "Super Armor-Piercing Rounds",
@@ -2871,7 +3130,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Shells": {
         "name": "Jamming Shells",
@@ -2880,7 +3140,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Large caliber rounds": {
         "name": "Large caliber rounds",
@@ -2892,7 +3153,8 @@
         "disadvantages": [
           "Shot warmup time: +15%",
           "Reload time: +16%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Round destabilization": {
         "name": "Round destabilization",
@@ -2903,7 +3165,8 @@
         ],
         "disadvantages": [
           "Regular damage: -25%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "«Death Herald» compulsator": {
         "name": "«Death Herald» compulsator",
@@ -2912,7 +3175,8 @@
           "Reload time: -40%",
           "Shot warmup time: -25%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Hyperspace rounds": {
         "name": "Hyperspace rounds",
@@ -2923,7 +3187,8 @@
         "disadvantages": [
           "Impact force removed",
           "Critical hits disabled"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Hyperspeed shells": {
         "name": "Hyperspeed shells",
@@ -2935,7 +3200,8 @@
         ],
         "disadvantages": [
           "Regular damage: -50%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "«Shotgun» rounds": {
         "name": "«Shotgun» rounds",
@@ -2947,7 +3213,8 @@
           "Range of maximum damage: -80%",
           "Range of minimum damage: -50%",
           "Weak damage = 25%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excalibur rounds": {
         "name": "Excalibur rounds",
@@ -2961,7 +3228,8 @@
           "Reload time: +17%",
           "Initial chance of critical damage: 5%",
           "Shot warmup time: +25%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -2970,7 +3238,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Camper": {
         "name": "Camper",
@@ -2980,7 +3249,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Detonator": {
         "name": "Detonator",
@@ -2992,7 +3262,8 @@
           "Min. area damage radius of the grenade: +30%",
           "Rotational acceleration: +100%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -3002,7 +3273,8 @@
         "disadvantages": [
           "Critical chance: -8%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -3013,7 +3285,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "gauss": {
@@ -3025,7 +3298,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Faster Horizontal Tracking": {
         "name": "Faster Horizontal Tracking",
@@ -3034,14 +3308,16 @@
           "Turret rotatory acceleration: +100%",
           "Vertical auto-aim: +50%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Hacked Aiming Processor": {
         "name": "Hacked Aiming Processor",
         "advantages": [
           "Aiming recovery time: +400%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Large Caliber": {
         "name": "Large Caliber",
@@ -3051,7 +3327,8 @@
         ],
         "disadvantages": [
           "Arcade reload time: +54%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Incendiary Salvo": {
         "name": "Incendiary Salvo",
@@ -3062,7 +3339,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Freezing Salvo": {
         "name": "Freezing Salvo",
@@ -3073,7 +3351,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Electromagnetic salvo": {
         "name": "Electromagnetic salvo",
@@ -3084,7 +3363,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Stunning Salvo": {
         "name": "Stunning Salvo",
@@ -3095,7 +3375,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Salvo": {
         "name": "Jamming Salvo",
@@ -3106,7 +3387,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Armor-Piercing Salvo": {
         "name": "Armor-Piercing Salvo",
@@ -3117,7 +3399,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Hyperspeed Shells": {
         "name": "Hyperspeed Shells",
@@ -3131,7 +3414,8 @@
           "Normal damage: -50%",
           "Critical hit removed",
           "Horizontal auto-aim angle: ±0.2°"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Nemesis": {
         "name": "Nemesis",
@@ -3143,7 +3427,8 @@
         "disadvantages": [
           "Aiming time: +120%",
           "Recoil: +150%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Solenoid Cooling": {
         "name": "Solenoid Cooling",
@@ -3153,7 +3438,8 @@
         ],
         "disadvantages": [
           "Salvo damage: -20%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Super Solenoids": {
         "name": "Super Solenoids",
@@ -3165,7 +3451,8 @@
           "Radius max. splash damage: -90%",
           "Radius avg. splash damage: -90%",
           "Radius min. splash damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Boxer": {
         "name": "Boxer",
@@ -3180,7 +3467,8 @@
         ],
         "disadvantages": [
           "Reload time in Arcade mode: +15%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -3190,7 +3478,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -3200,7 +3489,8 @@
         "disadvantages": [
           "Critical chance: -12%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -3209,7 +3499,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -3220,7 +3511,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "shaft": {
@@ -3232,7 +3524,8 @@
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "rare"
       },
       "Short-band emitter": {
         "name": "Short-band emitter",
@@ -3243,7 +3536,8 @@
         ],
         "disadvantages": [
           "Arcade reload: +15%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Heavy capacitors": {
         "name": "Heavy capacitors",
@@ -3254,7 +3548,8 @@
           "Charge rate in aiming mode: -25%",
           "Energy consumed by sniping shot: +100%",
           "Recharge rate after sniping shot: -20%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Light capacitors": {
         "name": "Light capacitors",
@@ -3266,7 +3561,8 @@
         ],
         "disadvantages": [
           "Maximum sniping damage: -25%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Incendiary Sight": {
         "name": "Incendiary Sight",
@@ -3276,7 +3572,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Freezing Sight": {
         "name": "Freezing Sight",
@@ -3287,7 +3584,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Electrifying Sight": {
         "name": "Electrifying Sight",
@@ -3298,7 +3596,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Stunning Sight": {
         "name": "Stunning Sight",
@@ -3309,7 +3608,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Armor-Piercing Sight": {
         "name": "Armor-Piercing Sight",
@@ -3320,7 +3620,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Jamming Sight": {
         "name": "Jamming Sight",
@@ -3331,7 +3632,8 @@
         ],
         "disadvantages": [
           "Critical damage: -50%"
-        ]
+        ],
+        "rarity": "epic"
       },
       "Rapid-fire mode": {
         "name": "Rapid-fire mode",
@@ -3343,7 +3645,8 @@
           "Energy consumed per arcade shot: 369",
           "Maximum sniping damage: -40%",
           "Energy consumed per sniping shot: 1000"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Healing Emitters": {
         "name": "Healing Emitters",
@@ -3360,7 +3663,8 @@
           "No impact force",
           "Arcade shot reload: +15%",
           "Horizontal auto-aim angle: ±0°"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Quasar": {
         "name": "Quasar",
@@ -3376,7 +3680,8 @@
           "Arcade shot reload time: +70%",
           "All sniping shots will consume the full energy bar and so require a full reload",
           "Turret rotation speed: -25%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Stellarator": {
         "name": "Stellarator",
@@ -3387,7 +3692,8 @@
         "disadvantages": [
           "Final sniping damage: -15%",
           "Energy consumed per sniping shot: +60%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Camper": {
         "name": "Camper",
@@ -3397,7 +3703,8 @@
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
           "Effect is disabled when the tank has the Freezing status effect."
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
@@ -3407,7 +3714,8 @@
         "disadvantages": [
           "Critical chance: -12%",
           "Critical damage: -90%"
-        ]
+        ],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -3416,7 +3724,8 @@
           "Turning speed: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -3427,7 +3736,8 @@
           "Vertical auto-aim: +15%",
           "Reputation points earned in battle: +40%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     },
     "hulls": {
@@ -3437,7 +3747,8 @@
           "Damage taken from Burning: -50%",
           "Heating rate: -50%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Cold Resistance": {
         "name": "Cold Resistance",
@@ -3445,7 +3756,8 @@
           "Slowdown from Freezing: -50%",
           "Freezing rate: -50%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Lightweight Construction": {
         "name": "Lightweight Construction",
@@ -3453,7 +3765,8 @@
           "Acceleration: +15%",
           "Weight: -30%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Heavyweight Construction": {
         "name": "Heavyweight Construction",
@@ -3462,56 +3775,64 @@
         ],
         "disadvantages": [
           "Acceleration: -15%"
-        ]
+        ],
+        "rarity": "rare"
       },
       "Engineer": {
         "name": "Engineer",
         "advantages": [
           "Picking up a supply box adds 1000 HP"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "rare"
       },
       "Heat Immunity": {
         "name": "Heat Immunity",
         "advantages": [
           "Provides complete immunity from Burning."
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "epic"
       },
       "Cold Immunity": {
         "name": "Cold Immunity",
         "advantages": [
           "Provides complete immunity from Freezing."
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "epic"
       },
       "EMP Immunity": {
         "name": "EMP Immunity",
         "advantages": [
           "Provides complete immunity from Electromagnetic Pulse"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "epic"
       },
       "Stun Immunity": {
         "name": "Stun Immunity",
         "advantages": [
           "Provides complete immunity from Stun"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "epic"
       },
       "AP Immunity": {
         "name": "AP Immunity",
         "advantages": [
           "Provides complete immunity from Armor-Piercing"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "epic"
       },
       "Jammer Immunity": {
         "name": "Jammer Immunity",
         "advantages": [
           "Provides complete immunity from Jammer"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "epic"
       },
       "Driver": {
         "name": "Driver",
@@ -3519,14 +3840,16 @@
           "Speed of overdrive reload (time): +100%",
           "Speed of overdrive reload (score): +50%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Blaster": {
         "name": "Blaster",
         "advantages": [
           "Chaos damage on death depending on hull weight"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Lifeguard": {
         "name": "Lifeguard",
@@ -3534,21 +3857,24 @@
           "Prevents death once",
           "Recovers 500 HP"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Miner": {
         "name": "Miner",
         "advantages": [
           "70% of mines survive after death"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Grenadier": {
         "name": "Grenadier",
         "advantages": [
           "Grenade reload persists without respawning"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "legendary"
       },
       "Excelsior": {
         "name": "Excelsior",
@@ -3559,7 +3885,8 @@
           "Acceleration: +15%",
           "Turning acceleration: +15%"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       },
       "Extreme Lightweight Construction": {
         "name": "Extreme Lightweight Construction",
@@ -3569,7 +3896,8 @@
         ],
         "disadvantages": [
           "Weak in regular battles"
-        ]
+        ],
+        "rarity": "exotic"
       },
       "Phoenix": {
         "name": "Phoenix",
@@ -3580,7 +3908,8 @@
         ],
         "disadvantages": [
           "Overdrive does not charge passively"
-        ]
+        ],
+        "rarity": "exotic"
       },
       "Special Protection": {
         "name": "Special Protection",
@@ -3592,7 +3921,8 @@
           "Immunity from burning",
           "Immunity from freezing"
         ],
-        "disadvantages": []
+        "disadvantages": [],
+        "rarity": "exotic"
       }
     }
   }
