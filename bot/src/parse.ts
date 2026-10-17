@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { Cheerio } from 'cheerio';
 import type { Element } from 'domhandler';
-import type { Augment } from './contract.js';
+import { RARITY_PATTERN, type Augment } from './contract.js';
 
 export interface ParseResult {
     readonly augments: Augment[];
@@ -36,6 +36,16 @@ function readList($: cheerio.CheerioAPI, card: Cheerio<Element>, selector: strin
         .filter((line) => line !== '');
 }
 
+function readRarity(card: Cheerio<Element>, name: string, warnings: string[]): string | null {
+    const raw = (card.attr('data-rarity') ?? '').trim().toLowerCase();
+    if (raw === '') return null;
+    if (!RARITY_PATTERN.test(raw)) {
+        warnings.push(`"${name}" has an unusable rarity "${raw}", published without one`);
+        return null;
+    }
+    return raw;
+}
+
 export function parsePage(html: string): ParseResult {
     const $ = cheerio.load(html);
     const augments: Augment[] = [];
@@ -58,6 +68,7 @@ export function parsePage(html: string): ParseResult {
             name,
             advantages: readList($, card, '.device-stats:not(.negative) > ul > li'),
             disadvantages: readList($, card, '.device-stats.negative > ul > li'),
+            rarity: readRarity(card, name, warnings),
         });
     });
 

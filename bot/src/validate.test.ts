@@ -4,7 +4,7 @@ import { SCHEMA_VERSION, type Augment, type AugmentsFile, type ItemAugments } fr
 import { validateFile } from './validate.js';
 
 function augment(name: string): Augment {
-    return { name, advantages: [`${name} advantage`], disadvantages: [] };
+    return { name, advantages: [`${name} advantage`], disadvantages: [], rarity: 'rare' };
 }
 
 function makeFile(counts: Record<string, number>): AugmentsFile {
@@ -53,7 +53,7 @@ test('a key that does not match the augment name fails', () => {
 
 test('an empty advantage line fails', () => {
     const file = makeFile(bigCounts);
-    const bad: Augment = { name: 'x', advantages: ['  '], disadvantages: [] };
+    const bad: Augment = { name: 'x', advantages: ['  '], disadvantages: [], rarity: null };
     const broken: AugmentsFile = { ...file, items: { ...file.items, item0: { x: bad } } };
     assert.ok(validateFile(broken, null).some((problem) => problem.includes('empty line')));
 });
@@ -83,4 +83,20 @@ test('against a published file: a vanished item fails', () => {
 test('with a published file the first-run floor does not apply', () => {
     const published = makeFile({ firebird: 5 });
     assert.deepEqual(validateFile(makeFile({ firebird: 5 }), published), []);
+});
+
+function withFirstRarity(file: AugmentsFile, rarity: string | null): { file: AugmentsFile; name: string } {
+    const item = file.items['item0'];
+    assert.ok(item);
+    const first = Object.values(item)[0];
+    assert.ok(first);
+    const changed = { ...file, items: { ...file.items, item0: { ...item, [first.name]: { ...first, rarity } } } };
+    return { file: changed, name: first.name };
+}
+
+test('an unusable rarity is a problem, a missing one is not', () => {
+    const base = makeFile(bigCounts);
+    assert.deepEqual(validateFile(withFirstRarity(base, null).file, null), []);
+    const bad = withFirstRarity(base, 'Rare!');
+    assert.deepEqual(validateFile(bad.file, null), [`"${bad.name}" (item0) has an unusable rarity "Rare!"`]);
 });

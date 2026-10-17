@@ -63,3 +63,27 @@ test('an unnamed container is skipped with a warning', () => {
 test('html with no containers gives nothing', () => {
     assert.deepEqual(parsePage('<p>hello</p>'), { augments: [], warnings: [] });
 });
+
+test('each augment carries the rank of its block, in both languages', () => {
+    const firebird = parsePage(fixture('page-firebird-en.html')).augments;
+    assert.equal(firebird.find((augment) => augment.name === 'Adrenaline')?.rarity, 'rare');
+    assert.equal(firebird.find((augment) => augment.name === 'Pulsar')?.rarity, 'legendary');
+    assert.equal(parsePage(fixture('page-firebird-ru.html')).augments[0]?.rarity, 'rare');
+    assert.equal(parsePage(fixture('page-hulls-en.html')).augments[0]?.rarity, 'rare');
+});
+
+test('a new rank word is published as it is', () => {
+    const html = '<div class="device-container" data-rarity=" Exotic "><div class="device-header"><span class="name">Phoenix</span></div></div>';
+    const { augments, warnings } = parsePage(html);
+    assert.equal(augments[0]?.rarity, 'exotic');
+    assert.deepEqual(warnings, []);
+});
+
+test('a missing rank gives null, an unusable one gives null and a warning', () => {
+    const header = '<div class="device-header"><span class="name">A</span></div></div>';
+    assert.equal(parsePage(`<div class="device-container">${header}`).augments[0]?.rarity, null);
+    const odd = parsePage(`<div class="device-container" data-rarity="rare; drop table">${header}`);
+    assert.equal(odd.augments[0]?.rarity, null);
+    assert.equal(odd.warnings.length, 1);
+    assert.match(odd.warnings[0] ?? '', /unusable rarity/);
+});

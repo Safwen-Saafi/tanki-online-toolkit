@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildFile } from './build.js';
-import { countAugments, fileNameFor } from './contract.js';
+import { countAugments, fileNameFor, rarityCounts } from './contract.js';
 import { parseHub, type HubEntry } from './discover.js';
 import { parsePage } from './parse.js';
 import { commitMessage, publishAll } from './publish.js';
@@ -41,7 +41,7 @@ async function printPage(languageArg: string, item: string): Promise<number> {
         const { augments, warnings } = parsePage(await session.fetchParsedHtml(entry.title));
         console.log(`${site.language} ${entry.item}: ${augments.length} augments`);
         for (const augment of augments) {
-            console.log(`  ${augment.name}  (+${augment.advantages.length} / -${augment.disadvantages.length})`);
+            console.log(`  ${augment.name}  [${augment.rarity ?? 'no rarity'}]  (+${augment.advantages.length} / -${augment.disadvantages.length})`);
         }
         for (const warning of warnings) console.warn(`  warning: ${warning}`);
         return 0;
@@ -64,6 +64,8 @@ async function scrapeAll(): Promise<number> {
             const perItem = Object.entries(file.items).map(([item, augments]) => `${item}:${Object.keys(augments).length}`);
             console.log(`${site.language}: ${Object.keys(file.items).length} items, ${countAugments(file)} augments`);
             console.log(`  ${perItem.join(' ')}`);
+            const ranks = Object.entries(rarityCounts(file)).map(([rarity, count]) => `${rarity}:${count}`);
+            console.log(`  rarities: ${ranks.join(' ')}`);
             for (const warning of warnings) console.warn(`  warning: ${warning}`);
             if (problems.length > 0) {
                 failed = true;

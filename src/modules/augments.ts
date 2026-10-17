@@ -35,17 +35,27 @@
         return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
     }
 
+    const RARITY_PATTERN = /^[a-z]{1,20}$/;
+
     function readAugment(value: unknown): Augment | null {
         if (!isRecord(value) || typeof value['name'] !== 'string') return null;
         const advantages = value['advantages'];
         const disadvantages = value['disadvantages'];
         if (!isStringArray(advantages) || !isStringArray(disadvantages)) return null;
-        return { name: value['name'], advantages, disadvantages };
+        const rarity = value['rarity'];
+        return {
+            name: value['name'],
+            advantages,
+            disadvantages,
+            rarity: typeof rarity === 'string' && RARITY_PATTERN.test(rarity) ? rarity : null,
+        };
     }
 
     // Turns untrusted JSON (from the network or the cache) into an AugmentsFile, or null when it is not one for this language.
     function parseAugmentsFile(value: unknown, language: Language): AugmentsFile | null {
-        if (!isRecord(value) || value['schemaVersion'] !== 1 || value['language'] !== language) return null;
+        if (!isRecord(value)) return null;
+        const schemaVersion = value['schemaVersion'];
+        if ((schemaVersion !== 1 && schemaVersion !== 2) || value['language'] !== language) return null;
         const generatedAt = value['generatedAt'];
         const rawItems = value['items'];
         if (typeof generatedAt !== 'string' || !isRecord(rawItems)) return null;
@@ -61,7 +71,7 @@
             }
             items[item] = byName;
         }
-        return { schemaVersion: 1, language, generatedAt, items };
+        return { schemaVersion, language, generatedAt, items };
     }
 
     function countAugments(file: AugmentsFile): number {
@@ -269,8 +279,8 @@
             console.log(`${LOG} augment "${title}" (${currentItem}, ${language}): no entry`);
             return;
         }
-        const { advantages, disadvantages } = match.augment;
-        console.log(`${LOG} augment "${title}" (${currentItem}, ${language}): ${advantages.length} advantages, ${disadvantages.length} disadvantages`);
+        const { advantages, disadvantages, rarity } = match.augment;
+        console.log(`${LOG} augment "${title}" (${currentItem}, ${language}): ${advantages.length} advantages, ${disadvantages.length} disadvantages, rarity ${rarity ?? 'none'}`);
     }
 
     // After the load event, so the game's own start-up is not delayed.
