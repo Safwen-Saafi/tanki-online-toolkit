@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { SCHEMA_VERSION, fileNameFor, type Augment, type AugmentsFile, type ItemAugments, type Language } from './contract.js';
+import { RARITY_PATTERN, SCHEMA_VERSION, fileNameFor, type Augment, type AugmentsFile, type ItemAugments, type Language } from './contract.js';
 import { validateFile } from './validate.js';
 
 export type PublishAction = 'written' | 'unchanged' | 'rejected' | 'no-new-file';
@@ -33,12 +33,21 @@ function readAugment(value: unknown): Augment | null {
     const advantages = value['advantages'];
     const disadvantages = value['disadvantages'];
     if (!isStringArray(advantages) || !isStringArray(disadvantages)) return null;
-    return { name: value['name'], advantages, disadvantages };
+    const rarity = value['rarity'];
+    return {
+        name: value['name'],
+        advantages,
+        disadvantages,
+        rarity: typeof rarity === 'string' && RARITY_PATTERN.test(rarity) ? rarity : null,
+    };
 }
+
+// A version 1 file (no rarity) still counts as the published file, so the shrink check keeps working across the change.
+const READABLE_VERSIONS: readonly unknown[] = [1, SCHEMA_VERSION];
 
 // Turns untrusted JSON read from disk into an AugmentsFile, or null if it is not one.
 export function parseAugmentsFile(value: unknown, language: Language): AugmentsFile | null {
-    if (!isRecord(value) || value['schemaVersion'] !== SCHEMA_VERSION || value['language'] !== language) return null;
+    if (!isRecord(value) || !READABLE_VERSIONS.includes(value['schemaVersion']) || value['language'] !== language) return null;
     const generatedAt = value['generatedAt'];
     const rawItems = value['items'];
     if (typeof generatedAt !== 'string' || !isRecord(rawItems)) return null;

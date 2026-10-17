@@ -8,10 +8,12 @@ interface Augment {
   readonly name: string;
   readonly advantages: readonly string[];
   readonly disadvantages: readonly string[];
+  // The wiki's rank word (rare, epic, legendary, exotic); null in a version 1 file or when the wiki gives none.
+  readonly rarity: string | null;
 }
 
 interface AugmentsFile {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 1 | 2;
   readonly language: "EN" | "RU";
   readonly generatedAt: string;
   // item slug (a turret, or "hulls") -> augment name -> augment

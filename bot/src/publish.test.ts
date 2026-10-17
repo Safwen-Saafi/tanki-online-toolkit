@@ -12,7 +12,7 @@ function makeFile(language: Language, generatedAt: string, perItem = 10, tweak =
         const byName: Record<string, Augment> = {};
         for (let index = 0; index < perItem; index++) {
             const name = `item${item} augment ${index}`;
-            byName[name] = { name, advantages: [`${name} advantage${tweak}`], disadvantages: [] };
+            byName[name] = { name, advantages: [`${name} advantage${tweak}`], disadvantages: [], rarity: 'rare' };
         }
         items[`item${item}`] = byName;
     }
@@ -98,9 +98,9 @@ test('diffItems names added, removed and changed augments per item', () => {
     assert.ok(kept);
     const items: Record<string, ItemAugments> = { ...before.items };
     items['item0'] = {
-        'item0 augment 0': { name: 'item0 augment 0', advantages: ['different'], disadvantages: [] },
+        'item0 augment 0': { name: 'item0 augment 0', advantages: ['different'], disadvantages: [], rarity: 'rare' },
         'item0 augment 1': kept,
-        brand: { name: 'brand', advantages: [], disadvantages: [] },
+        brand: { name: 'brand', advantages: [], disadvantages: [], rarity: null },
     };
     const lines = diffItems(before, { ...before, items });
     assert.deepEqual(lines, ['item0: added brand; removed item0 augment 2; changed item0 augment 0']);
@@ -109,8 +109,9 @@ test('diffItems names added, removed and changed augments per item', () => {
 test('parseAugmentsFile rejects junk and a wrong language', () => {
     assert.equal(parseAugmentsFile('nope', 'EN'), null);
     assert.equal(parseAugmentsFile({ schemaVersion: 1, language: 'RU', generatedAt: 'x', items: {} }, 'EN'), null);
-    assert.equal(parseAugmentsFile({ schemaVersion: 2, language: 'EN', generatedAt: 'x', items: {} }, 'EN'), null);
+    assert.equal(parseAugmentsFile({ schemaVersion: 3, language: 'EN', generatedAt: 'x', items: {} }, 'EN'), null);
     assert.notEqual(parseAugmentsFile({ schemaVersion: 1, language: 'EN', generatedAt: 'x', items: {} }, 'EN'), null);
+    assert.notEqual(parseAugmentsFile({ schemaVersion: 2, language: 'EN', generatedAt: 'x', items: {} }, 'EN'), null);
 });
 
 test('readPublished returns null for a missing or corrupt file', () => {
@@ -127,9 +128,9 @@ test('changeSet names every added, removed and changed augment as item / name', 
     assert.ok(kept);
     const items: Record<string, ItemAugments> = { ...before.items };
     items['item0'] = {
-        'item0 augment 0': { name: 'item0 augment 0', advantages: ['different'], disadvantages: [] },
+        'item0 augment 0': { name: 'item0 augment 0', advantages: ['different'], disadvantages: [], rarity: 'rare' },
         'item0 augment 1': kept,
-        brand: { name: 'brand', advantages: [], disadvantages: [] },
+        brand: { name: 'brand', advantages: [], disadvantages: [], rarity: null },
     };
     assert.deepEqual(changeSet(before, { ...before, items }), {
         added: ['item0 / brand'],
@@ -156,4 +157,23 @@ test('commitMessage says what changed, per language, and is null when nothing wa
     assert.ok(message.includes('\n- changed: item0 / item0 augment 0\n'));
     assert.ok(!message.includes('RU'));
     assert.ok(message.split('\n').every((line) => !line.startsWith(' ')), 'no wrapped or indented lines');
+});
+
+test('a rank change counts as a changed augment, and a version 1 file still reads as published', () => {
+    const before = makeFile('EN', '2026-10-01T05:30:00Z');
+    const items: Record<string, ItemAugments> = { ...before.items };
+    const item = items['item0'];
+    assert.ok(item);
+    const name = 'item0 augment 0';
+    items['item0'] = { ...item, [name]: { name, advantages: [`${name} advantage`], disadvantages: [], rarity: 'epic' } };
+    const after = { ...before, items };
+    assert.deepEqual(changeSet(before, after).changed, [`item0 / ${name}`]);
+
+    const legacy = JSON.parse(JSON.stringify({ ...before, schemaVersion: 1 })) as { items: Record<string, Record<string, Record<string, unknown>>> };
+    for (const byName of Object.values(legacy.items)) {
+        for (const augment of Object.values(byName)) delete augment['rarity'];
+    }
+    const parsed = parseAugmentsFile(legacy, 'EN');
+    assert.notEqual(parsed, null);
+    assert.equal(parsed?.items['item0']?.[name]?.rarity, null);
 });

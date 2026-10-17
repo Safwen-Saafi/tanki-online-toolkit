@@ -1,4 +1,4 @@
-import { countAugments, type AugmentsFile } from './contract.js';
+import { RARITY_PATTERN, countAugments, type AugmentsFile } from './contract.js';
 
 export const FIRST_RUN_MIN_ITEMS = 10;
 export const FIRST_RUN_MIN_AUGMENTS = 100;
@@ -11,6 +11,9 @@ function checkShape(file: AugmentsFile, problems: string[]): void {
         for (const [key, augment] of Object.entries(augments)) {
             if (augment.name.trim() === '') problems.push(`item "${item}" has an augment with an empty name`);
             if (augment.name !== key) problems.push(`item "${item}": key "${key}" does not match name "${augment.name}"`);
+            if (augment.rarity !== null && !RARITY_PATTERN.test(augment.rarity)) {
+                problems.push(`"${augment.name}" (${item}) has an unusable rarity "${augment.rarity}"`);
+            }
             for (const line of [...augment.advantages, ...augment.disadvantages]) {
                 if (line.trim() === '') problems.push(`"${augment.name}" (${item}) has an empty line`);
             }

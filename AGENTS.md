@@ -370,8 +370,8 @@ per-language JSON. It has its own `package.json` and lockfile; run these inside
   `https://safwen-saafi.github.io/tanki-online-toolkit/augments.en.json` and
   `.../augments.ru.json`. Both send `Access-Control-Allow-Origin: *`. The landing
   page at the same root is the `site` branch (see its `AGENTS.md`).
-- The file shape (`schemaVersion: 1`, `items`, item slugs, augment-name keys,
-  `name`, `advantages`, `disadvantages`) is defined in `bot/src/contract.ts` and
+- The file shape (`schemaVersion: 2`, `items`, item slugs, augment-name keys,
+  `name`, `advantages`, `disadvantages`, `rarity`) is defined in `bot/src/contract.ts` and
   is read by the extension's `src/modules/augments.ts` (types in
   `src/types.d.ts`); do not rename these.
 
