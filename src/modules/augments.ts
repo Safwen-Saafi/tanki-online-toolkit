@@ -207,24 +207,11 @@
         console.log(`${LOG} item on screen: ${currentItem ?? 'unknown'} (title "${title}")`);
     }
 
-    // The Augments, Skins and Shot color tabs share one row of cards, so the tab is told apart by which menu
-    // item is active. The position is used, not the label, which changes with the language.
-    const TAB_ITEMS_SELECTOR = '.MenuComponentStyle-blockButtonsQECommunity .MenuComponentStyle-mainMenuItem';
-    const GARAGE_TABS = ['augments', 'skins', 'shot-color'] as const;
-    type GarageTab = (typeof GARAGE_TABS)[number];
+    let lastTab: KaspGarageTab | null = null;
 
-    let lastTab: GarageTab | null = null;
-
-    function readGarageTab(): GarageTab | null {
-        const items = Array.from(document.querySelectorAll(TAB_ITEMS_SELECTOR));
-        // The garage's top category bar uses the same classes with seven items, so only two or three are tabs.
-        if (items.length < 2 || items.length > 3) return null;
-        const active = items.findIndex((item) => item.classList.contains('-activeMenu'));
-        return GARAGE_TABS[active] ?? null;
-    }
-
+    // The Augments, Skins and Shot color tabs share one row of cards; garage_tab.ts tells them apart.
     function tabTick(): void {
-        const tab = readGarageTab();
+        const tab = window.kaspGarageTab?.read() ?? null;
         if (tab === lastTab) return;
         lastTab = tab;
         console.log(`${LOG} garage tab: ${tab ?? 'none'} (item ${currentItem ?? 'unknown'})`);
