@@ -202,6 +202,10 @@
     }
 
     function readSkinsScreen(nameTranslate: SkinsDatabase['names']): SkinsScreenState {
+        // The Augments tab reuses this row and its cards, so an equipped augment would be read as a skin.
+        // An unknown tab (null) keeps the old behaviour.
+        const tab = window.kaspGarageTab?.read() ?? null;
+        if (tab !== null && tab !== 'skins') return { kind: 'absent' };
         const row = document.querySelector('.SkinsAndAlterationsStyle-SkinsVerticalComponent');
         const menu = document.querySelector('.GarageCommonStyle-subMenu');
         if (!row || !menu) return { kind: 'absent' };

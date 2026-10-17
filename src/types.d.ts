@@ -21,7 +21,15 @@ interface KaspLanguage {
   readonly source: () => KaspLanguageChange["source"];
 }
 
+type KaspGarageTab = "augments" | "skins" | "shot-color";
+
+// Published by src/modules/garage_tab.ts; read() is null when no item tab menu is on screen.
+interface KaspGarageTabReader {
+  readonly read: () => KaspGarageTab | null;
+}
+
 interface Window {
   __kaspSendAction?: (className: string, obj: unknown) => void;
   kaspLanguage?: KaspLanguage;
+  kaspGarageTab?: KaspGarageTabReader;
 }
