@@ -3,6 +3,21 @@ interface SkinsDatabase {
   readonly defaults: Readonly<Record<string, string>>;
 }
 
+// The augment file the Augments bot publishes (bot/src/contract.ts). The names are load-bearing.
+interface Augment {
+  readonly name: string;
+  readonly advantages: readonly string[];
+  readonly disadvantages: readonly string[];
+}
+
+interface AugmentsFile {
+  readonly schemaVersion: 1;
+  readonly language: "EN" | "RU";
+  readonly generatedAt: string;
+  // item slug (a turret, or "hulls") -> augment name -> augment
+  readonly items: Readonly<Record<string, Readonly<Record<string, Augment>>>>;
+}
+
 interface KaspUserActionMessage {
   readonly type: "kasp:useraction";
   readonly detail: string[];

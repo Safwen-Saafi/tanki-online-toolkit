@@ -372,7 +372,8 @@ per-language JSON. It has its own `package.json` and lockfile; run these inside
   page at the same root is the `site` branch (see its `AGENTS.md`).
 - The file shape (`schemaVersion: 1`, `items`, item slugs, augment-name keys,
   `name`, `advantages`, `disadvantages`) is defined in `bot/src/contract.ts` and
-  is read by a later extension feature; do not rename these.
+  is read by the extension's `src/modules/augments.ts` (types in
+  `src/types.d.ts`); do not rename these.
 
 Testing for the extension is opt-in and not yet set up; there is no unit test
 runner for `src/`. Run `/tests` or `$tests` if one is wanted later.
