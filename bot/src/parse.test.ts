@@ -23,8 +23,8 @@ test('nested sub-bullets are joined into their parent line', () => {
     assert.ok(pulsar);
     const first = pulsar.advantages[0];
     assert.ok(first);
-    assert.match(first, /^Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; /);
-    assert.match(first, /Electromagnetic Pulse: 1 sec; Stun: 0\.4 sec/);
+    assert.match(first, /^Hitting an enemy with a critical shot will apply the following status effects: \{jammer\|Jammer\}: 3 sec; /);
+    assert.match(first, /\{emp\|Electromagnetic Pulse\}: 1 sec; \{stun\|Stun\}: 0\.4 sec/);
     assert.equal(first.includes('\n'), false);
 });
 
@@ -34,7 +34,7 @@ test('an augment with no disadvantages gives an empty list', () => {
     assert.equal(augments[0]?.name, 'Heat Resistance');
     assert.deepEqual(augments[0]?.disadvantages, []);
     assert.deepEqual(augments[0]?.advantages, [
-        'Damage taken from Burning: -50%',
+        'Damage taken from {burning|Burning}: -50%',
         'Heating rate: -50%',
     ]);
 });
@@ -86,4 +86,37 @@ test('a missing rank gives null, an unusable one gives null and a warning', () =
     assert.equal(odd.augments[0]?.rarity, null);
     assert.equal(odd.warnings.length, 1);
     assert.match(odd.warnings[0] ?? '', /unusable rarity/);
+});
+
+test('a known effect icon becomes a {key} marker, in both languages', () => {
+    const english = parsePage(fixture('page-firebird-en.html')).augments;
+    const adrenaline = english.find((augment) => augment.name === 'Adrenaline');
+    assert.equal(adrenaline?.disadvantages[1], 'Effect is disabled when the tank has the {freeze|Freezing} status effect.');
+    const pulsar = english.find((augment) => augment.name === 'Pulsar');
+    assert.match(pulsar?.advantages[0] ?? '', /\{armor_piercing\|Armor-Piercing\}: 1\.5 sec$/);
+    const russian = parsePage(fixture('page-firebird-ru.html')).augments[0];
+    assert.equal(russian?.disadvantages[1], 'Эффект деактивируется при попадании под воздействие статус-эффекта {freeze} «Заморозка»');
+});
+
+test('the info icon is dropped quietly and an unknown icon is dropped with one warning', () => {
+    const card = (icons: string): string =>
+        `<div class="device-container" data-rarity="rare"><div class="device-header"><span class="name">A</span></div><div class="device-stats"><ul><li>Value ${icons} here</li></ul></div></div>`;
+    const info = parsePage(card('<img src="/images/en/e/e2/Icon_info.png">'));
+    assert.deepEqual(info.warnings, []);
+    assert.equal(info.augments[0]?.advantages[0], 'Value here');
+    const unknown = parsePage(card('<img src="/images/x/20px-Icon_Mystery.png"><img src="/images/x/Icon_Mystery.png">'));
+    assert.equal(unknown.augments[0]?.advantages[0], 'Value here');
+    assert.deepEqual(unknown.warnings, ['unknown icon "icon_mystery" in the text was dropped']);
+});
+
+test('the name linked right after an icon rides in the marker, a plain name after it does not', () => {
+    const icon = '<span typeof="mw:File"><span><img src="/images/en/thumb/0/0a/Icon_Freeze.png/30px-Icon_Freeze.png"></span></span>';
+    const card = (body: string): string =>
+        `<div class="device-container" data-rarity="rare"><div class="device-header"><span class="name">A</span></div><div class="device-stats"><ul><li>${body}</li></ul></div></div>`;
+    const linked = parsePage(card(`Has the ${icon} <a href="/Freezing" title="Freezing">Freezing</a> effect and <a href="/x">a link</a>.`));
+    assert.equal(linked.augments[0]?.advantages[0], 'Has the {freeze|Freezing} effect and a link.');
+    const plain = parsePage(card(`Has the ${icon} «Заморозка» effect.`));
+    assert.equal(plain.augments[0]?.advantages[0], 'Has the {freeze} «Заморозка» effect.');
+    const odd = parsePage(card(`Has the ${icon}<a href="/x">Fre{e}|ze</a> effect.`));
+    assert.equal(odd.augments[0]?.advantages[0], 'Has the {freeze|Freeze} effect.');
 });
