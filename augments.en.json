@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "language": "EN",
-  "generatedAt": "2026-10-17T22:08:14Z",
+  "generatedAt": "2026-10-18T20:11:40Z",
   "items": {
     "firebird": {
       "Adrenaline": {
@@ -11,7 +11,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤35%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -53,7 +53,7 @@
       "Magnetic Mix": {
         "name": "Magnetic Mix",
         "advantages": [
-          "Critically hitting the enemy activates the Electromagnetic Pulse status effect for 1 second",
+          "Critically hitting the enemy activates the {emp|Electromagnetic Pulse} status effect for 1 second",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -65,7 +65,7 @@
       "Paralyzing mix": {
         "name": "Paralyzing mix",
         "advantages": [
-          "Critical hits Stun the enemy for 0.4 seconds",
+          "Critical hits {stun|Stun} the enemy for 0.4 seconds",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -77,7 +77,7 @@
       "Toxic Mix": {
         "name": "Toxic Mix",
         "advantages": [
-          "Critically hitting the enemy activates the Armor-Piercing status effect for 1.5 seconds",
+          "Critically hitting the enemy activates the {armor_piercing|Armor-Piercing} status effect for 1.5 seconds",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -89,7 +89,7 @@
       "Jamming Mix": {
         "name": "Jamming Mix",
         "advantages": [
-          "Critically hitting the enemy activates the Jammer status effect for 3 seconds"
+          "Critically hitting the enemy activates the {jammer|Jammer} status effect for 3 seconds"
         ],
         "disadvantages": [
           "Critical damage: -50%",
@@ -114,14 +114,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 50% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 1.5 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 3 sec; {emp|Electromagnetic Pulse}: 1 sec; {stun|Stun}: 0.4 sec; {armor_piercing|Armor-Piercing}: 1.5 sec"
         ],
         "disadvantages": [
           "Critical chance: -25%",
@@ -160,7 +160,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤35%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -200,7 +200,7 @@
       "Magnetic Mix": {
         "name": "Magnetic Mix",
         "advantages": [
-          "Critically hitting an enemy activates the Electromagnetic Pulse status effect for 2 seconds",
+          "Critically hitting an enemy activates the {emp|Electromagnetic Pulse} status effect for 2 seconds",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -212,7 +212,7 @@
       "Paralyzing Mix": {
         "name": "Paralyzing Mix",
         "advantages": [
-          "Critical hits Stun the enemy for 0.4 seconds",
+          "Critical hits {stun|Stun} the enemy for 0.4 seconds",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -224,7 +224,7 @@
       "Toxic Mix": {
         "name": "Toxic Mix",
         "advantages": [
-          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 1.5 seconds",
+          "Critically hitting an enemy will apply the {armor_piercing|Armor-Piercing} status effect to them for 1.5 seconds",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -236,7 +236,7 @@
       "Jamming Mix": {
         "name": "Jamming Mix",
         "advantages": [
-          "Critically hitting an enemy activates the Jammer status effect for 3 seconds"
+          "Critically hitting an enemy activates the {jammer|Jammer} status effect for 3 seconds"
         ],
         "disadvantages": [
           "Critical damage: -50%",
@@ -273,14 +273,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 50% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 1.5 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 3 sec; {emp|Electromagnetic Pulse}: 1 sec; {stun|Stun}: 0.4 sec; {armor_piercing|Armor-Piercing}: 1.5 sec"
         ],
         "disadvantages": [
           "Critical chance: -30%",
@@ -319,7 +319,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤35%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -355,7 +355,7 @@
       "Jamming Nanobots": {
         "name": "Jamming Nanobots",
         "advantages": [
-          "Critically hitting an enemy activates the Jammer effect for 3 seconds"
+          "Critically hitting an enemy activates the {jammer|Jammer} effect for 3 seconds"
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -365,7 +365,7 @@
       "Magnetic Nanobots": {
         "name": "Magnetic Nanobots",
         "advantages": [
-          "Critically hitting an enemy activates the Electromagnetic Pulse effect for 1.5 seconds",
+          "Critically hitting an enemy activates the {emp|Electromagnetic Pulse} effect for 1.5 seconds",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -376,7 +376,7 @@
       "Stunning Nanobots": {
         "name": "Stunning Nanobots",
         "advantages": [
-          "Critically hitting an enemy activates the Stun effect for 0.4 seconds",
+          "Critically hitting an enemy activates the {stun|Stun} effect for 0.4 seconds",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -387,7 +387,7 @@
       "Toxic Nanobots": {
         "name": "Toxic Nanobots",
         "advantages": [
-          "Critically hitting an enemy activates the Armor-Piercing effect for 1.5 seconds",
+          "Critically hitting an enemy activates the {armor_piercing|Armor-Piercing} effect for 1.5 seconds",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -442,14 +442,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 50% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 1.5 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 3 sec; {emp|Electromagnetic Pulse}: 1 sec; {stun|Stun}: 0.4 sec; {armor_piercing|Armor-Piercing}: 1.5 sec"
         ],
         "disadvantages": [
           "Critical chance: -30%",
@@ -488,7 +488,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤35%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -552,8 +552,8 @@
       "Superconducting Discharge": {
         "name": "Superconducting Discharge",
         "advantages": [
-          "Critical hits apply the Electromagnetic Pulse status effect on the enemy for 2 seconds.",
-          "Ball lightning applies the Electromagnetic Pulse status effect for 3 seconds on the enemies hit",
+          "Critical hits apply the {emp|Electromagnetic Pulse} status effect on the enemy for 2 seconds.",
+          "Ball lightning applies the {emp|Electromagnetic Pulse} status effect for 3 seconds on the enemies hit",
           "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10",
           "Critical hit chance: +10%"
         ],
@@ -567,8 +567,8 @@
       "Shocking Lightning": {
         "name": "Shocking Lightning",
         "advantages": [
-          "Critical hits activate the Stun status effect for 1 second",
-          "Ball lightning activates the Stun status effect for 1.5 seconds on enemies hit",
+          "Critical hits activate the {stun|Stun} status effect for 1 second",
+          "Ball lightning activates the {stun|Stun} status effect for 1.5 seconds on enemies hit",
           "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10",
           "Critical hit chance: +10%"
         ],
@@ -582,8 +582,8 @@
       "Armor-piercing Discharge": {
         "name": "Armor-piercing Discharge",
         "advantages": [
-          "Critical hits activate the Armor-Piercing status effect for 5 seconds on enemies hit",
-          "Ball lightning activates the Armor-Piercing status effect for 9 seconds on enemies hit",
+          "Critical hits activate the {armor_piercing|Armor-Piercing} status effect for 5 seconds on enemies hit",
+          "Ball lightning activates the {armor_piercing|Armor-Piercing} status effect for 9 seconds on enemies hit",
           "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10",
           "Critical hit chance: +10%"
         ],
@@ -597,7 +597,7 @@
       "Jamming Discharge": {
         "name": "Jamming Discharge",
         "advantages": [
-          "Hitting an enemy with either chain or ball lightning applies the Jammer status effect to them for 3 seconds",
+          "Hitting an enemy with either chain or ball lightning applies the {jammer|Jammer} status effect to them for 3 seconds",
           "Permits ball lightning to bounce off props, similar to Ricochet: Maximum number of ricochets: 10"
         ],
         "disadvantages": [
@@ -653,14 +653,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 50% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 1 sec; Armor-Piercing: 5 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 3 sec; {emp|Electromagnetic Pulse}: 1 sec; {stun|Stun}: 1 sec; {armor_piercing|Armor-Piercing}: 5 sec"
         ],
         "disadvantages": [
           "Critical chance: -30%",
@@ -701,7 +701,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤35%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -765,7 +765,7 @@
       "Magnetic Pellets": {
         "name": "Magnetic Pellets",
         "advantages": [
-          "Critically hitting an enemy will apply the Electromagnetic Pulse status effect to them for 1 second.",
+          "Critically hitting an enemy will apply the {emp|Electromagnetic Pulse} status effect to them for 1 second.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -776,7 +776,7 @@
       "Stunning Pellets": {
         "name": "Stunning Pellets",
         "advantages": [
-          "Critically hitting an enemy will apply the Stun status effect to them for 0.8 seconds.",
+          "Critically hitting an enemy will apply the {stun|Stun} status effect to them for 0.8 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -787,7 +787,7 @@
       "Armor-Piercing Shot": {
         "name": "Armor-Piercing Shot",
         "advantages": [
-          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 3 seconds.",
+          "Critically hitting an enemy will apply the {armor_piercing|Armor-Piercing} status effect to them for 3 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -798,7 +798,7 @@
       "Jamming Shot": {
         "name": "Jamming Shot",
         "advantages": [
-          "Hitting an enemy will apply the Jammer status effect to them for 3 seconds."
+          "Hitting an enemy will apply the {jammer|Jammer} status effect to them for 3 seconds."
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -939,14 +939,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 50% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 0.8 sec; Armor-Piercing: 3 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 3 sec; {emp|Electromagnetic Pulse}: 1 sec; {stun|Stun}: 0.8 sec; {armor_piercing|Armor-Piercing}: 3 sec"
         ],
         "disadvantages": [
           "Critical chance: -12%",
@@ -985,7 +985,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -1052,7 +1052,7 @@
       "Magnetron": {
         "name": "Magnetron",
         "advantages": [
-          "Critical hits activate the Electromagnetic Pulse status effect for 1 second",
+          "Critical hits activate the {emp|Electromagnetic Pulse} status effect for 1 second",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1063,7 +1063,7 @@
       "Tectonic Plasma": {
         "name": "Tectonic Plasma",
         "advantages": [
-          "Critical hits Stun the enemy for 0.4 seconds",
+          "Critical hits {stun|Stun} the enemy for 0.4 seconds",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1074,7 +1074,7 @@
       "Plasma Injector": {
         "name": "Plasma Injector",
         "advantages": [
-          "Critically hitting an enemy applies the Armor-Piercing status effect to them for 1.5 second.",
+          "Critically hitting an enemy applies the {armor_piercing|Armor-Piercing} status effect to them for 1.5 second.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1085,7 +1085,7 @@
       "Plasma Disruptor": {
         "name": "Plasma Disruptor",
         "advantages": [
-          "Critically hitting an enemy activates the Jammer status effect for 3 second"
+          "Critically hitting an enemy activates the {jammer|Jammer} status effect for 3 second"
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -1140,14 +1140,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 1 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 1.5 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 1 sec; {emp|Electromagnetic Pulse}: 1 sec; {stun|Stun}: 0.4 sec; {armor_piercing|Armor-Piercing}: 1.5 sec"
         ],
         "disadvantages": [
           "Critical chance: -25%",
@@ -1186,7 +1186,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -1256,7 +1256,7 @@
       "Magnetron": {
         "name": "Magnetron",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the Electromagnetic Pulse status effect to them for 2 seconds.",
+          "Hitting an enemy with a critical shot will apply the {emp|Electromagnetic Pulse} status effect to them for 2 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1267,7 +1267,7 @@
       "Tectonic field": {
         "name": "Tectonic field",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the Stun status effect to them for 1 second.",
+          "Hitting an enemy with a critical shot will apply the {stun|Stun} status effect to them for 1 second.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1278,7 +1278,7 @@
       "Super-smart Minus-Field": {
         "name": "Super-smart Minus-Field",
         "advantages": [
-          "Hitting an enemy with a critical shot may apply the Armor-Piercing status effect to them for 5 seconds.",
+          "Hitting an enemy with a critical shot may apply the {armor_piercing|Armor-Piercing} status effect to them for 5 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1289,7 +1289,7 @@
       "Jamming field": {
         "name": "Jamming field",
         "advantages": [
-          "Hitting an enemy will apply the Jammer status effect to them for 1 second."
+          "Hitting an enemy will apply the {jammer|Jammer} status effect to them for 1 second."
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -1357,14 +1357,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 1 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 3 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 1 sec; {emp|Electromagnetic Pulse}: 1 sec; {stun|Stun}: 0.4 sec; {armor_piercing|Armor-Piercing}: 3 sec"
         ],
         "disadvantages": [
           "Critical chance: -40%",
@@ -1403,7 +1403,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -1436,7 +1436,7 @@
       "Incendiary band": {
         "name": "Incendiary band",
         "advantages": [
-          "Each bullet that hits an enemy while your own tank is under the Burning status effect will increase their temperature by +0.07",
+          "Each bullet that hits an enemy while your own tank is under the {burning|Burning} status effect will increase their temperature by +0.07",
           "Time to overheat: -75%"
         ],
         "disadvantages": [
@@ -1448,7 +1448,7 @@
       "Freezing Band": {
         "name": "Freezing Band",
         "advantages": [
-          "Critical damage imposes Freezing status effect on an enemy tank for 5 seconds.",
+          "Critical damage imposes {freeze|Freezing} status effect on an enemy tank for 5 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1459,7 +1459,7 @@
       "Magnetic Band": {
         "name": "Magnetic Band",
         "advantages": [
-          "Critically hitting the enemy activates the Electromagnetic Pulse status effect for 1 second.",
+          "Critically hitting the enemy activates the {emp|Electromagnetic Pulse} status effect for 1 second.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1470,7 +1470,7 @@
       "Stunning Band": {
         "name": "Stunning Band",
         "advantages": [
-          "Critical damage imposes Status Effect «Stun» on an enemy tank: Critical stun: =0.4 sec",
+          "Critical damage imposes Status Effect {stun} «Stun» on an enemy tank: Critical stun: =0.4 sec",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1481,7 +1481,7 @@
       "Armor-Piercing Band": {
         "name": "Armor-Piercing Band",
         "advantages": [
-          "Critically hitting the enemy activates the Armor-Piercing status effect for 1.5 seconds.",
+          "Critically hitting the enemy activates the {armor_piercing|Armor-Piercing} status effect for 1.5 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1492,7 +1492,7 @@
       "Jamming Band": {
         "name": "Jamming Band",
         "advantages": [
-          "Critically hitting the enemy activates the Jammer status effect for 3 seconds."
+          "Critically hitting the enemy activates the {jammer|Jammer} status effect for 3 seconds."
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -1557,14 +1557,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 3 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 1.5 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 3 sec; {emp|Electromagnetic Pulse}: 1 sec; {stun|Stun}: 0.4 sec; {armor_piercing|Armor-Piercing}: 1.5 sec"
         ],
         "disadvantages": [
           "Critical chance: -40%",
@@ -1603,7 +1603,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -1668,7 +1668,7 @@
       "EMP Rounds": {
         "name": "EMP Rounds",
         "advantages": [
-          "Critically hitting an enemy will apply the Electromagnetic Pulse status effect to them for 1 second.",
+          "Critically hitting an enemy will apply the {emp|Electromagnetic Pulse} status effect to them for 1 second.",
           "Critical hit chance increase by +10%",
           "Critical hit chance: +10%"
         ],
@@ -1680,7 +1680,7 @@
       "Paralyzing Rounds": {
         "name": "Paralyzing Rounds",
         "advantages": [
-          "Critical hits Stun the enemy for 1 second",
+          "Critical hits {stun|Stun} the enemy for 1 second",
           "Critical chance step increases even with shots that do not register on the target",
           "Critical hit chance increase by +10%",
           "Critical hit chance: +10%"
@@ -1693,7 +1693,7 @@
       "Armor-Piercing Rounds": {
         "name": "Armor-Piercing Rounds",
         "advantages": [
-          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 2 seconds.",
+          "Critically hitting an enemy will apply the {armor_piercing|Armor-Piercing} status effect to them for 2 seconds.",
           "Critical hit chance increases by +10%",
           "Critical hit chance: +10%"
         ],
@@ -1705,7 +1705,7 @@
       "Jamming Rounds": {
         "name": "Jamming Rounds",
         "advantages": [
-          "Hitting an enemy will apply the Jammer status effect to them for 2 seconds."
+          "Hitting an enemy will apply the {jammer|Jammer} status effect to them for 2 seconds."
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -1782,14 +1782,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 2 sec; Electromagnetic Pulse: 1 sec; Stun: 1 sec; Armor-Piercing: 2 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 2 sec; {emp|Electromagnetic Pulse}: 1 sec; {stun|Stun}: 1 sec; {armor_piercing|Armor-Piercing}: 2 sec"
         ],
         "disadvantages": [
           "Critical chance: -45%",
@@ -1828,7 +1828,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -1872,7 +1872,7 @@
       "Incendiary Missiles": {
         "name": "Incendiary Missiles",
         "advantages": [
-          "Critical hits raise the temperature of all damaged enemy tanks by +0.4 Burning",
+          "Critical hits raise the temperature of all damaged enemy tanks by +0.4 {burning|Burning}",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1883,7 +1883,7 @@
       "Cryo Missiles": {
         "name": "Cryo Missiles",
         "advantages": [
-          "Critical hits lower the temperature of all damaged enemy tanks by 1. Freezing",
+          "Critical hits lower the temperature of all damaged enemy tanks by 1. {freeze|Freezing}",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1894,7 +1894,7 @@
       "Magnetic Missiles": {
         "name": "Magnetic Missiles",
         "advantages": [
-          "Critically hitting an enemy will apply the Electromagnetic Pulse status effect to them for 3 seconds.",
+          "Critically hitting an enemy will apply the {emp|Electromagnetic Pulse} status effect to them for 3 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1905,7 +1905,7 @@
       "Stunning Missiles": {
         "name": "Stunning Missiles",
         "advantages": [
-          "Critically hitting an enemy will apply the Stun status effect to them for 1.5 seconds.",
+          "Critically hitting an enemy will apply the {stun|Stun} status effect to them for 1.5 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1916,7 +1916,7 @@
       "Armor-Piercing Missiles": {
         "name": "Armor-Piercing Missiles",
         "advantages": [
-          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 9 seconds.",
+          "Critically hitting an enemy will apply the {armor_piercing|Armor-Piercing} status effect to them for 9 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -1927,7 +1927,7 @@
       "Jamming Missiles": {
         "name": "Jamming Missiles",
         "advantages": [
-          "Critically hitting an enemy will apply the Jammer status effect to them for 5 seconds."
+          "Critically hitting an enemy will apply the {jammer|Jammer} status effect to them for 5 seconds."
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -2046,14 +2046,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 5 sec; Electromagnetic Pulse: 3 sec; Stun: 1.5 sec; Armor-Piercing: 9 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 5 sec; {emp|Electromagnetic Pulse}: 3 sec; {stun|Stun}: 1.5 sec; {armor_piercing|Armor-Piercing}: 9 sec"
         ],
         "disadvantages": [
           "Critical chance: -9%",
@@ -2092,7 +2092,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤25%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -2161,7 +2161,7 @@
       "«Magneto» shells": {
         "name": "«Magneto» shells",
         "advantages": [
-          "Critical hits apply the Electromagnetic Pulse status effect to all enemies in a 12 meter radius for 2 seconds.",
+          "Critical hits apply the {emp|Electromagnetic Pulse} status effect to all enemies in a 12 meter radius for 2 seconds.",
           "Critical splash damage radius: 12 m",
           "Critical hit chance: +10%"
         ],
@@ -2173,7 +2173,7 @@
       "«Peacekeeper» shells": {
         "name": "«Peacekeeper» shells",
         "advantages": [
-          "Critical hits apply the Stun status effect to all enemies in a 12 meter radius for 1 second.",
+          "Critical hits apply the {stun|Stun} status effect to all enemies in a 12 meter radius for 1 second.",
           "Critical splash damage radius: 12 m",
           "Critical hit chance: +10%"
         ],
@@ -2185,7 +2185,7 @@
       "«Corrosion» shells": {
         "name": "«Corrosion» shells",
         "advantages": [
-          "Critical hits apply the Armor-Piercing status effect to all enemies in a 12 meter radius for 5 seconds.",
+          "Critical hits apply the {armor_piercing|Armor-Piercing} status effect to all enemies in a 12 meter radius for 5 seconds.",
           "Critical splash damage radius: 12 m",
           "Critical hit chance: +10%"
         ],
@@ -2197,7 +2197,7 @@
       "«Noise» shells": {
         "name": "«Noise» shells",
         "advantages": [
-          "Hitting an enemy tank applies the Jammer status effect to them and all enemies in a 12 meter radius for 3 seconds."
+          "Hitting an enemy tank applies the {jammer|Jammer} status effect to them and all enemies in a 12 meter radius for 3 seconds."
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -2322,14 +2322,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 85% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 5 sec; Electromagnetic Pulse: 2 sec; Stun: 1 sec; Armor-Piercing: 5 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 5 sec; {emp|Electromagnetic Pulse}: 2 sec; {stun|Stun}: 1 sec; {armor_piercing|Armor-Piercing}: 5 sec"
         ],
         "disadvantages": [
           "Critical chance: -12%",
@@ -2368,7 +2368,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -2410,7 +2410,7 @@
       "\"Heat\" Shells": {
         "name": "\"Heat\" Shells",
         "advantages": [
-          "Critically hit enemies are heated up by +0.4",
+          "Critically hit enemies are {burning|heated up} by +0.4",
           "Critical damage chance +10%"
         ],
         "disadvantages": [
@@ -2421,7 +2421,7 @@
       "\"Cryo\" Shells": {
         "name": "\"Cryo\" Shells",
         "advantages": [
-          "Critically hit enemies are frozen by -1.0",
+          "Critically hit enemies are {freeze|frozen} by -1.0",
           "Critical damage chance +10%"
         ],
         "disadvantages": [
@@ -2432,7 +2432,7 @@
       "\"Drill\" Shells": {
         "name": "\"Drill\" Shells",
         "advantages": [
-          "For critically hit enemies, the Armor-Piercing status effect is activated for 5 seconds.",
+          "For critically hit enemies, the {armor_piercing|Armor-Piercing} status effect is activated for 5 seconds.",
           "Critical damage chance +10%"
         ],
         "disadvantages": [
@@ -2443,7 +2443,7 @@
       "\"Shock\" Shells": {
         "name": "\"Shock\" Shells",
         "advantages": [
-          "When enemies are hit critically, the Stun status effect is activated for 1 second.",
+          "When enemies are hit critically, the {stun|Stun} status effect is activated for 1 second.",
           "Critical Hit Chance +10%"
         ],
         "disadvantages": [
@@ -2454,7 +2454,7 @@
       "\"Lightning\" Shells": {
         "name": "\"Lightning\" Shells",
         "advantages": [
-          "When enemies are hit critically, the EMP status effect is activated for 2 seconds.",
+          "When enemies are hit critically, the {emp|EMP} status effect is activated for 2 seconds.",
           "Critical Hit Chance +10%"
         ],
         "disadvantages": [
@@ -2465,7 +2465,7 @@
       "\"Noise\" Shells": {
         "name": "\"Noise\" Shells",
         "advantages": [
-          "Applies the Jammer status effect to hit enemies for 4.5 seconds."
+          "Applies the {jammer|Jammer} status effect to hit enemies for 4.5 seconds."
         ],
         "disadvantages": [
           "Critical Damage -50%"
@@ -2475,7 +2475,7 @@
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 5 sec; Electromagnetic Pulse: 2 sec; Stun: 1.5 sec; Armor-Piercing: 9 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 5 sec; {emp|Electromagnetic Pulse}: 2 sec; {stun|Stun}: 1.5 sec; {armor_piercing|Armor-Piercing}: 9 sec"
         ],
         "disadvantages": [
           "Critical chance: -8%",
@@ -2537,7 +2537,7 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
@@ -2572,7 +2572,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -2633,8 +2633,8 @@
       "EMP shells": {
         "name": "EMP shells",
         "advantages": [
-          "Critical hits and will apply the Electromagnetic Pulse status effect to enemies for 2 seconds.",
-          "Rocket hits in a 5 meter splash radius will apply the Electromagnetic Pulse status effect to enemies for 1 second.",
+          "Critical hits and will apply the {emp|Electromagnetic Pulse} status effect to enemies for 2 seconds.",
+          "Rocket hits in a 5 meter splash radius will apply the {emp|Electromagnetic Pulse} status effect to enemies for 1 second.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -2645,8 +2645,8 @@
       "Stun shells": {
         "name": "Stun shells",
         "advantages": [
-          "Critical hits will apply the Stun status effect to enemies for 1.5 seconds.",
-          "Rocket hits in a 5 meter splash radius will apply the Stun status effect to enemies for 0.4 seconds.",
+          "Critical hits will apply the {stun|Stun} status effect to enemies for 1.5 seconds.",
+          "Rocket hits in a 5 meter splash radius will apply the {stun|Stun} status effect to enemies for 0.4 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -2657,8 +2657,8 @@
       "Armor-piercing shells": {
         "name": "Armor-piercing shells",
         "advantages": [
-          "Critical hits will apply the Armor-Piercing status effect to enemies for 10 seconds.",
-          "Rocket hits will apply the Armor-Piercing status effect to enemies for 1 second.",
+          "Critical hits will apply the {armor_piercing|Armor-Piercing} status effect to enemies for 10 seconds.",
+          "Rocket hits will apply the {armor_piercing|Armor-Piercing} status effect to enemies for 1 second.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -2669,8 +2669,8 @@
       "Jamming Shells": {
         "name": "Jamming Shells",
         "advantages": [
-          "Normal and critical hits will apply the Jammer status effect to enemies for 5 seconds.",
-          "Rocket hits will apply the Jammer status effect to enemies in a 5 meter radius for 1 second."
+          "Normal and critical hits will apply the{jammer|Jammer} status effect to enemies for 5 seconds.",
+          "Rocket hits will apply the{jammer|Jammer} status effect to enemies in a 5 meter radius for 1 second."
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -2751,14 +2751,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 5 sec; Electromagnetic Pulse: 2 sec; Stun: 1.5 sec; Armor-Piercing: 9 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 5 sec; {emp|Electromagnetic Pulse}: 2 sec; {stun|Stun}: 1.5 sec; {armor_piercing|Armor-Piercing}: 9 sec"
         ],
         "disadvantages": [
           "Critical chance: -8%",
@@ -2809,7 +2809,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -2861,7 +2861,7 @@
       "Freezing Core": {
         "name": "Freezing Core",
         "advantages": [
-          "Critical hits apply the Freezing status effect to all enemies within a 10 meter radius from the point of impact for 10 seconds.",
+          "Critical hits apply the {freeze|Freezing} status effect to all enemies within a 10 meter radius from the point of impact for 10 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -2872,7 +2872,7 @@
       "Magnetic core": {
         "name": "Magnetic core",
         "advantages": [
-          "Critical hits (10m radius from explosion) apply the Electromagnetic Pulse status effect for 3 seconds.",
+          "Critical hits (10m radius from explosion) apply the {emp|Electromagnetic Pulse} status effect for 3 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -2883,7 +2883,7 @@
       "Stunning Core": {
         "name": "Stunning Core",
         "advantages": [
-          "Critical hits (10m radius from explosion) apply the Stun status effect for 1.5 seconds.",
+          "Critical hits (10m radius from explosion) apply the {stun|Stun} status effect for 1.5 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -2894,7 +2894,7 @@
       "Armor-Piercing Core": {
         "name": "Armor-Piercing Core",
         "advantages": [
-          "On a critical hit, applies the Armor-Piercing status effect for 9 seconds.",
+          "On a critical hit, applies the {armor_piercing|Armor-Piercing} status effect for 9 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -2905,8 +2905,8 @@
       "Jamming Core": {
         "name": "Jamming Core",
         "advantages": [
-          "Applies the Jammer status effect to all enemies within a 10 meter radius from the point of impact for 6 seconds.",
-          "Critical hits apply the Jammer status effect for 10 seconds."
+          "Applies the {jammer|Jammer} status effect to all enemies within a 10 meter radius from the point of impact for 6 seconds.",
+          "Critical hits apply the {jammer|Jammer} status effect for 10 seconds."
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -2978,14 +2978,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 12 sec; Electromagnetic Pulse: 3 sec; Stun: 1.5 sec; Armor-Piercing: 9 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 12 sec; {emp|Electromagnetic Pulse}: 3 sec; {stun|Stun}: 1.5 sec; {armor_piercing|Armor-Piercing}: 9 sec"
         ],
         "disadvantages": [
           "Critical chance: -8%",
@@ -3039,7 +3039,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -3103,7 +3103,7 @@
       "EMP Rounds": {
         "name": "EMP Rounds",
         "advantages": [
-          "Critically hitting an enemy applies the Electromagnetic Pulse status effect to them for 2 seconds.",
+          "Critically hitting an enemy applies the {emp|Electromagnetic Pulse} status effect to them for 2 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -3114,7 +3114,7 @@
       "Stun Rounds": {
         "name": "Stun Rounds",
         "advantages": [
-          "Critically hitting an enemy applies the Stun status effect to them for 1 second.",
+          "Critically hitting an enemy applies the {stun|Stun} status effect to them for 1 second.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -3125,7 +3125,7 @@
       "Super Armor-Piercing Rounds": {
         "name": "Super Armor-Piercing Rounds",
         "advantages": [
-          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 5 seconds.",
+          "Critically hitting an enemy will apply the {armor_piercing|Armor-Piercing} status effect to them for 5 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -3136,7 +3136,7 @@
       "Jamming Shells": {
         "name": "Jamming Shells",
         "advantages": [
-          "Hitting an enemy applies the Jammer status effect to them for 9 seconds."
+          "Hitting an enemy applies the {jammer|Jammer} status effect to them for 9 seconds."
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -3248,7 +3248,7 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
@@ -3268,7 +3268,7 @@
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 9 sec; Electromagnetic Pulse: 2 sec; Stun: 1 sec; Armor-Piercing: 5 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 9 sec; {emp|Electromagnetic Pulse}: 2 sec; {stun|Stun}: 1 sec; {armor_piercing|Armor-Piercing}: 5 sec"
         ],
         "disadvantages": [
           "Critical chance: -8%",
@@ -3297,7 +3297,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -3357,8 +3357,8 @@
       "Electromagnetic salvo": {
         "name": "Electromagnetic salvo",
         "advantages": [
-          "Sniping an enemy will apply the Electromagnetic Pulse status effect to them and all enemies within a 15 meter radius for 3 seconds.",
-          "Critically hitting an enemy will apply the Electromagnetic Pulse status effect to them for 2 seconds.",
+          "Sniping an enemy will apply the {emp|Electromagnetic Pulse} status effect to them and all enemies within a 15 meter radius for 3 seconds.",
+          "Critically hitting an enemy will apply the {emp|Electromagnetic Pulse} status effect to them for 2 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -3369,8 +3369,8 @@
       "Stunning Salvo": {
         "name": "Stunning Salvo",
         "advantages": [
-          "Sniping an enemy will apply the Stun status effect to all enemies hit for 1.5 seconds.",
-          "Critically hitting an enemy will apply the Stun status effect to them for 1 seconds",
+          "Sniping an enemy will apply the {stun|Stun} status effect to all enemies hit for 1.5 seconds.",
+          "Critically hitting an enemy will apply the {stun|Stun} status effect to them for 1 seconds",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -3381,9 +3381,9 @@
       "Jamming Salvo": {
         "name": "Jamming Salvo",
         "advantages": [
-          "Hitting an enemy will apply the Jammer status effect to them for 3 seconds.",
-          "Sniping an enemy will apply the Jammer status effect to all enemies hit for 12 seconds.",
-          "Critically hitting an enemy will apply the Jammer status effect to them for 9 seconds"
+          "Hitting an enemy will apply the {jammer|Jammer} status effect to them for 3 seconds.",
+          "Sniping an enemy will apply the {jammer|Jammer} status effect to all enemies hit for 12 seconds.",
+          "Critically hitting an enemy will apply the {jammer|Jammer} status effect to them for 9 seconds"
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -3393,8 +3393,8 @@
       "Armor-Piercing Salvo": {
         "name": "Armor-Piercing Salvo",
         "advantages": [
-          "Sniping an enemy will apply the Armor-Piercing status effect to them and all enemies within a 15 meter radius for 9 seconds.",
-          "Critically hitting an enemy will apply the Armor-Piercing status effect to them for 5 seconds.",
+          "Sniping an enemy will apply the {armor_piercing|Armor-Piercing} status effect to them and all enemies within a 15 meter radius for 9 seconds.",
+          "Critically hitting an enemy will apply the {armor_piercing|Armor-Piercing} status effect to them for 5 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -3477,14 +3477,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 9 sec; Electromagnetic Pulse: 1 sec; Stun: 0.4 sec; Armor-Piercing: 5 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 9 sec; {emp|Electromagnetic Pulse}: 1 sec; {stun|Stun}: 0.4 sec; {armor_piercing|Armor-Piercing}: 5 sec"
         ],
         "disadvantages": [
           "Critical chance: -12%",
@@ -3523,7 +3523,7 @@
         ],
         "disadvantages": [
           "Damage bonus only activates when health is ≤20%",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "rare"
       },
@@ -3578,8 +3578,8 @@
       "Freezing Sight": {
         "name": "Freezing Sight",
         "advantages": [
-          "Sniping an enemy will apply the Freezing status effect to them for 10 seconds.",
-          "Hitting an enemy with a critical arcade shot will apply the Freezing status effect to them for 10 seconds.",
+          "Sniping an enemy will apply the {freeze|Freezing} status effect to them for 10 seconds.",
+          "Hitting an enemy with a critical arcade shot will apply the {freeze|Freezing} status effect to them for 10 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -3590,8 +3590,8 @@
       "Electrifying Sight": {
         "name": "Electrifying Sight",
         "advantages": [
-          "Sniping an enemy will apply the Electromagnetic Pulse status effect to them for 3 seconds.",
-          "Hitting an enemy with a critical arcade shot will apply the Electromagnetic Pulse status effect to them for 2 seconds.",
+          "Sniping an enemy will apply the {emp|Electromagnetic Pulse} status effect to them for 3 seconds.",
+          "Hitting an enemy with a critical arcade shot will apply the {emp|Electromagnetic Pulse} status effect to them for 2 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -3602,8 +3602,8 @@
       "Stunning Sight": {
         "name": "Stunning Sight",
         "advantages": [
-          "Sniping an enemy will apply the Stun status effect to them for 1.5 seconds.",
-          "Hitting an enemy with a critical arcade shot will apply the Stun status effect to them for 1 seconds.",
+          "Sniping an enemy will apply the {stun|Stun} status effect to them for 1.5 seconds.",
+          "Hitting an enemy with a critical arcade shot will apply the {stun|Stun} status effect to them for 1 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -3614,8 +3614,8 @@
       "Armor-Piercing Sight": {
         "name": "Armor-Piercing Sight",
         "advantages": [
-          "Sniping an enemy will apply the Armor-Piercing status effect to them for 9 seconds.",
-          "Hitting an enemy with a critical arcade shot will apply the Armor-Piercing status effect to them for 9 seconds.",
+          "Sniping an enemy will apply the {armor_piercing|Armor-Piercing} status effect to them for 9 seconds.",
+          "Hitting an enemy with a critical arcade shot will apply the {armor_piercing|Armor-Piercing} status effect to them for 9 seconds.",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
@@ -3626,9 +3626,9 @@
       "Jamming Sight": {
         "name": "Jamming Sight",
         "advantages": [
-          "Hitting an enemy will apply the Jammer status effect to them for 3 seconds.",
-          "Sniping an enemy will apply the Jammer status effect to them for 12 seconds.",
-          "Hitting an enemy with a critical arcade shot will apply the Jammer status effect to them for 9 seconds."
+          "Hitting an enemy will apply the {jammer|Jammer} status effect to them for 3 seconds.",
+          "Sniping an enemy will apply the {jammer|Jammer} status effect to them for 12 seconds.",
+          "Hitting an enemy with a critical arcade shot will apply the {jammer|Jammer} status effect to them for 9 seconds."
         ],
         "disadvantages": [
           "Critical damage: -50%"
@@ -3702,14 +3702,14 @@
         ],
         "disadvantages": [
           "Damage boost is active only while you have at least 95% of your maximum HP.",
-          "Effect is disabled when the tank has the Freezing status effect."
+          "Effect is disabled when the tank has the {freeze|Freezing} status effect."
         ],
         "rarity": "legendary"
       },
       "Pulsar": {
         "name": "Pulsar",
         "advantages": [
-          "Hitting an enemy with a critical shot will apply the following status effects: Jammer: 9 sec; Electromagnetic Pulse: 2 sec; Stun: 1 sec; Armor-Piercing: 5 sec"
+          "Hitting an enemy with a critical shot will apply the following status effects: {jammer|Jammer}: 9 sec; {emp|Electromagnetic Pulse}: 2 sec; {stun|Stun}: 1 sec; {armor_piercing|Armor-Piercing}: 5 sec"
         ],
         "disadvantages": [
           "Critical chance: -12%",
@@ -3744,7 +3744,7 @@
       "Heat Resistance": {
         "name": "Heat Resistance",
         "advantages": [
-          "Damage taken from Burning: -50%",
+          "Damage taken from {burning|Burning}: -50%",
           "Heating rate: -50%"
         ],
         "disadvantages": [],
@@ -3753,7 +3753,7 @@
       "Cold Resistance": {
         "name": "Cold Resistance",
         "advantages": [
-          "Slowdown from Freezing: -50%",
+          "Slowdown from {freeze|Freezing}: -50%",
           "Freezing rate: -50%"
         ],
         "disadvantages": [],
@@ -3789,7 +3789,7 @@
       "Heat Immunity": {
         "name": "Heat Immunity",
         "advantages": [
-          "Provides complete immunity from Burning."
+          "Provides complete immunity from {burning|Burning}."
         ],
         "disadvantages": [],
         "rarity": "epic"
@@ -3797,7 +3797,7 @@
       "Cold Immunity": {
         "name": "Cold Immunity",
         "advantages": [
-          "Provides complete immunity from Freezing."
+          "Provides complete immunity from {freeze|Freezing}."
         ],
         "disadvantages": [],
         "rarity": "epic"
@@ -3805,7 +3805,7 @@
       "EMP Immunity": {
         "name": "EMP Immunity",
         "advantages": [
-          "Provides complete immunity from Electromagnetic Pulse"
+          "Provides complete immunity from {emp|Electromagnetic Pulse}"
         ],
         "disadvantages": [],
         "rarity": "epic"
@@ -3813,7 +3813,7 @@
       "Stun Immunity": {
         "name": "Stun Immunity",
         "advantages": [
-          "Provides complete immunity from Stun"
+          "Provides complete immunity from {stun|Stun}"
         ],
         "disadvantages": [],
         "rarity": "epic"
@@ -3821,7 +3821,7 @@
       "AP Immunity": {
         "name": "AP Immunity",
         "advantages": [
-          "Provides complete immunity from Armor-Piercing"
+          "Provides complete immunity from {armor_piercing|Armor-Piercing}"
         ],
         "disadvantages": [],
         "rarity": "epic"
@@ -3829,7 +3829,7 @@
       "Jammer Immunity": {
         "name": "Jammer Immunity",
         "advantages": [
-          "Provides complete immunity from Jammer"
+          "Provides complete immunity from {jammer|Jammer}"
         ],
         "disadvantages": [],
         "rarity": "epic"
