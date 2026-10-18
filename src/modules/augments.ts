@@ -236,9 +236,31 @@
         readonly augment: Augment;
     }
 
-    // Lowercase, and hyphens, dashes and runs of spaces count as one space, so "High pressure pump" matches "High-pressure pump".
+    // Lowercase, quotes dropped, a possessive "'s" dropped, and hyphens, dashes and runs of spaces count as one space,
+    // so "High pressure pump" matches "High-pressure pump", "Dragon breath" matches "Dragon's Breath", and a name in
+    // quotes matches the same name without them.
     function normalizeName(text: string): string {
-        return text.toLowerCase().replace(/ё/g, 'е').replace(/[\s\-‐-―]+/g, ' ').trim();
+        return text
+            .toLowerCase()
+            .replace(/ё/g, 'е')
+            .replace(/["“”„«»]/g, '')
+            .replace(/['’‘]s\b/g, '')
+            .replace(/['’‘]/g, '')
+            .replace(/[\s\-‐-―]+/g, ' ')
+            .trim();
+    }
+
+    const MIN_PARTIAL_NAME = 4;
+
+    // The game and the wiki sometimes word one name differently ("Duplet" Firing Mode in the game, Duplet on the
+    // wiki). The one wiki name that sits inside the game's name, or contains it, is taken, but only when it is the
+    // only one, so a close call never picks a wrong augment.
+    function closestAugment(index: ReadonlyMap<string, Augment>, wanted: string): Augment | undefined {
+        if (wanted.length < MIN_PARTIAL_NAME) return undefined;
+        const candidates = [...index].filter(
+            ([name]) => name.length >= MIN_PARTIAL_NAME && (wanted.includes(name) || name.includes(wanted)),
+        );
+        return candidates.length === 1 ? candidates[0]?.[1] : undefined;
     }
 
     const nameIndexes = new Map<string, ReadonlyMap<string, Augment>>();
@@ -259,7 +281,9 @@
         const file = getAugmentsFile(language);
         if (file === null) return null;
         const bucket = file.items[item] === undefined ? 'hulls' : item;
-        const augment = indexFor(file, bucket).get(normalizeName(cardName));
+        const index = indexFor(file, bucket);
+        const wanted = normalizeName(cardName);
+        const augment = index.get(wanted) ?? closestAugment(index, wanted);
         return augment === undefined ? null : { language, augment };
     }
 
@@ -280,7 +304,193 @@
             return;
         }
         const { advantages, disadvantages, rarity } = match.augment;
-        console.log(`${LOG} augment "${title}" (${currentItem}, ${language}): ${advantages.length} advantages, ${disadvantages.length} disadvantages, rarity ${rarity ?? 'none'}`);
+        const wikiName = normalizeName(match.augment.name) === normalizeName(title) ? '' : `, wiki name "${match.augment.name}"`;
+        console.log(`${LOG} augment "${title}" (${currentItem}, ${language}): ${advantages.length} advantages, ${disadvantages.length} disadvantages, rarity ${rarity ?? 'none'}${wikiName}`);
+    }
+
+    // Each augment tile on the Augments tab gets a small box in its corner; hovering it shows that augment's
+    // advantages and disadvantages in a box styled after the wiki's augment page (styles/augments.css).
+    const CARD_ROW_SELECTOR = '.SkinsAndAlterationsStyle-SkinsVerticalComponent';
+    const CARD_TITLE_SELECTOR = '.SkinCellStyle-nameDevices';
+    const BOX_CLASS = 'kasp-spec-btn';
+    const TOOLTIP_ID = 'kasp-spec-tooltip';
+    const TOOLTIP_GAP = 16;
+    const HEADINGS = {
+        EN: { advantages: 'Advantages', disadvantages: 'Disadvantages' },
+        RU: { advantages: 'Преимущества', disadvantages: 'Недостатки' },
+    } as const;
+    // A number with its sign or comparison ("+25%", "<=25%"), so values stand out the way they do on the wiki.
+    const NUMBER_PATTERN = /([<>≤≥]?[+\-−]?\d+(?:[.,]\d+)?%?)/;
+
+    // The images in extension/icons/. A status effect in the text arrives as {key}; an unknown key shows nothing.
+    const EFFECT_ICONS: ReadonlySet<string> = new Set(['armor_piercing', 'burning', 'emp', 'freeze', 'jammer', 'stun']);
+    const MARKER_PATTERN = /\{([a-z_]+)(?:\|([^{}|]*))?\}/;
+    const FRAME_RANKS: ReadonlySet<string> = new Set(['rare', 'epic', 'legendary', 'exotic']);
+    // The game has no exotic container, so that rank shows none.
+    const CONTAINER_RANKS: ReadonlySet<string> = new Set(['rare', 'epic', 'legendary']);
+
+    function icon(className: string, path: string): HTMLImageElement {
+        const image = document.createElement('img');
+        image.className = className;
+        image.alt = '';
+        image.src = chrome.runtime.getURL(`icons/${path}`);
+        return image;
+    }
+
+    function element(tag: string, className: string, text?: string): HTMLElement {
+        const node = document.createElement(tag);
+        node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    function appendNumbers(parent: HTMLElement, text: string): void {
+        // split() with one capture group puts the numbers at the odd positions.
+        text.split(NUMBER_PATTERN).forEach((part, index) => {
+            if (part === '') return;
+            if (index % 2 === 1) parent.append(element('span', 'kasp-spec-num', part));
+            else parent.append(document.createTextNode(part));
+        });
+    }
+
+    function appendLine(list: HTMLElement, line: string): void {
+        const item = element('li', 'kasp-spec-line');
+        // split() with two capture groups gives the text, the key and the name, over and over.
+        const parts = line.split(MARKER_PATTERN);
+        for (let index = 0; index < parts.length; index += 3) {
+            appendNumbers(item, parts[index] ?? '');
+            const key = parts[index + 1];
+            const name = parts[index + 2];
+            if (key === undefined || !EFFECT_ICONS.has(key)) continue;
+            item.append(icon('kasp-spec-effect', `effects/${key}.png`));
+            if (name !== undefined && name !== '') item.append(element('span', 'kasp-spec-effect-name', name));
+        }
+        list.append(item);
+    }
+
+    function buildColumn(kind: 'positive' | 'negative', heading: string, lines: readonly string[]): HTMLElement {
+        const column = element('div', `kasp-spec-col kasp-spec-${kind}`);
+        const title = element('div', 'kasp-spec-heading');
+        title.append(icon('kasp-spec-sign', kind === 'positive' ? 'corners/advantages.svg' : 'corners/disadvantages.svg'), heading);
+        column.append(title);
+        const list = element('ul', 'kasp-spec-lines');
+        for (const line of lines) appendLine(list, line);
+        column.append(list);
+        return column;
+    }
+
+    function getTooltip(): HTMLElement {
+        const existing = document.getElementById(TOOLTIP_ID);
+        if (existing !== null) return existing;
+        const tooltip = element('div', 'kasp-spec-tooltip');
+        tooltip.id = TOOLTIP_ID;
+        document.body.append(tooltip);
+        // Escape and Z also leave the screen in the game, so the box must not stay behind.
+        window.addEventListener(
+            'keydown',
+            (event) => {
+                if (event.code === 'Escape' || event.code === 'KeyZ') hideTooltip();
+            },
+            true,
+        );
+        return tooltip;
+    }
+
+    function hideTooltip(): void {
+        const tooltip = document.getElementById(TOOLTIP_ID);
+        if (tooltip !== null) tooltip.style.display = 'none';
+    }
+
+    function moveTooltip(event: MouseEvent): void {
+        const tooltip = getTooltip();
+        const size = tooltip.getBoundingClientRect();
+        let x = event.clientX + TOOLTIP_GAP;
+        let y = event.clientY + TOOLTIP_GAP;
+        if (x + size.width > window.innerWidth) x = event.clientX - size.width - TOOLTIP_GAP;
+        if (y + size.height > window.innerHeight) y = event.clientY - size.height - TOOLTIP_GAP;
+        tooltip.style.left = `${Math.max(0, x)}px`;
+        tooltip.style.top = `${Math.max(0, y)}px`;
+    }
+
+    // The corner ornaments and the container icon that go with the augment's rank.
+    function buildDecorations(rarity: string | null): HTMLElement[] {
+        const decorations: HTMLElement[] = [];
+        if (rarity !== null && FRAME_RANKS.has(rarity)) {
+            decorations.push(icon('kasp-spec-corner-start', `corners/corner_${rarity}.svg`));
+            decorations.push(icon('kasp-spec-corner-end', `corners/corner_${rarity}.svg`));
+        }
+        if (rarity !== null && CONTAINER_RANKS.has(rarity)) {
+            decorations.push(icon('kasp-spec-container', `containers/${rarity}_container.svg`));
+        }
+        return decorations;
+    }
+
+    function showTooltip(match: AugmentMatch, event: MouseEvent): void {
+        const tooltip = getTooltip();
+        const { augment, language } = match;
+        tooltip.replaceChildren(...buildDecorations(augment.rarity), element('div', 'kasp-spec-name', augment.name));
+        const columns = element('div', 'kasp-spec-columns');
+        if (augment.advantages.length > 0) {
+            columns.append(buildColumn('positive', HEADINGS[language].advantages, augment.advantages));
+        }
+        if (augment.disadvantages.length > 0) {
+            columns.append(buildColumn('negative', HEADINGS[language].disadvantages, augment.disadvantages));
+        }
+        tooltip.append(columns);
+        tooltip.dataset['rarity'] = augment.rarity ?? '';
+        tooltip.style.display = 'block';
+        moveTooltip(event);
+    }
+
+    function createBox(card: HTMLElement, name: string, match: AugmentMatch): HTMLElement {
+        if (window.getComputedStyle(card).position === 'static') card.style.position = 'relative';
+        const box = element('div', BOX_CLASS, 'i');
+        box.dataset['name'] = name;
+        box.dataset['language'] = match.language;
+        box.dataset['rarity'] = match.augment.rarity ?? '';
+        box.addEventListener('mouseenter', (event) => showTooltip(match, event));
+        box.addEventListener('mousemove', moveTooltip);
+        box.addEventListener('mouseleave', hideTooltip);
+        // The box sits on top of the tile, so a click on it must not select or equip the augment.
+        for (const type of ['click', 'mousedown']) {
+            box.addEventListener(type, (event) => {
+                event.stopPropagation();
+                event.preventDefault();
+            });
+        }
+        return box;
+    }
+
+    function syncBox(card: HTMLElement, name: string, match: AugmentMatch | null): void {
+        const existing = card.querySelector<HTMLElement>(`:scope > .${BOX_CLASS}`);
+        if (match === null) {
+            existing?.remove();
+            return;
+        }
+        if (existing?.dataset['name'] === name && existing.dataset['language'] === match.language) return;
+        existing?.remove();
+        card.append(createBox(card, name, match));
+    }
+
+    function removeBoxes(): void {
+        document.querySelectorAll(`.${BOX_CLASS}`).forEach((box) => box.remove());
+        hideTooltip();
+    }
+
+    function boxTick(): void {
+        const item = currentItem;
+        const row = document.querySelector(CARD_ROW_SELECTOR);
+        if (item === null || row === null || window.kaspGarageTab?.read() !== 'augments') {
+            removeBoxes();
+            return;
+        }
+        const language = window.kaspLanguage?.get() ?? 'EN';
+        row.querySelectorAll(CARD_TITLE_SELECTOR).forEach((title) => {
+            const card = title.parentElement;
+            if (card === null) return;
+            const name = (title.textContent ?? '').trim();
+            syncBox(card, name, findAugment(item, language, name));
+        });
     }
 
     // After the load event, so the game's own start-up is not delayed.
@@ -292,6 +502,7 @@
             itemTick();
             tabTick();
             augmentTick();
+            boxTick();
         }, ITEM_POLL_MS);
     }
 

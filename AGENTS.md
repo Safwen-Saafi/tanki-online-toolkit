@@ -311,7 +311,7 @@ does not.
   correctness gate.
 - Package: `npm run package` (after `npm run build`) zips the whole
   `extension/` folder into `release/tanki-online-toolkit-v<version>.zip`, with
-  `manifest.json`, `js/`, `styles/` and `data/` at the zip root. There is no
+  `manifest.json`, `js/`, `styles/`, `data/` and `icons/` at the zip root. There is no
   file list to maintain: a new file the manifest references just has to live
   inside `extension/`. The script stops if `extension/js/` is missing.
 - Release: `npm run release -- <patch|minor|major|x.y.z> [--dry-run]
