@@ -53,6 +53,7 @@ and installed dependencies before adding machinery.
 - `blueprint/context/current-feature.md` - the one feature, fix, or rollback being built right now
 - `blueprint/context/battle-stats-table.md` - read before changing anything visual in the in-battle stats panel
 - `blueprint/context/garage-skins-screen.md` - read before changing anything in the garage skins module (Skins tab, tiles, main screen blocks)
+- `blueprint/context/garage-augments-screen.md` - read before changing anything in the augments module (the item title, tab detection, the Augments tab tiles and the spec box)
 
 Reuse relevant context already loaded in the session. Claude Code imports only
 this file; its Blueprint skills load the other files on demand.
