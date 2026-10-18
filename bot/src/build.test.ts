@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { assembleFile } from './build.js';
-import { countAugments, fileNameFor, rarityCounts } from './contract.js';
+import { EFFECT_ICONS, countAugments, fileNameFor, rarityCounts } from './contract.js';
 
 test('assembleFile keys each augment by its name, in page order', () => {
     const file = assembleFile(
@@ -42,4 +42,11 @@ test('rarityCounts counts each rank and the augments without one', () => {
         '2026-10-01T05:30:00Z',
     );
     assert.deepEqual(rarityCounts(file), { rare: 2, exotic: 1, none: 1 });
+});
+
+test('every effect icon maps to a key the extension has an image for', () => {
+    const keys = new Set(['armor_piercing', 'burning', 'emp', 'freeze', 'jammer', 'stun']);
+    for (const [wikiName, key] of Object.entries(EFFECT_ICONS)) {
+        assert.ok(keys.has(key), `${wikiName} maps to ${key}, which has no image in extension/icons/effects`);
+    }
 });

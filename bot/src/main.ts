@@ -66,7 +66,15 @@ async function scrapeAll(): Promise<number> {
             console.log(`  ${perItem.join(' ')}`);
             const ranks = Object.entries(rarityCounts(file)).map(([rarity, count]) => `${rarity}:${count}`);
             console.log(`  rarities: ${ranks.join(' ')}`);
-            for (const warning of warnings) console.warn(`  warning: ${warning}`);
+            // The same unknown icon shows up on many pages, so those are listed once.
+            const iconWarning = /unknown icon "([^"]+)"/;
+            const unknownIcons = new Set<string>();
+            for (const warning of warnings) {
+                const key = iconWarning.exec(warning)?.[1];
+                if (key === undefined) console.warn(`  warning: ${warning}`);
+                else unknownIcons.add(key);
+            }
+            if (unknownIcons.size > 0) console.warn(`  unknown icons dropped: ${[...unknownIcons].sort().join(', ')}`);
             if (problems.length > 0) {
                 failed = true;
                 for (const problem of problems) console.error(`  INVALID: ${problem}`);

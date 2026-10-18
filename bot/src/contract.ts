@@ -6,6 +6,30 @@ export const SCHEMA_VERSION = 2;
 // published, so a new rank never stops the daily run; the extension picks a neutral look for one it does not know.
 export const RARITY_PATTERN = /^[a-z]{1,20}$/;
 
+// The status effect icons the wiki puts inside augment text, by wiki file name (lowercase, without the size
+// prefix and the extension), and the key the text carries for them as {key}. The extension draws its own icon
+// for each key. Several wiki names can share one key.
+export const EFFECT_ICONS: Readonly<Record<string, string>> = {
+    icon_freeze: 'freeze',
+    icon_freezing1: 'freeze',
+    icon_heat: 'burning',
+    icon_emp: 'emp',
+    icon_jammer: 'jammer',
+    icon_stun: 'stun',
+    ap_status: 'armor_piercing',
+    icon_ap: 'armor_piercing',
+    // The Russian wiki names its icons differently.
+    icon_freezing: 'freeze',
+    icon_heat1: 'burning',
+    icon_emp1: 'emp',
+    icon_stun1: 'stun',
+    icon_breaking_through: 'armor_piercing',
+    icon_breaking_through1: 'armor_piercing',
+};
+
+// Icons that carry no effect (the small "i" beside a hover note); dropped without a warning.
+export const IGNORED_ICONS: readonly string[] = ['icon_info'];
+
 export interface Augment {
     readonly name: string;
     readonly advantages: readonly string[];

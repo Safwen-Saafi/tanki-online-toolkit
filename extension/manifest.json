@@ -28,7 +28,8 @@
       ],
       "css": [
         "styles/change_counter.css",
-        "styles/garage_skins.css"
+        "styles/garage_skins.css",
+        "styles/augments.css"
       ],
       "run_at": "document_start"
     }
@@ -36,7 +37,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "data/skins.json"
+        "data/skins.json",
+        "icons/*"
       ],
       "matches": [
         "*://*.tankionline.com/*"
