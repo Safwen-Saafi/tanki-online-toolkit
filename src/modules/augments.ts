@@ -273,7 +273,9 @@
 
     // The images in extension/icons/. A status effect in the text arrives as {key}; an unknown key shows nothing.
     const EFFECT_ICONS: ReadonlySet<string> = new Set(['armor_piercing', 'burning', 'emp', 'freeze', 'jammer', 'stun']);
-    const MARKER_PATTERN = /\{([a-z_]+)(?:\|([^{}|]*))?\}/;
+    // The English data names the effect inside the marker ({freeze|Freezing}); the Russian data leaves it after the marker
+    // in guillemets ({freeze} «Заморозка»), so a quoted name right after a marker is taken as its name too.
+    const MARKER_PATTERN = /\{([a-z_]+)(?:\|([^{}|]*))?\}(?:\s*«([^»]*)»)?/;
     const FRAME_RANKS: ReadonlySet<string> = new Set(['rare', 'epic', 'legendary', 'exotic']);
     // The game has no exotic container, so that rank shows none.
     const CONTAINER_RANKS: ReadonlySet<string> = new Set(['rare', 'epic', 'legendary']);
@@ -304,12 +306,12 @@
 
     function appendLine(list: HTMLElement, line: string): void {
         const item = element('li', 'kasp-spec-line');
-        // split() with two capture groups gives the text, the key and the name, over and over.
+        // split() with three capture groups gives the text, the key, the name and the quoted name, over and over.
         const parts = line.split(MARKER_PATTERN);
-        for (let index = 0; index < parts.length; index += 3) {
+        for (let index = 0; index < parts.length; index += 4) {
             appendNumbers(item, parts[index] ?? '');
             const key = parts[index + 1];
-            const name = parts[index + 2];
+            const name = parts[index + 2] || parts[index + 3];
             if (key === undefined || !EFFECT_ICONS.has(key)) continue;
             item.append(icon('kasp-spec-effect', `effects/${key}.png`));
             if (name !== undefined && name !== '') item.append(element('span', 'kasp-spec-effect-name', name));

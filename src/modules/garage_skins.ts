@@ -123,6 +123,19 @@
         return merged;
     }
 
+    // ---- the item behind a title ----
+
+    // The item a title names. In English the item comes first ("Tesla Snow"), in Russian an adjective can come before it,
+    // so the first word that is a known item name wins. An unknown item (one newer than skins.json) falls back to the first
+    // word, as before. The table is looked up by own keys only, so a word like "constructor" is not an item.
+    function itemFromTitle(title: string, nameTranslate: SkinsDatabase['names']): string | null {
+        const words = title.trim().toLowerCase().split(/\s+/);
+        const known = words.find((word) => Object.prototype.hasOwnProperty.call(nameTranslate, word));
+        const word = known ?? words[0];
+        if (!word) return null;
+        return Object.prototype.hasOwnProperty.call(nameTranslate, word) ? nameTranslate[word] : word;
+    }
+
     // ---- painting ----
 
     function updateGlobalCSS(savedSkins: SavedSkins, defaultImages: DefaultImagesMap): void {
@@ -212,8 +225,8 @@
             const imgMain = tile.querySelector(TILE_MAIN_IMG_SELECTOR);
             if (!titleSpan || !imgMain) continue;
 
-            const word = (titleSpan.textContent ?? '').trim().toLowerCase().split(/\s+/)[0];
-            const item = nameTranslate[word] || word;
+            const item = itemFromTitle(titleSpan.textContent ?? '', nameTranslate);
+            if (item === null) continue;
             const src = imgMain.getAttribute('src') ?? '';
 
             // A tile already showing the saved skin's URL is not stock art, so it must not be learned as stock.
@@ -306,14 +319,14 @@
             : cards.find(card => !card.isStandard);
         if (!equippedCard || !namedCard) return { kind: 'absent' };
 
-        const word = namedCard.title.toLowerCase().split(/\s+/)[0];
-        if (!word) return { kind: 'absent' };
+        const item = itemFromTitle(namedCard.title, nameTranslate);
+        if (item === null) return { kind: 'absent' };
 
         const selectedTitle = readSelectedTitle(menu, row, new Set(cards.map(card => card.title.toLowerCase())));
         const selectedCard = cards.find(card => card.title.toLowerCase() === selectedTitle?.toLowerCase());
         return {
             kind: 'ready',
-            item: nameTranslate[word] || word,
+            item,
             equipped: equippedCard.isStandard
                 ? { kind: 'standard' }
                 : { kind: 'skin', title: equippedCard.title },
