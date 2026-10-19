@@ -27,9 +27,11 @@ interface KaspUserActionMessage {
     readonly detail: string[];
 }
 
-// Published by src/modules/language.ts.
+// Published by src/modules/language.ts. get() is EN until the language is found; whenKnown resolves once with the
+// settled language (a language change reloads the page, so it does not change after that).
 interface KaspLanguage {
     readonly get: () => KaspLanguageCode;
+    readonly whenKnown: Promise<KaspLanguageCode>;
 }
 
 type KaspGarageTab = "augments" | "skins" | "shot-color";

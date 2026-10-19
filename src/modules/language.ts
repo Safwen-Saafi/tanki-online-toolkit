@@ -1,5 +1,6 @@
 // Isolated-world content script. Works out the game's language and shares it with the other modules through
-// window.kaspLanguage.get(). Ported from utils.getLang() in the Kaspersky extension (src/core/utils.ts). It stops at
+// window.kaspLanguage: get() is the language so far (EN until one is found) and whenKnown resolves once, when it
+// settles. Ported from utils.getLang() in the Kaspersky extension (src/core/utils.ts). It stops at
 // the first real answer or when the main menu appears, and has no timeout, because the game can take any time to
 // load and a language change reloads the page.
 (function () {
@@ -48,10 +49,16 @@
     let currentLanguage: KaspLanguageCode = 'EN';
     let settled = false;
     let pollTimer: number | undefined;
+    // A language change reloads the page, so the language never changes after it settles and one promise is enough.
+    let resolveKnown: (language: KaspLanguageCode) => void = () => {};
+    const whenKnown = new Promise<KaspLanguageCode>((resolve) => {
+        resolveKnown = resolve;
+    });
 
     function settle(source: Source): void {
         settled = true;
         window.clearInterval(pollTimer);
+        resolveKnown(currentLanguage);
         console.log(`${LOG} ${currentLanguage} (${source})`);
     }
 
@@ -67,7 +74,7 @@
         if (document.querySelector(MAIN_MENU_SELECTOR) !== null) settle('default');
     }
 
-    window.kaspLanguage = { get: () => currentLanguage };
+    window.kaspLanguage = { get: () => currentLanguage, whenKnown };
 
     check();
     if (!settled) pollTimer = window.setInterval(check, POLL_MS);
