@@ -9,30 +9,43 @@
     'use strict';
 
     const CACHE_KEY = 'kasp_player_changes_cache';
-    const playerChanges = new Map<string, number>();
+    const STATS_CONTAINER_SELECTOR = '.BattleTabStatisticComponentStyle-container';
+    const BATTLE_CANVAS_SELECTOR = '.BattleComponentStyle-canvasContainer';
+    const MARKER_TITLE = 'Changed equipment during this battle';
+    const MARKER_IMAGE = `url("${chrome.runtime.getURL('icons/change-marker.webp')}")`;
+
+    // A player can change equipment once per battle, so only "changed or not" is kept. The set survives a page reload
+    // through sessionStorage and is emptied when the battle ends.
+    const changedPlayers = new Set<string>();
     let isInBattle = false;
 
-    try {
-        const cached = sessionStorage.getItem(CACHE_KEY);
-        if (cached) {
-            const parsed: unknown = JSON.parse(cached);
-            if (parsed && typeof parsed === 'object') {
-                for (const [nick, count] of Object.entries(parsed as Record<string, number>)) {
-                    playerChanges.set(nick, count);
-                }
+    function loadCache(): void {
+        try {
+            const parsed: unknown = JSON.parse(sessionStorage.getItem(CACHE_KEY) ?? 'null');
+            if (!Array.isArray(parsed)) return;
+            for (const nickname of parsed) {
+                if (typeof nickname === 'string') changedPlayers.add(nickname);
             }
+        } catch {
+            // unreadable storage or a broken value: start with nobody marked
         }
-    } catch (e) {}
+    }
 
     function saveCache(): void {
-        const obj: Record<string, number> = {};
-        playerChanges.forEach((count, nick) => { obj[nick] = count; });
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(obj));
+        try {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify([...changedPlayers]));
+        } catch {
+            // blocked or full storage only costs the marker surviving a reload
+        }
     }
 
     function clearCache(): void {
-        playerChanges.clear();
-        sessionStorage.removeItem(CACHE_KEY);
+        changedPlayers.clear();
+        try {
+            sessionStorage.removeItem(CACHE_KEY);
+        } catch {
+            // nothing stored, nothing to clear
+        }
     }
 
     function isKaspUserActionMessage(data: unknown): data is KaspUserActionMessage {
@@ -44,13 +57,11 @@
         );
     }
 
-    window.addEventListener('message', (e: MessageEvent) => {
-        const data: unknown = e.data;
-        if (!isKaspUserActionMessage(data)) return;
-        const detail = data.detail;
-        if (detail[0] !== 'TankUserActionLog' || !detail.includes('CHANGE_EQUIPMENT')) return;
-
-        const nickname = detail.find((item) =>
+    // The game's equipment-change action carries the nickname as one of several plain strings and does not label it, so
+    // the nickname is the first string that is none of the known tokens, has a letter, is not a "-..." number and fits
+    // a nickname's length (the injector only forwards strings of 2 to 29 characters, see src/injector.ts).
+    function findNickname(detail: readonly unknown[]): string | undefined {
+        const found = detail.find((item) =>
             typeof item === 'string' &&
             item !== 'TankUserActionLog' &&
             item !== 'CHANGE_EQUIPMENT' &&
@@ -60,94 +71,113 @@
             /[a-zA-Z]/.test(item) &&
             item.length >= 2 && item.length < 30
         );
+        return typeof found === 'string' ? found : undefined;
+    }
+
+    window.addEventListener('message', (e: MessageEvent) => {
+        // The injector posts from the page to this same window; anything else is not ours.
+        if (e.source !== window) return;
+        const data: unknown = e.data;
+        if (!isKaspUserActionMessage(data)) return;
+        const detail = data.detail;
+        if (detail[0] !== 'TankUserActionLog' || !detail.includes('CHANGE_EQUIPMENT')) return;
+
+        const nickname = findNickname(detail);
         if (!nickname) return;
 
-        playerChanges.set(nickname, (playerChanges.get(nickname) ?? 0) + 1);
+        changedPlayers.add(nickname);
         saveCache();
-        console.log('[KI-test] CHANGE_EQUIPMENT ->', nickname, 'count:', playerChanges.get(nickname));
-        if (document.querySelector('.BattleTabStatisticComponentStyle-container')) {
-            sync();
-        }
-    });
-
-    document.addEventListener('kasp:battle:id', () => {
-        clearCache();
         sync();
     });
 
     function checkBattleCanvas(): void {
-        const currentInBattle = !!document.querySelector('.BattleComponentStyle-canvasContainer');
-        if (currentInBattle !== isInBattle) {
-            isInBattle = currentInBattle;
-            if (!isInBattle) {
-                clearCache();
-                sync();
+        const currentInBattle = document.querySelector(BATTLE_CANVAS_SELECTOR) !== null;
+        if (currentInBattle === isInBattle) return;
+        isInBattle = currentInBattle;
+        if (!isInBattle) {
+            clearCache();
+            sync();
+        }
+    }
+
+    function createMarkerCell(): HTMLElement {
+        const td = document.createElement('td');
+        td.className = 'kasp-change-td';
+        const icon = document.createElement('span');
+        icon.className = 'kasp-change-icon';
+        icon.title = MARKER_TITLE;
+        icon.style.backgroundImage = MARKER_IMAGE;
+        td.appendChild(icon);
+        return td;
+    }
+
+    // Gives every player row its marker cell and lights the ones whose player changed. Returns the first cell, which
+    // the header is aligned to.
+    function syncRows(table: HTMLTableElement): HTMLElement | null {
+        let firstTd: HTMLElement | null = null;
+        for (const row of table.querySelectorAll('tbody > tr')) {
+            const nicknameCell = row.querySelector('.BattleTabStatisticComponentStyle-nicknameCell');
+            if (!nicknameCell) continue;
+
+            let td = row.querySelector<HTMLElement>('.kasp-change-td');
+            if (!td) {
+                td = createMarkerCell();
+                row.appendChild(td);
             }
+            firstTd ??= td;
+
+            // "[CLAN] Nick" shows the clan tag first; only the nickname is matched.
+            const nickname = (nicknameCell.textContent ?? '').replace(/^\[.*?\]\s*/, '').trim();
+            if (!nickname) continue;
+            td.classList.toggle('kasp-changed', changedPlayers.has(nickname));
+        }
+        return firstTd;
+    }
+
+    function ensureHeaderCell(headerRow: Element): HTMLElement {
+        let th = headerRow.querySelector<HTMLElement>('.kasp-change-th');
+        if (!th) {
+            th = document.createElement('th');
+            th.className = 'kasp-change-th';
+            th.textContent = '⇄';
+            th.title = MARKER_TITLE;
+            headerRow.appendChild(th);
+        }
+        return th;
+    }
+
+    function positionHeaderCell(th: HTMLElement, headerRow: Element, firstTd: HTMLElement | null): void {
+        const headerRect = headerRow.getBoundingClientRect();
+
+        // The header keeps its original width while the body rows stretch with
+        // the widened panel, so the two have different right edges - anchoring
+        // both to `right` drops the label on top of the last header icon. The
+        // header cell is measured against the body column instead, which stays
+        // correct whatever the panel is widened to.
+        if (firstTd) {
+            th.style.left = `${firstTd.getBoundingClientRect().left - headerRect.left}px`;
+        }
+
+        // Vertically the game's labels sit in their own band rather than filling
+        // the header row, so the neighbouring label is copied instead of
+        // stretching to the row's full height.
+        const neighbour = th.previousElementSibling;
+        if (neighbour) {
+            const neighbourRect = neighbour.getBoundingClientRect();
+            th.style.top = `${neighbourRect.top - headerRect.top}px`;
+            th.style.height = `${neighbourRect.height}px`;
         }
     }
 
     function sync(): void {
-        const container = document.querySelector('.BattleTabStatisticComponentStyle-container');
+        const container = document.querySelector(STATS_CONTAINER_SELECTOR);
         if (!container) return;
 
-        const tables = container.querySelectorAll('table');
-        for (let t = 0; t < tables.length; t++) {
-            const table = tables[t];
-            let firstTd: HTMLElement | null = null;
-
-            const bodyRows = table.querySelectorAll('tbody > tr');
-            for (let i = 0; i < bodyRows.length; i++) {
-                const row = bodyRows[i];
-                const cell = row.querySelector('.BattleTabStatisticComponentStyle-nicknameCell');
-                if (!cell) continue;
-
-                let td = row.querySelector<HTMLElement>('.kasp-change-td');
-                if (!td) {
-                    td = document.createElement('td');
-                    td.className = 'kasp-change-td';
-                    td.innerHTML = '<span class="kasp-change-icon" title="Changed equipment during this battle">⚠</span>';
-                    row.appendChild(td);
-                }
-                if (!firstTd) firstTd = td;
-
-                const nickname = (cell.textContent || '').replace(/^\[.*?\]\s*/, '').trim();
-                if (!nickname) continue;
-
-                const count = playerChanges.get(nickname) ?? 0;
-                td.classList.toggle('kasp-changed', count > 0);
-            }
-
+        for (const table of container.querySelectorAll('table')) {
+            const firstTd = syncRows(table);
             const headerRow = table.querySelector('thead > tr');
             if (!headerRow) continue;
-
-            let th = headerRow.querySelector<HTMLElement>('.kasp-change-th');
-            if (!th) {
-                th = document.createElement('th');
-                th.className = 'kasp-change-th';
-                th.textContent = '⇄';
-                th.title = 'Changed equipment during this battle';
-                headerRow.appendChild(th);
-            }
-
-            // The header keeps its original width while the body rows stretch with
-            // the widened panel, so the two have different right edges - anchoring
-            // both to `right` drops the label on top of the last header icon. The
-            // header cell is measured against the body column instead, which stays
-            // correct whatever the panel is widened to.
-            const headerRect = headerRow.getBoundingClientRect();
-            if (firstTd) {
-                th.style.left = `${firstTd.getBoundingClientRect().left - headerRect.left}px`;
-            }
-
-            // Vertically the game's labels sit in their own band rather than filling
-            // the header row, so the neighbouring label is copied instead of
-            // stretching to the row's full height.
-            const neighbour = th.previousElementSibling;
-            if (neighbour) {
-                const neighbourRect = neighbour.getBoundingClientRect();
-                th.style.top = `${neighbourRect.top - headerRect.top}px`;
-                th.style.height = `${neighbourRect.height}px`;
-            }
+            positionHeaderCell(ensureHeaderCell(headerRow), headerRow, firstTd);
         }
     }
 
@@ -170,6 +200,8 @@
         observer.observe(document.documentElement, { childList: true, subtree: true });
     }
 
+    loadCache();
+
     if (document.documentElement) startObserving();
     else document.addEventListener('DOMContentLoaded', startObserving, { once: true });
 
@@ -178,6 +210,4 @@
         checkBattleCanvas();
         sync();
     }, 1000);
-
-    console.log('[KI-test] changeCounter isolated-world content script loaded');
 })();

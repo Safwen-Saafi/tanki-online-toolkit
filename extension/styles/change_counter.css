@@ -57,19 +57,35 @@
     font-size: 1.15em;
 }
 
+/* The warning picture only shows on rows whose player changed equipment. Its image address is set from change_counter.ts,
+   because a url() in this file would resolve against the game's own site, not the extension. */
 .kasp-change-icon {
-    color: #ffcc00;
-    font-weight: bold;
+    width: 1.6em;
+    height: 1.6em;
+    background: center / contain no-repeat;
     visibility: hidden;
+}
+
+/* One blink clock for the whole panel. A CSS animation on each icon starts when that icon starts, so icons lit
+   or re-created at different moments (rows re-sort, players come and go) blink out of step. Here the clock lives on
+   the panel and every icon only reads its value, so a new or moved icon is always in step with the others. */
+@property --kasp-blink {
+    syntax: '<number>';
+    inherits: true;
+    initial-value: 1;
+}
+
+.BattleTabStatisticComponentStyle-container {
+    animation: kasp-change-blink 1s step-start infinite;
 }
 
 .kasp-change-td.kasp-changed .kasp-change-icon {
     visibility: visible;
-    animation: kasp-change-blink 1s step-start infinite;
+    opacity: var(--kasp-blink);
 }
 
 @keyframes kasp-change-blink {
     50% {
-        opacity: 0;
+        --kasp-blink: 0;
     }
 }
