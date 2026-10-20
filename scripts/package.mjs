@@ -7,6 +7,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const EXTENSION_DIR = path.join(ROOT, 'extension');
 
+function fail(error) {
+    console.error(`[package] failed: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+}
+
 function main() {
     const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf8'));
     const version = manifest.version;
@@ -27,13 +32,12 @@ function main() {
     output.on('close', () => {
         console.log(`[package] wrote release/${zipName} (${archive.pointer()} bytes)`);
     });
-    archive.on('error', (err) => {
-        throw err;
-    });
+    output.on('error', fail);
+    archive.on('error', fail);
 
     archive.pipe(output);
     archive.directory(EXTENSION_DIR, false);
-    archive.finalize();
+    archive.finalize().catch(fail);
 }
 
 main();

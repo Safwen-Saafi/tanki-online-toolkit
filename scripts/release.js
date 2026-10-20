@@ -84,6 +84,26 @@ function writeJsonVersion(filePath, version) {
     fs.writeFileSync(filePath, JSON.stringify(json, null, 2) + '\n');
 }
 
+// Says what a failed release already did and which commands undo or finish it. Nothing is undone automatically.
+function reportHalfDoneRelease(progress, tagName, error) {
+    const lines = [`[release] failed: ${error instanceof Error ? error.message : String(error)}`];
+    if (!progress.bumped) {
+        lines.push('[release] nothing was committed; the version files may be half written, check "git status".');
+    } else if (!progress.committed) {
+        lines.push('[release] the version files are bumped but not committed. To undo:');
+        lines.push('[release]   git restore --staged --worktree extension/manifest.json package.json');
+    } else if (!progress.tagged) {
+        lines.push('[release] the release commit exists but there is no tag and nothing was pushed. To undo:');
+        lines.push('[release]   git reset --hard HEAD~1   (the commit holds only the version bump)');
+    } else if (!progress.branchPushed) {
+        lines.push(`[release] the commit and the tag ${tagName} exist locally, nothing was pushed. To finish: git push, then git push origin ${tagName}.`);
+        lines.push(`[release] To undo: git tag -d ${tagName}, then git reset --hard HEAD~1`);
+    } else {
+        lines.push(`[release] the branch was pushed but the tag ${tagName} was not. To finish: git push origin ${tagName}`);
+    }
+    for (const line of lines) console.error(line);
+}
+
 function main() {
     const { bump, dryRun, notesFile } = parseArgs(process.argv.slice(2));
 
@@ -137,23 +157,33 @@ function main() {
         return;
     }
 
-    writeJsonVersion(MANIFEST_PATH, nextVersion);
-    writeJsonVersion(PACKAGE_PATH, nextVersion);
+    const progress = { bumped: false, committed: false, tagged: false, branchPushed: false };
+    try {
+        writeJsonVersion(MANIFEST_PATH, nextVersion);
+        writeJsonVersion(PACKAGE_PATH, nextVersion);
+        progress.bumped = true;
 
-    execSync('git add extension/manifest.json package.json', { cwd: ROOT, stdio: 'inherit' });
-    if (notesFile) {
-        const notesContent = fs.readFileSync(
-            fs.existsSync(path.join(ROOT, notesFile)) ? path.join(ROOT, notesFile) : notesFile,
-            'utf8'
-        );
-        const fullMessage = `${commitMessage}\n\n${notesContent}`;
-        execSync('git commit -F -', { cwd: ROOT, stdio: ['pipe', 'inherit', 'inherit'], input: fullMessage });
-    } else {
-        execSync(`git commit -m "${commitMessage}"`, { cwd: ROOT, stdio: 'inherit' });
+        execSync('git add extension/manifest.json package.json', { cwd: ROOT, stdio: 'inherit' });
+        if (notesFile) {
+            const notesContent = fs.readFileSync(
+                fs.existsSync(path.join(ROOT, notesFile)) ? path.join(ROOT, notesFile) : notesFile,
+                'utf8'
+            );
+            const fullMessage = `${commitMessage}\n\n${notesContent}`;
+            execSync('git commit -F -', { cwd: ROOT, stdio: ['pipe', 'inherit', 'inherit'], input: fullMessage });
+        } else {
+            execSync(`git commit -m "${commitMessage}"`, { cwd: ROOT, stdio: 'inherit' });
+        }
+        progress.committed = true;
+        execSync(`git tag ${tagName}`, { cwd: ROOT, stdio: 'inherit' });
+        progress.tagged = true;
+        execSync('git push', { cwd: ROOT, stdio: 'inherit' });
+        progress.branchPushed = true;
+        execSync(`git push origin ${tagName}`, { cwd: ROOT, stdio: 'inherit' });
+    } catch (e) {
+        reportHalfDoneRelease(progress, tagName, e);
+        process.exit(1);
     }
-    execSync(`git tag ${tagName}`, { cwd: ROOT, stdio: 'inherit' });
-    execSync('git push', { cwd: ROOT, stdio: 'inherit' });
-    execSync(`git push origin ${tagName}`, { cwd: ROOT, stdio: 'inherit' });
 
     successBox([
         `pushed ${tagName}`,

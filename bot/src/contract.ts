@@ -40,12 +40,16 @@ export interface Augment {
 
 export type ItemAugments = Readonly<Record<string, Augment>>;
 
-// The published file. The later extension feature reads these names, so they are load-bearing.
+// The published file. The extension's augments module reads these names, so they are load-bearing.
 export interface AugmentsFile {
     readonly schemaVersion: typeof SCHEMA_VERSION;
     readonly language: Language;
     readonly generatedAt: string;
     readonly items: Readonly<Record<string, ItemAugments>>;
+}
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export function fileNameFor(language: Language): string {

@@ -95,7 +95,7 @@ test('a known effect icon becomes a {key} marker, in both languages', () => {
     const pulsar = english.find((augment) => augment.name === 'Pulsar');
     assert.match(pulsar?.advantages[0] ?? '', /\{armor_piercing\|Armor-Piercing\}: 1\.5 sec$/);
     const russian = parsePage(fixture('page-firebird-ru.html')).augments[0];
-    assert.equal(russian?.disadvantages[1], 'Эффект деактивируется при попадании под воздействие статус-эффекта {freeze} «Заморозка»');
+    assert.equal(russian?.disadvantages[1], 'Эффект деактивируется при попадании под воздействие статус-эффекта {freeze|Заморозка}');
 });
 
 test('the info icon is dropped quietly and an unknown icon is dropped with one warning', () => {
@@ -109,14 +109,18 @@ test('the info icon is dropped quietly and an unknown icon is dropped with one w
     assert.deepEqual(unknown.warnings, ['unknown icon "icon_mystery" in the text was dropped']);
 });
 
-test('the name linked right after an icon rides in the marker, a plain name after it does not', () => {
+test('the name after an icon rides in the marker: a linked name, or a plain name in guillemets', () => {
     const icon = '<span typeof="mw:File"><span><img src="/images/en/thumb/0/0a/Icon_Freeze.png/30px-Icon_Freeze.png"></span></span>';
     const card = (body: string): string =>
         `<div class="device-container" data-rarity="rare"><div class="device-header"><span class="name">A</span></div><div class="device-stats"><ul><li>${body}</li></ul></div></div>`;
     const linked = parsePage(card(`Has the ${icon} <a href="/Freezing" title="Freezing">Freezing</a> effect and <a href="/x">a link</a>.`));
     assert.equal(linked.augments[0]?.advantages[0], 'Has the {freeze|Freezing} effect and a link.');
     const plain = parsePage(card(`Has the ${icon} «Заморозка» effect.`));
-    assert.equal(plain.augments[0]?.advantages[0], 'Has the {freeze} «Заморозка» effect.');
+    assert.equal(plain.augments[0]?.advantages[0], 'Has the {freeze|Заморозка} effect.');
+    const unquoted = parsePage(card(`Has the ${icon} effect «not a name».`));
+    assert.equal(unquoted.augments[0]?.advantages[0], 'Has the {freeze} effect «not a name».');
+    const emptyQuotes = parsePage(card(`Has the ${icon} «» effect.`));
+    assert.equal(emptyQuotes.augments[0]?.advantages[0], 'Has the {freeze} «» effect.');
     const odd = parsePage(card(`Has the ${icon}<a href="/x">Fre{e}|ze</a> effect.`));
     assert.equal(odd.augments[0]?.advantages[0], 'Has the {freeze|Freeze} effect.');
 });

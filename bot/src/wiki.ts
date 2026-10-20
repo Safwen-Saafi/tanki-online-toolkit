@@ -1,5 +1,5 @@
 import { chromium, type Browser, type BrowserContext } from 'playwright';
-import type { Language } from './contract.js';
+import { isRecord, type Language } from './contract.js';
 
 export interface WikiSite {
     readonly language: Language;
@@ -26,10 +26,6 @@ export class WikiError extends Error {}
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
 }
 
 export function extractParsedHtml(body: string, title: string): string {
