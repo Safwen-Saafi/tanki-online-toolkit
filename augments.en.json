@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "language": "EN",
-  "generatedAt": "2026-10-18T20:11:40Z",
+  "generatedAt": "2026-10-20T14:49:03Z",
   "items": {
     "firebird": {
       "Adrenaline": {
@@ -1470,7 +1470,7 @@
       "Stunning Band": {
         "name": "Stunning Band",
         "advantages": [
-          "Critical damage imposes Status Effect {stun} «Stun» on an enemy tank: Critical stun: =0.4 sec",
+          "Critical damage imposes Status Effect {stun|Stun} on an enemy tank: Critical stun: =0.4 sec",
           "Critical hit chance: +10%"
         ],
         "disadvantages": [
