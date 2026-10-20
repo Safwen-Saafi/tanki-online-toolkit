@@ -1,3 +1,5 @@
+import type { WikiSession, WikiSite } from './wiki.js';
+
 export interface HubEntry {
     readonly item: string;
     readonly title: string;
@@ -18,6 +20,14 @@ export function parseHub(wikitext: string): HubEntry[] {
         seen.add(item);
         const name = rawTitle.trim();
         entries.push({ item, title: colon === ':' ? name : `Template:${name}` });
+    }
+    return entries;
+}
+
+export async function fetchHub(session: WikiSession, site: WikiSite): Promise<HubEntry[]> {
+    const entries = parseHub(await session.fetchRaw(site.hubTitle));
+    if (entries.length === 0) {
+        throw new Error(`${site.language} hub "${site.hubTitle}" lists no augment pages; its layout may have changed`);
     }
     return entries;
 }

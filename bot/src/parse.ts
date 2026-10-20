@@ -23,19 +23,35 @@ function iconKey(src: string): string {
     return file.toLowerCase().replace(/^\d+px-/, '').replace(/\.[a-z0-9]+$/, '');
 }
 
-// The wiki links the effect's name right after its icon (and draws links green), so that name travels inside
-// the marker as {key|Name}. An effect named in plain text after its icon (the Russian pages) stays plain text.
-function linkedNameAfter($: cheerio.CheerioAPI, icon: Cheerio<AnyNode>): string {
+const QUOTED_NAME = /^\s*«([^»]*)»/;
+
+function markerName(raw: string): string {
+    return normalizeText(raw).replace(/[{}|]/g, '');
+}
+
+// The English wiki links the effect's name right after its icon, the Russian wiki writes it in guillemets as
+// plain text. Either way the name travels inside the marker as {key|Name}, so the extension reads one form.
+function effectNameAfter($: cheerio.CheerioAPI, icon: Cheerio<AnyNode>): string {
     let next = icon.get(0)?.next ?? null;
     const gap: AnyNode[] = [];
     while (next !== null && isText(next) && next.data.trim() === '') {
         gap.push(next);
         next = next.next;
     }
-    if (next === null || !isTag(next) || next.name !== 'a') return '';
-    const name = normalizeText($(next).text()).replace(/[{}|]/g, '');
-    // The marker stands for the icon and the name, so the space between them must not stay behind.
-    $(next).remove();
+    if (next === null) return '';
+    let name = '';
+    if (isTag(next) && next.name === 'a') {
+        name = markerName($(next).text());
+        // The marker stands for the icon and the name, so the space between them must not stay behind.
+        $(next).remove();
+    } else if (isText(next)) {
+        const quoted = QUOTED_NAME.exec(next.data);
+        name = markerName(quoted?.[1] ?? '');
+        if (quoted === null || name === '') return '';
+        next.data = next.data.slice(quoted[0].length);
+    } else {
+        return '';
+    }
     for (const node of gap) $(node).remove();
     return name;
 }
@@ -55,7 +71,7 @@ function ownText($: cheerio.CheerioAPI, item: Cheerio<Element>, unknownIcons: Se
             target.remove();
             return;
         }
-        const name = linkedNameAfter($, target);
+        const name = effectNameAfter($, target);
         target.replaceWith(name === '' ? ` {${effect}} ` : `{${effect}|${name}}`);
     });
     return normalizeText(copy.text());

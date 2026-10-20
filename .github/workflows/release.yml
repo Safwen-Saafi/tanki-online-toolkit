@@ -11,6 +11,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,7 +19,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install dependencies
         run: npm ci
@@ -32,10 +33,11 @@ jobs:
       - name: Read release notes from the commit
         id: notes
         run: |
+          delimiter="NOTES_$(openssl rand -hex 16)"
           {
-            echo 'body<<EOF'
+            echo "body<<$delimiter"
             git log -1 --format=%b
-            echo EOF
+            echo "$delimiter"
           } >> "$GITHUB_OUTPUT"
 
       - name: Publish draft release

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildFile } from './build.js';
 import { countAugments, fileNameFor, rarityCounts } from './contract.js';
-import { parseHub, type HubEntry } from './discover.js';
+import { fetchHub, type HubEntry } from './discover.js';
 import { parsePage } from './parse.js';
 import { commitMessage, publishAll } from './publish.js';
 import { validateFile } from './validate.js';
@@ -14,11 +14,7 @@ const OUT_DIR = new URL('../out/', import.meta.url);
 async function discoverSite(site: WikiSite): Promise<HubEntry[]> {
     const session = await WikiSession.open(site);
     try {
-        const entries = parseHub(await session.fetchRaw(site.hubTitle));
-        if (entries.length === 0) {
-            throw new Error(`${site.language} hub "${site.hubTitle}" lists no augment pages; its layout may have changed`);
-        }
-        return entries;
+        return await fetchHub(session, site);
     } finally {
         await session.close();
     }
@@ -32,7 +28,7 @@ async function printPage(languageArg: string, item: string): Promise<number> {
     }
     const session = await WikiSession.open(site);
     try {
-        const entries = parseHub(await session.fetchRaw(site.hubTitle));
+        const entries = await fetchHub(session, site);
         const entry = entries.find((candidate) => candidate.item === item.toLowerCase());
         if (entry === undefined) {
             console.error(`no item "${item}" on the ${site.language} hub`);
@@ -113,7 +109,12 @@ async function main(args: readonly string[]): Promise<number> {
             return 1;
         }
         const messageAt = args.indexOf('--message-file');
-        return runPublish(dir, messageAt === -1 ? undefined : args[messageAt + 1]);
+        const messageFile = messageAt === -1 ? undefined : args[messageAt + 1];
+        if (messageAt !== -1 && messageFile === undefined) {
+            console.error('usage: npm run scrape -- --publish <published-dir> [--message-file <path>]');
+            return 1;
+        }
+        return runPublish(dir, messageFile);
     }
     const pageAt = args.indexOf('--page');
     if (pageAt !== -1) {

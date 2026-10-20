@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RARITY_PATTERN, SCHEMA_VERSION, fileNameFor, type Augment, type AugmentsFile, type ItemAugments, type Language } from './contract.js';
+import { RARITY_PATTERN, SCHEMA_VERSION, fileNameFor, isRecord, type Augment, type AugmentsFile, type ItemAugments, type Language } from './contract.js';
 import { validateFile } from './validate.js';
 
 export type PublishAction = 'written' | 'unchanged' | 'rejected' | 'no-new-file';
@@ -18,10 +18,6 @@ export interface PublishResult {
     readonly lines: string[];
     // Set only for a file that replaced an earlier one; null on a first publish or when nothing was written.
     readonly changes: ChangeSet | null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -42,12 +38,9 @@ function readAugment(value: unknown): Augment | null {
     };
 }
 
-// A version 1 file (no rarity) still counts as the published file, so the shrink check keeps working across the change.
-const READABLE_VERSIONS: readonly unknown[] = [1, SCHEMA_VERSION];
-
 // Turns untrusted JSON read from disk into an AugmentsFile, or null if it is not one.
 export function parseAugmentsFile(value: unknown, language: Language): AugmentsFile | null {
-    if (!isRecord(value) || !READABLE_VERSIONS.includes(value['schemaVersion']) || value['language'] !== language) return null;
+    if (!isRecord(value) || value['schemaVersion'] !== SCHEMA_VERSION || value['language'] !== language) return null;
     const generatedAt = value['generatedAt'];
     const rawItems = value['items'];
     if (typeof generatedAt !== 'string' || !isRecord(rawItems)) return null;
@@ -162,7 +155,13 @@ function publishLanguage(language: Language, outDir: string, publishedDir: strin
     if (!existsSync(newPath)) {
         return { language, action: 'no-new-file', lines: [`no ${fileNameFor(language)} was produced, nothing to publish`], changes: null };
     }
-    const next = parseAugmentsFile(JSON.parse(readFileSync(newPath, 'utf8')), language);
+    // A file that cannot be read rejects only its own language; the other one still publishes.
+    let next: AugmentsFile | null = null;
+    try {
+        next = parseAugmentsFile(JSON.parse(readFileSync(newPath, 'utf8')), language);
+    } catch {
+        next = null;
+    }
     if (next === null) {
         return { language, action: 'rejected', lines: [`${newPath} is not a valid augments file`], changes: null };
     }

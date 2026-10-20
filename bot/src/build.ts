@@ -1,5 +1,5 @@
 import { SCHEMA_VERSION, type Augment, type AugmentsFile, type ItemAugments, type Language } from './contract.js';
-import { parseHub } from './discover.js';
+import { fetchHub } from './discover.js';
 import { parsePage } from './parse.js';
 import { WikiSession, type WikiSite } from './wiki.js';
 
@@ -26,10 +26,7 @@ export interface BuildOutcome {
 export async function buildFile(site: WikiSite): Promise<BuildOutcome> {
     const session = await WikiSession.open(site);
     try {
-        const entries = parseHub(await session.fetchRaw(site.hubTitle));
-        if (entries.length === 0) {
-            throw new Error(`${site.language} hub "${site.hubTitle}" lists no augment pages; its layout may have changed`);
-        }
+        const entries = await fetchHub(session, site);
         const pages: ParsedPage[] = [];
         const warnings: string[] = [];
         for (const entry of entries) {

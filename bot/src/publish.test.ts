@@ -110,7 +110,7 @@ test('parseAugmentsFile rejects junk and a wrong language', () => {
     assert.equal(parseAugmentsFile('nope', 'EN'), null);
     assert.equal(parseAugmentsFile({ schemaVersion: 1, language: 'RU', generatedAt: 'x', items: {} }, 'EN'), null);
     assert.equal(parseAugmentsFile({ schemaVersion: 3, language: 'EN', generatedAt: 'x', items: {} }, 'EN'), null);
-    assert.notEqual(parseAugmentsFile({ schemaVersion: 1, language: 'EN', generatedAt: 'x', items: {} }, 'EN'), null);
+    assert.equal(parseAugmentsFile({ schemaVersion: 1, language: 'EN', generatedAt: 'x', items: {} }, 'EN'), null);
     assert.notEqual(parseAugmentsFile({ schemaVersion: 2, language: 'EN', generatedAt: 'x', items: {} }, 'EN'), null);
 });
 
@@ -159,7 +159,7 @@ test('commitMessage says what changed, per language, and is null when nothing wa
     assert.ok(message.split('\n').every((line) => !line.startsWith(' ')), 'no wrapped or indented lines');
 });
 
-test('a rank change counts as a changed augment, and a version 1 file still reads as published', () => {
+test('a rank change counts as a changed augment', () => {
     const before = makeFile('EN', '2026-10-01T05:30:00Z');
     const items: Record<string, ItemAugments> = { ...before.items };
     const item = items['item0'];
@@ -168,12 +168,14 @@ test('a rank change counts as a changed augment, and a version 1 file still read
     items['item0'] = { ...item, [name]: { name, advantages: [`${name} advantage`], disadvantages: [], rarity: 'epic' } };
     const after = { ...before, items };
     assert.deepEqual(changeSet(before, after).changed, [`item0 / ${name}`]);
+});
 
-    const legacy = JSON.parse(JSON.stringify({ ...before, schemaVersion: 1 })) as { items: Record<string, Record<string, Record<string, unknown>>> };
-    for (const byName of Object.values(legacy.items)) {
-        for (const augment of Object.values(byName)) delete augment['rarity'];
-    }
-    const parsed = parseAugmentsFile(legacy, 'EN');
-    assert.notEqual(parsed, null);
-    assert.equal(parsed?.items['item0']?.[name]?.rarity, null);
+test('a corrupt new file rejects its own language and the other still publishes', () => {
+    const { out, published } = setup();
+    writeFileSync(join(out, 'augments.en.json'), '{ truncated');
+    writeOut(out, makeFile('RU', '2026-10-01T05:00:00Z'));
+    const results = publishAll(out, published, both);
+    assert.deepEqual(results.map((result) => result.action), ['rejected', 'written']);
+    assert.equal(readPublished(published, 'EN'), null);
+    assert.notEqual(readPublished(published, 'RU'), null);
 });
