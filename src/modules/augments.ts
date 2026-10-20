@@ -1,6 +1,7 @@
-// Isolated-world content script (build-plan feature 9). Loads the augment data that the Augments bot
-// publishes on GitHub Pages. This file grows over three slices: 9a loads and caches the data, 9b finds
-// the turret and augment on screen, 9c shows the hover box.
+// Isolated-world content script. Shows each augment's advantages and disadvantages on the garage's Augments tab: a
+// small "i" box on every augment tile that opens a spec box on hover. The augment data is what the Augments bot
+// publishes on GitHub Pages; only the file for the game's language is loaded, and it is cached for a few hours.
+// The file has four parts, in reading order: the data, the item and augment on screen, the spec box, the tile boxes.
 (function () {
     'use strict';
 
@@ -11,17 +12,21 @@
     const KILL_SWITCH_KEY = 'kasp_augments';
     // The bot publishes once a day, so asking more often than this only costs requests.
     const FRESH_MS = 6 * 60 * 60 * 1000;
+    const TICK_MS = 250;
 
-    type Language = keyof typeof FILE_NAMES;
-    const LANGUAGES: readonly Language[] = ['EN', 'RU'];
+    const LANGUAGES: readonly KaspLanguageCode[] = ['EN', 'RU'];
 
     interface CacheEntry {
         readonly fetchedAt: number;
         readonly file: AugmentsFile;
     }
-    type AugmentsCache = Partial<Record<Language, CacheEntry>>;
+    // One entry per language: only the game's language is loaded, but the other one is kept for a later switch.
+    type AugmentsCache = Partial<Record<KaspLanguageCode, CacheEntry>>;
 
-    const loaded: Partial<Record<Language, AugmentsFile>> = {};
+    // ---- 1. the data ----
+
+    // The augment file of the game's language, or null until it is loaded (or when there is none).
+    let augmentsFile: AugmentsFile | null = null;
 
     function isRecord(value: unknown): value is Record<string, unknown> {
         return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -52,7 +57,7 @@
     }
 
     // Turns untrusted JSON (from the network or the cache) into an AugmentsFile, or null when it is not one for this language.
-    function parseAugmentsFile(value: unknown, language: Language): AugmentsFile | null {
+    function parseAugmentsFile(value: unknown, language: KaspLanguageCode): AugmentsFile | null {
         if (!isRecord(value)) return null;
         const schemaVersion = value['schemaVersion'];
         if ((schemaVersion !== 1 && schemaVersion !== 2) || value['language'] !== language) return null;
@@ -88,7 +93,7 @@
 
     // Keeps only the entries that are still a valid file; anything else counts as no cache.
     function readCache(): AugmentsCache {
-        const cache: { -readonly [L in Language]?: CacheEntry } = {};
+        const cache: AugmentsCache = {};
         try {
             const raw = localStorage.getItem(CACHE_KEY);
             if (raw === null) return cache;
@@ -115,7 +120,7 @@
         }
     }
 
-    async function fetchFile(language: Language): Promise<AugmentsFile | null> {
+    async function fetchFile(language: KaspLanguageCode): Promise<AugmentsFile | null> {
         try {
             const res = await fetch(BASE_URL + FILE_NAMES[language], { cache: 'no-cache' });
             if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -128,61 +133,39 @@
         }
     }
 
-    // Returns the cache entry to store (a fresh one only when the network was used).
-    async function loadLanguage(language: Language, cached: CacheEntry | undefined): Promise<CacheEntry | undefined> {
+    // Returns the cache entry to use: the cached one while it is fresh, else a new one from the network, else the stale
+    // cached one when the network fails.
+    async function loadLanguage(language: KaspLanguageCode, cached: CacheEntry | undefined): Promise<CacheEntry | undefined> {
         const age = cached === undefined ? Infinity : Date.now() - cached.fetchedAt;
-        if (cached !== undefined && age >= 0 && age < FRESH_MS) {
-            loaded[language] = cached.file;
-            console.log(`${LOG} loaded ${language}: ${countAugments(cached.file)} augments, from cache`);
-            return cached;
-        }
+        if (cached !== undefined && age >= 0 && age < FRESH_MS) return cached;
 
         const file = await fetchFile(language);
-        if (file !== null) {
-            loaded[language] = file;
-            console.log(`${LOG} loaded ${language}: ${countAugments(file)} augments, from network`);
-            return { fetchedAt: Date.now(), file };
-        }
+        if (file !== null) return { fetchedAt: Date.now(), file };
 
-        if (cached !== undefined) {
-            loaded[language] = cached.file;
-            console.log(`${LOG} loaded ${language}: ${countAugments(cached.file)} augments, from cache (stale)`);
-            return cached;
-        }
-        console.warn(`${LOG} no augment data for ${language}: not reachable and nothing cached`);
-        return undefined;
+        if (cached === undefined) console.warn(`${LOG} no augment data for ${language}: not reachable and nothing cached`);
+        return cached;
     }
 
-    // The loaded file for a language, or null when there is none (read by the lookup in slice 9b).
-    function getAugmentsFile(language: Language): AugmentsFile | null {
-        return loaded[language] ?? null;
-    }
-
-    async function loadAll(): Promise<void> {
-        if (isDisabled()) {
-            console.log(`${LOG} disabled (localStorage ${KILL_SWITCH_KEY} is 0)`);
-            return;
-        }
+    // A language change reloads the page, so the language the game starts in is the only one this page needs.
+    async function loadAugments(): Promise<void> {
+        const language = await (window.kaspLanguage?.whenKnown ?? Promise.resolve<KaspLanguageCode>('EN'));
         const cache = readCache();
-        const entries = await Promise.all(LANGUAGES.map((language) => loadLanguage(language, cache[language])));
-        const next: { -readonly [L in Language]?: CacheEntry } = {};
-        LANGUAGES.forEach((language, index) => {
-            const entry = entries[index];
-            if (entry !== undefined) next[language] = entry;
-        });
-        // Written once, after both languages are settled, so one language cannot overwrite the other.
-        writeCache(next);
-        const summary = LANGUAGES.map((language) => {
-            const file = getAugmentsFile(language);
-            return `${language}=${file === null ? 'none' : countAugments(file)}`;
-        });
-        console.log(`${LOG} ready: ${summary.join(', ')}`);
+        const entry = await loadLanguage(language, cache[language]);
+        augmentsFile = entry?.file ?? null;
+        // The other language's entry is written back unchanged, so a later switch of the game language still has it.
+        if (entry !== undefined && entry !== cache[language]) {
+            const next: AugmentsCache = { ...cache };
+            next[language] = entry;
+            writeCache(next);
+        }
+        console.log(`${LOG} ready: ${language}=${augmentsFile === null ? 'none' : countAugments(augmentsFile)}`);
     }
+
+    // ---- 2. the item and the augment on screen ----
 
     // The turret or hull screen prints the item's name in its title ("Tsunami Mk3-8" or "Цунами Mk3-8"); the
     // Augments tab replaces that block, so the name is remembered while the title is up.
     const ITEM_TITLE_SELECTOR = '.TanksPartComponentStyle-descriptionContainer .ItemDescriptionComponentStyle-nameItem';
-    const ITEM_POLL_MS = 250;
 
     let itemNames: ReadonlyMap<string, string> | null = null;
     let currentItem: string | null = null;
@@ -214,31 +197,18 @@
         lastItemTitle = title;
         const firstWord = title.toLowerCase().split(/\s+/)[0];
         currentItem = itemNames.get(firstWord) ?? null;
-        console.log(`${LOG} item on screen: ${currentItem ?? 'unknown'} (title "${title}")`);
     }
-
-    let lastTab: KaspGarageTab | null = null;
-
-    // The Augments, Skins and Shot color tabs share one row of cards; garage_tab.ts tells them apart.
-    function tabTick(): void {
-        const tab = window.kaspGarageTab?.read() ?? null;
-        if (tab === lastTab) return;
-        lastTab = tab;
-        console.log(`${LOG} garage tab: ${tab ?? 'none'} (item ${currentItem ?? 'unknown'})`);
-    }
-
-    // On the Augments tab the title block shows the selected augment ("Critical Mix"), or "Standard settings"
-    // when none is picked, which has no entry in the data.
-    const AUGMENT_TITLE_SELECTOR = '.ItemDescriptionComponentStyle-descriptionBlockDevice .ItemDescriptionComponentStyle-nameItem';
 
     interface AugmentMatch {
-        readonly language: Language;
+        readonly language: KaspLanguageCode;
         readonly augment: Augment;
     }
 
     // Lowercase, quotes dropped, a possessive "'s" dropped, and hyphens, dashes and runs of spaces count as one space,
     // so "High pressure pump" matches "High-pressure pump", "Dragon breath" matches "Dragon's Breath", and a name in
-    // quotes matches the same name without them.
+    // quotes matches the same name without them. The wiki also words one kind of ammunition both ways ("Jamming Rounds" for
+    // Smoky, "Jamming Shells" for Scorpion), so round(s) and shell(s) count as the same word; no turret's list has two
+    // augments that differ only in that word.
     function normalizeName(text: string): string {
         return text
             .toLowerCase()
@@ -247,6 +217,7 @@
             .replace(/['’‘]s\b/g, '')
             .replace(/['’‘]/g, '')
             .replace(/[\s\-‐-―]+/g, ' ')
+            .replace(/\b(?:rounds?|shells?)\b/g, 'shell')
             .trim();
     }
 
@@ -277,36 +248,17 @@
     }
 
     // A hull has no bucket of its own: the data keeps every hull's augments under "hulls".
-    function findAugment(item: string, language: Language, cardName: string): AugmentMatch | null {
-        const file = getAugmentsFile(language);
+    function findAugment(item: string, cardName: string): AugmentMatch | null {
+        const file = augmentsFile;
         if (file === null) return null;
         const bucket = file.items[item] === undefined ? 'hulls' : item;
         const index = indexFor(file, bucket);
         const wanted = normalizeName(cardName);
         const augment = index.get(wanted) ?? closestAugment(index, wanted);
-        return augment === undefined ? null : { language, augment };
+        return augment === undefined ? null : { language: file.language, augment };
     }
 
-    let lastAugmentKey: string | null = null;
-
-    function augmentTick(): void {
-        const title = window.kaspGarageTab?.read() === 'augments'
-            ? document.querySelector(AUGMENT_TITLE_SELECTOR)?.textContent?.trim() ?? null
-            : null;
-        const language = window.kaspLanguage?.get() ?? 'EN';
-        const key = title === null ? null : `${currentItem}|${language}|${title}`;
-        if (key === lastAugmentKey) return;
-        lastAugmentKey = key;
-        if (title === null || currentItem === null) return;
-        const match = findAugment(currentItem, language, title);
-        if (match === null) {
-            console.log(`${LOG} augment "${title}" (${currentItem}, ${language}): no entry`);
-            return;
-        }
-        const { advantages, disadvantages, rarity } = match.augment;
-        const wikiName = normalizeName(match.augment.name) === normalizeName(title) ? '' : `, wiki name "${match.augment.name}"`;
-        console.log(`${LOG} augment "${title}" (${currentItem}, ${language}): ${advantages.length} advantages, ${disadvantages.length} disadvantages, rarity ${rarity ?? 'none'}${wikiName}`);
-    }
+    // ---- 3. the spec box ----
 
     // Each augment tile on the Augments tab gets a small box in its corner; hovering it shows that augment's
     // advantages and disadvantages in a box styled after the wiki's augment page (styles/augments.css).
@@ -324,7 +276,9 @@
 
     // The images in extension/icons/. A status effect in the text arrives as {key}; an unknown key shows nothing.
     const EFFECT_ICONS: ReadonlySet<string> = new Set(['armor_piercing', 'burning', 'emp', 'freeze', 'jammer', 'stun']);
-    const MARKER_PATTERN = /\{([a-z_]+)(?:\|([^{}|]*))?\}/;
+    // The English data names the effect inside the marker ({freeze|Freezing}); the Russian data leaves it after the marker
+    // in guillemets ({freeze} «Заморозка»), so a quoted name right after a marker is taken as its name too.
+    const MARKER_PATTERN = /\{([a-z_]+)(?:\|([^{}|]*))?\}(?:\s*«([^»]*)»)?/;
     const FRAME_RANKS: ReadonlySet<string> = new Set(['rare', 'epic', 'legendary', 'exotic']);
     // The game has no exotic container, so that rank shows none.
     const CONTAINER_RANKS: ReadonlySet<string> = new Set(['rare', 'epic', 'legendary']);
@@ -355,12 +309,12 @@
 
     function appendLine(list: HTMLElement, line: string): void {
         const item = element('li', 'kasp-spec-line');
-        // split() with two capture groups gives the text, the key and the name, over and over.
+        // split() with three capture groups gives the text, the key, the name and the quoted name, over and over.
         const parts = line.split(MARKER_PATTERN);
-        for (let index = 0; index < parts.length; index += 3) {
+        for (let index = 0; index < parts.length; index += 4) {
             appendNumbers(item, parts[index] ?? '');
             const key = parts[index + 1];
-            const name = parts[index + 2];
+            const name = parts[index + 2] || parts[index + 3];
             if (key === undefined || !EFFECT_ICONS.has(key)) continue;
             item.append(icon('kasp-spec-effect', `effects/${key}.png`));
             if (name !== undefined && name !== '') item.append(element('span', 'kasp-spec-effect-name', name));
@@ -385,14 +339,6 @@
         const tooltip = element('div', 'kasp-spec-tooltip');
         tooltip.id = TOOLTIP_ID;
         document.body.append(tooltip);
-        // Escape and Z also leave the screen in the game, so the box must not stay behind.
-        window.addEventListener(
-            'keydown',
-            (event) => {
-                if (event.code === 'Escape' || event.code === 'KeyZ') hideTooltip();
-            },
-            true,
-        );
         return tooltip;
     }
 
@@ -400,6 +346,15 @@
         const tooltip = document.getElementById(TOOLTIP_ID);
         if (tooltip !== null) tooltip.style.display = 'none';
     }
+
+    // Escape and Z also leave the screen in the game, so the box must not stay behind.
+    window.addEventListener(
+        'keydown',
+        (event) => {
+            if (event.code === 'Escape' || event.code === 'KeyZ') hideTooltip();
+        },
+        true,
+    );
 
     function moveTooltip(event: MouseEvent): void {
         const tooltip = getTooltip();
@@ -442,12 +397,19 @@
         moveTooltip(event);
     }
 
-    function createBox(card: HTMLElement, name: string, match: AugmentMatch): HTMLElement {
+    // ---- 4. the tile boxes and the tick ----
+
+    // The augment is looked up once per tile and name, when its box is placed, because the box's colour comes from the
+    // augment's rank. A tile that has its box, or was already found to have no entry, is skipped, so a pass over tiles
+    // that did not change does no lookups at all.
+    const NO_ENTRY_KEY = 'kaspNoEntry';
+
+    function createBox(card: HTMLElement, key: string, match: AugmentMatch): HTMLElement {
         if (window.getComputedStyle(card).position === 'static') card.style.position = 'relative';
         const box = element('div', BOX_CLASS, 'i');
-        box.dataset['name'] = name;
-        box.dataset['language'] = match.language;
+        box.dataset['key'] = key;
         box.dataset['rarity'] = match.augment.rarity ?? '';
+        hasBoxes = true;
         box.addEventListener('mouseenter', (event) => showTooltip(match, event));
         box.addEventListener('mousemove', moveTooltip);
         box.addEventListener('mouseleave', hideTooltip);
@@ -461,18 +423,27 @@
         return box;
     }
 
-    function syncBox(card: HTMLElement, name: string, match: AugmentMatch | null): void {
+    function syncBox(card: HTMLElement, item: string, name: string): void {
+        const key = `${item}|${name}`;
         const existing = card.querySelector<HTMLElement>(`:scope > .${BOX_CLASS}`);
+        if (existing?.dataset['key'] === key || card.dataset[NO_ENTRY_KEY] === key) return;
+        existing?.remove();
+        const match = findAugment(item, name);
         if (match === null) {
-            existing?.remove();
+            // Only a lookup against loaded data counts as "no entry"; until then the tile is tried again.
+            if (augmentsFile !== null) card.dataset[NO_ENTRY_KEY] = key;
             return;
         }
-        if (existing?.dataset['name'] === name && existing.dataset['language'] === match.language) return;
-        existing?.remove();
-        card.append(createBox(card, name, match));
+        card.append(createBox(card, key, match));
     }
 
+    // True from the first box until they are all removed, so the check that runs on every page change costs nothing
+    // while no box exists (in a battle, for one).
+    let hasBoxes = false;
+
     function removeBoxes(): void {
+        if (!hasBoxes) return;
+        hasBoxes = false;
         document.querySelectorAll(`.${BOX_CLASS}`).forEach((box) => box.remove());
         hideTooltip();
     }
@@ -484,26 +455,42 @@
             removeBoxes();
             return;
         }
-        const language = window.kaspLanguage?.get() ?? 'EN';
         row.querySelectorAll(CARD_TITLE_SELECTOR).forEach((title) => {
             const card = title.parentElement;
             if (card === null) return;
             const name = (title.textContent ?? '').trim();
-            syncBox(card, name, findAugment(item, language, name));
+            syncBox(card, item, name);
         });
     }
 
+    function tick(): void {
+        itemTick();
+        boxTick();
+    }
+
+    // The game draws the tiles by itself and nothing says when, so the page is watched instead of polled: the boxes go on
+    // in the next frame after the tiles appear. One pass per frame at most, since the page changes constantly. The timer
+    // stays as a safety net for any state reached without a page change.
+    let scheduled = false;
+    const observer = new MutationObserver(() => {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(() => {
+            scheduled = false;
+            tick();
+        });
+    });
+
     // After the load event, so the game's own start-up is not delayed.
     function start(): void {
-        void loadAll();
-        if (isDisabled()) return;
+        if (isDisabled()) {
+            console.log(`${LOG} disabled (localStorage ${KILL_SWITCH_KEY} is 0)`);
+            return;
+        }
+        void loadAugments();
         void loadItemNames();
-        setInterval(() => {
-            itemTick();
-            tabTick();
-            augmentTick();
-            boxTick();
-        }, ITEM_POLL_MS);
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+        setInterval(tick, TICK_MS);
     }
 
     if (document.readyState === 'complete') start();

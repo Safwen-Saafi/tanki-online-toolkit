@@ -1,7 +1,8 @@
-// Isolated-world content script. Works out the game's language and shares it with the other modules
-// through window.kaspLanguage and the kasp:language-changed event. Ported from utils.getLang() in the
-// Kaspersky extension (src/core/utils.ts); it stops at the first real answer or when the main menu appears, and
-// has no timeout, because the game can take any time to load and a language change reloads the page.
+// Isolated-world content script. Works out the game's language and shares it with the other modules through
+// window.kaspLanguage: get() is the language so far (EN until one is found) and whenKnown resolves once, when it
+// settles. Ported from utils.getLang() in the Kaspersky extension (src/core/utils.ts). It stops at
+// the first real answer or when the main menu appears, and has no timeout, because the game can take any time to
+// load and a language change reloads the page.
 (function () {
     'use strict';
 
@@ -11,16 +12,7 @@
     const MAIN_MENU_SELECTOR = '.MainScreenComponentStyle-blockMainMenu, .MainScreenComponentStyle-buttonPlay';
     const POLL_MS = 250;
 
-    type Source = KaspLanguageChange['source'];
-
-    interface MethodResult {
-        readonly language: KaspLanguageCode | null;
-        readonly note: string;
-    }
-
-    function describeError(e: unknown): string {
-        return e instanceof Error ? e.message : String(e);
-    }
+    type Source = 'storage' | 'html' | 'hostname' | 'default';
 
     // "en-US" and "EN" are English; only the first part of the code counts.
     function fromCode(raw: string): KaspLanguageCode | null {
@@ -30,75 +22,59 @@
         return null;
     }
 
-    function readStorage(): MethodResult {
+    function readStorage(): KaspLanguageCode | null {
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw === null) return { language: null, note: `key ${STORAGE_KEY} missing` };
-            const language = fromCode(raw);
-            return language === null ? { language: null, note: `"${raw}" is not ru or en` } : { language, note: `"${raw}"` };
-        } catch (e) {
-            return { language: null, note: `unreadable (${describeError(e)})` };
+            return raw === null ? null : fromCode(raw);
+        } catch {
+            // blocked storage falls through to the next source
+            return null;
         }
     }
 
-    function readHtml(): MethodResult {
-        const raw = document.documentElement?.lang ?? '';
-        if (raw === '') return { language: null, note: 'empty' };
-        const language = fromCode(raw);
-        return language === null ? { language: null, note: `"${raw}" is not ru or en` } : { language, note: `"${raw}"` };
+    function readHtml(): KaspLanguageCode | null {
+        return fromCode(document.documentElement?.lang ?? '');
     }
 
-    function readHostname(): MethodResult {
-        const host = window.location.hostname;
-        return host.includes('ru.') ? { language: 'RU', note: `"${host}"` } : { language: null, note: `"${host}" has no "ru."` };
+    function readHostname(): KaspLanguageCode | null {
+        return window.location.hostname.includes('ru.') ? 'RU' : null;
     }
+
+    const SOURCES: ReadonlyArray<readonly [Exclude<Source, 'default'>, () => KaspLanguageCode | null]> = [
+        ['storage', readStorage],
+        ['html', readHtml],
+        ['hostname', readHostname],
+    ];
 
     let currentLanguage: KaspLanguageCode = 'EN';
-    let currentSource: Source = 'default';
-    let lastReport = '';
     let settled = false;
     let pollTimer: number | undefined;
+    // A language change reloads the page, so the language never changes after it settles and one promise is enough.
+    let resolveKnown: (language: KaspLanguageCode) => void = () => {};
+    const whenKnown = new Promise<KaspLanguageCode>((resolve) => {
+        resolveKnown = resolve;
+    });
 
-    function settle(reason: 'answer' | 'main menu'): void {
-        if (settled) return;
+    function settle(source: Source): void {
         settled = true;
         window.clearInterval(pollTimer);
-        console.log(`${LOG} settled on ${currentLanguage} from ${currentSource} (${reason})`);
+        resolveKnown(currentLanguage);
+        console.log(`${LOG} ${currentLanguage} (${source})`);
     }
 
     function check(): void {
         if (settled) return;
-        const methods: ReadonlyArray<readonly [Exclude<Source, 'default'>, MethodResult]> = [
-            ['storage', readStorage()],
-            ['html', readHtml()],
-            ['hostname', readHostname()],
-        ];
-        const winner = methods.find(([, result]) => result.language !== null);
-        const language: KaspLanguageCode = winner?.[1].language ?? 'EN';
-        const source: Source = winner?.[0] ?? 'default';
-
-        const parts = methods.map(([name, result]) => `${name}: ${result.language === null ? 'no answer' : result.language} (${result.note})`);
-        const report = `${parts.join(' | ')} => ${language} from ${source}`;
-        if (report !== lastReport) {
-            lastReport = report;
-            console.log(`${LOG} ${report}`);
-        }
-
-        if (language !== currentLanguage || source !== currentSource) {
+        for (const [source, read] of SOURCES) {
+            const language = read();
+            if (language === null) continue;
             currentLanguage = language;
-            currentSource = source;
-            const detail: KaspLanguageChange = { language, source };
-            window.dispatchEvent(new CustomEvent('kasp:language-changed', { detail }));
+            settle(source);
+            return;
         }
-
-        if (winner !== undefined) settle('answer');
-        else if (document.querySelector(MAIN_MENU_SELECTOR) !== null) settle('main menu');
+        if (document.querySelector(MAIN_MENU_SELECTOR) !== null) settle('default');
     }
 
-    window.kaspLanguage = {
-        get: () => currentLanguage,
-        source: () => currentSource,
-    };
+    window.kaspLanguage = { get: () => currentLanguage, whenKnown };
 
     check();
     if (!settled) pollTimer = window.setInterval(check, POLL_MS);
