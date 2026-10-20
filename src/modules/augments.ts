@@ -206,7 +206,9 @@
 
     // Lowercase, quotes dropped, a possessive "'s" dropped, and hyphens, dashes and runs of spaces count as one space,
     // so "High pressure pump" matches "High-pressure pump", "Dragon breath" matches "Dragon's Breath", and a name in
-    // quotes matches the same name without them.
+    // quotes matches the same name without them. The wiki also words one kind of ammunition both ways ("Jamming Rounds" for
+    // Smoky, "Jamming Shells" for Scorpion), so round(s) and shell(s) count as the same word; no turret's list has two
+    // augments that differ only in that word.
     function normalizeName(text: string): string {
         return text
             .toLowerCase()
@@ -215,6 +217,7 @@
             .replace(/['’‘]s\b/g, '')
             .replace(/['’‘]/g, '')
             .replace(/[\s\-‐-―]+/g, ' ')
+            .replace(/\b(?:rounds?|shells?)\b/g, 'shell')
             .trim();
     }
 
@@ -396,11 +399,15 @@
 
     // ---- 4. the tile boxes and the tick ----
 
-    function createBox(card: HTMLElement, name: string, match: AugmentMatch): HTMLElement {
+    // The augment is looked up once per tile and name, when its box is placed, because the box's colour comes from the
+    // augment's rank. A tile that has its box, or was already found to have no entry, is skipped, so a pass over tiles
+    // that did not change does no lookups at all.
+    const NO_ENTRY_KEY = 'kaspNoEntry';
+
+    function createBox(card: HTMLElement, key: string, match: AugmentMatch): HTMLElement {
         if (window.getComputedStyle(card).position === 'static') card.style.position = 'relative';
         const box = element('div', BOX_CLASS, 'i');
-        box.dataset['name'] = name;
-        box.dataset['language'] = match.language;
+        box.dataset['key'] = key;
         box.dataset['rarity'] = match.augment.rarity ?? '';
         hasBoxes = true;
         box.addEventListener('mouseenter', (event) => showTooltip(match, event));
@@ -416,15 +423,18 @@
         return box;
     }
 
-    function syncBox(card: HTMLElement, name: string, match: AugmentMatch | null): void {
+    function syncBox(card: HTMLElement, item: string, name: string): void {
+        const key = `${item}|${name}`;
         const existing = card.querySelector<HTMLElement>(`:scope > .${BOX_CLASS}`);
+        if (existing?.dataset['key'] === key || card.dataset[NO_ENTRY_KEY] === key) return;
+        existing?.remove();
+        const match = findAugment(item, name);
         if (match === null) {
-            existing?.remove();
+            // Only a lookup against loaded data counts as "no entry"; until then the tile is tried again.
+            if (augmentsFile !== null) card.dataset[NO_ENTRY_KEY] = key;
             return;
         }
-        if (existing?.dataset['name'] === name && existing.dataset['language'] === match.language) return;
-        existing?.remove();
-        card.append(createBox(card, name, match));
+        card.append(createBox(card, key, match));
     }
 
     // True from the first box until they are all removed, so the check that runs on every page change costs nothing
@@ -449,7 +459,7 @@
             const card = title.parentElement;
             if (card === null) return;
             const name = (title.textContent ?? '').trim();
-            syncBox(card, name, findAugment(item, name));
+            syncBox(card, item, name);
         });
     }
 

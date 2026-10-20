@@ -14,6 +14,8 @@
     const error = console.error.bind(console);
     const BUNDLE_PATH = '/static/js/main.';
     const WATCHDOG_MS = 8000;
+    // A download that hangs would leave the game waiting, so after this long the original script address is used instead.
+    const BUNDLE_TIMEOUT_MS = 30000;
     // How deep into the action object strings are collected, and how long one may be. change_counter.ts reads
     // nicknames out of this range, so the two files go together.
     const MAX_DEPTH = 2;
@@ -95,7 +97,7 @@
     async function loadBundle(src: string): Promise<void> {
         const script = document.createElement('script');
         try {
-            const res = await fetch(src);
+            const res = await fetch(src, { signal: AbortSignal.timeout(BUNDLE_TIMEOUT_MS) });
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const original = await res.text();
             const patched = patchBundle(original);
@@ -127,13 +129,8 @@
     observer.observe(document.documentElement, { childList: true, subtree: true });
 
     // If the bundle's tag was never caught and is on the page, the observer lost the race and the game runs unpatched.
-    // The observer is left on until the page has been parsed, since the bundle's tag cannot appear after that.
+    // The observer itself stays on until the tag is caught, so a tag added late is still held back.
     function watchdog(): void {
-        if (document.readyState === 'loading') {
-            setTimeout(watchdog, WATCHDOG_MS);
-            return;
-        }
-        observer.disconnect();
         if (!caughtBundle && [...document.scripts].some((script) => script.src.includes(BUNDLE_PATH))) {
             error(`${LOG} the game's main bundle ran before it could be held back, the hook is not installed`);
         }

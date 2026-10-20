@@ -42,6 +42,16 @@
 
     // ---- data ----
 
+    // The maps below are keyed by words from the page, from skins.json and from the browser's storage. They have no
+    // prototype, so a key like "constructor" or "__proto__" is only ever a plain key.
+    function emptyMap<T>(): Record<string, T> {
+        return Object.create(null);
+    }
+
+    function fromJson<T>(record: Readonly<Record<string, T>>): Record<string, T> {
+        return Object.assign(emptyMap<T>(), record);
+    }
+
     let skinsData: SkinsDatabase | null = null;
 
     fetch(chrome.runtime.getURL('data/skins.json'))
@@ -50,7 +60,7 @@
             return res.json();
         })
         .then((data: SkinsDatabase) => {
-            skinsData = data;
+            skinsData = { names: fromJson(data.names), defaults: fromJson(data.defaults) };
         })
         .catch(e => console.error(`${LOG} failed to load data/skins.json:`, e));
 
@@ -89,7 +99,7 @@
     }
 
     function readSavedSkins(): SavedSkins {
-        const saved: SavedSkins = {};
+        const saved: SavedSkins = emptyMap<string>();
         const stored = readStore(STORAGE_KEY);
         if (!isRecord(stored)) return saved;
         for (const [item, url] of Object.entries(stored)) {
@@ -100,7 +110,7 @@
 
     // The stock art the tiles were seen showing, per item. A value may be one URL or a list of them.
     function readBaseImages(): DefaultImagesMap {
-        const images: DefaultImagesMap = {};
+        const images: DefaultImagesMap = emptyMap<string[]>();
         const stored = readStore(BASE_IMG_KEY);
         if (!isRecord(stored)) return images;
         for (const [item, value] of Object.entries(stored)) {
@@ -112,7 +122,7 @@
 
     // The stock art that ships in skins.json plus the stock art learned from the tiles.
     function mergeDefaultImages(prefilled: SkinsDatabase['defaults'], learned: DefaultImagesMap): DefaultImagesMap {
-        const merged: DefaultImagesMap = {};
+        const merged: DefaultImagesMap = emptyMap<string[]>();
         for (const [item, url] of Object.entries(prefilled)) merged[item] = [url];
         for (const [item, urls] of Object.entries(learned)) {
             const list = (merged[item] ??= []);
@@ -125,15 +135,25 @@
 
     // ---- the item behind a title ----
 
-    // The item a title names. In English the item comes first ("Tesla Snow"), in Russian an adjective can come before it,
-    // so the first word that is a known item name wins. An unknown item (one newer than skins.json) falls back to the first
-    // word, as before. The table is looked up by own keys only, so a word like "constructor" is not an item.
-    function itemFromTitle(title: string, nameTranslate: SkinsDatabase['names']): string | null {
+    function lookupItem(nameTranslate: SkinsDatabase['names'], word: string): string | undefined {
+        return Object.prototype.hasOwnProperty.call(nameTranslate, word) ? nameTranslate[word] : undefined;
+    }
+
+    // The item a skin card's title names. In English the item comes first ("Tesla Snow"), in Russian an adjective can come
+    // before it, so the first word that is a known item name wins. An unknown item (one newer than skins.json) falls back
+    // to the first word, as before.
+    function itemFromSkinTitle(title: string, nameTranslate: SkinsDatabase['names']): string | null {
         const words = title.trim().toLowerCase().split(/\s+/);
-        const known = words.find((word) => Object.prototype.hasOwnProperty.call(nameTranslate, word));
+        const known = words.find((word) => lookupItem(nameTranslate, word) !== undefined);
         const word = known ?? words[0];
-        if (!word) return null;
-        return Object.prototype.hasOwnProperty.call(nameTranslate, word) ? nameTranslate[word] : word;
+        return word ? lookupItem(nameTranslate, word) ?? word : null;
+    }
+
+    // A garage tile's title starts with the item's name. Only the first word counts here: a tile that is not a turret or
+    // hull (a container, a paint) must not be taken for an item whose name appears later in its title.
+    function itemFromTileTitle(title: string, nameTranslate: SkinsDatabase['names']): string | null {
+        const word = title.trim().toLowerCase().split(/\s+/)[0];
+        return word ? lookupItem(nameTranslate, word) ?? word : null;
     }
 
     // ---- painting ----
@@ -225,8 +245,11 @@
             const imgMain = tile.querySelector(TILE_MAIN_IMG_SELECTOR);
             if (!titleSpan || !imgMain) continue;
 
-            const item = itemFromTitle(titleSpan.textContent ?? '', nameTranslate);
-            if (item === null) continue;
+            const item = itemFromTileTitle(titleSpan.textContent ?? '', nameTranslate);
+            if (item === null) {
+                toggleUnknownLabel(tile, false);
+                continue;
+            }
             const src = imgMain.getAttribute('src') ?? '';
 
             // A tile already showing the saved skin's URL is not stock art, so it must not be learned as stock.
@@ -319,7 +342,7 @@
             : cards.find(card => !card.isStandard);
         if (!equippedCard || !namedCard) return { kind: 'absent' };
 
-        const item = itemFromTitle(namedCard.title, nameTranslate);
+        const item = itemFromSkinTitle(namedCard.title, nameTranslate);
         if (item === null) return { kind: 'absent' };
 
         const selectedTitle = readSelectedTitle(menu, row, new Set(cards.map(card => card.title.toLowerCase())));
