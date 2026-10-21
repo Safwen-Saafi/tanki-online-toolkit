@@ -109,16 +109,75 @@
         }
     };
 
+    // BattleStatistics holds the time left of the battle (remainingTimeInSec), whether the battle is running
+    // (roundStarted) and whether it is loaded (battleLoaded). Its fields are minified, but its toString names them
+    // ("remainingTimeInSec=" + this.eq2_1), so the source of toString is read once to learn which property holds which
+    // value, and after that each copy is three plain property reads. The game makes a copy on every update of the
+    // battle, so a message is posted only when one of the three values changed. The time left is sent once, when the
+    // player joins, and then stays the same in every copy, so it is the receiver's job to count down from it.
+    interface BattleTimeFields {
+        readonly remaining: string;
+        readonly started: string;
+        readonly loaded: string;
+    }
+
+    const battleTimeFields = new WeakMap<object, BattleTimeFields | null>();
+    let lastBattleTime = '';
+    let warnedBattleTime = false;
+
+    function battleTimeFieldsOf(obj: object): BattleTimeFields | null {
+        const method = (obj as { toString?: unknown }).toString;
+        if (typeof method !== 'function') return null;
+        if (battleTimeFields.has(method)) return battleTimeFields.get(method) ?? null;
+        const labels = new Map<string, string>();
+        for (const match of Function.prototype.toString.call(method).matchAll(/\b([A-Za-z]+)=.{0,35}?this\.([\w$]+)/g)) {
+            labels.set(match[1], match[2]);
+        }
+        const remaining = labels.get('remainingTimeInSec');
+        const started = labels.get('roundStarted');
+        const loaded = labels.get('battleLoaded');
+        const fields = remaining !== undefined && started !== undefined && loaded !== undefined ? { remaining, started, loaded } : null;
+        battleTimeFields.set(method, fields);
+        return fields;
+    }
+
+    // Called from inside the game's code, so it must never throw into it.
+    window.__kaspSendBattleTime = function (_className: string, obj: unknown): void {
+        try {
+            if (obj === null || typeof obj !== 'object') return;
+            const fields = battleTimeFieldsOf(obj);
+            if (fields === null) {
+                if (!warnedBattleTime) {
+                    warnedBattleTime = true;
+                    warn(`${LOG} the battle time fields were not found in BattleStatistics, the battle music is skipped`);
+                }
+                return;
+            }
+            const remaining: unknown = Object.getOwnPropertyDescriptor(obj, fields.remaining)?.value;
+            const roundStarted: unknown = Object.getOwnPropertyDescriptor(obj, fields.started)?.value;
+            const battleLoaded: unknown = Object.getOwnPropertyDescriptor(obj, fields.loaded)?.value;
+            if (typeof remaining !== 'number' || typeof roundStarted !== 'boolean' || typeof battleLoaded !== 'boolean') return;
+            const key = `${remaining}|${roundStarted}|${battleLoaded}`;
+            if (key === lastBattleTime) return;
+            lastBattleTime = key;
+            const message: KaspBattleTimeMessage = { type: 'kasp:battle-time', detail: { remaining, roundStarted, battleLoaded } };
+            window.postMessage(message, window.location.origin);
+        } catch {
+            // a missed update only means the music may start late or not at all
+        }
+    };
+
     interface Hook {
         readonly className: string;
         // The window function the game's constructor calls, and the name the log uses for it.
-        readonly call: '__kaspSendAction' | '__kaspSendKill';
+        readonly call: '__kaspSendAction' | '__kaspSendKill' | '__kaspSendBattleTime';
         readonly label: string;
     }
 
     const HOOKS: readonly Hook[] = [
         { className: 'TankUserActionLog', call: '__kaspSendAction', label: 'change-counter' },
         { className: 'TankDestroyActionLog', call: '__kaspSendKill', label: 'kill-sounds' },
+        { className: 'BattleStatistics', call: '__kaspSendBattleTime', label: 'battle-music' },
     ];
 
     // The code with the hook added to the class's constructor, or null when the bundle no longer looks the way the two

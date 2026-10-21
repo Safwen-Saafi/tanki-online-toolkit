@@ -49,6 +49,18 @@ interface KaspKillMessage {
     readonly detail: KaspKillEvent;
 }
 
+// The battle's time, posted by src/injector.ts from the game's BattleStatistics when remaining, roundStarted or
+// battleLoaded changes. remaining is the seconds left at the moment the player joined (it stays the same in later
+// copies, and is -1 before a battle is loaded); roundStarted is false while the battle is not running (or has ended).
+interface KaspBattleTimeMessage {
+    readonly type: "kasp:battle-time";
+    readonly detail: {
+        readonly remaining: number;
+        readonly roundStarted: boolean;
+        readonly battleLoaded: boolean;
+    };
+}
+
 // extension/data/killsounds.json: for each kind of sound, a count (as text) -> a file in extension/sounds/, a list of
 // files (they take turns), or { files, chance } where chance (0 to 1) is how often anything plays; null for none.
 type KillSoundEntry =
@@ -82,6 +94,7 @@ interface KaspGarageTabReader {
 interface Window {
     __kaspSendAction?: (className: string, obj: unknown) => void;
     __kaspSendKill?: (className: string, obj: unknown) => void;
+    __kaspSendBattleTime?: (className: string, obj: unknown) => void;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
 }
