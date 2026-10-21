@@ -276,10 +276,7 @@
     function playSound(sound: SoundKey): void {
         const entry = sounds[sound.kind].get(sound.count);
         if (entry === undefined) return;
-        if (entry.chance < 1 && Math.random() >= entry.chance) {
-            console.log(LOG, `${sound.kind}:${sound.count} skipped, it plays ${Math.round(entry.chance * 100)}% of the time`);
-            return;
-        }
+        if (entry.chance < 1 && Math.random() >= entry.chance) return;
         const file = pickFile(`${sound.kind}:${sound.count}`, entry.files);
         try {
             playing?.pause();
@@ -325,7 +322,6 @@
             if (mine === undefined) return null;
             own = { uid: mine.uid, userId: mine.userId };
             writeOwn(own);
-            console.log(LOG, `learned the player id for ${own.uid}: ${own.userId}`);
         }
         const killed = event.killer.userId === own.userId;
         const died = event.victim.userId === own.userId;
@@ -355,7 +351,6 @@
         if (sound === null && hasFirstKill && sounds.first.has(1)) sound = { kind: 'first', count: 1 };
         const streak = streakSoundCount(state.kills);
         if (sound === null && streak !== null) sound = { kind: 'streak', count: streak };
-        console.log(LOG, `multi-kill window closed: ${count} kill${count === 1 ? '' : 's'}, kill streak ${state.kills}`, sound === null ? 'no sound' : `sound ${sound.kind}:${sound.count}`);
         if (sound !== null) playSound(sound);
     }
 
@@ -366,18 +361,16 @@
         multiHasFirstKill = false;
     }
 
-    function handleOwnEvent(event: OwnEvent, detail: string): void {
+    function handleOwnEvent(event: OwnEvent): void {
         const firstOfBattle = event === 'kill' && state.battleKills === 0;
         const result = applyOwnEvent(state, event);
         state = result.state;
         writeState(state);
-        console.log(LOG, `${event} (${detail}): kill streak ${state.kills}, death streak ${state.deaths}${firstOfBattle ? ', first kill of the battle' : ''}`);
         if (event === 'kill') {
             multiCount++;
             if (firstOfBattle) multiHasFirstKill = true;
             if (multiTimer === undefined) multiTimer = setTimeout(closeMultiWindow, MULTI_KILL_WINDOW_MS);
         } else if (result.sound !== null) {
-            console.log(LOG, `sound ${result.sound.kind}:${result.sound.count}`);
             playSound(result.sound);
         }
     }
@@ -403,7 +396,7 @@
         const data: unknown = e.data;
         if (!isKillMessage(data)) return;
         const mine = ownEventOf(data.detail);
-        if (mine !== null) handleOwnEvent(mine, `${data.detail.killer.uid} -> ${data.detail.victim.uid}, ${data.detail.damageType}`);
+        if (mine !== null) handleOwnEvent(mine);
     });
 
     // The first time the HUD name can be read, it must agree with the saved id's nickname; if it does not, the account
