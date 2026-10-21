@@ -7,6 +7,13 @@
     "3": "multi-3.mp3",
     "4": "multi-4.mp3"
   },
-  "streak": {},
+  "streak": {
+    "3": "KillingSpree.mp3",
+    "5": "Rampage.mp3",
+    "7": "GodLike.mp3",
+    "10": "WickedSick.mp3",
+    "15": "HolySht.mp3",
+    "20": "Massacre.mp3"
+  },
   "death": {}
 }

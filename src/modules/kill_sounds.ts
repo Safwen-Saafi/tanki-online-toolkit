@@ -23,6 +23,8 @@
     const SOUNDS_DIR = 'sounds/';
     const KILL_SWITCH_KEY = 'kasp_killsounds';
     const SOUND_VOLUME = 0.8;
+    // Past the highest kill streak count in the list, the highest sound plays again every this many kills.
+    const STREAK_REPEAT_STEP = 10;
     const SAFE_FILE_NAME = /^[\w-]+(?:\.[\w-]+)*\.(?:mp3|ogg|wav)$/i;
 
     type OwnEvent = 'kill' | 'death';
@@ -128,6 +130,14 @@
             if (tier <= count && (found === null || tier > found)) found = tier;
         }
         return found;
+    }
+
+    // The sound count a kill streak plays, or null when this streak length has no sound. A listed count plays its own
+    // sound; past the highest listed count, the highest sound plays again every STREAK_REPEAT_STEP kills.
+    function streakSoundCount(kills: number): number | null {
+        if (sounds.streak.has(kills)) return kills;
+        const top = highestTier(sounds.streak, Number.MAX_SAFE_INTEGER);
+        return top !== null && kills > top && (kills - top) % STREAK_REPEAT_STEP === 0 ? top : null;
     }
 
     // The new counters for one of the player's own events, and the sound when it has one at once. A kill adds one to the
@@ -288,7 +298,8 @@
         const multi = highestTier(sounds.multi, count);
         let sound: SoundKey | null = multi === null ? null : { kind: 'multi', count: multi };
         if (sound === null && hasFirstKill && sounds.first.has(1)) sound = { kind: 'first', count: 1 };
-        if (sound === null && sounds.streak.has(state.kills)) sound = { kind: 'streak', count: state.kills };
+        const streak = streakSoundCount(state.kills);
+        if (sound === null && streak !== null) sound = { kind: 'streak', count: streak };
         console.log(LOG, `multi-kill window closed: ${count} kill${count === 1 ? '' : 's'}, kill streak ${state.kills}`, sound === null ? 'no sound' : `sound ${sound.kind}:${sound.count}`);
         if (sound !== null) playSound(sound);
     }
