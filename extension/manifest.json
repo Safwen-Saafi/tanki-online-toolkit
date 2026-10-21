@@ -25,7 +25,8 @@
         "js/modules/change_counter.js",
         "js/modules/garage_skins.js",
         "js/modules/augments.js",
-        "js/modules/kill_sounds.js"
+        "js/modules/kill_sounds.js",
+        "js/modules/battle_music.js"
       ],
       "css": [
         "styles/change_counter.css",
