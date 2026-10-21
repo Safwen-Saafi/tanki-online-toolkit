@@ -1,0 +1,27 @@
+{
+  "first": {
+    "1": "multi-1.mp3"
+  },
+  "multi": {
+    "2": "multi-2.mp3",
+    "3": "multi-3.mp3",
+    "4": "multi-4.mp3"
+  },
+  "streak": {
+    "3": "KillingSpree.mp3",
+    "5": "Rampage.mp3",
+    "7": "GodLike.mp3",
+    "10": "WickedSick.mp3",
+    "15": "HolySht.mp3",
+    "20": "Massacre.mp3"
+  },
+  "death": {
+    "1": {
+      "chance": 0.5,
+      "files": ["death-1a.mp3", "death-1b.mp3", "death-1c.mp3", "death-1d.mp3"]
+    },
+    "2": "death-2.mp3",
+    "3": "death-3.mp3",
+    "5": "death-5.mp3"
+  }
+}

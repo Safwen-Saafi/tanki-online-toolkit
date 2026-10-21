@@ -54,6 +54,7 @@ and installed dependencies before adding machinery.
 - `blueprint/context/battle-stats-table.md` - read before changing anything visual in the in-battle stats panel
 - `blueprint/context/garage-skins-screen.md` - read before changing anything in the garage skins module (Skins tab, tiles, main screen blocks)
 - `blueprint/context/garage-augments-screen.md` - read before changing anything in the augments module (the item title, tab detection, the Augments tab tiles and the spec box)
+- `blueprint/context/kill-events.md` - read before changing anything in the kill sounds (the game's kill events, how the player is identified, the streak rules, how to add a sound)
 
 Reuse relevant context already loaded in the session. Claude Code imports only
 this file; its Blueprint skills load the other files on demand.
