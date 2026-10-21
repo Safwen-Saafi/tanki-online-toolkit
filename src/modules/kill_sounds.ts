@@ -30,8 +30,14 @@
     type OwnEvent = 'kill' | 'death';
     // 'first' is the sound of the player's first kill of the battle, kept under the count 1.
     type SoundKind = 'multi' | 'streak' | 'death' | 'first';
-    // The files of one kind of sound, by the count they play for.
-    type SoundTable = ReadonlyMap<number, string>;
+    // What plays for one count: the files to pick from, one at a time without repeating until all have played, and the
+    // chance (0 to 1) that anything plays at all.
+    interface SoundEntry {
+        readonly files: readonly string[];
+        readonly chance: number;
+    }
+    // The entries of one kind of sound, by the count they play for.
+    type SoundTable = ReadonlyMap<number, SoundEntry>;
 
     interface SoundKey {
         readonly kind: SoundKind;
@@ -124,7 +130,7 @@
 
     // The largest count in the table that is not above the real count, or null. A group bigger than the top sound
     // plays the top sound.
-    function highestTier(table: SoundTable, count: number): number | null {
+    function highestTier(table: ReadonlyMap<number, unknown>, count: number): number | null {
         let found: number | null = null;
         for (const tier of table.keys()) {
             if (tier <= count && (found === null || tier > found)) found = tier;
@@ -146,8 +152,8 @@
     function applyOwnEvent(state: KillState, event: OwnEvent): { readonly state: KillState; readonly sound: SoundKey | null } {
         if (event === 'kill') return { state: { kills: state.kills + 1, deaths: 0, battleKills: state.battleKills + 1 }, sound: null };
         const next: KillState = { kills: 0, deaths: state.deaths + 1, battleKills: state.battleKills };
-        const death = highestTier(sounds.death, next.deaths);
-        return { state: next, sound: death === null ? null : { kind: 'death', count: death } };
+        // Only the listed counts play; a longer run of deaths than the last one is left silent.
+        return { state: next, sound: sounds.death.has(next.deaths) ? { kind: 'death', count: next.deaths } : null };
     }
 
     function isPlayer(value: unknown): value is KaspKillPlayer {
@@ -183,20 +189,39 @@
         return name === '' ? null : name;
     }
 
-    // The file list read as the three tables. An entry that is not a whole count of 1 or more with a plain audio file
-    // name (or is null) is left out, so a mistake in the file costs one sound, not the rest.
+    // One entry of the file list: a file name, a list of file names, or { files, chance }. Names that are not plain audio
+    // file names are dropped; an entry with none left, or a chance outside 0 to 1, is left out.
+    function parseEntry(value: unknown): SoundEntry | null {
+        let files: unknown = value;
+        let chance = 1;
+        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+            const object = value as { files?: unknown; chance?: unknown };
+            files = object.files;
+            if (object.chance !== undefined) {
+                if (typeof object.chance !== 'number' || !(object.chance >= 0 && object.chance <= 1)) return null;
+                chance = object.chance;
+            }
+        }
+        const list: unknown[] | null = typeof files === 'string' ? [files] : Array.isArray(files) ? files : null;
+        if (list === null) return null;
+        const valid = list.filter((file): file is string => typeof file === 'string' && SAFE_FILE_NAME.test(file));
+        return valid.length === 0 ? null : { files: valid, chance };
+    }
+
+    // The file list read as the four tables. A count that is not a whole number of 1 or more, or an entry that cannot
+    // be read, is left out, so a mistake in the file costs one sound, not the rest.
     function parseSoundTables(value: unknown): Readonly<Record<SoundKind, SoundTable>> | null {
         if (!value || typeof value !== 'object') return null;
         const config = value as Partial<Record<SoundKind, unknown>>;
-        const tables: Record<SoundKind, Map<number, string>> = { multi: new Map(), streak: new Map(), death: new Map(), first: new Map() };
+        const tables: Record<SoundKind, Map<number, SoundEntry>> = { multi: new Map(), streak: new Map(), death: new Map(), first: new Map() };
         for (const kind of ['multi', 'streak', 'death', 'first'] as const) {
             const entries = config[kind];
             if (entries === undefined) continue;
             if (!entries || typeof entries !== 'object') return null;
-            for (const [key, file] of Object.entries(entries)) {
+            for (const [key, value] of Object.entries(entries)) {
                 const count = Number(key);
-                if (!Number.isInteger(count) || count < 1 || typeof file !== 'string' || !SAFE_FILE_NAME.test(file)) continue;
-                tables[kind].set(count, file);
+                const entry = parseEntry(value);
+                if (Number.isInteger(count) && count >= 1 && entry !== null) tables[kind].set(count, entry);
             }
         }
         return tables;
@@ -224,10 +249,38 @@
         console.warn(LOG, `could not play ${file}:`, error instanceof Error ? `${error.name}: ${error.message}` : error);
     }
 
-    // One sound at a time: a new sound stops the one still playing.
+    const bagByKey = new Map<string, string[]>();
+    const lastByKey = new Map<string, string>();
+
+    // The next file to play out of several: a shuffled bag that is emptied before it is filled again, so every file
+    // plays once before any repeats, and the file that played last never opens the next bag.
+    function pickFile(key: string, files: readonly string[]): string {
+        let bag = bagByKey.get(key) ?? [];
+        if (bag.length === 0) {
+            bag = [...files];
+            for (let i = bag.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [bag[i], bag[j]] = [bag[j], bag[i]];
+            }
+            const last = bag.length - 1;
+            if (bag.length > 1 && bag[last] === lastByKey.get(key)) [bag[0], bag[last]] = [bag[last], bag[0]];
+        }
+        const file = bag.pop() ?? files[0];
+        bagByKey.set(key, bag);
+        lastByKey.set(key, file);
+        return file;
+    }
+
+    // One sound at a time: a new sound stops the one still playing. An entry with a chance below 1 plays only that
+    // often.
     function playSound(sound: SoundKey): void {
-        const file = sounds[sound.kind].get(sound.count);
-        if (file === undefined) return;
+        const entry = sounds[sound.kind].get(sound.count);
+        if (entry === undefined) return;
+        if (entry.chance < 1 && Math.random() >= entry.chance) {
+            console.log(LOG, `${sound.kind}:${sound.count} skipped, it plays ${Math.round(entry.chance * 100)}% of the time`);
+            return;
+        }
+        const file = pickFile(`${sound.kind}:${sound.count}`, entry.files);
         try {
             playing?.pause();
             const audio = audioFor(file);
@@ -248,7 +301,9 @@
             if (tables === null) throw new Error('not a sounds list');
             sounds = tables;
             for (const table of Object.values(tables)) {
-                for (const file of table.values()) audioFor(file);
+                for (const entry of table.values()) {
+                    for (const file of entry.files) audioFor(file);
+                }
             }
             console.log(LOG, `ready: ${audioByFile.size} sound files`);
         } catch (error: unknown) {

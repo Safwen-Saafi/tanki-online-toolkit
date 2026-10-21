@@ -49,13 +49,20 @@ interface KaspKillMessage {
     readonly detail: KaspKillEvent;
 }
 
-// extension/data/killsounds.json: for each kind of sound, a count (as text) -> the file in extension/sounds/, or null for none.
+// extension/data/killsounds.json: for each kind of sound, a count (as text) -> a file in extension/sounds/, a list of
+// files (they take turns), or { files, chance } where chance (0 to 1) is how often anything plays; null for none.
+type KillSoundEntry =
+    | string
+    | readonly string[]
+    | { readonly files: string | readonly string[]; readonly chance?: number }
+    | null;
+
 interface KillSoundsConfig {
     // The player's first kill of a battle, under the count "1".
-    readonly first: Readonly<Record<string, string | null>>;
-    readonly multi: Readonly<Record<string, string | null>>;
-    readonly streak: Readonly<Record<string, string | null>>;
-    readonly death: Readonly<Record<string, string | null>>;
+    readonly first: Readonly<Record<string, KillSoundEntry>>;
+    readonly multi: Readonly<Record<string, KillSoundEntry>>;
+    readonly streak: Readonly<Record<string, KillSoundEntry>>;
+    readonly death: Readonly<Record<string, KillSoundEntry>>;
 }
 
 // Published by src/modules/language.ts. get() is EN until the language is found; whenKnown resolves once with the
