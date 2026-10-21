@@ -1,8 +1,10 @@
 // MAIN-world content script, the only one allowed to touch the page's own JavaScript. It holds back the game's main
-// bundle, fetches it, adds one call to the constructor of TankUserActionLog, and runs the patched copy. That call
-// (window.__kaspSendAction) posts the strings of each equipment action to the isolated-world scripts, which is how
-// change_counter.ts learns who changed equipment. When anything goes wrong the game's own bundle is run unpatched,
-// so the extension can lose the hook but never the game.
+// bundle, fetches it, adds one call to the constructor of two of the game's classes, and runs the patched copy.
+// TankUserActionLog's call (window.__kaspSendAction) posts the strings of each equipment action, which is how
+// change_counter.ts learns who changed equipment. TankDestroyActionLog's call (window.__kaspSendKill) posts each kill
+// of the game's kill feed, which is how kill_sounds.ts learns who killed whom. Each hook is found and skipped on its
+// own. When anything goes wrong the game's own bundle is run without the hook that failed (or unpatched), so the
+// extension can lose a hook but never the game.
 (function () {
     'use strict';
 
@@ -67,25 +69,88 @@
         }
     };
 
-    // The name of the property the game prints first in TankUserActionLog's text, which names the constructor's first field.
-    const PROPERTY_PATTERN = /return"TankUserActionLog\(\w+="\+(?:\w+\()?this\.(\w+)/;
+    // What the game prints for a kill, from its Kotlin data classes (the nickname and the clan tag are plain text):
+    // TankDestroyActionLog(userLabelData=UserLabelData(userId=1, uid=a, rank=31, hasPremium=false, clanTag=null, teamRelation=ALLY),
+    // destroyedUserLabelData=UserLabelData(...), damageType=SMOKY, isCritical=false, type=KILL). Reading the text instead of the
+    // object means a renamed minified property cannot swap the killer and the victim.
+    const LABEL = 'UserLabelData\\(userId=(-?\\d+), uid=(.*?), rank=-?\\d+, hasPremium=(?:true|false), clanTag=(.*?), teamRelation=(\\w+)\\)';
+    const KILL_PATTERN = new RegExp(`^TankDestroyActionLog\\(userLabelData=${LABEL}, destroyedUserLabelData=${LABEL}, damageType=(\\w+), isCritical=(true|false), type=(\\w+)\\)$`);
 
-    // The bundle with the hook added to the TankUserActionLog constructor, or null when the bundle's code no longer
-    // looks the way the two patterns expect.
-    function patchBundle(code: string): string | null {
-        const property = PROPERTY_PATTERN.exec(code);
+    function parseKillText(text: string): KaspKillEvent | null {
+        const match = KILL_PATTERN.exec(text);
+        if (match === null) return null;
+        const player = (first: number): KaspKillPlayer => ({
+            userId: match[first],
+            uid: match[first + 1],
+            clanTag: match[first + 2] === 'null' ? null : match[first + 2],
+            teamRelation: match[first + 3],
+        });
+        return { killer: player(1), victim: player(5), damageType: match[9], critical: match[10] === 'true', kind: match[11] };
+    }
+
+    let warnedKill = false;
+
+    // Called from inside the game's code, so it must never throw into it.
+    window.__kaspSendKill = function (_className: string, obj: unknown): void {
+        try {
+            const text = String(obj);
+            const detail = parseKillText(text);
+            if (detail === null) {
+                if (!warnedKill) {
+                    warnedKill = true;
+                    warn(`${LOG} a kill event was not understood, its sound is skipped: ${text.slice(0, 300)}`);
+                }
+                return;
+            }
+            const message: KaspKillMessage = { type: 'kasp:kill', detail };
+            window.postMessage(message, window.location.origin);
+        } catch {
+            // a missed event only means one missed sound
+        }
+    };
+
+    interface Hook {
+        readonly className: string;
+        // The window function the game's constructor calls, and the name the log uses for it.
+        readonly call: '__kaspSendAction' | '__kaspSendKill';
+        readonly label: string;
+    }
+
+    const HOOKS: readonly Hook[] = [
+        { className: 'TankUserActionLog', call: '__kaspSendAction', label: 'change-counter' },
+        { className: 'TankDestroyActionLog', call: '__kaspSendKill', label: 'kill-sounds' },
+    ];
+
+    // The code with the hook added to the class's constructor, or null when the bundle no longer looks the way the two
+    // patterns expect. The first pattern finds the name of the property the game prints first in the class's text, which
+    // names the constructor's first field; the second finds the constructor that assigns it.
+    function patchClass(code: string, hook: Hook): string | null {
+        const property = new RegExp(`return"${hook.className}\\(\\w+="\\+(?:\\w+\\()?this\\.(\\w+)`).exec(code);
         if (property === null) {
-            warn(`${LOG} could not find the TankUserActionLog property name in this bundle, hook skipped`);
+            warn(`${LOG} could not find the ${hook.className} property name in this bundle, ${hook.label} hook skipped`);
             return null;
         }
         const propName = property[1];
         const constructorPattern = new RegExp(`(function [\\w$]+\\([^)]{1,150}\\)\\{[^{}]{0,800}?this\\.${propName}=[\\w$]+(?:,this\\.[\\w$]+=[\\w$]+){0,30})\\}`);
-        const patched = code.replace(constructorPattern, `$1, window.__kaspSendAction("TankUserActionLog", this)}`);
+        const patched = code.replace(constructorPattern, `$1, window.${hook.call}("${hook.className}", this)}`);
         if (patched === code) {
-            warn(`${LOG} could not find the TankUserActionLog constructor for property "${propName}", hook skipped`);
+            warn(`${LOG} could not find the ${hook.className} constructor for property "${propName}", ${hook.label} hook skipped`);
             return null;
         }
         return patched;
+    }
+
+    // The bundle with every hook that could be added, and the labels of those hooks.
+    function patchBundle(code: string): { readonly code: string; readonly hooked: string[] } {
+        let result = code;
+        const hooked: string[] = [];
+        for (const hook of HOOKS) {
+            const patched = patchClass(result, hook);
+            if (patched === null) continue;
+            result = patched;
+            hooked.push(hook.label);
+        }
+        return { code: result, hooked };
     }
 
     function runScript(script: HTMLScriptElement): void {
@@ -101,8 +166,8 @@
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const original = await res.text();
             const patched = patchBundle(original);
-            script.textContent = patched ?? original;
-            if (patched !== null) log(`${LOG} change-counter hook added to the game`);
+            script.textContent = patched.code;
+            if (patched.hooked.length > 0) log(`${LOG} hooks added to the game: ${patched.hooked.join(', ')}`);
         } catch (e: unknown) {
             warn(`${LOG} could not fetch the game bundle, starting it without the hook:`, e instanceof Error ? e.message : e);
             script.src = src;
