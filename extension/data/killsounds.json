@@ -23,5 +23,8 @@
     "2": "death-2.mp3",
     "3": "death-3.mp3",
     "5": "death-5.mp3"
+  },
+  "grenade": {
+    "1": "grenade-kill.mp3"
   }
 }

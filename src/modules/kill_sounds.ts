@@ -1,8 +1,8 @@
 // Isolated-world content script. Receives the game's kill feed from src/injector.ts as 'kasp:kill' messages, keeps the
 // player's own kill streak and death streak for the current battle, finds multi-kills (several kills inside one short
-// time window) and picks the sound for each of the player's own kills and deaths. The player's id is learned once and
-// kept; the counters live in sessionStorage, so a page reload in the middle of a battle does not lose them, and are
-// cleared when the battle ends.
+// time window) and picks the sound for each of the player's own kills and deaths. A kill with a grenade has a sound of
+// its own that beats all the others. The player's id is learned once and kept; the counters live in sessionStorage,
+// so a page reload in the middle of a battle does not lose them, and are cleared when the battle ends.
 (function () {
     'use strict';
 
@@ -26,10 +26,15 @@
     // Past the highest kill streak count in the list, the highest sound plays again every this many kills.
     const STREAK_REPEAT_STEP = 10;
     const SAFE_FILE_NAME = /^[\w-]+(?:\.[\w-]+)*\.(?:mp3|ogg|wav)$/i;
+    // How the game's kill feed names a kill with a grenade (live probe, 2026-10-21); the overdrives and the mines have
+    // names of their own.
+    const GRENADE_DAMAGE_TYPE = 'CHAOS_GRENADE';
 
     type OwnEvent = 'kill' | 'death';
-    // 'first' is the sound of the player's first kill of the battle, kept under the count 1.
-    type SoundKind = 'multi' | 'streak' | 'death' | 'first';
+    // 'first' is the sound of the player's first kill of the battle, kept under the count 1, and so is 'grenade', the
+    // sound of a kill with a grenade.
+    type SoundKind = 'multi' | 'streak' | 'death' | 'first' | 'grenade';
+    const SOUND_KINDS: readonly SoundKind[] = ['multi', 'streak', 'death', 'first', 'grenade'];
     // What plays for one count: the files to pick from, one at a time without repeating until all have played, and the
     // chance (0 to 1) that anything plays at all.
     interface SoundEntry {
@@ -60,7 +65,7 @@
     }
 
     const FRESH_STATE: KillState = { kills: 0, deaths: 0, battleKills: 0 };
-    const NO_SOUNDS: Readonly<Record<SoundKind, SoundTable>> = { multi: new Map(), streak: new Map(), death: new Map(), first: new Map() };
+    const NO_SOUNDS: Readonly<Record<SoundKind, SoundTable>> = { multi: new Map(), streak: new Map(), death: new Map(), first: new Map(), grenade: new Map() };
     let sounds = NO_SOUNDS;
 
     function isCount(value: unknown): value is number {
@@ -208,13 +213,13 @@
         return valid.length === 0 ? null : { files: valid, chance };
     }
 
-    // The file list read as the four tables. A count that is not a whole number of 1 or more, or an entry that cannot
-    // be read, is left out, so a mistake in the file costs one sound, not the rest.
+    // The file list read as the tables of every kind. A count that is not a whole number of 1 or more, or an entry that
+    // cannot be read, is left out, so a mistake in the file costs one sound, not the rest.
     function parseSoundTables(value: unknown): Readonly<Record<SoundKind, SoundTable>> | null {
         if (!value || typeof value !== 'object') return null;
         const config = value as Partial<Record<SoundKind, unknown>>;
-        const tables: Record<SoundKind, Map<number, SoundEntry>> = { multi: new Map(), streak: new Map(), death: new Map(), first: new Map() };
-        for (const kind of ['multi', 'streak', 'death', 'first'] as const) {
+        const tables: Record<SoundKind, Map<number, SoundEntry>> = { multi: new Map(), streak: new Map(), death: new Map(), first: new Map(), grenade: new Map() };
+        for (const kind of SOUND_KINDS) {
             const entries = config[kind];
             if (entries === undefined) continue;
             if (!entries || typeof entries !== 'object') return null;
@@ -229,6 +234,7 @@
 
     const audioByFile = new Map<string, HTMLAudioElement>();
     let playing: HTMLAudioElement | null = null;
+    let playingKind: SoundKind | null = null;
     let warnedPlay = false;
 
     // One audio element per file, made when the list is loaded so the file is ready when it is needed.
@@ -271,11 +277,12 @@
         return file;
     }
 
-    // One sound at a time: a new sound stops the one still playing. An entry with a chance below 1 plays only that
-    // often.
+    // One sound at a time: a new sound stops the one still playing, except that nothing stops a grenade kill sound
+    // before it ends. An entry with a chance below 1 plays only that often.
     function playSound(sound: SoundKey): void {
         const entry = sounds[sound.kind].get(sound.count);
         if (entry === undefined) return;
+        if (sound.kind !== 'grenade' && playingKind === 'grenade' && playing !== null && !playing.paused && !playing.ended) return;
         if (entry.chance < 1 && Math.random() >= entry.chance) return;
         const file = pickFile(`${sound.kind}:${sound.count}`, entry.files);
         try {
@@ -283,6 +290,7 @@
             const audio = audioFor(file);
             audio.currentTime = 0;
             playing = audio;
+            playingKind = sound.kind;
             audio.play().catch((error: unknown) => warnPlay(file, error));
         } catch (error: unknown) {
             warnPlay(file, error);
@@ -333,17 +341,22 @@
     // The player's kills inside the multi-kill window that is open now. The window opens at the first of them and closes
     // MULTI_KILL_WINDOW_MS later; its sound is chosen then, from the number of kills it caught, so a triple plays only
     // the triple and never the double before it. The window that holds the battle's first kill is marked, because that
-    // kill has a sound of its own.
+    // kill has a sound of its own, and so is the window that holds a kill with a grenade, whose sound already played
+    // and leaves nothing for the window to play.
     let multiCount = 0;
     let multiHasFirstKill = false;
+    let multiHasGrenadeKill = false;
     let multiTimer: number | undefined;
 
     function closeMultiWindow(): void {
         const count = multiCount;
         const hasFirstKill = multiHasFirstKill;
+        const hasGrenadeKill = multiHasGrenadeKill;
         multiCount = 0;
         multiHasFirstKill = false;
+        multiHasGrenadeKill = false;
         multiTimer = undefined;
+        if (hasGrenadeKill) return;
         // A multi-kill sound always wins. Without one, the battle's first kill plays its own sound, and otherwise a
         // single kill that reaches a kill streak milestone plays the streak sound.
         const multi = highestTier(sounds.multi, count);
@@ -359,9 +372,10 @@
         multiTimer = undefined;
         multiCount = 0;
         multiHasFirstKill = false;
+        multiHasGrenadeKill = false;
     }
 
-    function handleOwnEvent(event: OwnEvent): void {
+    function handleOwnEvent(event: OwnEvent, damageType: string): void {
         const firstOfBattle = event === 'kill' && state.battleKills === 0;
         const result = applyOwnEvent(state, event);
         state = result.state;
@@ -369,6 +383,12 @@
         if (event === 'kill') {
             multiCount++;
             if (firstOfBattle) multiHasFirstKill = true;
+            // A kill with a grenade plays its sound at once, and the first one of a window is the only one that does, so
+            // two kills of one explosion are not two sounds. Without a sound for it, it is an ordinary kill.
+            if (damageType === GRENADE_DAMAGE_TYPE && sounds.grenade.has(1) && !multiHasGrenadeKill) {
+                multiHasGrenadeKill = true;
+                playSound({ kind: 'grenade', count: 1 });
+            }
             if (multiTimer === undefined) multiTimer = setTimeout(closeMultiWindow, MULTI_KILL_WINDOW_MS);
         } else if (result.sound !== null) {
             playSound(result.sound);
@@ -396,7 +416,7 @@
         const data: unknown = e.data;
         if (!isKillMessage(data)) return;
         const mine = ownEventOf(data.detail);
-        if (mine !== null) handleOwnEvent(mine);
+        if (mine !== null) handleOwnEvent(mine, data.detail.damageType);
     });
 
     // The first time the HUD name can be read, it must agree with the saved id's nickname; if it does not, the account
