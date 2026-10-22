@@ -27,7 +27,8 @@
         "js/modules/augments.js",
         "js/modules/kill_sounds.js",
         "js/modules/battle_music.js",
-        "js/modules/grenade_sounds.js"
+        "js/modules/grenade_sounds.js",
+        "js/modules/magnum_sound.js"
       ],
       "css": [
         "styles/change_counter.css",
@@ -42,6 +43,7 @@
       "resources": [
         "data/skins.json",
         "data/killsounds.json",
+        "data/magnum.json",
         "sounds/*",
         "icons/*"
       ],
