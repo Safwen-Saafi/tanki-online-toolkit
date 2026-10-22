@@ -55,7 +55,7 @@ and installed dependencies before adding machinery.
 - `blueprint/context/garage-skins-screen.md` - read before changing anything in the garage skins module (Skins tab, tiles, main screen blocks)
 - `blueprint/context/garage-augments-screen.md` - read before changing anything in the augments module (the item title, tab detection, the Augments tab tiles and the spec box)
 - `blueprint/context/kill-events.md` - read before changing anything in the kill sounds (the game's kill events, how the player is identified, the streak rules, how to add a sound)
-- `blueprint/context/battle-sounds.md` - read before changing the end of battle music or starting the grenade and Magnum sounds (the game's battle time, the music rules, notes for the next parts)
+- `blueprint/context/battle-sounds.md` - read before changing the end of battle music or the grenade sounds, or starting the Magnum sound (the game's battle time, the music rules, how a grenade throw is detected, notes for the next part)
 
 Reuse relevant context already loaded in the session. Claude Code imports only
 this file; its Blueprint skills load the other files on demand.
