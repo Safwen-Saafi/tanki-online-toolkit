@@ -5,7 +5,9 @@
 // posts each kill of the game's kill feed, which is how kill_sounds.ts learns who killed whom. BattleStatistics's call
 // (window.__kaspSendBattleTime) posts the battle's time, which is how battle_music.ts knows the end is near. The
 // handler's call (window.__kaspSendGrenadeThrow) posts each throw of the player's own grenade, for grenade_sounds.ts.
-// Each hook is found and skipped on its own. When anything goes wrong the game's own bundle is run without the hook
+// A last, separate part wraps the page's own XMLHttpRequest, Response and decodeAudioData so that the game decodes the
+// owner's file instead of some of its weapon sound files (kasp:sound-swap from magnum_sound.ts). Each hook is found
+// and skipped on its own. When anything goes wrong the game's own bundle is run without the hook
 // that failed (or unpatched), so the extension can lose a hook but never the game.
 (function () {
     'use strict';
@@ -178,6 +180,173 @@
             // a missed throw only means one missed sound
         }
     };
+
+    // Replacing a weapon's sound. The game loads each weapon sound from an address like
+    // /0/16723/73/217/31345722114416/sound.mp3 (four numbers that name the resource, then a version number) and decodes
+    // the file with decodeAudioData. The address of each loaded file is remembered by the data object the loader produced
+    // (the same object reaches decodeAudioData), and when the address holds a resource number from the list that
+    // magnum_sound.ts sent, the game decodes the owner's file for that number (each file has its own numbers, so each
+    // distance of a shot can have its own sound), or a silent one, instead. The game still plays the result where it
+    // always played the sound. Until the list and the files arrive (kasp:sound-swap) nothing is touched.
+    const SOUND_FILE = /\/sound\.(?:mp3|wav|ogg)(?:\?|$)/;
+    const RESOURCE_NUMBER = /^\d+(?:\/\d+){1,5}$/;
+    const MAX_SWAP_BYTES = 2 * 1024 * 1024;
+    const MAX_SWAP_FILES = 10;
+    const MAX_SWAP_NUMBERS = 50;
+    const SILENCE_RATE = 8000;
+    const SILENCE_SECONDS = 0.05;
+
+    interface SoundReplacement {
+        readonly data: ArrayBuffer;
+        readonly numbers: readonly string[];
+    }
+
+    interface SoundSwap {
+        readonly replacements: readonly SoundReplacement[];
+        readonly silence: readonly string[];
+    }
+
+    let soundSwap: SoundSwap | null = null;
+    let warnedSwap = false;
+
+    function isNumberList(value: unknown): value is string[] {
+        return (
+            Array.isArray(value) &&
+            value.length <= MAX_SWAP_NUMBERS &&
+            value.every((item) => typeof item === 'string' && RESOURCE_NUMBER.test(item))
+        );
+    }
+
+    function readReplacement(value: unknown): SoundReplacement | null {
+        if (!value || typeof value !== 'object') return null;
+        const { data, numbers } = value as Partial<Record<'data' | 'numbers', unknown>>;
+        if (!(data instanceof ArrayBuffer) || data.byteLength === 0 || data.byteLength > MAX_SWAP_BYTES) return null;
+        if (!isNumberList(numbers) || numbers.length === 0) return null;
+        return { data, numbers };
+    }
+
+    // The swap in a message, or null when it is not a valid one: a bad file or number list makes the whole message
+    // invalid, so the game's sounds are never half replaced by a message that was not understood. The game's own scripts
+    // share this window, so every field is checked.
+    function readSwapMessage(data: unknown): SoundSwap | null {
+        if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'kasp:sound-swap') return null;
+        const { replacements, silence } = data as Partial<Record<'replacements' | 'silence', unknown>>;
+        if (!Array.isArray(replacements) || replacements.length > MAX_SWAP_FILES || !isNumberList(silence)) return null;
+        const read = replacements.map(readReplacement);
+        const valid = read.filter((item): item is SoundReplacement => item !== null);
+        if (valid.length !== read.length || valid.length + silence.length === 0) return null;
+        return { replacements: valid, silence };
+    }
+
+    // A 16-bit mono WAV file with no sound in it, for a layer that must not play.
+    function silentSound(): ArrayBuffer {
+        const bytes = Math.round(SILENCE_RATE * SILENCE_SECONDS) * 2;
+        const buffer = new ArrayBuffer(44 + bytes);
+        const view = new DataView(buffer);
+        const text = (offset: number, value: string): void => {
+            for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
+        };
+        text(0, 'RIFF');
+        view.setUint32(4, 36 + bytes, true);
+        text(8, 'WAVE');
+        text(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, SILENCE_RATE, true);
+        view.setUint32(28, SILENCE_RATE * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        text(36, 'data');
+        view.setUint32(40, bytes, true);
+        return buffer;
+    }
+
+    // What decodeAudioData should be given instead of the game's data for this address, or null to leave it alone.
+    function swappedData(address: string | undefined): ArrayBuffer | null {
+        if (soundSwap === null || address === undefined) return null;
+        // the first file that lists a matching number wins, and each decode gets its own copy
+        for (const replacement of soundSwap.replacements) {
+            if (replacement.numbers.some((number) => address.includes(`/${number}/`))) return replacement.data.slice(0);
+        }
+        if (soundSwap.silence.some((number) => address.includes(`/${number}/`))) return silentSound();
+        return null;
+    }
+
+    function installSoundSwap(): void {
+        const addressOfData = new WeakMap<object, string>();
+
+        window.addEventListener('message', (e: MessageEvent) => {
+            if (e.source !== window) return;
+            const data: unknown = e.data;
+            if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'kasp:sound-swap') return;
+            const next = readSwapMessage(data);
+            if (next !== null) {
+                soundSwap = next;
+            } else if (!warnedSwap) {
+                warnedSwap = true;
+                warn(`${LOG} a sound swap message was not understood, the game's own sounds stay`);
+            }
+        });
+
+        if (typeof XMLHttpRequest !== 'undefined') {
+            const originalOpen = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, ...args: unknown[]): unknown {
+                try {
+                    const address = String(args[1]);
+                    if (SOUND_FILE.test(address)) {
+                        this.addEventListener('load', () => {
+                            try {
+                                const response: unknown = this.response;
+                                if (response instanceof ArrayBuffer) addressOfData.set(response, address);
+                            } catch {
+                                // the swap must never break the game's loading
+                            }
+                        });
+                    }
+                } catch {
+                    // the swap must never break the game's loading
+                }
+                return Reflect.apply(originalOpen, this, args);
+            } as unknown as typeof XMLHttpRequest.prototype.open;
+        }
+
+        if (typeof Response !== 'undefined') {
+            const originalArrayBuffer = Response.prototype.arrayBuffer;
+            Response.prototype.arrayBuffer = function (this: Response): Promise<ArrayBuffer> {
+                const address = this.url;
+                const result = originalArrayBuffer.call(this);
+                if (SOUND_FILE.test(address)) {
+                    result.then((data) => addressOfData.set(data, address), () => undefined);
+                }
+                return result;
+            };
+        }
+
+        if (typeof BaseAudioContext !== 'undefined') {
+            const originalDecode = BaseAudioContext.prototype.decodeAudioData;
+            BaseAudioContext.prototype.decodeAudioData = function (
+                this: BaseAudioContext,
+                data: ArrayBuffer,
+                success?: DecodeSuccessCallback | null,
+                failure?: DecodeErrorCallback | null,
+            ): Promise<AudioBuffer> {
+                let source = data;
+                try {
+                    source = swappedData(addressOfData.get(data)) ?? data;
+                } catch {
+                    source = data;
+                }
+                return originalDecode.call(this, source, success, failure);
+            };
+        }
+    }
+
+    try {
+        installSoundSwap();
+    } catch (e: unknown) {
+        warn(`${LOG} the sound swap could not start, the game's own sounds stay:`, e instanceof Error ? e.message : e);
+    }
 
     interface Hook {
         readonly className: string;

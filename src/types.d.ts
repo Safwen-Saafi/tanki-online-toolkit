@@ -66,6 +66,33 @@ interface KaspGrenadeThrowMessage {
     readonly type: "kasp:grenade-throw";
 }
 
+// One of the owner's sound files and the resource numbers of the game's sound files (four numbers joined with "/", for
+// example "0/16723/73/223") that decode it instead of their own data.
+interface KaspSoundReplacement {
+    readonly data: ArrayBuffer;
+    readonly numbers: string[];
+}
+
+// Posted once by src/modules/magnum_sound.ts to src/injector.ts: the files to decode in place of game sound files, and
+// the resource numbers to decode as silence. Until it arrives the injector touches no sound.
+interface KaspSoundSwapMessage {
+    readonly type: "kasp:sound-swap";
+    readonly replacements: KaspSoundReplacement[];
+    readonly silence: string[];
+}
+
+// extension/data/magnum.json: for each file in extension/sounds/, the resource numbers it replaces, and the numbers to
+// silence.
+interface MagnumSoundGroup {
+    readonly file: string;
+    readonly numbers: readonly string[];
+}
+
+interface MagnumSoundConfig {
+    readonly replace: readonly MagnumSoundGroup[];
+    readonly silence: readonly string[];
+}
+
 // extension/data/killsounds.json: for each kind of sound, a count (as text) -> a file in extension/sounds/, a list of
 // files (they take turns), or { files, chance } where chance (0 to 1) is how often anything plays; null for none.
 type KillSoundEntry =
