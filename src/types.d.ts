@@ -61,6 +61,11 @@ interface KaspBattleTimeMessage {
     };
 }
 
+// Posted by src/injector.ts each time the player's own grenade starts its reload, which is when the player threw it.
+interface KaspGrenadeThrowMessage {
+    readonly type: "kasp:grenade-throw";
+}
+
 // extension/data/killsounds.json: for each kind of sound, a count (as text) -> a file in extension/sounds/, a list of
 // files (they take turns), or { files, chance } where chance (0 to 1) is how often anything plays; null for none.
 type KillSoundEntry =
@@ -75,6 +80,8 @@ interface KillSoundsConfig {
     readonly multi: Readonly<Record<string, KillSoundEntry>>;
     readonly streak: Readonly<Record<string, KillSoundEntry>>;
     readonly death: Readonly<Record<string, KillSoundEntry>>;
+    // A kill with a grenade, under the count "1". It beats every other kill sound.
+    readonly grenade: Readonly<Record<string, KillSoundEntry>>;
 }
 
 // Published by src/modules/language.ts. get() is EN until the language is found; whenKnown resolves once with the
@@ -95,6 +102,7 @@ interface Window {
     __kaspSendAction?: (className: string, obj: unknown) => void;
     __kaspSendKill?: (className: string, obj: unknown) => void;
     __kaspSendBattleTime?: (className: string, obj: unknown) => void;
+    __kaspSendGrenadeThrow?: () => void;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
 }

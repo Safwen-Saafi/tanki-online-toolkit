@@ -1,10 +1,12 @@
 // MAIN-world content script, the only one allowed to touch the page's own JavaScript. It holds back the game's main
-// bundle, fetches it, adds one call to the constructor of two of the game's classes, and runs the patched copy.
-// TankUserActionLog's call (window.__kaspSendAction) posts the strings of each equipment action, which is how
-// change_counter.ts learns who changed equipment. TankDestroyActionLog's call (window.__kaspSendKill) posts each kill
-// of the game's kill feed, which is how kill_sounds.ts learns who killed whom. Each hook is found and skipped on its
-// own. When anything goes wrong the game's own bundle is run without the hook that failed (or unpatched), so the
-// extension can lose a hook but never the game.
+// bundle, fetches it, adds one call to the constructor of three of the game's classes and one to a handler, and runs
+// the patched copy. TankUserActionLog's call (window.__kaspSendAction) posts the strings of each equipment action,
+// which is how change_counter.ts learns who changed equipment. TankDestroyActionLog's call (window.__kaspSendKill)
+// posts each kill of the game's kill feed, which is how kill_sounds.ts learns who killed whom. BattleStatistics's call
+// (window.__kaspSendBattleTime) posts the battle's time, which is how battle_music.ts knows the end is near. The
+// handler's call (window.__kaspSendGrenadeThrow) posts each throw of the player's own grenade, for grenade_sounds.ts.
+// Each hook is found and skipped on its own. When anything goes wrong the game's own bundle is run without the hook
+// that failed (or unpatched), so the extension can lose a hook but never the game.
 (function () {
     'use strict';
 
@@ -167,6 +169,16 @@
         }
     };
 
+    // Called from inside the game's code, so it must never throw into it.
+    window.__kaspSendGrenadeThrow = function (): void {
+        try {
+            const message: KaspGrenadeThrowMessage = { type: 'kasp:grenade-throw' };
+            window.postMessage(message, window.location.origin);
+        } catch {
+            // a missed throw only means one missed sound
+        }
+    };
+
     interface Hook {
         readonly className: string;
         // The window function the game's constructor calls, and the name the log uses for it.
@@ -199,6 +211,35 @@
         return patched;
     }
 
+    // The game keeps a cooldown for each of the player's own supplies, and one handler of that system runs when the
+    // player's grenade starts its reload (the reload event carries the full reload time, above zero only after a throw;
+    // dying or joining sends none, and other players' tanks have no such handler). The handler has no readable name, but
+    // it sits just before the readable text of the data class ResetCooldownHudMessage, so the last handler of this
+    // shape inside the 4000 characters before that text is the one:
+    //   return Ex(n.j15g_1,Cx(0))>0&&ext(t,tR(),n.j15g_1),Lq
+    // and the call in front of its last part becomes (window.__kaspSendGrenadeThrow(),ext(t,tR(),n.j15g_1)).
+    const COOLDOWN_ANCHOR = 'return"ResetCooldownHudMessage(supplyType=';
+    const COOLDOWN_RANGE = 4000;
+    const RELOAD_HANDLER = /return [\w$]+\(([\w$]+)\.([\w$]+),[\w$]+\(0\)\)>0&&([\w$]+\([\w$]+,[\w$]+\(\),\1\.\2\))/g;
+
+    function patchGrenadeThrow(code: string): string | null {
+        const anchor = code.indexOf(COOLDOWN_ANCHOR);
+        if (anchor < 0) {
+            warn(`${LOG} could not find the supply cooldown in this bundle, grenade-sounds hook skipped`);
+            return null;
+        }
+        const start = Math.max(0, anchor - COOLDOWN_RANGE);
+        const matches = [...code.slice(start, anchor).matchAll(RELOAD_HANDLER)];
+        const last = matches[matches.length - 1];
+        if (last === undefined) {
+            warn(`${LOG} could not find the grenade reload handler in this bundle, grenade-sounds hook skipped`);
+            return null;
+        }
+        const [whole, , , call] = last;
+        const callAt = start + last.index + whole.length - call.length;
+        return `${code.slice(0, callAt)}(window.__kaspSendGrenadeThrow(),${call})${code.slice(callAt + call.length)}`;
+    }
+
     // The bundle with every hook that could be added, and the labels of those hooks.
     function patchBundle(code: string): { readonly code: string; readonly hooked: string[] } {
         let result = code;
@@ -208,6 +249,11 @@
             if (patched === null) continue;
             result = patched;
             hooked.push(hook.label);
+        }
+        const thrown = patchGrenadeThrow(result);
+        if (thrown !== null) {
+            result = thrown;
+            hooked.push('grenade-sounds');
         }
         return { code: result, hooked };
     }
