@@ -62,15 +62,14 @@ interface KaspBattleTimeMessage {
 }
 
 // Posted by src/injector.ts each time the player's own grenade starts its reload, which is when the player threw it.
-// Posted by src/injector.ts when the game says which turret (category WEAPON) or hull (HULL) is mounted: at load, and at
-// every change in the garage. name is the game's own text for the item (in the game's language), id its number.
+// Posted by src/injector.ts when the game says which turret is mounted: at load, and at every change in the garage.
+// name is the game's own text for the item (in the game's language), id its number.
 interface KaspMountedMessage {
     readonly type: "kasp:mounted";
-    readonly category: "WEAPON" | "HULL";
     // the game's text for the item in the garage; empty when the item comes from the battle, which gives only ids
     readonly name: string;
     readonly id: string;
-    // the id of the turret or hull before its upgrades, from the battle
+    // the id of the turret before its upgrades, from the battle
     readonly baseId?: string;
 }
 
@@ -93,7 +92,7 @@ interface KaspTurretMessage {
     readonly turret: string;
 }
 
-// Posted by src/modules/weapon_sounds.ts once it is listening: src/injector.ts then says again the last kasp:mounted of each category.
+// Posted by src/modules/weapon_sounds.ts once it is listening: src/injector.ts then says again the last kasp:mounted.
 interface KaspMountedRequestMessage {
     readonly type: "kasp:mounted-request";
 }
@@ -111,16 +110,14 @@ interface KaspSoundReplacement {
     readonly numbers: string[];
 }
 
-// Posted once by src/modules/weapon_sounds.ts to src/injector.ts: the files to decode in place of game sound files, and
-// the resource numbers to decode as silence. Until it arrives the injector touches no sound.
+// Posted once by src/modules/weapon_sounds.ts to src/injector.ts: the files to decode in place of game sound files. Until
+// it arrives the injector touches no sound.
 interface KaspSoundSwapMessage {
     readonly type: "kasp:sound-swap";
     readonly replacements: KaspSoundReplacement[];
-    readonly silence: string[];
 }
 
-// extension/data/weapon_sounds.json: for each file in extension/sounds/, the resource numbers it replaces, and the numbers to
-// silence. A group with a turret (an item name from skins.json, such as "gauss") is used only while that turret is the
+// extension/data/weapon_sounds.json: for each file in extension/sounds/, the resource numbers it replaces. A group with a turret (an item name from skins.json, such as "gauss") is used only while that turret is the
 // mounted one, for sound files that several turrets share (the injector rewrites the game's decoded sound for them).
 interface WeaponSoundGroup {
     readonly file: string;
@@ -130,7 +127,6 @@ interface WeaponSoundGroup {
 
 interface WeaponSoundConfig {
     readonly replace: readonly WeaponSoundGroup[];
-    readonly silence: readonly string[];
     // for each turret (a plain item name) the ids the game gives it in a battle (the ones the garage's item carries)
     readonly turrets?: Readonly<Record<string, readonly string[]>>;
 }

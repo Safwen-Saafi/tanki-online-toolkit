@@ -5,7 +5,7 @@
 // the game's kill feed, which is how kill_sounds.ts learns who killed whom. BattleStatistics's call
 // (window.__kaspSendBattleTime) posts the battle's time, which is how battle_music.ts knows the end is near. The
 // handler's call (window.__kaspSendGrenadeThrow) posts each throw of the player's own grenade, for grenade_sounds.ts.
-// Three more say which turret and hull the player has, for weapon_sounds.ts, which answers with the turret:
+// Three more say which turret the player has, for weapon_sounds.ts, which answers with the turret:
 // GarageItem's (window.__kaspSendGarageItem, from the garage), SetUserId's (window.__kaspSendUserId, the player's own id)
 // and SetTankInfo's (window.__kaspSendTankInfo, the battle's list of tanks, of which the player's own is used).
 // A last, separate part wraps the page's own XMLHttpRequest, Response and decodeAudioData so that the game decodes the
@@ -188,42 +188,38 @@
     };
 
     // The game builds a GarageItem for each item of the garage (a turret, a hull, a paint) when the garage is first opened
-    // (not at load) and again whenever one changes, and each carries its name, its category and whether it is mounted. A mounted turret or hull is announced once
-    // (and again only when it is another item), so a receiver learns the player's turret and hull at load and at every
-    // change in the garage. The property names are the game's own, found by the patch (patchGarageItem) and passed in.
-    const mountedItems = new Map<string, string>();
-    // The last announcement of each category, said again whenever a receiver asks (kasp:mounted-request), because the game
-    // builds its items at load and may do it before the receiver is listening.
-    const announcedItems = new Map<string, KaspMountedMessage>();
+    // (not at load) and again whenever one changes, and each carries its name, its category and whether it is mounted. A mounted
+    // turret is announced once (and again only when it is another turret), so a receiver learns the player's turret at load
+    // and at every change in the garage. The property names are the game's own, found by the patch (patchGarageItem) and passed in.
+    let mountedTurretId = '';
+    // The last announcement, said again whenever a receiver asks (kasp:mounted-request), because the game builds its items at
+    // load and may do it before the receiver is listening.
+    let announcedTurret: KaspMountedMessage | null = null;
 
     window.addEventListener('message', (e: MessageEvent) => {
         if (e.source !== window) return;
         const data: unknown = e.data;
         if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'kasp:mounted-request') return;
-        for (const message of announcedItems.values()) window.postMessage(message, window.location.origin);
+        if (announcedTurret !== null) window.postMessage(announcedTurret, window.location.origin);
     });
 
     // Called from inside the game's code, so it must never throw into it.
     window.__kaspSendGarageItem = function (obj: unknown, idProp: string, nameProp: string, categoryProp: string, mountedProp: string): void {
         try {
             const item = obj as Record<string, unknown>;
-            if (item[mountedProp] !== true) return;
-            // the game calls a hull ARMOR
-            const kind = String(item[categoryProp]);
-            const category = kind === 'WEAPON' ? 'WEAPON' : kind === 'ARMOR' ? 'HULL' : null;
-            if (category === null) return;
-            announceMounted(category, String(item[nameProp]), String(item[idProp]));
+            if (item[mountedProp] !== true || String(item[categoryProp]) !== 'WEAPON') return;
+            announceMounted(String(item[nameProp]), String(item[idProp]));
         } catch {
             // a missed announcement only means the lock sounds stay as they were
         }
     };
 
-    // A mounted item is announced once, and again only when it is another item.
-    function announceMounted(category: 'WEAPON' | 'HULL', name: string, id: string, baseId?: string): void {
-        if (mountedItems.get(category) === id) return;
-        mountedItems.set(category, id);
-        const message: KaspMountedMessage = baseId === undefined ? { type: 'kasp:mounted', category, name, id } : { type: 'kasp:mounted', category, name, id, baseId };
-        announcedItems.set(category, message);
+    // A mounted turret is announced once, and again only when it is another turret.
+    function announceMounted(name: string, id: string, baseId?: string): void {
+        if (mountedTurretId === id) return;
+        mountedTurretId = id;
+        const message: KaspMountedMessage = baseId === undefined ? { type: 'kasp:mounted', name, id } : { type: 'kasp:mounted', name, id, baseId };
+        announcedTurret = message;
         window.postMessage(message, window.location.origin);
     }
 
@@ -245,8 +241,8 @@
     // SetTankInfo(user=3074457415728181208, info=TankInfoCC [hullBaseId = 921009707333 hullDeviceId = 1931010007813
     // hullId = 921009707339 weaponBaseId = 920009631151 weaponDeviceId = 1931009801096 weaponId = 920009631157 ]).
     // The text is read, not the object, so a renamed minified property cannot swap the fields. Only the player's own tank is used,
-    // and its ids are announced: the same ids the garage's items carry for the same turret and hull.
-    const TANK_INFO = /^SetTankInfo\(user=(-?\d+), info=TankInfoCC \[hullBaseId = (\d+) hullDeviceId = \S+ hullId = (\d+) weaponBaseId = (\d+) weaponDeviceId = \S+ weaponId = (\d+) \]\)$/;
+    // and its turret ids are announced: the same ids the garage's item carries for the same turret.
+    const TANK_INFO = /^SetTankInfo\(user=(-?\d+), info=TankInfoCC \[hullBaseId = \d+ hullDeviceId = \S+ hullId = \d+ weaponBaseId = (\d+) weaponDeviceId = \S+ weaponId = (\d+) \]\)$/;
     let warnedTankInfo = false;
 
     // Called from inside the game's code, so it must never throw into it.
@@ -262,8 +258,7 @@
                 return;
             }
             if (ownUserId === '' || match[1] !== ownUserId) return;
-            announceMounted('WEAPON', '', match[5], match[4]);
-            announceMounted('HULL', '', match[3], match[2]);
+            announceMounted('', match[3], match[2]);
         } catch {
             // a missed announcement only means the lock sounds stay as they were
         }
@@ -274,15 +269,13 @@
     // the file with decodeAudioData. The address of each loaded file is remembered by the data object the loader produced
     // (the same object reaches decodeAudioData), and when the address holds a resource number from the list that
     // weapon_sounds.ts sent, the game decodes the owner's file for that number (each file has its own numbers, so each
-    // distance of a shot can have its own sound), or a silent one, instead. The game still plays the result where it
+    // distance of a shot can have its own sound), instead. The game still plays the result where it
     // always played the sound. Until the list and the files arrive (kasp:sound-swap) nothing is touched.
     const SOUND_FILE = /\/sound\.(?:mp3|wav|ogg)(?:\?|$)/;
     const RESOURCE_NUMBER = /^\d+(?:\/\d+){1,5}$/;
     const MAX_SWAP_BYTES = 2 * 1024 * 1024;
     const MAX_SWAP_FILES = 10;
     const MAX_SWAP_NUMBERS = 50;
-    const SILENCE_RATE = 8000;
-    const SILENCE_SECONDS = 0.05;
 
     interface SoundReplacement {
         readonly data: ArrayBuffer;
@@ -291,7 +284,6 @@
 
     interface SoundSwap {
         readonly replacements: readonly SoundReplacement[];
-        readonly silence: readonly string[];
     }
 
     let soundSwap: SoundSwap | null = null;
@@ -318,36 +310,12 @@
     // share this window, so every field is checked.
     function readSwapMessage(data: unknown): SoundSwap | null {
         if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'kasp:sound-swap') return null;
-        const { replacements, silence } = data as Partial<Record<'replacements' | 'silence', unknown>>;
-        if (!Array.isArray(replacements) || replacements.length > MAX_SWAP_FILES || !isNumberList(silence)) return null;
+        const { replacements } = data as { replacements?: unknown };
+        if (!Array.isArray(replacements) || replacements.length > MAX_SWAP_FILES) return null;
         const read = replacements.map(readReplacement);
         const valid = read.filter((item): item is SoundReplacement => item !== null);
-        if (valid.length !== read.length || valid.length + silence.length === 0) return null;
-        return { replacements: valid, silence };
-    }
-
-    // A 16-bit mono WAV file with no sound in it, for a layer that must not play.
-    function silentSound(): ArrayBuffer {
-        const bytes = Math.round(SILENCE_RATE * SILENCE_SECONDS) * 2;
-        const buffer = new ArrayBuffer(44 + bytes);
-        const view = new DataView(buffer);
-        const text = (offset: number, value: string): void => {
-            for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
-        };
-        text(0, 'RIFF');
-        view.setUint32(4, 36 + bytes, true);
-        text(8, 'WAVE');
-        text(12, 'fmt ');
-        view.setUint32(16, 16, true);
-        view.setUint16(20, 1, true);
-        view.setUint16(22, 1, true);
-        view.setUint32(24, SILENCE_RATE, true);
-        view.setUint32(28, SILENCE_RATE * 2, true);
-        view.setUint16(32, 2, true);
-        view.setUint16(34, 16, true);
-        text(36, 'data');
-        view.setUint32(40, bytes, true);
-        return buffer;
+        if (valid.length !== read.length || valid.length === 0) return null;
+        return { replacements: valid };
     }
 
     // What decodeAudioData should be given instead of the game's data for this address, or null to leave it alone.
@@ -357,7 +325,6 @@
         for (const replacement of soundSwap.replacements) {
             if (replacement.numbers.some((number) => address.includes(`/${number}/`))) return replacement.data.slice(0);
         }
-        if (soundSwap.silence.some((number) => address.includes(`/${number}/`))) return silentSound();
         return null;
     }
 

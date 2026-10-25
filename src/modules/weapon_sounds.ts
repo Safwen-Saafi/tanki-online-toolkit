@@ -2,7 +2,7 @@
 // makes the game decode those files instead of the game's own sound files (see the sound swap there), so the game still
 // plays them where it always played the sound. The game has a sound file for each distance of a shot, so each of the
 // owner's files lists the game's resource numbers it stands for. extension/data/weapon_sounds.json holds the groups (a file in
-// extension/sounds/ and its numbers) and the numbers to silence, so a game update that renumbers a sound is fixed by
+// extension/sounds/ and its numbers), so a game update that renumbers a sound is fixed by
 // editing that file. A group may name a turret ("turret": "gauss"): it is for a sound file that several turrets share (the
 // lock-on sounds), so it is not swapped as the game decodes it, which is before the game says which turret the player has.
 // It is sent once as it is (kasp:late-sounds), and the injector writes it into the game's decoded sound while that turret is the
@@ -81,7 +81,7 @@
             console.warn(LOG, `${CONFIG_PATH} holds ${config.replace.length} groups, only the first ${MAX_FILES} load; ignored: ${ignored.join(', ')}`);
         }
         const replace = config.replace.slice(0, MAX_FILES).map(parseGroup).filter((group): group is WeaponSoundGroup => group !== null);
-        return replace.length === 0 ? null : { replace, silence: parseNumbers(config.silence), turrets: parseTurrets(config.turrets) };
+        return replace.length === 0 ? null : { replace, turrets: parseTurrets(config.turrets) };
     }
 
     async function loadFile(file: string): Promise<ArrayBuffer> {
@@ -116,7 +116,7 @@
         return Object.prototype.hasOwnProperty.call(names, word) ? names[word] : word;
     }
 
-    // The turret fields of a kasp:mounted message, or null when it is another message or about the hull.
+    // The turret fields of a kasp:mounted message, or null when it is another message.
     interface MountedTurret {
         readonly name: string;
         readonly id: string;
@@ -125,8 +125,8 @@
 
     function readMountedTurret(data: unknown): MountedTurret | null {
         if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'kasp:mounted') return null;
-        const { category, name, id, baseId } = data as Partial<Record<'category' | 'name' | 'id' | 'baseId', unknown>>;
-        if (category !== 'WEAPON' || typeof name !== 'string' || name.length > MAX_ITEM_NAME) return null;
+        const { name, id, baseId } = data as Partial<Record<'name' | 'id' | 'baseId', unknown>>;
+        if (typeof name !== 'string' || name.length > MAX_ITEM_NAME) return null;
         if (typeof id !== 'string' || !ITEM_ID.test(id)) return null;
         if (baseId !== undefined && (typeof baseId !== 'string' || !ITEM_ID.test(baseId))) return null;
         return { name, id, baseId: baseId ?? '' };
@@ -200,11 +200,10 @@
             const swap: KaspSoundSwapMessage = {
                 type: 'kasp:sound-swap',
                 replacements: plain.map(({ group, data }) => ({ data, numbers: [...group.numbers] })),
-                silence: [...parsed.silence],
             };
             window.postMessage(swap, window.location.origin);
             const numbers = plain.reduce((sum, { group }) => sum + group.numbers.length, 0);
-            console.log(LOG, `ready: ${plain.length} sound files stand for ${numbers} game sound files, ${parsed.silence.length} silenced`);
+            console.log(LOG, `ready: ${plain.length} sound files stand for ${numbers} game sound files`);
         }
         if (late.length > 0) {
             const lateMessage: KaspLateSoundsMessage = {

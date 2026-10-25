@@ -14,7 +14,6 @@
     { "file": "gauss-lost.mp3", "numbers": ["0/16723/40/376"], "turret": "gauss" },
     { "file": "gauss-complete.mp3", "numbers": ["0/16723/40/377"], "turret": "gauss" }
   ],
-  "silence": [],
   "turrets": {
     "gauss": ["920009631157", "920009631151"]
   }
