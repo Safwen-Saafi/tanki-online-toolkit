@@ -40,33 +40,71 @@
         }
     }
 
+    // What the data file holds that was left out. They are printed in one warning when the file is read, so a typo in the
+    // file is never lost without a word.
+    const problems: string[] = [];
+
     // The resource numbers in a list; a value that is not a number of the right form is left out, so a mistake in the
     // file costs one sound, not the rest.
-    function parseNumbers(value: unknown): string[] {
-        if (!Array.isArray(value)) return [];
-        return value.filter((item): item is string => typeof item === 'string' && RESOURCE_NUMBER.test(item));
+    function parseNumbers(value: unknown, where: string): string[] {
+        if (!Array.isArray(value)) {
+            problems.push(`${where}: "numbers" is not a list`);
+            return [];
+        }
+        return value.filter((item): item is string => {
+            const valid = typeof item === 'string' && RESOURCE_NUMBER.test(item);
+            if (!valid) problems.push(`${where}: ${JSON.stringify(item)} is not a resource number`);
+            return valid;
+        });
     }
 
     // One group of the list: a safe file name and at least one usable number, or null. A group with a turret that is not
     // a plain name is dropped, so a typo never turns a one-turret sound into a sound for every turret.
-    function parseGroup(value: unknown): WeaponSoundGroup | null {
-        if (!value || typeof value !== 'object') return null;
+    function parseGroup(value: unknown, index: number): WeaponSoundGroup | null {
+        const where = `group ${index + 1}`;
+        if (!value || typeof value !== 'object') {
+            problems.push(`${where}: not an object, left out`);
+            return null;
+        }
         const group = value as Partial<Record<keyof WeaponSoundGroup, unknown>>;
-        if (typeof group.file !== 'string' || !SAFE_FILE_NAME.test(group.file)) return null;
-        const numbers = parseNumbers(group.numbers);
-        if (numbers.length === 0) return null;
+        if (typeof group.file !== 'string' || !SAFE_FILE_NAME.test(group.file)) {
+            problems.push(`${where}: ${JSON.stringify(group.file)} is not a plain sound file name, left out`);
+            return null;
+        }
+        const label = `${where} (${group.file})`;
+        const numbers = parseNumbers(group.numbers, label);
+        if (numbers.length === 0) {
+            problems.push(`${label}: no usable number, left out`);
+            return null;
+        }
         if (group.turret === undefined) return { file: group.file, numbers };
-        if (typeof group.turret !== 'string' || !TURRET_NAME.test(group.turret)) return null;
+        if (typeof group.turret !== 'string' || !TURRET_NAME.test(group.turret)) {
+            problems.push(`${label}: turret ${JSON.stringify(group.turret)} is not a plain name, left out`);
+            return null;
+        }
         return { file: group.file, numbers, turret: group.turret };
     }
 
     // The ids the game gives each turret in a battle, by the turret's plain name.
     function parseTurrets(value: unknown): Record<string, string[]> {
         const turrets: Record<string, string[]> = {};
-        if (!value || typeof value !== 'object' || Array.isArray(value)) return turrets;
+        if (value === undefined) return turrets;
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            problems.push('"turrets" is not an object, left out');
+            return turrets;
+        }
         for (const [name, ids] of Object.entries(value as Record<string, unknown>).slice(0, MAX_TURRETS)) {
-            if (!TURRET_NAME.test(name) || !Array.isArray(ids)) continue;
-            turrets[name] = ids.filter((id): id is string => typeof id === 'string' && ITEM_ID.test(id)).slice(0, MAX_IDS);
+            if (!TURRET_NAME.test(name) || !Array.isArray(ids)) {
+                problems.push(`turrets: ${JSON.stringify(name)} is not a plain name with a list of ids, left out`);
+                continue;
+            }
+            turrets[name] = ids
+                .filter((id): id is string => {
+                    const valid = typeof id === 'string' && ITEM_ID.test(id);
+                    if (!valid) problems.push(`turrets.${name}: ${JSON.stringify(id)} is not an item id`);
+                    return valid;
+                })
+                .slice(0, MAX_IDS);
         }
         return turrets;
     }
@@ -78,10 +116,12 @@
         if (!Array.isArray(config.replace)) return null;
         if (config.replace.length > MAX_FILES) {
             const ignored = config.replace.slice(MAX_FILES).map((value) => (value as { file?: unknown } | null)?.file ?? '?');
-            console.warn(LOG, `${CONFIG_PATH} holds ${config.replace.length} groups, only the first ${MAX_FILES} load; ignored: ${ignored.join(', ')}`);
+            problems.push(`${config.replace.length} groups, only the first ${MAX_FILES} load; ignored: ${ignored.join(', ')}`);
         }
         const replace = config.replace.slice(0, MAX_FILES).map(parseGroup).filter((group): group is WeaponSoundGroup => group !== null);
-        return replace.length === 0 ? null : { replace, turrets: parseTurrets(config.turrets) };
+        const turrets = parseTurrets(config.turrets);
+        if (problems.length > 0) console.warn(LOG, `${CONFIG_PATH}: ${problems.join('; ')}`);
+        return replace.length === 0 ? null : { replace, turrets };
     }
 
     async function loadFile(file: string): Promise<ArrayBuffer> {
