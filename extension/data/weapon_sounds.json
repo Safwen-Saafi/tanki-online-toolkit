@@ -1,0 +1,21 @@
+{
+  "replace": [
+    {
+      "file": "magnum-shot.mp3",
+      "numbers": ["0/16723/73/222", "0/16723/73/223", "0/16723/73/224", "0/16723/73/225", "0/16723/73/226"]
+    },
+    { "file": "striker-shot-1.mp3", "numbers": ["0/16723/40/370"] },
+    { "file": "striker-shot-2.mp3", "numbers": ["0/16723/40/371"] },
+    { "file": "gauss-power-shot.mp3", "numbers": ["552/152215/55/70", "552/154730/46/213", "552/154730/16/172"] },
+    { "file": "gauss-power-shot-layer.mp3", "numbers": ["552/152214/315/221"] },
+    { "file": "gauss-shot.mp3", "numbers": ["552/152214/210/70"] },
+    { "file": "gauss-secondary.mp3", "numbers": ["552/152213/325/350"] },
+    { "file": "gauss-lock.mp3", "numbers": ["0/16723/40/375"], "turret": "gauss" },
+    { "file": "gauss-lost.mp3", "numbers": ["0/16723/40/376"], "turret": "gauss" },
+    { "file": "gauss-complete.mp3", "numbers": ["0/16723/40/377"], "turret": "gauss" }
+  ],
+  "silence": [],
+  "turrets": {
+    "gauss": ["920009631157", "920009631151"]
+  }
+}
