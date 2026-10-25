@@ -100,6 +100,8 @@ interface KaspMountedRequestMessage {
 
 interface KaspGrenadeThrowMessage {
     readonly type: "kasp:grenade-throw";
+    // The reload time the game's event carries, in the game's time unit (milliseconds), 0 when it could not be read.
+    readonly reloadMs: number;
 }
 
 // One of the owner's sound files and the resource numbers of the game's sound files (four numbers joined with "/", for
@@ -175,7 +177,7 @@ interface Window {
     __kaspSendAction?: (className: string, obj: unknown) => void;
     __kaspSendKill?: (className: string, obj: unknown) => void;
     __kaspSendBattleTime?: (className: string, obj: unknown) => void;
-    __kaspSendGrenadeThrow?: () => void;
+    __kaspSendGrenadeThrow?: (reload?: unknown) => void;
     __kaspSendTankInfo?: (className: string, obj: unknown) => void;
     __kaspSendUserId?: (obj: unknown, idProp: string) => void;
     __kaspSendGarageItem?: (obj: unknown, idProp: string, nameProp: string, categoryProp: string, mountedProp: string) => void;

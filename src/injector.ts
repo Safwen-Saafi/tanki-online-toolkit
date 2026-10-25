@@ -175,10 +175,12 @@
         }
     };
 
-    // Called from inside the game's code, so it must never throw into it.
-    window.__kaspSendGrenadeThrow = function (): void {
+    // Called from inside the game's code, so it must never throw into it. The argument is the reload time the event
+    // carries (a Kotlin Long, so it is read through its text), 0 when it cannot be read.
+    window.__kaspSendGrenadeThrow = function (reload?: unknown): void {
         try {
-            const message: KaspGrenadeThrowMessage = { type: 'kasp:grenade-throw' };
+            const reloadMs = Number(String(reload));
+            const message: KaspGrenadeThrowMessage = { type: 'kasp:grenade-throw', reloadMs: Number.isFinite(reloadMs) && reloadMs > 0 ? reloadMs : 0 };
             window.postMessage(message, window.location.origin);
         } catch {
             // a missed throw only means one missed sound
@@ -605,11 +607,13 @@
 
     // The game keeps a cooldown for each of the player's own supplies, and one handler of that system runs when the
     // player's grenade starts its reload (the reload event carries the full reload time, above zero only after a throw;
-    // dying or joining sends none, and other players' tanks have no such handler). The handler has no readable name, but
-    // it sits just before the readable text of the data class ResetCooldownHudMessage, so the last handler of this
+    // dying or joining sends none, and other players' tanks have no such handler). The event also comes again, with the
+    // time that is left, when the game adds the grenade to the battle again during a reload, so the receiver must tell
+    // a throw from a repeat (grenade_sounds.ts does, by the time the event carries). The handler has no readable name,
+    // but it sits just before the readable text of the data class ResetCooldownHudMessage, so the last handler of this
     // shape inside the 4000 characters before that text is the one:
     //   return Ex(n.j15g_1,Cx(0))>0&&ext(t,tR(),n.j15g_1),Lq
-    // and the call in front of its last part becomes (window.__kaspSendGrenadeThrow(),ext(t,tR(),n.j15g_1)).
+    // and the call in front of its last part becomes (window.__kaspSendGrenadeThrow(n.j15g_1),ext(t,tR(),n.j15g_1)).
     const COOLDOWN_ANCHOR = 'return"ResetCooldownHudMessage(supplyType=';
     const COOLDOWN_RANGE = 4000;
     const RELOAD_HANDLER = /return [\w$]+\(([\w$]+)\.([\w$]+),[\w$]+\(0\)\)>0&&([\w$]+\([\w$]+,[\w$]+\(\),\1\.\2\))/g;
@@ -627,9 +631,9 @@
             warn(`${LOG} could not find the grenade reload handler in this bundle, grenade-sounds hook skipped`);
             return null;
         }
-        const [whole, , , call] = last;
+        const [whole, object, field, call] = last;
         const callAt = start + last.index + whole.length - call.length;
-        return `${code.slice(0, callAt)}(window.__kaspSendGrenadeThrow(),${call})${code.slice(callAt + call.length)}`;
+        return `${code.slice(0, callAt)}(window.__kaspSendGrenadeThrow(${object}.${field}),${call})${code.slice(callAt + call.length)}`;
     }
 
     // The game's GarageItem has about fifty fields and its constructor assigns them in one flat list, which is too long for
