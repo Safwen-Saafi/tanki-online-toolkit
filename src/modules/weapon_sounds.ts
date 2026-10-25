@@ -25,6 +25,7 @@
     const TURRET_NAME = /^[a-z][a-z0-9-]*$/;
     const ITEM_ID = /^\d{1,20}$/;
     const MAX_BYTES = 2 * 1024 * 1024;
+    // The most groups read from the list. src/injector.ts has its own MAX_SWAP_FILES, so change both together.
     const MAX_FILES = 10;
     const MAX_ITEM_NAME = 60;
     const MAX_TURRETS = 40;
@@ -75,6 +76,10 @@
         if (!value || typeof value !== 'object') return null;
         const config = value as Partial<Record<keyof WeaponSoundConfig, unknown>>;
         if (!Array.isArray(config.replace)) return null;
+        if (config.replace.length > MAX_FILES) {
+            const ignored = config.replace.slice(MAX_FILES).map((value) => (value as { file?: unknown } | null)?.file ?? '?');
+            console.warn(LOG, `${CONFIG_PATH} holds ${config.replace.length} groups, only the first ${MAX_FILES} load; ignored: ${ignored.join(', ')}`);
+        }
         const replace = config.replace.slice(0, MAX_FILES).map(parseGroup).filter((group): group is WeaponSoundGroup => group !== null);
         return replace.length === 0 ? null : { replace, silence: parseNumbers(config.silence), turrets: parseTurrets(config.turrets) };
     }
