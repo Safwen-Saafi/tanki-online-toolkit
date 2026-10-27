@@ -25,7 +25,10 @@
         "js/modules/change_counter.js",
         "js/modules/garage_skins.js",
         "js/modules/augments.js",
-        "js/modules/kill_sounds.js"
+        "js/modules/kill_sounds.js",
+        "js/modules/battle_music.js",
+        "js/modules/grenade_sounds.js",
+        "js/modules/weapon_sounds.js"
       ],
       "css": [
         "styles/change_counter.css",
@@ -40,6 +43,7 @@
       "resources": [
         "data/skins.json",
         "data/killsounds.json",
+        "data/weapon_sounds.json",
         "sounds/*",
         "icons/*"
       ],
