@@ -51,9 +51,10 @@
     }
 
     // The game sends its reload event for a throw, with the full reload time, and again with the time that is left
-    // whenever it adds the grenade to the battle again during a reload. A throw is impossible while the grenade reloads
-    // (a respawn resets it, and then the event carries the full time again), so an event that comes in the middle of
-    // the last throw's reload, with about the time that is left of it, is such a repeat and is not a throw.
+    // whenever it adds the grenade to the battle again during a reload (a respawn does: the counter goes on while the
+    // player is dead, and the event comes at the respawn with the time that is left). A throw is impossible while the
+    // grenade reloads, so an event that comes in the middle of the last throw's reload, with about the time that is left
+    // of it, is such a repeat and is not a throw.
     const REPEAT_TOLERANCE_MS = 1500;
     let lastThrowAt = 0;
     let lastReloadMs = 0;
@@ -67,10 +68,7 @@
     function onThrow(reloadMs: unknown): void {
         const now = Date.now();
         const reload = typeof reloadMs === 'number' && Number.isFinite(reloadMs) ? reloadMs : 0;
-        if (isRepeatOfLastReload(reload, now)) {
-            console.log(LOG, `ignored a repeat of the last reload (${reload} ms left, ${now - lastThrowAt} ms after the throw)`);
-            return;
-        }
+        if (isRepeatOfLastReload(reload, now)) return;
         lastThrowAt = now;
         lastReloadMs = reload;
         playThrowSound();

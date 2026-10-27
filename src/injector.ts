@@ -176,11 +176,13 @@
     };
 
     // Called from inside the game's code, so it must never throw into it. The argument is the reload time the event
-    // carries (a Kotlin Long, so it is read through its text), 0 when it cannot be read.
+    // carries, a number of SECONDS (25 at the owner's grenade level, 15.496 for the time left); it is posted in milliseconds,
+    // 0 when it cannot be read.
     window.__kaspSendGrenadeThrow = function (reload?: unknown): void {
         try {
-            const reloadMs = Number(String(reload));
-            const message: KaspGrenadeThrowMessage = { type: 'kasp:grenade-throw', reloadMs: Number.isFinite(reloadMs) && reloadMs > 0 ? reloadMs : 0 };
+            const seconds = Number(String(reload));
+            const reloadMs = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 1000) : 0;
+            const message: KaspGrenadeThrowMessage = { type: 'kasp:grenade-throw', reloadMs };
             window.postMessage(message, window.location.origin);
         } catch {
             // a missed throw only means one missed sound

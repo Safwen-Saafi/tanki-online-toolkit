@@ -99,7 +99,7 @@ interface KaspMountedRequestMessage {
 
 interface KaspGrenadeThrowMessage {
     readonly type: "kasp:grenade-throw";
-    // The reload time the game's event carries, in the game's time unit (milliseconds), 0 when it could not be read.
+    // The reload time the game's event carries, in milliseconds (the game's own number is in seconds), 0 when it could not be read.
     readonly reloadMs: number;
 }
 
