@@ -1,0 +1,12 @@
+/* The cards of the garage tabs (Augments, Skins, Shot color) are made narrower, so more of them fit in a row. The game sizes them by
+   itself (about 240px wide, six to a row on a 1900px window); this makes them 9% of the window width,
+   never under 12em and never over 240px, and a height of 12% of the window width within 16em to 240px. The row is a grid, so its
+   columns follow the card width. Only the cards inside the row are touched, not the same pictures elsewhere in the garage. */
+.SkinsAndAlterationsStyle-SkinsVerticalComponent {
+    grid-template-columns: repeat(auto-fill, clamp(12em, 9vw, 240px)) !important;
+}
+
+.SkinsAndAlterationsStyle-SkinsVerticalComponent > div {
+    width: clamp(12em, 9vw, 240px) !important;
+    height: clamp(16em, 12vw, 240px) !important;
+}

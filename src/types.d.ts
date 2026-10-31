@@ -169,6 +169,19 @@ interface KaspGarageTabReader {
     readonly read: () => KaspGarageTab | null;
 }
 
+// What injector.ts reads off a card of the Augments row from the game's own React data and writes onto the card as
+// data-kasp-card (JSON): the augment's name, the game's rank word (RARE, EPIC, LEGENDARY, SPECIAL), whether the player
+// cannot see it yet (the "?" cards) and, for those, the address of the augment's own picture on the game's server. The category
+// (DEVICE for an augment) tells an augment's card from a skin's, since the row still holds the old tab's cards for a moment
+// after the tab changes.
+interface KaspGameCard {
+    readonly name: string;
+    readonly category: string | null;
+    readonly rarity: string;
+    readonly unknown: boolean;
+    readonly picture: string | null;
+}
+
 interface Window {
     __kaspSendAction?: (className: string, obj: unknown) => void;
     __kaspSendKill?: (className: string, obj: unknown) => void;

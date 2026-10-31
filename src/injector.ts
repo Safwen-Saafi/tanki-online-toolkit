@@ -12,7 +12,8 @@
 // owner's file instead of some of its weapon sound files (kasp:sound-swap from weapon_sounds.ts), and rewrites the
 // game's decoded lock sounds while the player's turret has its own (kasp:late-sounds and kasp:turret). Each hook is
 // found and skipped on its own. When anything goes wrong the game's own bundle is run without the hook that failed (or
-// unpatched), so the extension can lose a hook but never the game.
+// unpatched), so the extension can lose a hook but never the game. One more part patches nothing: it reads each garage card's
+// name, rank and picture address from the game's React data for the hidden augment cards (kasp:cards-request from augments.ts).
 (function () {
     'use strict';
 
@@ -695,6 +696,118 @@
         }
         runScript(script);
     }
+
+    // The Augments tab draws an augment the player cannot see as a "?" card, but the game's own React data for that card still
+    // holds its real name and rank, and the address of its picture. On request from augments.ts this copies those values, and
+    // nothing else, onto each card of the row as data-kasp-card; it changes nothing in the game. React keeps a card's data on a property of its element, which the
+    // isolated world cannot see, so only this world can read it. Nothing is printed: a card it cannot read just gets no attribute.
+    const CARD_ROW_SELECTOR = '.SkinsAndAlterationsStyle-SkinsVerticalComponent';
+    const CARD_ATTRIBUTE = 'data-kasp-card';
+    const CARD_REQUEST = 'kasp:cards-request';
+    const MAX_FIBER_DEPTH = 8;
+    const MAX_CARD_NAME_LENGTH = 200;
+    const RARITY_NAME = /^[A-Z_]{2,20}$/;
+
+    function isObject(value: unknown): value is Record<string, unknown> {
+        return typeof value === 'object' && value !== null;
+    }
+
+    // The game's picture object has no readable address field, only methods, and their names are scrambled and change with the
+    // game. So the address is taken from the one of the object's own methods (no arguments) that returns an address on the
+    // game's server, found by what it returns and remembered per class. Only the object's class and its parent are looked at.
+    const PICTURE_HOST = /(^|\.)tankionline\.com$/;
+    const MAX_PICTURE_LENGTH = 500;
+    const PICTURE_METHOD_DEPTH = 2;
+    type PictureMethod = () => unknown;
+    const pictureMethods = new WeakMap<object, PictureMethod>();
+
+    function asPictureUrl(value: unknown): string | null {
+        if (typeof value !== 'string' || value.length > MAX_PICTURE_LENGTH) return null;
+        try {
+            const url = new URL(value);
+            return url.protocol === 'https:' && PICTURE_HOST.test(url.hostname) ? url.href : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function readPictureUrl(picture: unknown): string | null {
+        if (!isObject(picture)) return null;
+        const first: unknown = Object.getPrototypeOf(picture);
+        if (!isObject(first)) return null;
+        const known = pictureMethods.get(first);
+        if (known !== undefined) {
+            const url = asPictureUrl(Reflect.apply(known, picture, []));
+            if (url !== null) return url;
+        }
+        let proto: unknown = first;
+        for (let depth = 0; depth < PICTURE_METHOD_DEPTH && isObject(proto) && proto !== Object.prototype; depth++) {
+            for (const name of Object.getOwnPropertyNames(proto)) {
+                const method = Object.getOwnPropertyDescriptor(proto, name)?.value as unknown;
+                if (name === 'constructor' || typeof method !== 'function' || method.length !== 0) continue;
+                let url: string | null = null;
+                try {
+                    url = asPictureUrl(Reflect.apply(method as PictureMethod, picture, []));
+                } catch {
+                    // a method that throws is not the one
+                }
+                if (url !== null) {
+                    pictureMethods.set(first, method as PictureMethod);
+                    return url;
+                }
+            }
+            proto = Object.getPrototypeOf(proto);
+        }
+        return null;
+    }
+
+    // The values of the nearest React component above the card's element that holds a name and an unknown flag.
+    function readCardProps(card: Element): KaspGameCard | null {
+        const key = Object.keys(card).find((name) => name.startsWith('__reactFiber$'));
+        if (key === undefined) return null;
+        let fiber: unknown = (card as unknown as Record<string, unknown>)[key];
+        for (let depth = 0; depth < MAX_FIBER_DEPTH && isObject(fiber); depth++) {
+            const props = fiber['memoizedProps'];
+            if (isObject(props) && typeof props['name'] === 'string' && typeof props['isUnknown'] === 'boolean') {
+                const rarity = String(props['currentRarity']);
+                if (props['name'] === '' || !RARITY_NAME.test(rarity)) return null;
+                const picture = props['isUnknown'] === true ? readPictureUrl(props['icon']) : null;
+                const category = props['category'] === undefined ? null : String(props['category']);
+                return {
+                    name: props['name'].slice(0, MAX_CARD_NAME_LENGTH),
+                    category: category !== null && RARITY_NAME.test(category) ? category : null,
+                    rarity,
+                    unknown: props['isUnknown'],
+                    picture,
+                };
+            }
+            fiber = fiber['return'];
+        }
+        return null;
+    }
+
+    function installCardReader(): void {
+        window.addEventListener(CARD_REQUEST, () => {
+            const row = document.querySelector(CARD_ROW_SELECTOR);
+            if (row === null) return;
+            for (const card of Array.from(row.children)) {
+                let value: string | null = null;
+                try {
+                    const props = readCardProps(card);
+                    value = props === null ? null : JSON.stringify(props);
+                } catch {
+                    // a card whose data cannot be read gets no attribute
+                }
+                if (value === null) {
+                    if (card.hasAttribute(CARD_ATTRIBUTE)) card.removeAttribute(CARD_ATTRIBUTE);
+                } else if (card.getAttribute(CARD_ATTRIBUTE) !== value) {
+                    card.setAttribute(CARD_ATTRIBUTE, value);
+                }
+            }
+        });
+    }
+
+    installCardReader();
 
     let caughtBundle = false;
 
