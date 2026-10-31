@@ -2,7 +2,7 @@
 // small "i" box on every augment tile that opens a spec box on hover. The augment data is what the Augments bot
 // publishes on GitHub Pages; only the file for the game's language is loaded, and it is cached for a few hours.
 // The file has six parts, in reading order: the data, the item and augment on screen, the spec box, the tile boxes, the
-// hidden "?" cards, the tick.
+// hidden "?" cards (on the Augments, Skins and Shot color tabs), the tick.
 (function () {
     'use strict';
 
@@ -475,10 +475,25 @@
         hideTooltip();
     }
 
+    // The tab the last pass saw. Switching tab takes every drawing back first: the game reuses the row's elements and the
+    // left panel for the other tab's items, and a card or panel we drew would otherwise stay on the wrong item.
+    let lastTab: string | null = null;
+
     function boxTick(): void {
         const item = currentItem;
         const row = document.querySelector(CARD_ROW_SELECTOR);
-        if (item === null || row === null || window.kaspGarageTab?.read() !== 'augments') {
+        const tab = window.kaspGarageTab?.read() ?? null;
+        if (tab !== lastTab) {
+            lastTab = tab;
+            removeHiddenMarks();
+            switchedAt = Date.now();
+            oldTabCards = row === null ? null : rowSignature(row);
+        }
+        if (row !== null && (tab === 'skins' || tab === 'shot-color')) {
+            cosmeticTick(row, tab);
+            return;
+        }
+        if (item === null || row === null || tab !== 'augments') {
             removeBoxes();
             removeHiddenMarks();
             return;
@@ -494,7 +509,7 @@
             removeHiddenMarks();
             return;
         }
-        hiddenTick(row, item);
+        hiddenTick(row, tab, item);
         sideTick();
     }
 
@@ -508,7 +523,8 @@
     const GAME_CARD_ATTRIBUTE = 'data-kasp-card';
     const GAME_CARD_REQUEST = 'kasp:cards-request';
     const RARITY_NAME = /^[A-Z_]{2,20}$/;
-    // The game's category of an augment. A skin's card has another, and is left alone.
+    // The game's category of an augment. A skin's and a shot colour's cards both say SKIN (read from the cards, 2026-10-31), so
+    // those two tabs are told apart by the cards themselves changing (see cosmeticTick), not by the category.
     const AUGMENT_CATEGORY = 'DEVICE';
     // The game's rank word on a card, and the rank word of the corner images in extension/icons/corners (the game's exotic
     // rank is SPECIAL). The frame is drawn from our own stylesheet, because the game only adds the style of a rank once it
@@ -525,6 +541,10 @@
     const HIDDEN_KEY = 'kaspHidden';
     const ORIGINAL_KEY = 'kaspHiddenOriginal';
     const PICTURE_KEY = 'kaspHiddenPicture';
+    // Set on an augment's card only: the left panel greys a hidden augment's picture. A hidden skin's or colour's keeps its own
+    // colours, and the game's own dimming of an item the player cannot see is switched off for it. The cards' pictures are greyed
+    // for all of them.
+    const GREY_KEY = 'kaspHiddenGrey';
     // The pictures that did not load, so a card goes back to the game's "?" and the address is not tried again.
     const failedPictures = new Set<string>();
 
@@ -548,11 +568,19 @@
         try {
             const value: unknown = JSON.parse(raw);
             if (!isRecord(value)) return null;
-            const { name, category, rarity, unknown, picture } = value;
+            const { name, category, rarity, unknown, picture, preview } = value;
             if (typeof name !== 'string' || name === '' || typeof rarity !== 'string' || !RARITY_NAME.test(rarity)) return null;
             if (typeof unknown !== 'boolean' || (picture !== null && !isGamePicture(picture))) return null;
             if (category !== null && (typeof category !== 'string' || !RARITY_NAME.test(category))) return null;
-            return { name, category, rarity, unknown, picture: picture === null ? null : new URL(String(picture)).href };
+            if (preview !== null && preview !== undefined && !isGamePicture(preview)) return null;
+            return {
+                name,
+                category,
+                rarity,
+                unknown,
+                picture: picture === null ? null : new URL(String(picture)).href,
+                preview: typeof preview === 'string' ? new URL(preview).href : null,
+            };
         } catch {
             return null;
         }
@@ -574,6 +602,7 @@
         delete card.dataset[HIDDEN_KEY];
         delete card.dataset[ORIGINAL_KEY];
         delete card.dataset[PICTURE_KEY];
+        delete card.dataset[GREY_KEY];
     }
 
     function isDrawnAs(card: HTMLElement, picture: HTMLImageElement, augment: Augment, image: string): boolean {
@@ -590,13 +619,19 @@
     function drawCard(card: HTMLElement, augment: Augment, game: KaspGameCard): void {
         const image = game.picture;
         const picture = card.querySelector<HTMLImageElement>(`:scope > img:not(.${OWN_NODE_CLASS})`);
-        if (image === null || picture === null || failedPictures.has(image) || isDrawnAs(card, picture, augment, image)) return;
+        // A card that cannot be drawn now must not keep what it was drawn as before: the game reuses the element for another item.
+        if (image === null || picture === null || failedPictures.has(image)) {
+            undrawCard(card);
+            return;
+        }
+        if (isDrawnAs(card, picture, augment, image)) return;
         undrawCard(card);
         const original = picture.getAttribute('src');
         if (original === null) return;
         card.dataset[HIDDEN_KEY] = augment.name;
         card.dataset[ORIGINAL_KEY] = original;
         card.dataset[PICTURE_KEY] = image;
+        if (game.category === AUGMENT_CATEGORY) card.dataset[GREY_KEY] = '';
         hasHiddenMarks = true;
         picture.setAttribute('src', image);
         picture.addEventListener(
@@ -622,18 +657,51 @@
 
     // The wiki's entry for a hidden card, or, when the wiki does not have the augment yet, one made of what the game says (its name and
     // rank), so the card is still drawn and its box says there is no information.
-    function hiddenAugment(item: string, game: KaspGameCard): Augment {
-        const known = findAugment(item, game.name)?.augment;
+    function hiddenAugment(item: string | null, game: KaspGameCard): Augment {
+        const known = item === null ? undefined : findAugment(item, game.name)?.augment;
         return known ?? { name: game.name, advantages: [], disadvantages: [], rarity: FRAME_RANKS_BY_GAME[game.rarity] ?? null };
     }
 
-    function hiddenTick(row: Element, item: string): void {
+    // Augment cards belong to the Augments tab only, because the row keeps the old tab's cards for a moment after a switch.
+    function belongsToTab(tab: KaspGarageTab, category: string | null): boolean {
+        return (category === AUGMENT_CATEGORY) === (tab === 'augments');
+    }
+
+    // On the Augments tab item is the turret or hull; on the Skins and Shot color tabs it is null (no wiki text, no box).
+    function hiddenTick(row: Element, tab: KaspGarageTab, item: string | null): void {
         for (const child of Array.from(row.children)) {
             if (!(child instanceof HTMLElement)) continue;
             const card = readGameCard(child);
-            if (card === null || card.category !== AUGMENT_CATEGORY || !card.unknown) undrawCard(child);
+            if (card === null || !card.unknown || !belongsToTab(tab, card.category)) undrawCard(child);
             else drawCard(child, hiddenAugment(item, card), card);
         }
+    }
+
+    // The row's cards as the game's data describes them, to tell when the game has swapped them.
+    function rowSignature(row: Element): string {
+        return Array.from(row.children, (child) => child.getAttribute(GAME_CARD_ATTRIBUTE) ?? '').join('\n');
+    }
+
+    // After a tab switch the row still holds the old tab's cards for a moment, and a skin card and a colour card say the same
+    // category, so those cards are not drawn until the row has changed. The wait is capped in case it never does.
+    const SWAP_WAIT_MS = 1500;
+    let switchedAt = 0;
+    let oldTabCards: string | null = null;
+
+    // The Skins and Shot color tabs: a hidden card is drawn with its picture and name only. There is no wiki text for a skin or a
+    // colour, so no spec box, and nothing here waits for the augment data.
+    function cosmeticTick(row: Element, tab: KaspGarageTab): void {
+        removeBoxes();
+        window.dispatchEvent(new CustomEvent(GAME_CARD_REQUEST));
+        if (oldTabCards !== null) {
+            if (rowSignature(row) === oldTabCards && Date.now() - switchedAt < SWAP_WAIT_MS) {
+                removeHiddenMarks();
+                return;
+            }
+            oldTabCards = null;
+        }
+        hiddenTick(row, tab, null);
+        sideTick();
     }
 
     // Selecting a hidden card makes the game show its panel for an item the player cannot see: the "?" is a background picture
@@ -644,6 +712,10 @@
     const UNAVAILABLE_BACKGROUND = /unavailable\.[^/]*\.svg/;
     const SIDE_ATTRIBUTE = 'data-kasp-side';
     const SIDE_NAME_CLASS = 'kasp-hidden-side-name';
+    // For an item the player cannot see, the game puts the panel's picture in a wrapper with filter: invert(0.25), which dims the
+    // picture and the name we add next to it (measured 2026-10-31; a panel of an owned item has no such wrapper). A skin's or a
+    // colour's panel switches that filter off, and the wrapper's own inline value is kept here to put it back.
+    const WRAPPER_FILTER_KEY = 'kaspSideFilter';
     let clickedCard: HTMLElement | null = null;
     // True from the first change to the sidebar until it is put back, like hasBoxes.
     let hasSide = false;
@@ -701,6 +773,13 @@
             panel.removeAttribute(SIDE_ATTRIBUTE);
             panel.style.removeProperty('background-image');
             panel.style.removeProperty('filter');
+            const wrapper = panel.parentElement;
+            const kept = wrapper?.dataset[WRAPPER_FILTER_KEY];
+            if (wrapper !== null && kept !== undefined) {
+                if (kept === '') wrapper.style.removeProperty('filter');
+                else wrapper.style.setProperty('filter', kept);
+                delete wrapper.dataset[WRAPPER_FILTER_KEY];
+            }
         });
         document.querySelectorAll(`.${SIDE_NAME_CLASS}`).forEach((node) => node.remove());
     }
@@ -709,18 +788,26 @@
         const card = clickedCard;
         const connected = card?.isConnected === true ? card : null;
         const name = connected?.dataset[HIDDEN_KEY];
-        const image = connected?.dataset[PICTURE_KEY];
+        // A skin or colour has a bigger picture for this panel than its card's; an augment's panel uses the card's.
+        const image = (connected === null ? null : readGameCard(connected)?.preview) ?? connected?.dataset[PICTURE_KEY];
         const panel = name === undefined || image === undefined ? null : findUnavailablePanel();
         if (name === undefined || image === undefined || panel === null) {
             removeSide();
             return;
         }
-        if (panel.getAttribute(SIDE_ATTRIBUTE) === name && panel.nextElementSibling?.classList.contains(SIDE_NAME_CLASS) === true) return;
+        const key = `${name}|${image}`;
+        if (panel.getAttribute(SIDE_ATTRIBUTE) === key && panel.nextElementSibling?.classList.contains(SIDE_NAME_CLASS) === true) return;
         removeSide();
         hasSide = true;
-        panel.setAttribute(SIDE_ATTRIBUTE, name);
+        panel.setAttribute(SIDE_ATTRIBUTE, key);
         panel.style.setProperty('background-image', `url("${image}")`, 'important');
-        panel.style.setProperty('filter', 'grayscale(1) brightness(0.75)');
+        const grey = connected?.dataset[GREY_KEY] !== undefined;
+        panel.style.setProperty('filter', grey ? 'grayscale(1) brightness(0.75)' : 'none', 'important');
+        const wrapper = panel.parentElement;
+        if (!grey && wrapper !== null && getComputedStyle(wrapper).filter !== 'none') {
+            wrapper.dataset[WRAPPER_FILTER_KEY] = wrapper.style.getPropertyValue('filter');
+            wrapper.style.setProperty('filter', 'none', 'important');
+        }
         const label = element('p', SIDE_NAME_CLASS, name);
         slideOnHover(label);
         panel.after(label);

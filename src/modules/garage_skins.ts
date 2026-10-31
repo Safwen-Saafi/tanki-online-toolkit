@@ -20,7 +20,8 @@
     const DOUBLE_PRESS_MS = 500;
 
     // The game's own class names, in one place so a renamed class is fixed once.
-    const SKIN_TITLE_SELECTOR = '.SkinCellStyle-nameDevices';
+    // Not the name that augments.ts draws on a hidden card: that card is not a skin the player has.
+    const SKIN_TITLE_SELECTOR = '.SkinCellStyle-nameDevices:not(.kasp-hidden-node)';
     const SKINS_ROW_SELECTOR = '.SkinsAndAlterationsStyle-SkinsVerticalComponent';
     const SUB_MENU_SELECTOR = '.GarageCommonStyle-subMenu';
     const TILE_SELECTOR = '.garage-item';
@@ -318,7 +319,8 @@
     // The art is a CSS background on a div, not an img, so it only shows in computed style.
     function readPreviewArt(menu: Element, row: Element): string | null {
         for (const el of menu.querySelectorAll('[class*="backgroundImageContain"]')) {
-            if (row.contains(el)) continue;
+            // The panel augments.ts redraws for a hidden card holds that card's picture, not a skin's art.
+            if (row.contains(el) || el.hasAttribute('data-kasp-side')) continue;
             const match = /url\("?([^")]+\.webp)"?\)/.exec(getComputedStyle(el).backgroundImage);
             if (match) return match[1];
         }
