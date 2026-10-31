@@ -1,7 +1,8 @@
 // Isolated-world content script. Shows each augment's advantages and disadvantages on the garage's Augments tab: a
 // small "i" box on every augment tile that opens a spec box on hover. The augment data is what the Augments bot
 // publishes on GitHub Pages; only the file for the game's language is loaded, and it is cached for a few hours.
-// The file has four parts, in reading order: the data, the item and augment on screen, the spec box, the tile boxes.
+// The file has six parts, in reading order: the data, the item and augment on screen, the spec box, the tile boxes, the
+// hidden "?" cards, the tick.
 (function () {
     'use strict';
 
@@ -453,6 +454,7 @@
         const row = document.querySelector(CARD_ROW_SELECTOR);
         if (item === null || row === null || window.kaspGarageTab?.read() !== 'augments') {
             removeBoxes();
+            removeHiddenMarks();
             return;
         }
         row.querySelectorAll(CARD_TITLE_SELECTOR).forEach((title) => {
@@ -461,7 +463,140 @@
             const name = (title.textContent ?? '').trim();
             syncBox(card, item, name);
         });
+        if (augmentsFile === null) removeHiddenMarks();
+        else hiddenTick(row, item, augmentsFile);
     }
+
+    // ---- 5. the hidden "?" cards ----
+
+    // A hidden augment's card is only the game's "unavailable" picture: no title, no rank. The game fixes the order of the
+    // front of the row, so the place of a "?" card says which augment it is (the rule is in hidden_order.ts). The answer goes
+    // on the card as data-kasp-hidden, holding the augment's name in the data; nothing is drawn from it yet.
+    const HIDDEN_ATTRIBUTE = 'kaspHidden';
+    const UNAVAILABLE_PICTURE = /\/unavailable\.[^/]*\.svg/;
+    const GRADIENT_SELECTOR = '[class*="SkinCellComponentStyle-gradientCategoryDevices-"]';
+    const NATIVE_RANK_PATTERN = /SkinCellComponentStyle-gradientCategoryDevices-([A-Z]+)/;
+    // Epic and rare augments can all be bought, so none is hidden: the block of cards that can be ends at the first one.
+    const BUYABLE_RANKS: ReadonlySet<string> = new Set(['COMMON', 'RARE', 'EPIC']);
+
+    // The shared names of a turret's block and the whole order of a hull's block, as the game puts them. The wiki names
+    // them differently in Russian, and a hull's order is the game's, not the wiki's (checked against the game on 2026-10-29).
+    const TURRET_NAMES: Readonly<Record<KaspLanguageCode, { readonly start: readonly string[]; readonly end: readonly string[] }>> = {
+        EN: { start: ['Phoenix', 'Camper'], end: ['Excelsior', 'Pulsar'] },
+        RU: { start: ['Феникс', 'Кемпер'], end: ['Эксельсиор', 'Пульсар'] },
+    };
+    const HULL_ORDER: Readonly<Record<KaspLanguageCode, readonly string[]>> = {
+        EN: ['Phoenix', 'Extreme Lightweight Construction', 'Driver', 'Grenadier', 'Lifeguard', 'Blaster', 'Miner', 'Excelsior'],
+        RU: ['Феникс', 'Экстремальное облегчение', 'Драйвер', 'Гренадёр', 'Спасатель', 'Подрывник', 'Минёр', 'Эксельсиор'],
+    };
+
+    interface RowCard {
+        readonly element: HTMLElement;
+        readonly hidden: boolean;
+        readonly title: string;
+        // The game's own rank class (RARE, EPIC, LEGENDARY), when the card has one.
+        readonly rank: string | null;
+    }
+
+    // Null for a card that is neither named nor the "unavailable" picture, which the rule does not know.
+    function readRowCard(element: HTMLElement): RowCard | null {
+        const title = (element.querySelector(CARD_TITLE_SELECTOR)?.textContent ?? '').trim();
+        if (title !== '') {
+            const rank = NATIVE_RANK_PATTERN.exec(element.querySelector(GRADIENT_SELECTOR)?.getAttribute('class') ?? '')?.[1] ?? null;
+            return { element, hidden: false, title, rank };
+        }
+        const picture = element.querySelector('img')?.getAttribute('src') ?? '';
+        return UNAVAILABLE_PICTURE.test(picture) ? { element, hidden: true, title: '', rank: null } : null;
+    }
+
+    // The cards after Standard settings, up to the first one that can be bought. Null when the row cannot be read, or has no
+    // such card yet (the row is still being drawn).
+    function readFrontBlock(row: Element): RowCard[] | null {
+        const block: RowCard[] = [];
+        for (const child of Array.from(row.children).slice(1)) {
+            if (!(child instanceof HTMLElement)) return null;
+            const card = readRowCard(child);
+            if (card === null) return null;
+            if (!card.hidden && card.rank !== null && BUYABLE_RANKS.has(card.rank)) return block;
+            block.push(card);
+        }
+        return null;
+    }
+
+    function placeBlock(file: AugmentsFile, item: string, block: readonly RowCard[]): KaspPlacement | null {
+        const place = window.kaspHiddenOrder?.place;
+        if (place === undefined) return null;
+        const bucket = file.items[item] === undefined ? 'hulls' : item;
+        const index = indexFor(file, bucket);
+        const resolve = (name: string): string | null => index.get(normalizeName(name))?.name ?? null;
+        const slots = block.map((card): KaspHiddenSlot => ({
+            hidden: card.hidden,
+            name: card.hidden ? null : (findAugment(item, card.title)?.augment.name ?? null),
+        }));
+        if (bucket === 'hulls') return place({ kind: 'hull', slots, order: HULL_ORDER[file.language].map(resolve) });
+        const { start: startNames, end: endNames } = TURRET_NAMES[file.language];
+        const start = startNames.map(resolve);
+        const end = endNames.map(resolve);
+        const shared = new Set([...start, ...end]);
+        const candidates = Object.values(file.items[bucket] ?? {})
+            .filter((augment) => augment.rarity === 'legendary' && !shared.has(augment.name))
+            .map((augment) => augment.name);
+        return place({ kind: 'turret', slots, start, end, candidates });
+    }
+
+    // One warning per item and reason, and only once the refusal has lasted a second: a row caught while the game is still
+    // drawing it (the old tab's cards, a few cards of the new one) is refused for a moment and is nothing to report.
+    const REFUSAL_REPORT_MS = 1000;
+    const warnedRefusals = new Set<string>();
+    let pendingRefusal: { readonly key: string; readonly since: number } | null = null;
+
+    function reportRefusal(item: string, placement: KaspPlacement | null): void {
+        if (placement === null || placement.ok) {
+            pendingRefusal = null;
+            return;
+        }
+        const key = `${item}|${placement.reason}`;
+        if (pendingRefusal?.key !== key) pendingRefusal = { key, since: Date.now() };
+        if (Date.now() - pendingRefusal.since < REFUSAL_REPORT_MS || warnedRefusals.has(key)) return;
+        warnedRefusals.add(key);
+        console.warn(`${LOG} hidden cards on ${item} not placed: ${placement.reason}`);
+    }
+
+    // True from the first mark until they are all removed, like hasBoxes.
+    let hasHiddenMarks = false;
+
+    function removeHiddenMarks(): void {
+        pendingRefusal = null;
+        if (!hasHiddenMarks) return;
+        hasHiddenMarks = false;
+        document.querySelectorAll<HTMLElement>('[data-kasp-hidden]').forEach((card) => delete card.dataset[HIDDEN_ATTRIBUTE]);
+    }
+
+    function hiddenTick(row: Element, item: string, file: AugmentsFile): void {
+        const block = readFrontBlock(row);
+        const placement = block === null || block.length === 0 ? null : placeBlock(file, item, block);
+        reportRefusal(item, placement);
+        const wanted = new Map<HTMLElement, string>();
+        if (block !== null && placement?.ok === true) {
+            const names = placement.names;
+            block.forEach((card, position) => {
+                const name = names[position];
+                if (card.hidden && typeof name === 'string') wanted.set(card.element, name);
+            });
+        }
+        for (const child of Array.from(row.children)) {
+            if (!(child instanceof HTMLElement)) continue;
+            const name = wanted.get(child);
+            if (name === undefined) {
+                if (child.dataset[HIDDEN_ATTRIBUTE] !== undefined) delete child.dataset[HIDDEN_ATTRIBUTE];
+            } else if (child.dataset[HIDDEN_ATTRIBUTE] !== name) {
+                child.dataset[HIDDEN_ATTRIBUTE] = name;
+                hasHiddenMarks = true;
+            }
+        }
+    }
+
+    // ---- 6. the tick ----
 
     function tick(): void {
         itemTick();
