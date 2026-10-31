@@ -707,6 +707,7 @@
     const MAX_FIBER_DEPTH = 8;
     const MAX_CARD_NAME_LENGTH = 200;
     const RARITY_NAME = /^[A-Z_]{2,20}$/;
+    const AUGMENT_CATEGORY = 'DEVICE';
 
     function isObject(value: unknown): value is Record<string, unknown> {
         return typeof value === 'object' && value !== null;
@@ -761,29 +762,133 @@
         return null;
     }
 
-    // The values of the nearest React component above the card's element that holds a name and an unknown flag.
-    function readCardProps(card: Element): KaspGameCard | null {
-        const key = Object.keys(card).find((name) => name.startsWith('__reactFiber$'));
-        if (key === undefined) return null;
-        let fiber: unknown = (card as unknown as Record<string, unknown>)[key];
+    function fiberOf(element: Element): unknown {
+        const key = Object.keys(element).find((name) => name.startsWith('__reactFiber$'));
+        return key === undefined ? null : (element as unknown as Record<string, unknown>)[key];
+    }
+
+    // The left panel shows a bigger picture of the selected skin or colour than the card does. The game keeps the selected item's
+    // model in the panel's components, and the model holds two picture objects of the same class: the card's picture and the big
+    // one. So the big one is the other .webp on the object that holds the card's picture, the first such object found looking
+    // outward from the panel. Only the selected card is asked, and nothing is remembered: a picture address alone does not say
+    // which item it belongs to (every turret's XT skin has the same badge), so an answer kept from one item is wrong for another.
+    // Only plain data fields are read, and the only method ever called is the picture method already found for the card's picture
+    // class, on objects of that class.
+    const PANEL_SELECTOR = '[class~="-backgroundImageContain"]';
+    const MAX_PANEL_FIBERS = 25;
+    const MAX_MODEL_DEPTH = 6;
+    const MAX_MODEL_OBJECTS = 20000;
+    const MAX_OWN_NAMES = 300;
+    const WEBP_PATH = /\.webp$/;
+
+    function pictureOf(value: unknown, proto: object, method: PictureMethod): string | null {
+        if (!isObject(value) || Object.getPrototypeOf(value) !== proto) return null;
+        try {
+            return asPictureUrl(Reflect.apply(method, value, []));
+        } catch {
+            return null;
+        }
+    }
+
+    // A breadth first look through what the panel's component holds, for the object that holds the card's picture.
+    function findPreviewIn(start: object, proto: object, method: PictureMethod, address: string, budget: { left: number }): string | null {
+        const seen = new Set<object>([start]);
+        let level: object[] = [start];
+        for (let depth = 0; level.length > 0 && depth <= MAX_MODEL_DEPTH; depth++) {
+            const next: object[] = [];
+            for (const holder of level) {
+                if (budget.left-- <= 0) return null;
+                const pictures: string[] = [];
+                for (const name of Object.getOwnPropertyNames(holder).slice(0, MAX_OWN_NAMES)) {
+                    const value = Object.getOwnPropertyDescriptor(holder, name)?.value as unknown;
+                    if (!isObject(value)) continue;
+                    const url = pictureOf(value, proto, method);
+                    if (url !== null) pictures.push(url);
+                    else if (!seen.has(value) && !(value instanceof Node) && !(value instanceof Window) && !ArrayBuffer.isView(value)) {
+                        seen.add(value);
+                        next.push(value);
+                    }
+                }
+                if (!pictures.includes(address)) continue;
+                const bigger = pictures.filter((url) => url !== address && WEBP_PATH.test(new URL(url).pathname));
+                if (bigger.length === 1 && bigger[0] !== undefined) return bigger[0];
+            }
+            level = next;
+        }
+        return null;
+    }
+
+    function readPreviewUrl(icon: unknown): string | null {
+        if (!isObject(icon)) return null;
+        const proto: unknown = Object.getPrototypeOf(icon);
+        if (!isObject(proto)) return null;
+        const method = pictureMethods.get(proto);
+        if (method === undefined) return null;
+        const address = pictureOf(icon, proto, method);
+        if (address === null) return null;
+        const budget = { left: MAX_MODEL_OBJECTS };
+        for (const panel of Array.from(document.querySelectorAll(PANEL_SELECTOR))) {
+            let fiber = fiberOf(panel);
+            for (let level = 0; level < MAX_PANEL_FIBERS && isObject(fiber); level++) {
+                const model = fiber['stateNode'];
+                if (isObject(model) && !(model instanceof Node)) {
+                    const found = findPreviewIn(model, proto, method, address, budget);
+                    if (found !== null) return found;
+                }
+                fiber = fiber['return'];
+            }
+        }
+        return null;
+    }
+
+    function isCardProps(props: unknown): props is Record<string, unknown> & { name: string; isUnknown: boolean } {
+        return isObject(props) && typeof props['name'] === 'string' && typeof props['isUnknown'] === 'boolean';
+    }
+
+    // The card component's own object always holds its latest props. React keeps two copies of every fiber and the element's
+    // pointer can stay on the older one, so the fiber's props can belong to the item the element showed before (a card kept
+    // from another turret, say). The element's own props point at the elements the component made, and each of those names
+    // the component that made it, so the latest props are read from there; the fiber walk is only the fallback.
+    function ownerCardProps(card: Element): Record<string, unknown> | null {
+        const key = Object.keys(card).find((name) => name.startsWith('__reactProps$'));
+        const hostProps: unknown = key === undefined ? null : (card as unknown as Record<string, unknown>)[key];
+        const children = isObject(hostProps) ? hostProps['children'] : null;
+        const made: unknown = Array.isArray(children) ? (children as unknown[]).find(isObject) : children;
+        const owner = isObject(made) ? made['_owner'] : null;
+        const instance = isObject(owner) ? owner['stateNode'] : null;
+        const props = isObject(instance) ? instance['props'] : null;
+        return isCardProps(props) ? props : null;
+    }
+
+    function fiberCardProps(card: Element): Record<string, unknown> | null {
+        let fiber: unknown = fiberOf(card);
         for (let depth = 0; depth < MAX_FIBER_DEPTH && isObject(fiber); depth++) {
             const props = fiber['memoizedProps'];
-            if (isObject(props) && typeof props['name'] === 'string' && typeof props['isUnknown'] === 'boolean') {
-                const rarity = String(props['currentRarity']);
-                if (props['name'] === '' || !RARITY_NAME.test(rarity)) return null;
-                const picture = props['isUnknown'] === true ? readPictureUrl(props['icon']) : null;
-                const category = props['category'] === undefined ? null : String(props['category']);
-                return {
-                    name: props['name'].slice(0, MAX_CARD_NAME_LENGTH),
-                    category: category !== null && RARITY_NAME.test(category) ? category : null,
-                    rarity,
-                    unknown: props['isUnknown'],
-                    picture,
-                };
-            }
+            if (isCardProps(props)) return props;
             fiber = fiber['return'];
         }
         return null;
+    }
+
+    // The values of the card component that holds a name and an unknown flag.
+    function readCardProps(card: Element): KaspGameCard | null {
+        const props = ownerCardProps(card) ?? fiberCardProps(card);
+        if (props === null || !isCardProps(props)) return null;
+        const rarity = String(props['currentRarity']);
+        if (props.name === '' || !RARITY_NAME.test(rarity)) return null;
+        const picture = props.isUnknown ? readPictureUrl(props['icon']) : null;
+        const word = props['category'] === undefined ? null : String(props['category']);
+        const category = word !== null && RARITY_NAME.test(word) ? word : null;
+        // An augment's panel shows the card's own picture, so only the selected skin or colour needs the bigger one.
+        const preview = picture !== null && props['isSelected'] === true && category !== AUGMENT_CATEGORY ? readPreviewUrl(props['icon']) : null;
+        return {
+            name: props.name.slice(0, MAX_CARD_NAME_LENGTH),
+            category,
+            rarity,
+            unknown: props.isUnknown,
+            picture,
+            preview,
+        };
     }
 
     function installCardReader(): void {
