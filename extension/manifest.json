@@ -22,7 +22,6 @@
       "js": [
         "js/modules/language.js",
         "js/modules/garage_tab.js",
-        "js/modules/hidden_order.js",
         "js/modules/change_counter.js",
         "js/modules/garage_skins.js",
         "js/modules/augments.js",

@@ -135,6 +135,19 @@
     display: flex;
 }
 
+/* What the box says for an augment the wiki does not have yet. */
+.kasp-spec-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px 16px;
+}
+
+.kasp-spec-note-icon {
+    height: 1.4em;
+    width: auto;
+}
+
 .kasp-spec-col {
     flex: 1 1 0;
     min-width: 0;
@@ -214,4 +227,76 @@
 
 .kasp-spec-effect-name {
     color: var(--kasp-spec-link);
+}
+
+/* The picture of a hidden augment drawn on its card: the wiki's picture, greyed so it can still be told from the player's own. */
+[data-kasp-hidden-picture] {
+    position: relative;
+    isolation: isolate;
+}
+
+[data-kasp-hidden-picture] > img:not(.kasp-hidden-node) {
+    position: relative;
+    z-index: 1;
+    filter: grayscale(1) brightness(0.75);
+}
+
+/* The frame of a hidden augment's card: a glow from the top-left corner and a small corner mark, in the colour of its rank,
+   the same shape as the game's own frames. The game's rank word is mapped to ours in augments.ts. */
+.kasp-hidden-frame {
+    --kasp-frame: var(--kasp-rank-neutral);
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(100% 100% at 0% 0%, color-mix(in srgb, var(--kasp-frame) 45%, transparent) 0%, transparent 100%);
+}
+
+.kasp-hidden-frame[data-rank="rare"] {
+    --kasp-frame: var(--kasp-rank-rare);
+}
+
+.kasp-hidden-frame[data-rank="epic"] {
+    --kasp-frame: var(--kasp-rank-epic);
+}
+
+.kasp-hidden-frame[data-rank="legendary"] {
+    --kasp-frame: var(--kasp-rank-legendary);
+}
+
+.kasp-hidden-frame[data-rank="exotic"] {
+    --kasp-frame: var(--kasp-rank-exotic);
+}
+
+.kasp-hidden-corner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1em;
+    height: 1em;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* The name under the picture of a hidden augment in the left panel, where the game shows its own "?" and "Not available". Its
+   look is the game's own name in that panel (measured on a selected augment): the medium font at 1.5 times the panel's text
+   size, upper case, white, left aligned, on one line, straight under the picture (whose own bottom margin is the gap). A long name
+   ends in "..." and slides back and forth while the mouse is over it, as the game's does (the sliding is in augments.ts). */
+.kasp-hidden-side-name {
+    display: block;
+    margin: 0;
+    text-align: start;
+    text-transform: uppercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: BaseFontMedium, FallbackFontMedium;
+    font-size: 1.5em;
+    font-weight: 500;
+    color: rgb(255, 255, 255);
+}
+
+.kasp-hidden-side-name:hover {
+    text-overflow: clip;
 }

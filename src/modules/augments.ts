@@ -203,6 +203,8 @@
     interface AugmentMatch {
         readonly language: KaspLanguageCode;
         readonly augment: Augment;
+        // True for an augment the wiki does not have yet: the box then says so instead of listing advantages.
+        readonly missing?: boolean;
     }
 
     // Lowercase, quotes dropped, a possessive "'s" dropped, and hyphens, dashes and runs of spaces count as one space,
@@ -271,6 +273,11 @@
     const HEADINGS = {
         EN: { advantages: 'Advantages', disadvantages: 'Disadvantages' },
         RU: { advantages: 'Преимущества', disadvantages: 'Недостатки' },
+    } as const;
+    // What the box says for an augment the wiki has not described yet (the game adds some before the wiki does), followed by a warning picture.
+    const MISSING_NOTE = {
+        EN: 'No information yet',
+        RU: 'Информации пока нет',
     } as const;
     // A number with its sign or comparison ("+25%", "<=25%"), so values stand out the way they do on the wiki.
     const NUMBER_PATTERN = /([<>≤≥]?[+\-−]?\d+(?:[.,]\d+)?%?)/;
@@ -385,14 +392,21 @@
         const tooltip = getTooltip();
         const { augment, language } = match;
         tooltip.replaceChildren(...buildDecorations(augment.rarity), element('div', 'kasp-spec-name', augment.name));
-        const columns = element('div', 'kasp-spec-columns');
-        if (augment.advantages.length > 0) {
-            columns.append(buildColumn('positive', HEADINGS[language].advantages, augment.advantages));
+        if (match.missing === true) {
+            // The warning picture is the one the change counter puts beside a player who changed equipment.
+            const note = element('div', 'kasp-spec-note', MISSING_NOTE[language]);
+            note.append(icon('kasp-spec-note-icon', 'change-marker.webp'));
+            tooltip.append(note);
+        } else {
+            const columns = element('div', 'kasp-spec-columns');
+            if (augment.advantages.length > 0) {
+                columns.append(buildColumn('positive', HEADINGS[language].advantages, augment.advantages));
+            }
+            if (augment.disadvantages.length > 0) {
+                columns.append(buildColumn('negative', HEADINGS[language].disadvantages, augment.disadvantages));
+            }
+            tooltip.append(columns);
         }
-        if (augment.disadvantages.length > 0) {
-            columns.append(buildColumn('negative', HEADINGS[language].disadvantages, augment.disadvantages));
-        }
-        tooltip.append(columns);
         tooltip.dataset['rarity'] = augment.rarity ?? '';
         tooltip.style.display = 'block';
         moveTooltip(event);
@@ -424,15 +438,27 @@
         return box;
     }
 
+    // An augment card with no entry in the data still gets its box, saying there is no information yet, so no tile is left bare. The
+    // card must be an augment's by the game's own category (a skin's card is not), and not Standard settings, the first card.
+    function missingMatch(card: HTMLElement, name: string): AugmentMatch | null {
+        const file = augmentsFile;
+        const game = readGameCard(card);
+        if (file === null || game === null || game.category !== AUGMENT_CATEGORY || card === card.parentElement?.firstElementChild) {
+            return null;
+        }
+        const augment: Augment = { name, advantages: [], disadvantages: [], rarity: FRAME_RANKS_BY_GAME[game.rarity] ?? null };
+        return { language: file.language, augment, missing: true };
+    }
+
     function syncBox(card: HTMLElement, item: string, name: string): void {
         const key = `${item}|${name}`;
         const existing = card.querySelector<HTMLElement>(`:scope > .${BOX_CLASS}`);
         if (existing?.dataset['key'] === key || card.dataset[NO_ENTRY_KEY] === key) return;
         existing?.remove();
-        const match = findAugment(item, name);
+        const match = findAugment(item, name) ?? missingMatch(card, name);
         if (match === null) {
-            // Only a lookup against loaded data counts as "no entry"; until then the tile is tried again.
-            if (augmentsFile !== null) card.dataset[NO_ENTRY_KEY] = key;
+            // Only a lookup against loaded data and a readable card count as "no entry"; until then the tile is tried again.
+            if (augmentsFile !== null && readGameCard(card) !== null) card.dataset[NO_ENTRY_KEY] = key;
             return;
         }
         card.append(createBox(card, key, match));
@@ -457,143 +483,255 @@
             removeHiddenMarks();
             return;
         }
+        window.dispatchEvent(new CustomEvent(GAME_CARD_REQUEST));
         row.querySelectorAll(CARD_TITLE_SELECTOR).forEach((title) => {
             const card = title.parentElement;
             if (card === null) return;
             const name = (title.textContent ?? '').trim();
             syncBox(card, item, name);
         });
-        if (augmentsFile === null) removeHiddenMarks();
-        else hiddenTick(row, item, augmentsFile);
+        if (augmentsFile === null) {
+            removeHiddenMarks();
+            return;
+        }
+        hiddenTick(row, item);
+        sideTick();
     }
 
     // ---- 5. the hidden "?" cards ----
 
-    // A hidden augment's card is only the game's "unavailable" picture: no title, no rank. The game fixes the order of the
-    // front of the row, so the place of a "?" card says which augment it is (the rule is in hidden_order.ts). The answer goes
-    // on the card as data-kasp-hidden, holding the augment's name in the data; nothing is drawn from it yet.
-    const HIDDEN_ATTRIBUTE = 'kaspHidden';
-    const UNAVAILABLE_PICTURE = /\/unavailable\.[^/]*\.svg/;
-    const GRADIENT_SELECTOR = '[class*="SkinCellComponentStyle-gradientCategoryDevices-"]';
-    const NATIVE_RANK_PATTERN = /SkinCellComponentStyle-gradientCategoryDevices-([A-Z]+)/;
-    // Epic and rare augments can all be bought, so none is hidden: the block of cards that can be ends at the first one.
-    const BUYABLE_RANKS: ReadonlySet<string> = new Set(['COMMON', 'RARE', 'EPIC']);
-
-    // The shared names of a turret's block and the whole order of a hull's block, as the game puts them. The wiki names
-    // them differently in Russian, and a hull's order is the game's, not the wiki's (checked against the game on 2026-10-29).
-    const TURRET_NAMES: Readonly<Record<KaspLanguageCode, { readonly start: readonly string[]; readonly end: readonly string[] }>> = {
-        EN: { start: ['Phoenix', 'Camper'], end: ['Excelsior', 'Pulsar'] },
-        RU: { start: ['Феникс', 'Кемпер'], end: ['Эксельсиор', 'Пульсар'] },
+    // The game draws an augment the player cannot see as a "?" card, but its own React data for the card still holds the real
+    // name and rank, with isUnknown true. injector.ts copies those three values, and nothing else, onto each card as
+    // data-kasp-card; this section draws the card as that augment from the bot's data: the wiki picture (greyed), the game's
+    // own frame for the rank, and the name. Each card is judged alone, so a card the game redraws (a click on it, say) never
+    // changes another. See blueprint/context/garage-augments-screen.md.
+    const GAME_CARD_ATTRIBUTE = 'data-kasp-card';
+    const GAME_CARD_REQUEST = 'kasp:cards-request';
+    const RARITY_NAME = /^[A-Z_]{2,20}$/;
+    // The game's category of an augment. A skin's card has another, and is left alone.
+    const AUGMENT_CATEGORY = 'DEVICE';
+    // The game's rank word on a card, and the rank word of the corner images in extension/icons/corners (the game's exotic
+    // rank is SPECIAL). The frame is drawn from our own stylesheet, because the game only adds the style of a rank once it
+    // draws a visible card of that rank, so a hidden card could have no frame at all.
+    const FRAME_RANKS_BY_GAME: Readonly<Record<string, string | undefined>> = {
+        RARE: 'rare',
+        EPIC: 'epic',
+        LEGENDARY: 'legendary',
+        SPECIAL: 'exotic',
     };
-    const HULL_ORDER: Readonly<Record<KaspLanguageCode, readonly string[]>> = {
-        EN: ['Phoenix', 'Extreme Lightweight Construction', 'Driver', 'Grenadier', 'Lifeguard', 'Blaster', 'Miner', 'Excelsior'],
-        RU: ['Феникс', 'Экстремальное облегчение', 'Драйвер', 'Гренадёр', 'Спасатель', 'Подрывник', 'Минёр', 'Эксельсиор'],
-    };
+    // The game rewrites a card's class when it redraws the card, so what we drew is marked with data attributes, which it
+    // leaves alone, and every node we add has our class so the drawing can be taken back whole.
+    const OWN_NODE_CLASS = 'kasp-hidden-node';
+    const HIDDEN_KEY = 'kaspHidden';
+    const ORIGINAL_KEY = 'kaspHiddenOriginal';
+    const PICTURE_KEY = 'kaspHiddenPicture';
+    // The pictures that did not load, so a card goes back to the game's "?" and the address is not tried again.
+    const failedPictures = new Set<string>();
 
-    interface RowCard {
-        readonly element: HTMLElement;
-        readonly hidden: boolean;
-        readonly title: string;
-        // The game's own rank class (RARE, EPIC, LEGENDARY), when the card has one.
-        readonly rank: string | null;
-    }
+    // The picture is shown on the game's own page, so only an https address on the game's server is taken.
+    const GAME_PICTURE_HOST = /(^|\.)tankionline\.com$/;
 
-    // Null for a card that is neither named nor the "unavailable" picture, which the rule does not know.
-    function readRowCard(element: HTMLElement): RowCard | null {
-        const title = (element.querySelector(CARD_TITLE_SELECTOR)?.textContent ?? '').trim();
-        if (title !== '') {
-            const rank = NATIVE_RANK_PATTERN.exec(element.querySelector(GRADIENT_SELECTOR)?.getAttribute('class') ?? '')?.[1] ?? null;
-            return { element, hidden: false, title, rank };
+    function isGamePicture(value: unknown): value is string {
+        if (typeof value !== 'string' || value.length > 500) return false;
+        try {
+            const url = new URL(value);
+            return url.protocol === 'https:' && GAME_PICTURE_HOST.test(url.hostname);
+        } catch {
+            return false;
         }
-        const picture = element.querySelector('img')?.getAttribute('src') ?? '';
-        return UNAVAILABLE_PICTURE.test(picture) ? { element, hidden: true, title: '', rank: null } : null;
     }
 
-    // The cards after Standard settings, up to the first one that can be bought. Null when the row cannot be read, or has no
-    // such card yet (the row is still being drawn).
-    function readFrontBlock(row: Element): RowCard[] | null {
-        const block: RowCard[] = [];
-        for (const child of Array.from(row.children).slice(1)) {
-            if (!(child instanceof HTMLElement)) return null;
-            const card = readRowCard(child);
-            if (card === null) return null;
-            if (!card.hidden && card.rank !== null && BUYABLE_RANKS.has(card.rank)) return block;
-            block.push(card);
+    // What injector.ts wrote on a card, checked again here since it travels as text.
+    function readGameCard(card: Element): KaspGameCard | null {
+        const raw = card.getAttribute(GAME_CARD_ATTRIBUTE);
+        if (raw === null) return null;
+        try {
+            const value: unknown = JSON.parse(raw);
+            if (!isRecord(value)) return null;
+            const { name, category, rarity, unknown, picture } = value;
+            if (typeof name !== 'string' || name === '' || typeof rarity !== 'string' || !RARITY_NAME.test(rarity)) return null;
+            if (typeof unknown !== 'boolean' || (picture !== null && !isGamePicture(picture))) return null;
+            if (category !== null && (typeof category !== 'string' || !RARITY_NAME.test(category))) return null;
+            return { name, category, rarity, unknown, picture };
+        } catch {
+            return null;
+        }
+    }
+
+    // True from the first drawing until they are all removed, like hasBoxes.
+    let hasHiddenMarks = false;
+
+    // Puts the card back as the game drew it: the "?" picture, none of our nodes, no marks. A picture the game has changed in
+    // the meantime is left as the game has it.
+    function undrawCard(card: HTMLElement): void {
+        if (card.dataset[HIDDEN_KEY] === undefined) return;
+        card.querySelectorAll(`:scope > .${OWN_NODE_CLASS}, :scope > .${BOX_CLASS}`).forEach((node) => node.remove());
+        const picture = card.querySelector(`:scope > img:not(.${OWN_NODE_CLASS})`);
+        const original = card.dataset[ORIGINAL_KEY];
+        if (picture !== null && original !== undefined && picture.getAttribute('src') === card.dataset[PICTURE_KEY]) {
+            picture.setAttribute('src', original);
+        }
+        delete card.dataset[HIDDEN_KEY];
+        delete card.dataset[ORIGINAL_KEY];
+        delete card.dataset[PICTURE_KEY];
+    }
+
+    function isDrawnAs(card: HTMLElement, picture: HTMLImageElement, augment: Augment, image: string): boolean {
+        return (
+            card.dataset[HIDDEN_KEY] === augment.name &&
+            card.dataset[PICTURE_KEY] === image &&
+            picture.getAttribute('src') === image &&
+            card.querySelector(`:scope > .${OWN_NODE_CLASS}`) !== null
+        );
+    }
+
+    // Draws a hidden card as its augment: the game's own picture of it (greyed by the stylesheet), a frame and corner in the colour of
+    // its rank, and the name. The tile box comes from the same pass as every other card's, because the name is on the card.
+    function drawCard(card: HTMLElement, augment: Augment, game: KaspGameCard): void {
+        const image = game.picture;
+        const picture = card.querySelector<HTMLImageElement>(`:scope > img:not(.${OWN_NODE_CLASS})`);
+        if (image === null || picture === null || failedPictures.has(image) || isDrawnAs(card, picture, augment, image)) return;
+        undrawCard(card);
+        const original = picture.getAttribute('src');
+        if (original === null) return;
+        card.dataset[HIDDEN_KEY] = augment.name;
+        card.dataset[ORIGINAL_KEY] = original;
+        card.dataset[PICTURE_KEY] = image;
+        hasHiddenMarks = true;
+        picture.setAttribute('src', image);
+        picture.addEventListener(
+            'error',
+            () => {
+                if (card.dataset[PICTURE_KEY] !== image || failedPictures.has(image)) return;
+                failedPictures.add(image);
+                console.warn(`${LOG} the picture of ${augment.name} did not load: ${image}`);
+                undrawCard(card);
+            },
+            { once: true },
+        );
+        const nodes: HTMLElement[] = [];
+        const rank = FRAME_RANKS_BY_GAME[game.rarity];
+        if (rank !== undefined) {
+            const frame = element('div', `kasp-hidden-frame ${OWN_NODE_CLASS}`);
+            frame.dataset['rank'] = rank;
+            nodes.push(frame, icon(`kasp-hidden-corner ${OWN_NODE_CLASS}`, `corners/corner_${rank}.svg`));
+        }
+        nodes.push(element('p', `SkinCellStyle-nameDevices ${OWN_NODE_CLASS}`, augment.name));
+        picture.before(...nodes);
+    }
+
+    // The wiki's entry for a hidden card, or, when the wiki does not have the augment yet, one made of what the game says (its name and
+    // rank), so the card is still drawn and its box says there is no information.
+    function hiddenAugment(item: string, game: KaspGameCard): Augment {
+        const known = findAugment(item, game.name)?.augment;
+        return known ?? { name: game.name, advantages: [], disadvantages: [], rarity: FRAME_RANKS_BY_GAME[game.rarity] ?? null };
+    }
+
+    function hiddenTick(row: Element, item: string): void {
+        for (const child of Array.from(row.children)) {
+            if (!(child instanceof HTMLElement)) continue;
+            const card = readGameCard(child);
+            if (card === null || card.category !== AUGMENT_CATEGORY || !card.unknown) undrawCard(child);
+            else drawCard(child, hiddenAugment(item, card), card);
+        }
+    }
+
+    // Selecting a hidden card makes the game show its panel for an item the player cannot see: the "?" is a background picture
+    // of one element, with a "Not available" button below. The panel is told from any other picture by its background being the
+    // game's "unavailable" one. Its picture is swapped for the augment's (greyed) and its name put under it. Which card was
+    // chosen is the last one clicked; the game gives no readable selected card for an unknown item (checked 2026-10-30).
+    const PICTURE_PANEL_SELECTOR = '[class~="-backgroundImageContain"]';
+    const UNAVAILABLE_BACKGROUND = /unavailable\.[^/]*\.svg/;
+    const SIDE_ATTRIBUTE = 'data-kasp-side';
+    const SIDE_NAME_CLASS = 'kasp-hidden-side-name';
+    let clickedCard: HTMLElement | null = null;
+    // True from the first change to the sidebar until it is put back, like hasBoxes.
+    let hasSide = false;
+
+    document.addEventListener(
+        'click',
+        (event) => {
+            const target = event.target;
+            if (!(target instanceof Element) || target.closest(`.${BOX_CLASS}`) !== null) return;
+            const row = target.closest(CARD_ROW_SELECTOR);
+            if (row === null) return;
+            let card: Element = target;
+            while (card.parentElement !== null && card.parentElement !== row) card = card.parentElement;
+            clickedCard = card instanceof HTMLElement && card.dataset[HIDDEN_KEY] !== undefined ? card : null;
+        },
+        true,
+    );
+
+    function findUnavailablePanel(): HTMLElement | null {
+        for (const candidate of document.querySelectorAll<HTMLElement>(PICTURE_PANEL_SELECTOR)) {
+            if (candidate.hasAttribute(SIDE_ATTRIBUTE) || UNAVAILABLE_BACKGROUND.test(getComputedStyle(candidate).backgroundImage)) {
+                return candidate;
+            }
         }
         return null;
     }
 
-    function placeBlock(file: AugmentsFile, item: string, block: readonly RowCard[]): KaspPlacement | null {
-        const place = window.kaspHiddenOrder?.place;
-        if (place === undefined) return null;
-        const bucket = file.items[item] === undefined ? 'hulls' : item;
-        const index = indexFor(file, bucket);
-        const resolve = (name: string): string | null => index.get(normalizeName(name))?.name ?? null;
-        const slots = block.map((card): KaspHiddenSlot => ({
-            hidden: card.hidden,
-            name: card.hidden ? null : (findAugment(item, card.title)?.augment.name ?? null),
-        }));
-        if (bucket === 'hulls') return place({ kind: 'hull', slots, order: HULL_ORDER[file.language].map(resolve) });
-        const { start: startNames, end: endNames } = TURRET_NAMES[file.language];
-        const start = startNames.map(resolve);
-        const end = endNames.map(resolve);
-        const shared = new Set([...start, ...end]);
-        const candidates = Object.values(file.items[bucket] ?? {})
-            .filter((augment) => augment.rarity === 'legendary' && !shared.has(augment.name))
-            .map((augment) => augment.name);
-        return place({ kind: 'turret', slots, start, end, candidates });
+    // The game slides a long name in this panel back and forth while the mouse is over it (measured 2026-10-31): the hidden part of the
+    // text is scrolled into view and back in 2.1 s per round trip, smoothly, with no pause at the ends. Ours does the same.
+    const SLIDE_PERIOD_MS = 2100;
+
+    function slideOnHover(node: HTMLElement): void {
+        let frame = 0;
+        node.addEventListener('mouseenter', () => {
+            const distance = node.scrollWidth - node.clientWidth;
+            if (distance <= 0) return;
+            const start = performance.now();
+            const step = (now: number): void => {
+                if (!node.isConnected) return;
+                node.scrollLeft = distance * Math.sin((Math.PI * (now - start)) / SLIDE_PERIOD_MS) ** 2;
+                frame = requestAnimationFrame(step);
+            };
+            frame = requestAnimationFrame(step);
+        });
+        node.addEventListener('mouseleave', () => {
+            cancelAnimationFrame(frame);
+            node.scrollLeft = 0;
+        });
     }
 
-    // One warning per item and reason, and only once the refusal has lasted a second: a row caught while the game is still
-    // drawing it (the old tab's cards, a few cards of the new one) is refused for a moment and is nothing to report.
-    const REFUSAL_REPORT_MS = 1000;
-    const warnedRefusals = new Set<string>();
-    let pendingRefusal: { readonly key: string; readonly since: number } | null = null;
+    function removeSide(): void {
+        if (!hasSide) return;
+        hasSide = false;
+        document.querySelectorAll<HTMLElement>(`[${SIDE_ATTRIBUTE}]`).forEach((panel) => {
+            panel.removeAttribute(SIDE_ATTRIBUTE);
+            panel.style.removeProperty('background-image');
+            panel.style.removeProperty('filter');
+        });
+        document.querySelectorAll(`.${SIDE_NAME_CLASS}`).forEach((node) => node.remove());
+    }
 
-    function reportRefusal(item: string, placement: KaspPlacement | null): void {
-        if (placement === null || placement.ok) {
-            pendingRefusal = null;
+    function sideTick(): void {
+        const card = clickedCard;
+        const connected = card?.isConnected === true ? card : null;
+        const name = connected?.dataset[HIDDEN_KEY];
+        const image = connected?.dataset[PICTURE_KEY];
+        const panel = name === undefined || image === undefined ? null : findUnavailablePanel();
+        if (name === undefined || image === undefined || panel === null) {
+            removeSide();
             return;
         }
-        const key = `${item}|${placement.reason}`;
-        if (pendingRefusal?.key !== key) pendingRefusal = { key, since: Date.now() };
-        if (Date.now() - pendingRefusal.since < REFUSAL_REPORT_MS || warnedRefusals.has(key)) return;
-        warnedRefusals.add(key);
-        console.warn(`${LOG} hidden cards on ${item} not placed: ${placement.reason}`);
+        if (panel.getAttribute(SIDE_ATTRIBUTE) === name && panel.nextElementSibling?.classList.contains(SIDE_NAME_CLASS) === true) return;
+        removeSide();
+        hasSide = true;
+        panel.setAttribute(SIDE_ATTRIBUTE, name);
+        panel.style.setProperty('background-image', `url("${image}")`, 'important');
+        panel.style.setProperty('filter', 'grayscale(1) brightness(0.75)');
+        const label = element('p', SIDE_NAME_CLASS, name);
+        slideOnHover(label);
+        panel.after(label);
     }
-
-    // True from the first mark until they are all removed, like hasBoxes.
-    let hasHiddenMarks = false;
 
     function removeHiddenMarks(): void {
-        pendingRefusal = null;
+        clickedCard = null;
+        removeSide();
         if (!hasHiddenMarks) return;
         hasHiddenMarks = false;
-        document.querySelectorAll<HTMLElement>('[data-kasp-hidden]').forEach((card) => delete card.dataset[HIDDEN_ATTRIBUTE]);
-    }
-
-    function hiddenTick(row: Element, item: string, file: AugmentsFile): void {
-        const block = readFrontBlock(row);
-        const placement = block === null || block.length === 0 ? null : placeBlock(file, item, block);
-        reportRefusal(item, placement);
-        const wanted = new Map<HTMLElement, string>();
-        if (block !== null && placement?.ok === true) {
-            const names = placement.names;
-            block.forEach((card, position) => {
-                const name = names[position];
-                if (card.hidden && typeof name === 'string') wanted.set(card.element, name);
-            });
-        }
-        for (const child of Array.from(row.children)) {
-            if (!(child instanceof HTMLElement)) continue;
-            const name = wanted.get(child);
-            if (name === undefined) {
-                if (child.dataset[HIDDEN_ATTRIBUTE] !== undefined) delete child.dataset[HIDDEN_ATTRIBUTE];
-            } else if (child.dataset[HIDDEN_ATTRIBUTE] !== name) {
-                child.dataset[HIDDEN_ATTRIBUTE] = name;
-                hasHiddenMarks = true;
-            }
-        }
+        document.querySelectorAll<HTMLElement>('[data-kasp-hidden]').forEach(undrawCard);
     }
 
     // ---- 6. the tick ----

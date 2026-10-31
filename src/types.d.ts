@@ -169,40 +169,17 @@ interface KaspGarageTabReader {
     readonly read: () => KaspGarageTab | null;
 }
 
-// The front of the Augments tab's row, as src/modules/hidden_order.ts reads it. A slot is a hidden "?" card, or a named card
-// whose name is the augment's name in the data (null when the data does not have it).
-interface KaspHiddenSlot {
-    readonly hidden: boolean;
-    readonly name: string | null;
-}
-
-// start and end are the fixed names at the two ends of the block (null when the data does not have one); candidates are the
-// turret's own legendaries in the wiki's order, the fixed names left out.
-interface KaspTurretBlock {
-    readonly kind: "turret";
-    readonly slots: readonly KaspHiddenSlot[];
-    readonly start: readonly (string | null)[];
-    readonly end: readonly (string | null)[];
-    readonly candidates: readonly string[];
-}
-
-// order is the game's whole fixed order of a hull's block.
-interface KaspHullBlock {
-    readonly kind: "hull";
-    readonly slots: readonly KaspHiddenSlot[];
-    readonly order: readonly (string | null)[];
-}
-
-type KaspHiddenBlock = KaspTurretBlock | KaspHullBlock;
-
-// One entry per slot: the augment's name for a hidden slot that could be placed, otherwise null.
-type KaspPlacement =
-    | { readonly ok: true; readonly names: readonly (string | null)[] }
-    | { readonly ok: false; readonly reason: string };
-
-// Published by src/modules/hidden_order.ts.
-interface KaspHiddenOrder {
-    readonly place: (block: KaspHiddenBlock) => KaspPlacement;
+// What injector.ts reads off a card of the Augments row from the game's own React data and writes onto the card as
+// data-kasp-card (JSON): the augment's name, the game's rank word (RARE, EPIC, LEGENDARY, SPECIAL), whether the player
+// cannot see it yet (the "?" cards) and, for those, the address of the augment's own picture on the game's server. The category
+// (DEVICE for an augment) tells an augment's card from a skin's, since the row still holds the old tab's cards for a moment
+// after the tab changes.
+interface KaspGameCard {
+    readonly name: string;
+    readonly category: string | null;
+    readonly rarity: string;
+    readonly unknown: boolean;
+    readonly picture: string | null;
 }
 
 interface Window {
@@ -215,5 +192,4 @@ interface Window {
     __kaspSendGarageItem?: (obj: unknown, idProp: string, nameProp: string, categoryProp: string, mountedProp: string) => void;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
-    kaspHiddenOrder?: KaspHiddenOrder;
 }
