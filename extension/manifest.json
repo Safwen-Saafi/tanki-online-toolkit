@@ -33,6 +33,7 @@
       "css": [
         "styles/change_counter.css",
         "styles/garage_skins.css",
+        "styles/garage_cards.css",
         "styles/augments.css"
       ],
       "run_at": "document_start"
