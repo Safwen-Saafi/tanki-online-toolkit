@@ -501,9 +501,9 @@
     // ---- 5. the hidden "?" cards ----
 
     // The game draws an augment the player cannot see as a "?" card, but its own React data for the card still holds the real
-    // name and rank, with isUnknown true. injector.ts copies those three values, and nothing else, onto each card as
-    // data-kasp-card; this section draws the card as that augment from the bot's data: the wiki picture (greyed), the game's
-    // own frame for the rank, and the name. Each card is judged alone, so a card the game redraws (a click on it, say) never
+    // name and rank, with isUnknown true. injector.ts copies five values (name, category, rank, unknown, picture address), and
+    // nothing else, onto each card as data-kasp-card; this section draws the card as that augment, with the text from the bot's
+    // data: the game's own picture (greyed), our own frame in the colour of the rank, and the name. Each card is judged alone, so a card the game redraws (a click on it, say) never
     // changes another. See blueprint/context/garage-augments-screen.md.
     const GAME_CARD_ATTRIBUTE = 'data-kasp-card';
     const GAME_CARD_REQUEST = 'kasp:cards-request';
@@ -552,7 +552,7 @@
             if (typeof name !== 'string' || name === '' || typeof rarity !== 'string' || !RARITY_NAME.test(rarity)) return null;
             if (typeof unknown !== 'boolean' || (picture !== null && !isGamePicture(picture))) return null;
             if (category !== null && (typeof category !== 'string' || !RARITY_NAME.test(category))) return null;
-            return { name, category, rarity, unknown, picture };
+            return { name, category, rarity, unknown, picture: picture === null ? null : new URL(String(picture)).href };
         } catch {
             return null;
         }

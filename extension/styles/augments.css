@@ -229,7 +229,7 @@
     color: var(--kasp-spec-link);
 }
 
-/* The picture of a hidden augment drawn on its card: the wiki's picture, greyed so it can still be told from the player's own. */
+/* The picture of a hidden augment drawn on its card: the game's own picture of it, greyed so it can still be told from the player's own. */
 [data-kasp-hidden-picture] {
     position: relative;
     isolation: isolate;
