@@ -530,6 +530,7 @@
             return;
         }
         rewardDownloadFailed = false;
+        rewardRequestGap = REWARD_REQUEST_GAP_MS;
         const item = currentItem;
         const row = document.querySelector(CARD_ROW_SELECTOR);
         const tab = window.kaspGarageTab?.read() ?? null;
@@ -884,7 +885,9 @@
     const REWARDS_ATTRIBUTE = 'data-kasp-rewards';
     const REWARDS_REQUEST = 'kasp:rewards-request';
     const REWARD_ANSWER_ATTRIBUTE = 'data-kasp-reward-item';
+    // A list that cannot be found will not turn up in a second, so the wait between searches doubles until the list changes or the screen is left.
     const REWARD_REQUEST_GAP_MS = 1000;
+    const MAX_REWARD_REQUEST_GAP_MS = 60000;
     const REWARD_DOWNLOADS_AT_ONCE = 6;
     const NOT_SURE = '?';
     // How many of a turret's reference tiles must have a drawing for it to count as the turret's badge.
@@ -901,6 +904,7 @@
     let rewardWorking = false;
     let rewardDownloadFailed = false;
     let lastRewardRequest = 0;
+    let rewardRequestGap = REWARD_REQUEST_GAP_MS;
     const rewardDrawings = new Map<string, ReadonlySet<string>>();
     const tilePictures = new WeakMap<Element, { readonly className: string; readonly address: string | null }>();
 
@@ -1081,13 +1085,15 @@
         const text = root.getAttribute(REWARDS_ATTRIBUTE);
         if (text !== rewardListText) {
             rewardListText = text;
+            rewardRequestGap = REWARD_REQUEST_GAP_MS;
             readRewardList(text);
         }
         const pictures = tiles.map(tilePicture);
         const now = Date.now();
         const unknownTile = pictures.some((address) => address?.endsWith('.svg') === true && !rewardNames.has(address));
-        if ((text === null || unknownTile) && now - lastRewardRequest >= REWARD_REQUEST_GAP_MS) {
+        if ((text === null || unknownTile) && now - lastRewardRequest >= rewardRequestGap) {
             lastRewardRequest = now;
+            rewardRequestGap = Math.min(rewardRequestGap * 2, MAX_REWARD_REQUEST_GAP_MS);
             window.dispatchEvent(new CustomEvent(REWARDS_REQUEST));
         }
         const file = augmentsFile;
