@@ -237,6 +237,48 @@
         return candidates.length === 1 ? candidates[0]?.[1] : undefined;
     }
 
+    const SMALL_WORD_LENGTH = 2;
+    const MIN_SAME_LETTERS = 4;
+    const MAX_ENDING_LETTERS = 2;
+    const MAX_EXTRA_LETTERS = 2;
+
+    // One word is the other with a few letters added inside it: the game's "наноботов" is the wiki's "нанороботов". A wider spelling
+    // allowance is not safe: it would make "Exothermic" and "Endothermic", or "Stabilization" and "Destabilization", the same augment.
+    function hasExtraLetters(a: string, b: string): boolean {
+        const [short, long] = a.length < b.length ? [a, b] : [b, a];
+        const extra = long.length - short.length;
+        if (extra < 1 || extra > MAX_EXTRA_LETTERS || short.length < MIN_SAME_LETTERS * 2) return false;
+        for (let split = MIN_SAME_LETTERS; split <= short.length - MIN_SAME_LETTERS; split++) {
+            if (long.startsWith(short.slice(0, split)) && long.endsWith(short.slice(split))) return true;
+        }
+        return false;
+    }
+
+    // Small words dropped, the same words in the same order, each differing only in its last letters or by a few letters inside it.
+    function sameWords(a: string, b: string): boolean {
+        const first = a.split(' ').filter((word) => word.length > SMALL_WORD_LENGTH);
+        const second = b.split(' ').filter((word) => word.length > SMALL_WORD_LENGTH);
+        if (first.length === 0 || first.length !== second.length) return false;
+        return first.every((word, index) => {
+            const other = second[index] ?? '';
+            let same = 0;
+            while (same < word.length && word[same] === other[same]) same++;
+            return (
+                word === other ||
+                (same >= MIN_SAME_LETTERS && same >= Math.max(word.length, other.length) - MAX_ENDING_LETTERS) ||
+                hasExtraLetters(word, other)
+            );
+        });
+    }
+
+    // The game and the wiki sometimes word a name a little differently. Russian word endings change with a small word: the game's
+    // "Иммунитет к оглушению" is the wiki's "Иммунитет от оглушения". The one wiki name it can be is taken, but only when it
+    // is the only one, and no two names on one wiki list look alike by this test (checked 2026-11-01).
+    function similarAugment(index: ReadonlyMap<string, Augment>, wanted: string): Augment | undefined {
+        const candidates = [...index].filter(([name]) => sameWords(name, wanted));
+        return candidates.length === 1 ? candidates[0]?.[1] : undefined;
+    }
+
     const nameIndexes = new Map<string, ReadonlyMap<string, Augment>>();
 
     // The index of one item's augments by normalised name, built once per file and item.
@@ -257,7 +299,7 @@
         const bucket = file.items[item] === undefined ? 'hulls' : item;
         const index = indexFor(file, bucket);
         const wanted = normalizeName(cardName);
-        const augment = index.get(wanted) ?? closestAugment(index, wanted);
+        const augment = index.get(wanted) ?? closestAugment(index, wanted) ?? similarAugment(index, wanted);
         return augment === undefined ? null : { language: file.language, augment };
     }
 
@@ -480,6 +522,14 @@
     let lastTab: string | null = null;
 
     function boxTick(): void {
+        // The garage's tab reads null on this screen, so the check below would take every box away.
+        const containers = document.querySelector(REWARD_ROOT_SELECTOR);
+        if (containers !== null) {
+            removeHiddenMarks();
+            containerTick(containers);
+            return;
+        }
+        rewardDownloadFailed = false;
         const item = currentItem;
         const row = document.querySelector(CARD_ROW_SELECTOR);
         const tab = window.kaspGarageTab?.read() ?? null;
@@ -821,7 +871,242 @@
         document.querySelectorAll<HTMLElement>('[data-kasp-hidden]').forEach(undrawCard);
     }
 
-    // ---- 6. the tick ----
+    // ---- 6. the Containers screen ----
+
+    // A tile on this screen has no name and no turret, and the game's list of rewards (read by injector.ts) has the name only. But each
+    // augment's picture is an SVG that draws its turret's badge in the corner, the same on all of that turret's augments. So the badge is
+    // learned from the tiles whose name belongs to one turret only, and then every tile has to show its turret's badge to get an answer.
+    // A tile the rule is not sure of says there is no information, because a wrong spec is worse than none. Everything is worked out again on
+    // each load, so nothing is stored. See blueprint/context/containers-augments-research.md.
+    const REWARD_ROOT_SELECTOR = '.ContainerInfoComponentStyle-lootBoxContainer';
+    const REWARD_TILE_SELECTOR = '.RewardCardComponentStyle-imageBlock';
+    const REWARD_PICTURE_SELECTOR = '[class~="-backgroundImageContain"]';
+    const REWARDS_ATTRIBUTE = 'data-kasp-rewards';
+    const REWARDS_REQUEST = 'kasp:rewards-request';
+    const REWARD_ANSWER_ATTRIBUTE = 'data-kasp-reward-item';
+    const REWARD_REQUEST_GAP_MS = 1000;
+    const REWARD_DOWNLOADS_AT_ONCE = 6;
+    const NOT_SURE = '?';
+    // How many of a turret's reference tiles must have a drawing for it to count as the turret's badge.
+    const BADGE_SHARE = 0.6;
+    const BADGE_MIN_TILES = 2;
+    const CSS_URL = /url\("?([^")]+)"?\)/;
+    const SVG_PATH = /\sd="([^"]+)"/g;
+
+    let rewardListText: string | null = null;
+    let rewardNames: ReadonlyMap<string, string> = new Map();
+    let rewardRanks: ReadonlyMap<string, string> = new Map();
+    let rewardAnswers: ReadonlyMap<string, string> = new Map();
+    let answeredList: string | null = null;
+    let rewardWorking = false;
+    let rewardDownloadFailed = false;
+    let lastRewardRequest = 0;
+    const rewardDrawings = new Map<string, ReadonlySet<string>>();
+    const tilePictures = new WeakMap<Element, { readonly className: string; readonly address: string | null }>();
+
+    // The picture is a CSS background set by a class the game makes per picture, so it is read again only when that class changes:
+    // getComputedStyle on every tile of every pass would be too slow.
+    function tilePicture(tile: Element): string | null {
+        const picture = tile.querySelector(REWARD_PICTURE_SELECTOR);
+        if (picture === null) return null;
+        const className = picture.className;
+        const known = tilePictures.get(tile);
+        if (known?.className === className) return known.address;
+        const address = CSS_URL.exec(getComputedStyle(picture).backgroundImage)?.[1] ?? null;
+        tilePictures.set(tile, { className, address });
+        return address;
+    }
+
+    function readRewardList(text: string | null): void {
+        const names = new Map<string, string>();
+        const ranks = new Map<string, string>();
+        try {
+            const value: unknown = text === null ? [] : JSON.parse(text);
+            for (const entry of Array.isArray(value) ? (value as unknown[]) : []) {
+                if (!isRecord(entry)) continue;
+                const { name, picture, rank } = entry;
+                if (typeof name !== 'string' || !isGamePicture(picture)) continue;
+                names.set(picture, name);
+                if (typeof rank === 'string' && RARITY_NAME.test(rank)) ranks.set(picture, rank);
+            }
+        } catch {
+            // a list that cannot be read gets no answers
+        }
+        rewardNames = names;
+        rewardRanks = ranks;
+    }
+
+    async function downloadDrawings(addresses: readonly string[]): Promise<boolean> {
+        let next = 0;
+        let failed = false;
+        const worker = async (): Promise<void> => {
+            while (next < addresses.length) {
+                const address = addresses[next++];
+                if (address === undefined) return;
+                try {
+                    const res = await fetch(address);
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const drawings = new Set<string>();
+                    for (const match of (await res.text()).matchAll(SVG_PATH)) drawings.add((match[1] ?? '').replace(/\s+/g, ' ').trim());
+                    if (drawings.size === 0) throw new Error('no drawing');
+                    rewardDrawings.set(address, drawings);
+                } catch (e) {
+                    failed = true;
+                    console.warn(`${LOG} could not read the picture ${address}:`, describeError(e));
+                }
+            }
+        };
+        await Promise.all(Array.from({ length: REWARD_DOWNLOADS_AT_ONCE }, worker));
+        return !failed;
+    }
+
+    // The turrets or "hulls" whose wiki list has this name; a looser match counts only when no turret has it exactly.
+    function rewardBuckets(file: AugmentsFile, name: string): ReadonlySet<string> {
+        const wanted = normalizeName(name);
+        const buckets = Object.keys(file.items);
+        const exact = buckets.filter((bucket) => indexFor(file, bucket).has(wanted));
+        if (exact.length > 0) return new Set(exact);
+        return new Set(
+            buckets.filter((bucket) => {
+                const index = indexFor(file, bucket);
+                return (closestAugment(index, wanted) ?? similarAugment(index, wanted)) !== undefined;
+            }),
+        );
+    }
+
+    // One round: every tile is judged against the badges learned from the given reference tiles.
+    function judgeTiles(buckets: ReadonlyMap<string, ReadonlySet<string>>, references: ReadonlyMap<string, readonly string[]>): ReadonlyMap<string, string> {
+        const drawnBy = new Map<string, Set<string>>();
+        for (const [bucket, addresses] of references) {
+            for (const address of addresses) {
+                for (const drawing of rewardDrawings.get(address) ?? []) {
+                    const owners = drawnBy.get(drawing) ?? new Set<string>();
+                    owners.add(bucket);
+                    drawnBy.set(drawing, owners);
+                }
+            }
+        }
+        // What is drawn on this turret's reference tiles and on no other turret's, leaving out the tile being judged.
+        const badgeOf = (bucket: string, judged: string): ReadonlySet<string> => {
+            const tiles = (references.get(bucket) ?? []).filter((address) => address !== judged);
+            const counts = new Map<string, number>();
+            for (const address of tiles) {
+                for (const drawing of rewardDrawings.get(address) ?? []) {
+                    if (drawnBy.get(drawing)?.size === 1) counts.set(drawing, (counts.get(drawing) ?? 0) + 1);
+                }
+            }
+            const needed = tiles.length === 1 ? 1 : Math.max(BADGE_MIN_TILES, BADGE_SHARE * tiles.length);
+            return new Set([...counts].filter(([, count]) => count >= needed).map(([drawing]) => drawing));
+        };
+        const answers = new Map<string, string>();
+        for (const [address, candidates] of buckets) {
+            const drawings = rewardDrawings.get(address) ?? new Set<string>();
+            const scored: { bucket: string; matches: number }[] = [];
+            const withoutReferences: string[] = [];
+            for (const bucket of candidates) {
+                if (!(references.get(bucket) ?? []).some((reference) => reference !== address)) {
+                    withoutReferences.push(bucket);
+                    continue;
+                }
+                scored.push({ bucket, matches: [...badgeOf(bucket, address)].filter((drawing) => drawings.has(drawing)).length });
+            }
+            scored.sort((a, b) => b.matches - a.matches);
+            const best = scored[0];
+            const [lone] = withoutReferences;
+            let answer = NOT_SURE;
+            if (best !== undefined && best.matches >= 1 && (scored[1]?.matches ?? 0) === 0) answer = best.bucket;
+            // Only two turrets are possible, and one of them has no tile of its own to learn from (Firebird and Freeze share their mixes).
+            else if (lone !== undefined && withoutReferences.length === 1 && candidates.size === 2 && (best?.matches ?? 0) === 0) answer = lone;
+            answers.set(address, answer);
+        }
+        return answers;
+    }
+
+    // Two rounds. The first learns from the tiles whose name belongs to one turret only. The second learns from every tile the first placed,
+    // because a turret with few such tiles has little to learn from: Firebird has none, so its Camper needs its mixes placed first.
+    function workOutTurrets(file: AugmentsFile, names: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
+        const buckets = new Map<string, ReadonlySet<string>>();
+        for (const [address, name] of names) buckets.set(address, rewardBuckets(file, name));
+        const namedOnce = new Map<string, string[]>();
+        for (const [address, candidates] of buckets) {
+            const [only] = candidates;
+            if (candidates.size === 1 && only !== undefined) namedOnce.set(only, [...(namedOnce.get(only) ?? []), address]);
+        }
+        const placed = new Map<string, string[]>();
+        for (const [address, answer] of judgeTiles(buckets, namedOnce)) {
+            if (answer !== NOT_SURE) placed.set(answer, [...(placed.get(answer) ?? []), address]);
+        }
+        return judgeTiles(buckets, placed);
+    }
+
+    // The whole list is learned from, never the tiles on screen, and only when every picture was read: fewer pictures could change an answer.
+    async function learnRewards(text: string | null, names: ReadonlyMap<string, string>, file: AugmentsFile): Promise<void> {
+        rewardWorking = true;
+        try {
+            const missing = [...names.keys()].filter((address) => !rewardDrawings.has(address));
+            if (!(await downloadDrawings(missing))) {
+                rewardDownloadFailed = true;
+                return;
+            }
+            rewardAnswers = workOutTurrets(file, names);
+            answeredList = text;
+        } finally {
+            rewardWorking = false;
+        }
+    }
+
+    // Says there is no information, like a garage tile the wiki lacks: a tile with no wiki text, or one the rule is not sure of.
+    function noInformation(file: AugmentsFile, name: string, rank: string | undefined): AugmentMatch {
+        const augment: Augment = { name, advantages: [], disadvantages: [], rarity: rank === undefined ? null : (FRAME_RANKS_BY_GAME[rank] ?? null) };
+        return { language: file.language, augment, missing: true };
+    }
+
+    // The card holding the tile is positioned and nothing on it clips, and its bottom left corner is free (the count is centred).
+    function syncRewardBox(card: HTMLElement, answer: string | undefined, name: string | undefined, rank: string | undefined): void {
+        const key = answer === undefined || name === undefined ? null : `${answer}|${name}`;
+        const existing = card.querySelector<HTMLElement>(`:scope > .${BOX_CLASS}`);
+        if ((existing?.dataset['key'] ?? null) === key) return;
+        if (existing !== null) {
+            existing.remove();
+            hideTooltip();
+        }
+        const file = augmentsFile;
+        if (key === null || answer === undefined || name === undefined || file === null) return;
+        const match = (answer === NOT_SURE ? null : findAugment(answer, name)) ?? noInformation(file, name, rank);
+        card.append(createBox(card, key, match));
+    }
+
+    function containerTick(root: Element): void {
+        const tiles = Array.from(root.querySelectorAll(REWARD_TILE_SELECTOR));
+        const text = root.getAttribute(REWARDS_ATTRIBUTE);
+        if (text !== rewardListText) {
+            rewardListText = text;
+            readRewardList(text);
+        }
+        const pictures = tiles.map(tilePicture);
+        const now = Date.now();
+        const unknownTile = pictures.some((address) => address?.endsWith('.svg') === true && !rewardNames.has(address));
+        if ((text === null || unknownTile) && now - lastRewardRequest >= REWARD_REQUEST_GAP_MS) {
+            lastRewardRequest = now;
+            window.dispatchEvent(new CustomEvent(REWARDS_REQUEST));
+        }
+        const file = augmentsFile;
+        if (file !== null && text !== null && text !== answeredList && !rewardWorking && !rewardDownloadFailed && rewardNames.size > 0) {
+            void learnRewards(text, rewardNames, file);
+        }
+        tiles.forEach((tile, index) => {
+            const address = pictures[index];
+            const answer = address === null || address === undefined ? undefined : rewardAnswers.get(address);
+            if (answer === undefined) tile.removeAttribute(REWARD_ANSWER_ATTRIBUTE);
+            else if (tile.getAttribute(REWARD_ANSWER_ATTRIBUTE) !== answer) tile.setAttribute(REWARD_ANSWER_ATTRIBUTE, answer);
+            const card = tile.parentElement;
+            const name = address === null || address === undefined ? undefined : rewardNames.get(address);
+            const rank = address === null || address === undefined ? undefined : rewardRanks.get(address);
+            if (card !== null) syncRewardBox(card, answer, name, rank);
+        });
+    }
+
+    // ---- 7. the tick ----
 
     function tick(): void {
         itemTick();

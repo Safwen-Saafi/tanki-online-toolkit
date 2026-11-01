@@ -912,7 +912,127 @@
         });
     }
 
+    // The Containers screen. A tile shows no name, but the game keeps a list of every reward with its name and picture. On request
+    // from augments.ts this copies the augments' names, ranks and picture addresses, and nothing else, onto the screen as data-kasp-rewards.
+    // The list's field names are scrambled and change with the game, so it is found by what it holds: an array of objects of one class,
+    // one of which has a field equal to the name the screen shows for the selected tile. The longest one is taken, because the list on
+    // the screen's component shrinks when a rarity filter is on and the full one stays in the game's state. Only plain fields are read.
+    const REWARD_ROOT_SELECTOR = '.ContainerInfoComponentStyle-lootBoxContainer';
+    const REWARD_TILE_SELECTOR = '.RewardCardComponentStyle-imageBlock';
+    const REWARD_NAME_SELECTOR = '.ContainerInfoComponentStyle-rewardNameContainer';
+    const REWARDS_ATTRIBUTE = 'data-kasp-rewards';
+    const REWARDS_REQUEST = 'kasp:rewards-request';
+    const MAX_REWARD_FIBERS = 60;
+    const MAX_REWARD_DEPTH = 7;
+    const MAX_REWARD_OBJECTS = 100000;
+    const MAX_REWARD_FIELDS = 5000;
+    // A reward holds two objects, its rank and its picture. Anything with more is not this list, and readPictureUrl, which calls a
+    // class's methods, is not used on it.
+    const MAX_REWARD_ENTRY_OBJECTS = 2;
+    const NOT_GAME_DATA = new Set(['_owner', '_store', 'return', 'child', 'sibling', 'alternate']);
+
+    function plainField(holder: object, name: string): unknown {
+        return Object.getOwnPropertyDescriptor(holder, name)?.value as unknown;
+    }
+
+    // Capitals count, and every entry must have the field: the type of the first tile says "rubies" where its name says "Rubies", and
+    // the description of one reward is the same word as its name, but some rewards have no description.
+    function rewardNameField(list: readonly unknown[], shown: string): string | null {
+        const first: unknown = list[0];
+        if (!isObject(first)) return null;
+        const proto: unknown = Object.getPrototypeOf(first);
+        if (proto === Object.prototype || proto === null) return null;
+        // A plain loop, because every() skips the empty slots some of the game's arrays have.
+        for (const entry of list) {
+            if (!isObject(entry) || Object.getPrototypeOf(entry) !== proto) return null;
+        }
+        const entries = list as readonly object[];
+        for (const entry of entries) {
+            for (const name of Object.getOwnPropertyNames(entry)) {
+                const value = plainField(entry, name);
+                if (typeof value !== 'string' || value.trim() !== shown) continue;
+                if (entries.every((other) => typeof plainField(other, name) === 'string')) return name;
+            }
+        }
+        return null;
+    }
+
+    function findRewardList(start: object, shown: string, budget: { left: number }): { list: unknown[]; nameField: string } | null {
+        const seen = new Set<object>([start]);
+        let best: { list: unknown[]; nameField: string } | null = null;
+        let level: object[] = [start];
+        for (let depth = 0; level.length > 0 && depth <= MAX_REWARD_DEPTH; depth++) {
+            const next: object[] = [];
+            for (const holder of level) {
+                if (budget.left-- <= 0) return best;
+                if (Array.isArray(holder) && holder.length > (best?.list.length ?? 0)) {
+                    const nameField = rewardNameField(holder as unknown[], shown);
+                    if (nameField !== null) best = { list: holder as unknown[], nameField };
+                }
+                for (const name of Object.getOwnPropertyNames(holder).slice(0, MAX_REWARD_FIELDS)) {
+                    if (NOT_GAME_DATA.has(name)) continue;
+                    const value = plainField(holder, name);
+                    if (isObject(value) && !seen.has(value) && !(value instanceof Node) && !(value instanceof Window) && !ArrayBuffer.isView(value)) {
+                        seen.add(value);
+                        next.push(value);
+                    }
+                }
+            }
+            level = next;
+        }
+        return best;
+    }
+
+    // Only the augments, whose pictures are SVGs; paints, crystals and supplies are not.
+    function readRewards(list: readonly unknown[], nameField: string): { name: string; picture: string; rank: string | null }[] | null {
+        const rewards: { name: string; picture: string; rank: string | null }[] = [];
+        let pictureField: string | null = null;
+        for (const entry of list) {
+            if (!isObject(entry)) return null;
+            const objects = Object.getOwnPropertyNames(entry).filter((name) => isObject(plainField(entry, name)));
+            if (objects.length > MAX_REWARD_ENTRY_OBJECTS) return null;
+            pictureField ??= objects.find((name) => readPictureUrl(plainField(entry, name)) !== null) ?? null;
+            const picture = pictureField === null ? null : readPictureUrl(plainField(entry, pictureField));
+            const name = plainField(entry, nameField);
+            if (picture !== null && typeof name === 'string' && new URL(picture).pathname.endsWith('.svg')) {
+                const rankField = objects.find((field) => field !== pictureField);
+                const rank = rankField === undefined ? '' : String(plainField(entry, rankField));
+                rewards.push({ name: name.slice(0, MAX_CARD_NAME_LENGTH), picture, rank: RARITY_NAME.test(rank) ? rank : null });
+            }
+        }
+        return rewards;
+    }
+
+    function installRewardReader(): void {
+        window.addEventListener(REWARDS_REQUEST, () => {
+            const root = document.querySelector(REWARD_ROOT_SELECTOR);
+            const tile = root?.querySelector(REWARD_TILE_SELECTOR);
+            const shown = root?.querySelector(REWARD_NAME_SELECTOR)?.textContent?.trim();
+            if (root === null || root === undefined || tile === null || tile === undefined || !shown) return;
+            try {
+                const budget = { left: MAX_REWARD_OBJECTS };
+                let fiber = fiberOf(tile);
+                for (let up = 0; up < MAX_REWARD_FIBERS && isObject(fiber); up++) {
+                    const component = fiber['stateNode'];
+                    if (isObject(component) && !(component instanceof Node)) {
+                        const found = findRewardList(component, shown, budget);
+                        const rewards = found === null ? null : readRewards(found.list, found.nameField);
+                        if (rewards !== null) {
+                            const value = JSON.stringify(rewards);
+                            if (root.getAttribute(REWARDS_ATTRIBUTE) !== value) root.setAttribute(REWARDS_ATTRIBUTE, value);
+                            return;
+                        }
+                    }
+                    fiber = fiber['return'];
+                }
+            } catch {
+                // a list that cannot be read gets no attribute, and those tiles get no box
+            }
+        });
+    }
+
     installCardReader();
+    installRewardReader();
 
     let caughtBundle = false;
 
