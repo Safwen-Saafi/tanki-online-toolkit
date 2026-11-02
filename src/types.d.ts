@@ -185,6 +185,25 @@ interface KaspGameCard {
     readonly preview: string | null;
 }
 
+// Posted once by src/modules/old_pictures.ts to src/injector.ts: the address of the folder of bundled old augment pictures and the
+// stable path of each one that has a file in it (a picture's address without its version folder, for example
+// /634/112237/40/362/image.svg). Until it arrives, and unless it checks out, the injector swaps no picture.
+interface KaspOldPicturesMessage {
+    readonly type: "kasp:old-pictures";
+    readonly base: string;
+    readonly keys: string[];
+}
+
+// Published by src/modules/old_pictures.ts. swap(address) is the address of the old picture for a game picture's address, or the
+// address itself when there is none, or before the list is loaded, or when the module is off. keyOf(address) is a picture's
+// stable path, whether it is the game's address or the bundled file that stands for it, and any other address comes back as it is.
+// markFailed(address) is for a game address whose old picture did not load: swap gives the game's own from then on.
+interface KaspOldPictures {
+    readonly swap: (address: string) => string;
+    readonly keyOf: (address: string) => string;
+    readonly markFailed: (address: string) => void;
+}
+
 interface Window {
     __kaspSendAction?: (className: string, obj: unknown) => void;
     __kaspSendKill?: (className: string, obj: unknown) => void;
@@ -195,4 +214,5 @@ interface Window {
     __kaspSendGarageItem?: (obj: unknown, idProp: string, nameProp: string, categoryProp: string, mountedProp: string) => void;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
+    kaspOldPictures?: KaspOldPictures;
 }

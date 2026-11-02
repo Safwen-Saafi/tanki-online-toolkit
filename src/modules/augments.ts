@@ -599,6 +599,12 @@
     // The pictures that did not load, so a card goes back to the game's "?" and the address is not tried again.
     const failedPictures = new Set<string>();
 
+    // The game's address of a picture as it is shown: the old picture bundled in the extension when there is one (old_pictures.ts).
+    // The page's own hooks never see what this script writes, so every picture it draws asks here, like the game's own pictures get it.
+    function shownPicture(address: string): string {
+        return window.kaspOldPictures?.swap(address) ?? address;
+    }
+
     // The picture is shown on the game's own page, so only an https address on the game's server is taken.
     const GAME_PICTURE_HOST = /(^|\.)tankionline\.com$/;
 
@@ -675,20 +681,27 @@
             undrawCard(card);
             return;
         }
-        if (isDrawnAs(card, picture, augment, image)) return;
+        const shown = shownPicture(image);
+        if (isDrawnAs(card, picture, augment, shown)) return;
         undrawCard(card);
         const original = picture.getAttribute('src');
         if (original === null) return;
         card.dataset[HIDDEN_KEY] = augment.name;
         card.dataset[ORIGINAL_KEY] = original;
-        card.dataset[PICTURE_KEY] = image;
+        card.dataset[PICTURE_KEY] = shown;
         if (game.category === AUGMENT_CATEGORY) card.dataset[GREY_KEY] = '';
         hasHiddenMarks = true;
-        picture.setAttribute('src', image);
+        picture.setAttribute('src', shown);
         picture.addEventListener(
             'error',
             () => {
-                if (card.dataset[PICTURE_KEY] !== image || failedPictures.has(image)) return;
+                if (card.dataset[PICTURE_KEY] !== shown || failedPictures.has(image)) return;
+                // The old picture did not load: the next pass draws the card with the game's own picture.
+                if (shown !== image) {
+                    window.kaspOldPictures?.markFailed(image);
+                    undrawCard(card);
+                    return;
+                }
                 failedPictures.add(image);
                 console.warn(`${LOG} the picture of ${augment.name} did not load: ${image}`);
                 undrawCard(card);
@@ -840,7 +853,8 @@
         const connected = card?.isConnected === true ? card : null;
         const name = connected?.dataset[HIDDEN_KEY];
         // A skin or colour has a bigger picture for this panel than its card's; an augment's panel uses the card's.
-        const image = (connected === null ? null : readGameCard(connected)?.preview) ?? connected?.dataset[PICTURE_KEY];
+        const preview = connected === null ? null : (readGameCard(connected)?.preview ?? null);
+        const image = (preview === null ? null : shownPicture(preview)) ?? connected?.dataset[PICTURE_KEY];
         const panel = name === undefined || image === undefined ? null : findUnavailablePanel();
         if (name === undefined || image === undefined || panel === null) {
             removeSide();
@@ -897,7 +911,10 @@
     const SVG_PATH = /\sd="([^"]+)"/g;
 
     let rewardListText: string | null = null;
+    // Pictures are known by their stable path (old_pictures.ts), because the tile may show the old picture while the game's list holds
+    // the new one's address; rewardAddresses keeps that game address, which is the one the badge is learned from.
     let rewardNames: ReadonlyMap<string, string> = new Map();
+    let rewardAddresses: ReadonlyMap<string, string> = new Map();
     let rewardRanks: ReadonlyMap<string, string> = new Map();
     let rewardAnswers: ReadonlyMap<string, string> = new Map();
     let answeredList: string | null = null;
@@ -906,7 +923,11 @@
     let lastRewardRequest = 0;
     let rewardRequestGap = REWARD_REQUEST_GAP_MS;
     const rewardDrawings = new Map<string, ReadonlySet<string>>();
-    const tilePictures = new WeakMap<Element, { readonly className: string; readonly address: string | null }>();
+    const tilePictures = new WeakMap<Element, { readonly className: string; readonly key: string | null }>();
+
+    function pictureKey(address: string): string {
+        return window.kaspOldPictures?.keyOf(address) ?? address;
+    }
 
     // The picture is a CSS background set by a class the game makes per picture, so it is read again only when that class changes:
     // getComputedStyle on every tile of every pass would be too slow.
@@ -915,45 +936,55 @@
         if (picture === null) return null;
         const className = picture.className;
         const known = tilePictures.get(tile);
-        if (known?.className === className) return known.address;
+        if (known?.className === className) return known.key;
         const address = CSS_URL.exec(getComputedStyle(picture).backgroundImage)?.[1] ?? null;
-        tilePictures.set(tile, { className, address });
-        return address;
+        const key = address === null ? null : pictureKey(address);
+        tilePictures.set(tile, { className, key });
+        return key;
     }
 
     function readRewardList(text: string | null): void {
         const names = new Map<string, string>();
         const ranks = new Map<string, string>();
+        const addresses = new Map<string, string>();
         try {
             const value: unknown = text === null ? [] : JSON.parse(text);
             for (const entry of Array.isArray(value) ? (value as unknown[]) : []) {
                 if (!isRecord(entry)) continue;
                 const { name, picture, rank } = entry;
                 if (typeof name !== 'string' || !isGamePicture(picture)) continue;
-                names.set(picture, name);
-                if (typeof rank === 'string' && RARITY_NAME.test(rank)) ranks.set(picture, rank);
+                const key = pictureKey(picture);
+                names.set(key, name);
+                addresses.set(key, picture);
+                if (typeof rank === 'string' && RARITY_NAME.test(rank)) ranks.set(key, rank);
             }
         } catch {
             // a list that cannot be read gets no answers
         }
         rewardNames = names;
         rewardRanks = ranks;
+        rewardAddresses = addresses;
     }
 
-    async function downloadDrawings(addresses: readonly string[]): Promise<boolean> {
+    async function downloadDrawings(keys: readonly string[]): Promise<boolean> {
         let next = 0;
         let failed = false;
         const worker = async (): Promise<void> => {
-            while (next < addresses.length) {
-                const address = addresses[next++];
-                if (address === undefined) return;
+            while (next < keys.length) {
+                const key = keys[next++];
+                if (key === undefined) return;
+                const address = rewardAddresses.get(key);
+                if (address === undefined) {
+                    failed = true;
+                    continue;
+                }
                 try {
                     const res = await fetch(address);
                     if (!res.ok) throw new Error('HTTP ' + res.status);
                     const drawings = new Set<string>();
                     for (const match of (await res.text()).matchAll(SVG_PATH)) drawings.add((match[1] ?? '').replace(/\s+/g, ' ').trim());
                     if (drawings.size === 0) throw new Error('no drawing');
-                    rewardDrawings.set(address, drawings);
+                    rewardDrawings.set(key, drawings);
                 } catch (e) {
                     failed = true;
                     console.warn(`${LOG} could not read the picture ${address}:`, describeError(e));
