@@ -14,6 +14,7 @@
 // found and skipped on its own. When anything goes wrong the game's own bundle is run without the hook that failed (or
 // unpatched), so the extension can lose a hook but never the game. One more part patches nothing: it reads each garage card's
 // name, rank and picture address from the game's React data for the hidden augment cards (kasp:cards-request from augments.ts).
+// Another part swaps the game's augment pictures for the old ones bundled in the extension, as the game assigns their addresses (kasp:old-pictures from old_pictures.ts).
 (function () {
     'use strict';
 
@@ -1031,6 +1032,293 @@
         });
     }
 
+    // ---- the old augment pictures ----
+
+    // The devs replaced the augment pictures with new ones; old_pictures.ts bundles the old ones and posts kasp:old-pictures (the
+    // address of the folder they are in and the stable path of each: a picture's address without its version folder, for example
+    // /634/112237/40/362/image.svg). From then on, every address the game assigns to a picture is swapped for the bundled file when
+    // its stable path is on the list: the idea of augments.user.js in the repo doomersson/doomersson.github.io (no license; none of
+    // its code is used). A picture the list does not have keeps the game's own, and so does an <img> whose old file fails to load.
+    // Nothing is touched before the message arrives and checks out, and nothing here may throw into the game. old_pictures.ts and
+    // scripts/old-style-picture/lib.mjs have the same rule for a stable path and a file name, since scripts share no imports; change all
+    // three together.
+    const OLD_STABLE_PATH = /^(?:\/\d{1,12}){2,}\/image\.svg$/;
+    const OLD_PICTURE_HOST = /(^|\.)tankionline\.com$/;
+    const OLD_FOLDER = '/old_pictures/';
+    const MAX_OLD_KEYS = 5000;
+    const CSS_URL = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi;
+
+    interface OldPictures {
+        readonly base: string;
+        readonly keys: ReadonlySet<string>;
+    }
+
+    let oldPictures: OldPictures | null = null;
+    // The game's addresses whose old picture did not load, so the game's own is kept for them.
+    const failedOldPaths = new Set<string>();
+    // The game's own address of each <img> that was given an old picture, to give it back when the old one does not load.
+    const gameAddressOf = new WeakMap<HTMLImageElement, string>();
+
+    function oldStablePath(address: string): string | null {
+        try {
+            const url = new URL(address, window.location.href);
+            if (url.protocol !== 'https:' || !OLD_PICTURE_HOST.test(url.hostname)) return null;
+            const parts = url.pathname.split('/').filter((part) => part !== '');
+            if (parts[parts.length - 1] !== 'image.svg') return null;
+            parts.splice(parts.length - 2, 1);
+            const path = '/' + parts.join('/');
+            return OLD_STABLE_PATH.test(path) ? path : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function readOldPicturesMessage(data: unknown): OldPictures | null {
+        if (!isObject(data)) return null;
+        const { base, keys } = data;
+        if (typeof base !== 'string' || !Array.isArray(keys) || keys.length === 0 || keys.length > MAX_OLD_KEYS) return null;
+        try {
+            const url = new URL(base);
+            if (url.protocol !== 'chrome-extension:' || url.href !== base || !url.pathname.endsWith(OLD_FOLDER)) return null;
+        } catch {
+            return null;
+        }
+        const checked = new Set<string>();
+        for (const key of keys as unknown[]) {
+            if (typeof key !== 'string' || !OLD_STABLE_PATH.test(key)) return null;
+            checked.add(key);
+        }
+        return { base, keys: checked };
+    }
+
+    // The old picture's address for a game address, or the address itself.
+    function oldAddress(address: string): string {
+        const pictures = oldPictures;
+        if (pictures === null) return address;
+        const path = oldStablePath(address);
+        if (path === null || !pictures.keys.has(path) || failedOldPaths.has(path)) return address;
+        return pictures.base + path.slice(1, -'/image.svg'.length).replace(/\//g, '-') + '.svg';
+    }
+
+    // The same for every address inside the url(...) of a piece of CSS.
+    function oldCss(text: string): string {
+        if (oldPictures === null || !text.includes('image.svg')) return text;
+        return text.replace(CSS_URL, (whole: string, quote: string, address: string) => {
+            const replaced = oldAddress(address);
+            return replaced === address ? whole : `url(${quote}${replaced}${quote})`;
+        });
+    }
+
+    // The page's own setAttribute, kept for what this part writes itself.
+    const nativeSetAttribute = Element.prototype.setAttribute;
+
+    // The game's own picture back on an <img> whose old picture could not be loaded.
+    function backToGamePicture(event: Event): void {
+        try {
+            const image = event.currentTarget;
+            const pictures = oldPictures;
+            if (!(image instanceof HTMLImageElement) || pictures === null) return;
+            const original = gameAddressOf.get(image);
+            if (original === undefined || !(image.getAttribute('src') ?? '').startsWith(pictures.base)) return;
+            const path = oldStablePath(original);
+            if (path !== null) failedOldPaths.add(path);
+            gameAddressOf.delete(image);
+            nativeSetAttribute.call(image, 'src', original);
+        } catch {
+            // the game keeps whatever it has
+        }
+    }
+
+    // What an <img> gets for the address the game gave it, remembering the game's own for a failed load.
+    function imageAddress(image: HTMLImageElement, address: string): string {
+        try {
+            const replaced = oldAddress(address);
+            if (replaced === address) {
+                gameAddressOf.delete(image);
+                return address;
+            }
+            gameAddressOf.set(image, address);
+            image.addEventListener('error', backToGamePicture, { once: true });
+            return replaced;
+        } catch {
+            return address;
+        }
+    }
+
+    // The rules of the page's style sheets that already hold a picture. The game makes the rule of a picture shown as a CSS background
+    // (the big picture of the garage's left panel, the Containers tiles) by inserting it into a style sheet, so the style element has no
+    // text with the address in it (measured 2026-11-01), and neither an attribute nor setProperty is ever called for it.
+    const MAX_RULE_DEPTH = 4;
+
+    function sweepRules(rules: CSSRuleList, depth: number): void {
+        if (depth > MAX_RULE_DEPTH) return;
+        for (const rule of Array.from(rules)) {
+            if (rule instanceof CSSStyleRule) {
+                const style = rule.style;
+                for (let index = 0; index < style.length; index++) {
+                    const name = style.item(index);
+                    const value = style.getPropertyValue(name);
+                    const next = oldCss(value);
+                    if (next !== value) style.setProperty(name, next, style.getPropertyPriority(name));
+                }
+            } else if ('cssRules' in rule) {
+                sweepRules((rule as CSSGroupingRule).cssRules, depth + 1);
+            }
+        }
+    }
+
+    // The pictures already on the page when the list arrives (the game may have drawn some before).
+    function sweepOldPictures(): void {
+        for (const sheet of Array.from(document.styleSheets)) {
+            try {
+                sweepRules(sheet.cssRules, 0);
+            } catch {
+                // a sheet from another origin cannot be read, and holds no picture of the game's
+            }
+        }
+        for (const image of document.querySelectorAll('img[src]')) {
+            const value = image.getAttribute('src');
+            if (value === null || !(image instanceof HTMLImageElement)) continue;
+            const next = imageAddress(image, value);
+            if (next !== value) nativeSetAttribute.call(image, 'src', next);
+        }
+        for (const element of document.querySelectorAll('[style]')) {
+            const value = element.getAttribute('style');
+            const next = value === null ? null : oldCss(value);
+            if (next !== null && next !== value) nativeSetAttribute.call(element, 'style', next);
+        }
+    }
+
+    // The text of a piece of CSS with its picture addresses swapped, or the text itself if anything goes wrong.
+    function swapCssText(text: string): string {
+        try {
+            return oldCss(text);
+        } catch {
+            return text;
+        }
+    }
+
+    // Each function below hooks one way the game can give a picture an address. Every hook keeps the game's own value on any error.
+    function hookMessage(): void {
+        window.addEventListener('message', (e: MessageEvent) => {
+            if (e.source !== window || oldPictures !== null) return;
+            const data: unknown = e.data;
+            if (!isObject(data) || data['type'] !== 'kasp:old-pictures') return;
+            const next = readOldPicturesMessage(data);
+            if (next === null) {
+                warn(`${LOG} an old pictures message was not understood, the game's own pictures stay`);
+                return;
+            }
+            oldPictures = next;
+            try {
+                sweepOldPictures();
+            } catch {
+                // the pictures drawn from now on are still swapped
+            }
+        });
+    }
+
+    function hookSetAttribute(): void {
+        Element.prototype.setAttribute = function (this: Element, name: string, value: string): void {
+            let next = value;
+            try {
+                if (oldPictures !== null && typeof value === 'string') {
+                    const lower = String(name).toLowerCase();
+                    if (lower === 'src' || lower === 'href' || lower === 'xlink:href') {
+                        next = this instanceof HTMLImageElement && lower === 'src' ? imageAddress(this, value) : oldAddress(value);
+                    } else if (lower === 'style') {
+                        next = swapCssText(value);
+                    }
+                }
+            } catch {
+                next = value;
+            }
+            return nativeSetAttribute.call(this, name, next);
+        };
+    }
+
+    function hookImageSource(): void {
+        const sourceProperty = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+        const sourceGet = sourceProperty?.get;
+        const sourceSet = sourceProperty?.set;
+        if (sourceProperty === undefined || sourceGet === undefined || sourceSet === undefined) return;
+        Object.defineProperty(HTMLImageElement.prototype, 'src', {
+            configurable: sourceProperty.configurable,
+            enumerable: sourceProperty.enumerable,
+            get: sourceGet,
+            set(this: HTMLImageElement, value: unknown): void {
+                sourceSet.call(this, typeof value === 'string' && oldPictures !== null ? imageAddress(this, value) : value);
+            },
+        });
+    }
+
+    function hookSetProperty(): void {
+        const originalSetProperty = CSSStyleDeclaration.prototype.setProperty;
+        CSSStyleDeclaration.prototype.setProperty = function (this: CSSStyleDeclaration, name: string, value: string | null, priority?: string): void {
+            return originalSetProperty.call(this, name, typeof value === 'string' ? swapCssText(value) : value, priority ?? '');
+        };
+    }
+
+    // The rule of a picture shown as a CSS background goes into a style sheet as text, in a sheet or in a group rule (@media, @supports).
+    function hookInsertRule(): void {
+        const originalInsertRule = CSSStyleSheet.prototype.insertRule;
+        CSSStyleSheet.prototype.insertRule = function (this: CSSStyleSheet, rule: string, index?: number): number {
+            return originalInsertRule.call(this, typeof rule === 'string' ? swapCssText(rule) : rule, index);
+        };
+        if (typeof CSSGroupingRule === 'undefined') return;
+        const originalGroupInsertRule = CSSGroupingRule.prototype.insertRule;
+        CSSGroupingRule.prototype.insertRule = function (this: CSSGroupingRule, rule: string, index?: number): number {
+            return originalGroupInsertRule.call(this, typeof rule === 'string' ? swapCssText(rule) : rule, index);
+        };
+    }
+
+    function hookXmlHttpRequest(): void {
+        if (typeof XMLHttpRequest === 'undefined') return;
+        const originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, ...args: unknown[]): unknown {
+            try {
+                const address = args[1];
+                if (oldPictures !== null && typeof address === 'string') args[1] = oldAddress(address);
+                else if (oldPictures !== null && address instanceof URL) args[1] = oldAddress(address.href);
+            } catch {
+                // the game's own address is used
+            }
+            return Reflect.apply(originalOpen, this, args);
+        } as unknown as typeof XMLHttpRequest.prototype.open;
+    }
+
+    function hookFetch(): void {
+        if (typeof window.fetch !== 'function') return;
+        const originalFetch = window.fetch;
+        window.fetch = function (this: unknown, input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+            let next = input;
+            try {
+                if (oldPictures !== null) {
+                    if (typeof input === 'string') next = oldAddress(input);
+                    else if (input instanceof URL) next = oldAddress(input.href);
+                    else if (input instanceof Request) {
+                        const replaced = oldAddress(input.url);
+                        if (replaced !== input.url) next = new Request(replaced, input);
+                    }
+                }
+            } catch {
+                next = input;
+            }
+            return Reflect.apply(originalFetch, this, [next, init]) as Promise<Response>;
+        };
+    }
+
+    function installOldPictures(): void {
+        hookMessage();
+        hookSetAttribute();
+        hookImageSource();
+        hookSetProperty();
+        hookInsertRule();
+        hookXmlHttpRequest();
+        hookFetch();
+    }
+
+    installOldPictures();
     installCardReader();
     installRewardReader();
 
