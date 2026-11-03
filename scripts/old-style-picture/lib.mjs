@@ -9,6 +9,9 @@ import { fileURLToPath } from 'node:url';
 export const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const PICTURES_DIR = path.join(ROOT, 'extension', 'old_pictures');
 export const LIST_FILE = path.join(ROOT, 'extension', 'data', 'old_pictures.json');
+// The rule for which addresses count, what a stable path is and how it becomes a file name (GAME_HOST, STABLE_PATH, fileNameOf) is
+// also written in src/injector.ts (oldStablePath, oldAddress) and src/modules/old_pictures.ts (stablePath, fileOf). Scripts share
+// no imports, so change all three together, or a file saved here is never found by the extension.
 const GAME_HOST = /(^|\.)tankionline\.com$/;
 const STABLE_PATH = /^(?:\/\d{1,12}){2,}\/image\.svg$/;
 const GRADIENT = /<(radialGradient|linearGradient)\b[^>]*>[\s\S]*?<\/\1>/g;
@@ -98,6 +101,24 @@ export function colorGroups() {
     return [...groups.values()].sort((a, b) => b.count - a.count);
 }
 
+// What a picture of the game must not hold, since the file goes into the extension: a script, a foreignObject, an event handler,
+// a link to another site, a data address, or a reference to anything but a shape inside the same file (href="#...").
+const UNSAFE_SVG = [
+    [/<\s*script\b/i, 'a script'],
+    [/<\s*foreignObject\b/i, 'a foreignObject'],
+    [/[\s"'/]on[a-z]+\s*=/i, 'an event handler'],
+    [/javascript:/i, 'a javascript: address'],
+    [/data:/i, 'a data: address'],
+    [/https?:\/\/(?!www\.w3\.org\/)/i, 'a link to another site'],
+    [/href\s*=\s*["'](?!#)/i, 'a reference to something outside the file'],
+];
+
+// Returns what is wrong with an svg's text as a plain phrase, or null when it holds none of the above.
+export function unsafeContent(svg) {
+    for (const [pattern, what] of UNSAFE_SVG) if (pattern.test(svg)) return what;
+    return null;
+}
+
 // The new picture with its background gradient replaced by the donor's, keeping the new picture's own gradient id so
 // the shapes that point at it still do.
 export function recolor(newSvg, donorSvg) {
@@ -111,6 +132,8 @@ export function recolor(newSvg, donorSvg) {
     const replacement = donor[0][0].split(donorId).join(targetId);
     const result = newSvg.replace(target[0][0], () => replacement);
     if (!result.includes('<svg')) throw new Error('the result is not an SVG; nothing written');
+    const unsafe = unsafeContent(result);
+    if (unsafe !== null) throw new Error(`the picture holds ${unsafe}, which a game picture never does; nothing written`);
     return result;
 }
 

@@ -8,8 +8,9 @@
 // no upkeep.
 // This script does two things. It tells the page (kasp:old-pictures), where src/injector.ts swaps an address as the game assigns
 // it, and it publishes window.kaspOldPictures so the modules that draw a game picture themselves (augments.ts) show the same
-// picture: the page's hooks never see what an isolated script writes. The rule for a stable path is also written in
-// src/injector.ts, on purpose, since scripts share no imports; change both together. Off when the switch kasp_old_pictures is 0.
+// picture: the page's hooks never see what an isolated script writes. The rule for a stable path and a file name is also written in
+// src/injector.ts and in scripts/old-style-picture/lib.mjs, on purpose, since scripts share no imports; change all three together.
+// Off when the switch kasp_old_pictures is 0.
 (function () {
     'use strict';
 

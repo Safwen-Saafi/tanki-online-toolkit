@@ -132,6 +132,27 @@ function push(event) {
     } else queue.push(event);
 }
 
+// A paste that has started at s[i] (its first six characters are the start marker). Pushes it when its end marker is in s and
+// returns the index after it. While the end has not arrived the text is held for the next chunk and -1 comes back, except that a
+// Ctrl+C in the held text leaves the program, and a held text too long to be a paste is dropped, so a paste that never ends cannot
+// lock the window. Terminals always send the end marker, so this only matters when something goes wrong.
+const MAX_OPEN_PASTE = 1000000;
+
+function takePaste(s, i) {
+    const end = s.indexOf(`${ESC}[201~`, i);
+    if (end >= 0) {
+        push({ type: 'paste', text: s.slice(i + 6, end) });
+        return end + 6;
+    }
+    if (s.includes('\x03', i)) {
+        push({ type: 'key', name: 'ctrl-c' });
+        return s.length;
+    }
+    if (s.length - i > MAX_OPEN_PASTE) return s.length;
+    pending = s.slice(i);
+    return -1;
+}
+
 // Turns what the terminal sends into events: key, char, paste and mouse.
 function parse(chunk) {
     const s = pending + chunk;
@@ -141,13 +162,9 @@ function parse(chunk) {
         const ch = s[i] ?? '';
         if (ch === ESC) {
             if (s.startsWith('[200~', i + 1)) {
-                const end = s.indexOf(`${ESC}[201~`, i);
-                if (end < 0) {
-                    pending = s.slice(i);
-                    return;
-                }
-                push({ type: 'paste', text: s.slice(i + 6, end) });
-                i = end + 6;
+                const after = takePaste(s, i);
+                if (after < 0) return;
+                i = after;
                 continue;
             }
             const match = /^\x1b(?:\[([<0-9;?]*)([A-Za-z~])|O([A-Za-z]))/.exec(s.slice(i, i + 40));
@@ -643,6 +660,8 @@ async function downloadAll(items) {
         out(fit(`  ${at + 1}/${items.length}  ${item.stablePath} ... `, width() - 12));
         try {
             const svg = await lib.downloadNewPicture(item.address);
+            const unsafe = lib.unsafeContent(svg);
+            if (unsafe !== null) throw new Error(`it holds ${unsafe}, which a game picture never does`);
             if (lib.backgroundColors(svg) === null) throw new Error('it has no single background gradient to replace');
             ready.push({ ...item, svg });
             out(`${c.good}ok${c.reset}\r\n`);

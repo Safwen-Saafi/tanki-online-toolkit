@@ -53,7 +53,7 @@ and installed dependencies before adding machinery.
 - `blueprint/context/current-feature.md` - the one feature, fix, or rollback being built right now
 - `blueprint/context/battle-stats-table.md` - read before changing anything visual in the in-battle stats panel
 - `blueprint/context/garage-skins-screen.md` - read before changing anything in the garage skins module (Skins tab, tiles, main screen blocks)
-- `blueprint/context/garage-augments-screen.md` - read before changing anything in the augments module (the item title, tab detection, the Augments tab tiles and the spec box)
+- `blueprint/context/garage-augments-screen.md` - read before changing anything in the augments module (the item title, tab detection, the Augments tab tiles and the spec box) or the old augment picture swap (the page hooks in `injector.ts`, `old_pictures.ts`, the Containers matching by stable path)
 - `blueprint/context/kill-events.md` - read before changing anything in the kill sounds (the game's kill events, how the player is identified, the streak rules, how to add a sound)
 - `blueprint/context/battle-sounds.md` - read before changing the end of battle music, the grenade sounds or the weapon sounds (Magnum, Striker, Gauss) (the game's battle time, the music rules, how a grenade throw is detected, how the game's weapon sound files are named and swapped)
 

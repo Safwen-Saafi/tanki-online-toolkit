@@ -55,6 +55,12 @@ Options:
 
 It stops without writing anything when the address is not a game address ending in `image.svg`, when the picture already has an old file (the wizard asks instead), or when the new picture or the old picture to copy from does not have exactly one background gradient.
 
+It also refuses a picture that holds anything a game picture never does, because the file goes into the extension: a script, a `foreignObject`, an event handler (`onload=` and the like), a `javascript:` or `data:` address, a link to another site, or a reference to anything outside the file. The wizard says so in the list of pictures that could not be used. All 516 bundled pictures pass this check.
+
+## One rule in three places
+
+Which addresses count, what a stable path is, and how it becomes a file name is written in `lib.mjs`, in `src/injector.ts` and in `src/modules/old_pictures.ts`, because scripts share no imports. If the rule ever changes, change all three, or a file saved here is never found by the extension.
+
 ## The files
 
 - `start.cmd`: opens the wizard in a terminal window (Windows).

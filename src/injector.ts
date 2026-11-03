@@ -1039,8 +1039,9 @@
     // /634/112237/40/362/image.svg). From then on, every address the game assigns to a picture is swapped for the bundled file when
     // its stable path is on the list: the idea of augments.user.js in the repo doomersson/doomersson.github.io (no license; none of
     // its code is used). A picture the list does not have keeps the game's own, and so does an <img> whose old file fails to load.
-    // Nothing is touched before the message arrives and checks out, and nothing here may throw into the game. old_pictures.ts has the
-    // same rule for a stable path, since scripts share no imports; change both together.
+    // Nothing is touched before the message arrives and checks out, and nothing here may throw into the game. old_pictures.ts and
+    // scripts/old-style-picture/lib.mjs have the same rule for a stable path and a file name, since scripts share no imports; change all
+    // three together.
     const OLD_STABLE_PATH = /^(?:\/\d{1,12}){2,}\/image\.svg$/;
     const OLD_PICTURE_HOST = /(^|\.)tankionline\.com$/;
     const OLD_FOLDER = '/old_pictures/';
@@ -1188,7 +1189,17 @@
         }
     }
 
-    function installOldPictures(): void {
+    // The text of a piece of CSS with its picture addresses swapped, or the text itself if anything goes wrong.
+    function swapCssText(text: string): string {
+        try {
+            return oldCss(text);
+        } catch {
+            return text;
+        }
+    }
+
+    // Each function below hooks one way the game can give a picture an address. Every hook keeps the game's own value on any error.
+    function hookMessage(): void {
         window.addEventListener('message', (e: MessageEvent) => {
             if (e.source !== window || oldPictures !== null) return;
             const data: unknown = e.data;
@@ -1205,7 +1216,9 @@
                 // the pictures drawn from now on are still swapped
             }
         });
+    }
 
+    function hookSetAttribute(): void {
         Element.prototype.setAttribute = function (this: Element, name: string, value: string): void {
             let next = value;
             try {
@@ -1214,7 +1227,7 @@
                     if (lower === 'src' || lower === 'href' || lower === 'xlink:href') {
                         next = this instanceof HTMLImageElement && lower === 'src' ? imageAddress(this, value) : oldAddress(value);
                     } else if (lower === 'style') {
-                        next = oldCss(value);
+                        next = swapCssText(value);
                     }
                 }
             } catch {
@@ -1222,89 +1235,87 @@
             }
             return nativeSetAttribute.call(this, name, next);
         };
+    }
 
+    function hookImageSource(): void {
         const sourceProperty = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
         const sourceGet = sourceProperty?.get;
         const sourceSet = sourceProperty?.set;
-        if (sourceProperty !== undefined && sourceGet !== undefined && sourceSet !== undefined) {
-            Object.defineProperty(HTMLImageElement.prototype, 'src', {
-                configurable: sourceProperty.configurable,
-                enumerable: sourceProperty.enumerable,
-                get: sourceGet,
-                set(this: HTMLImageElement, value: unknown): void {
-                    sourceSet.call(this, typeof value === 'string' && oldPictures !== null ? imageAddress(this, value) : value);
-                },
-            });
-        }
+        if (sourceProperty === undefined || sourceGet === undefined || sourceSet === undefined) return;
+        Object.defineProperty(HTMLImageElement.prototype, 'src', {
+            configurable: sourceProperty.configurable,
+            enumerable: sourceProperty.enumerable,
+            get: sourceGet,
+            set(this: HTMLImageElement, value: unknown): void {
+                sourceSet.call(this, typeof value === 'string' && oldPictures !== null ? imageAddress(this, value) : value);
+            },
+        });
+    }
 
+    function hookSetProperty(): void {
         const originalSetProperty = CSSStyleDeclaration.prototype.setProperty;
         CSSStyleDeclaration.prototype.setProperty = function (this: CSSStyleDeclaration, name: string, value: string | null, priority?: string): void {
-            let next = value;
-            try {
-                if (typeof value === 'string') next = oldCss(value);
-            } catch {
-                next = value;
-            }
-            return originalSetProperty.call(this, name, next, priority ?? '');
+            return originalSetProperty.call(this, name, typeof value === 'string' ? swapCssText(value) : value, priority ?? '');
         };
+    }
 
-        // The rule of a picture shown as a CSS background goes into a style sheet as text.
+    // The rule of a picture shown as a CSS background goes into a style sheet as text, in a sheet or in a group rule (@media, @supports).
+    function hookInsertRule(): void {
         const originalInsertRule = CSSStyleSheet.prototype.insertRule;
         CSSStyleSheet.prototype.insertRule = function (this: CSSStyleSheet, rule: string, index?: number): number {
-            let next = rule;
-            try {
-                if (typeof rule === 'string') next = oldCss(rule);
-            } catch {
-                next = rule;
-            }
-            return originalInsertRule.call(this, next, index);
+            return originalInsertRule.call(this, typeof rule === 'string' ? swapCssText(rule) : rule, index);
         };
-        if (typeof CSSGroupingRule !== 'undefined') {
-            const originalGroupInsertRule = CSSGroupingRule.prototype.insertRule;
-            CSSGroupingRule.prototype.insertRule = function (this: CSSGroupingRule, rule: string, index?: number): number {
-                let next = rule;
-                try {
-                    if (typeof rule === 'string') next = oldCss(rule);
-                } catch {
-                    next = rule;
-                }
-                return originalGroupInsertRule.call(this, next, index);
-            };
-        }
+        if (typeof CSSGroupingRule === 'undefined') return;
+        const originalGroupInsertRule = CSSGroupingRule.prototype.insertRule;
+        CSSGroupingRule.prototype.insertRule = function (this: CSSGroupingRule, rule: string, index?: number): number {
+            return originalGroupInsertRule.call(this, typeof rule === 'string' ? swapCssText(rule) : rule, index);
+        };
+    }
 
-        if (typeof XMLHttpRequest !== 'undefined') {
-            const originalOpen = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, ...args: unknown[]): unknown {
-                try {
-                    const address = args[1];
-                    if (oldPictures !== null && typeof address === 'string') args[1] = oldAddress(address);
-                    else if (oldPictures !== null && address instanceof URL) args[1] = oldAddress(address.href);
-                } catch {
-                    // the game's own address is used
-                }
-                return Reflect.apply(originalOpen, this, args);
-            } as unknown as typeof XMLHttpRequest.prototype.open;
-        }
+    function hookXmlHttpRequest(): void {
+        if (typeof XMLHttpRequest === 'undefined') return;
+        const originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, ...args: unknown[]): unknown {
+            try {
+                const address = args[1];
+                if (oldPictures !== null && typeof address === 'string') args[1] = oldAddress(address);
+                else if (oldPictures !== null && address instanceof URL) args[1] = oldAddress(address.href);
+            } catch {
+                // the game's own address is used
+            }
+            return Reflect.apply(originalOpen, this, args);
+        } as unknown as typeof XMLHttpRequest.prototype.open;
+    }
 
-        if (typeof window.fetch === 'function') {
-            const originalFetch = window.fetch;
-            window.fetch = function (this: unknown, input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-                let next = input;
-                try {
-                    if (oldPictures !== null) {
-                        if (typeof input === 'string') next = oldAddress(input);
-                        else if (input instanceof URL) next = oldAddress(input.href);
-                        else if (input instanceof Request) {
-                            const replaced = oldAddress(input.url);
-                            if (replaced !== input.url) next = new Request(replaced, input);
-                        }
+    function hookFetch(): void {
+        if (typeof window.fetch !== 'function') return;
+        const originalFetch = window.fetch;
+        window.fetch = function (this: unknown, input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+            let next = input;
+            try {
+                if (oldPictures !== null) {
+                    if (typeof input === 'string') next = oldAddress(input);
+                    else if (input instanceof URL) next = oldAddress(input.href);
+                    else if (input instanceof Request) {
+                        const replaced = oldAddress(input.url);
+                        if (replaced !== input.url) next = new Request(replaced, input);
                     }
-                } catch {
-                    next = input;
                 }
-                return Reflect.apply(originalFetch, this, [next, init]) as Promise<Response>;
-            };
-        }
+            } catch {
+                next = input;
+            }
+            return Reflect.apply(originalFetch, this, [next, init]) as Promise<Response>;
+        };
+    }
+
+    function installOldPictures(): void {
+        hookMessage();
+        hookSetAttribute();
+        hookImageSource();
+        hookSetProperty();
+        hookInsertRule();
+        hookXmlHttpRequest();
+        hookFetch();
     }
 
     installOldPictures();
