@@ -326,6 +326,12 @@ does not.
   release commit's body that file's content (see `ai-interaction.md`'s
   Releases section for the full assistant-driven process, including the
   fixed description template).
+- Old-style picture for a new augment: double-click `scripts/old-style-picture/start.cmd` (a terminal window with a menu: paste the new
+  picture addresses, choose the old background, look at the result, save) to make the old-style picture of an augment the devs added after
+  they changed the pictures (it has no bundled old file) from its new picture; it adds the file to `extension/old_pictures/` and the path to
+  `extension/data/old_pictures.json`. The command-line version is `node scripts/old-style-picture/make.mjs <picture address> --like <old
+  picture>` (`--list-colors` shows the old colours). Run by hand, when a new augment shows in the new style. Not part of the extension, never
+  commits. See `scripts/old-style-picture/README.md`.
 - Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`, which
   builds, packages, and opens a **draft** GitHub Release with the zip
   attached and the release commit's body as the description - it never
