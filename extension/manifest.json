@@ -29,13 +29,15 @@
         "js/modules/kill_sounds.js",
         "js/modules/battle_music.js",
         "js/modules/grenade_sounds.js",
-        "js/modules/weapon_sounds.js"
+        "js/modules/weapon_sounds.js",
+        "js/modules/settings_tab.js"
       ],
       "css": [
         "styles/change_counter.css",
         "styles/garage_skins.css",
         "styles/garage_cards.css",
-        "styles/augments.css"
+        "styles/augments.css",
+        "styles/settings_tab.css"
       ],
       "run_at": "document_start"
     }

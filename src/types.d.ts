@@ -212,6 +212,10 @@ interface Window {
     __kaspSendTankInfo?: (className: string, obj: unknown) => void;
     __kaspSendUserId?: (obj: unknown, idProp: string) => void;
     __kaspSendGarageItem?: (obj: unknown, idProp: string, nameProp: string, categoryProp: string, mountedProp: string) => void;
+    // MAIN world only (src/injector.ts): the category the game keeps as the open settings tab when it is the extension's tab,
+    // and the function the patched settings tab list calls to add that tab.
+    __kaspSettingsTab?: Record<string, unknown>;
+    __kaspSettingsTabAdd?: (items: unknown[], make: (key: unknown) => unknown, keyField: string, categoryField: string) => unknown[];
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
     kaspOldPictures?: KaspOldPictures;

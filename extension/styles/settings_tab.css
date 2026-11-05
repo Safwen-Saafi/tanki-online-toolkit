@@ -1,0 +1,90 @@
+/* The extension's panel in the game's settings screen (src/modules/settings_tab.ts). The tab and its yellow bar are the
+   game's own (the settings-tab hook in src/injector.ts), so only the panel is styled here. */
+
+/* A switch, drawn like the game's own: a pill 2.75em by 1.5em with a knob; everything in em so it scales with the game. */
+.kasp-row {
+    cursor: pointer;
+    user-select: none;
+}
+
+.kasp-pill {
+    position: relative;
+    display: flex;
+    box-sizing: content-box;
+    width: 2.75em;
+    height: 1.5em;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 99px;
+    background: rgba(191, 213, 255, 0.25);
+    transition: background-color 0.2s;
+}
+
+.kasp-pill::before {
+    content: '';
+    position: absolute;
+    top: 0.25em;
+    left: 0.25em;
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    background: #bfd5ff;
+    transition: left 0.2s, background-color 0.2s;
+}
+
+.kasp-row.kasp-on .kasp-pill {
+    background: rgba(118, 255, 51, 0.25);
+}
+
+.kasp-row.kasp-on .kasp-pill::before {
+    left: 1.5em;
+    background: #76ff33;
+}
+
+.kasp-row:focus-visible .kasp-pill {
+    outline: 1px solid rgba(255, 255, 255, 0.6);
+    outline-offset: 2px;
+}
+
+.kasp-label-box {
+    display: flex;
+    align-items: center;
+    height: 3em;
+    cursor: pointer;
+}
+
+.kasp-label {
+    margin: 0 1em;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: BaseFontRegular, FallbackFontRegular;
+    transition: color 0.2s;
+}
+
+.kasp-row.kasp-on .kasp-label {
+    color: #fff;
+}
+
+/* RESET ALL, drawn like the game's own button at the bottom of its tabs. */
+.kasp-reset {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 15.625em;
+    height: 3em;
+    border-radius: 0.75em;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.kasp-reset:hover {
+    background: #e6e6e6;
+}
+
+.kasp-reset span {
+    color: rgb(0, 25, 38);
+    font-family: BaseFontBold, FallbackFontBold;
+    font-weight: 500;
+    text-transform: uppercase;
+    cursor: pointer;
+}

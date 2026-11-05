@@ -648,6 +648,124 @@
         return code.replace(tail, (_whole, value: string) => `this.${property}=${value},window.__kaspSendUserId(this,"${property}")}`);
     }
 
+    // The extension's own tab in the game's settings screen (build-plan 17, see blueprint/context/settings-tab.md). The game
+    // builds that screen from three fixed tables: the list of tabs, the place of the yellow bar for each tab, and the panel for
+    // each tab. Four edits put our tab in all three, so the game draws it, selects it, slides its own bar to it and remembers it
+    // like its own tabs; for our tab it draws an empty panel box, which settings_tab.ts fills. All four or none: when one place
+    // is not found, the game keeps its own tabs. The places are found by their shape, as in this build (names change per build):
+    //   tabs:  JS([new aMi(RNi().o1s3(),AQ()), ...])          the entry class is the one whose text is "MenuItem(key=..., category=..."
+    //   name:  _.fap(t.yat(i.q1s6_1))                         the tab's text, from its name key
+    //   bar:   Z$(a,function(t,n,i){switch(n.k3_1){case 3:return Zq(i); ... default:return Zq(-1e3)}}(0,<open tab>,e))
+    //   panel: switch(...k3_1){case 3:default:o=Ny(AAi);break; ... case 8:o=Ny(nOi)} ... c.kap(o,JPi)
+    const SETTINGS_TAB_LABEL = 'Twizzy extension';
+    // A number none of the game's tabs has (the game's own are 0 to 8).
+    const SETTINGS_TAB_NUMBER = 99;
+    const SETTINGS_TAB_ANCHOR = 'CONTROL';
+    const SETTINGS_ITEM_TEXT = /\(([\w$]+)\)\.toString=function\(\)\{return"MenuItem\(key="\+[\w$]*\(?this\.([\w$]+)\)?\+", category="\+this\.([\w$]+)\.toString\(\)/g;
+    const SETTINGS_BAR = /function\(([\w$]+),([\w$]+),([\w$]+)\)\{switch\(\2\.([\w$]+)\)\{(?:case \d:return ([\w$]+)\(\3(?:\+\d+\|0)?\);)+default:return \5\(-1e3\)\}\}\(0,([\w$.]+),[\w$]+\)/g;
+    // The loop that draws the tabs, a little before the bar: for(var o=r.t();o.u();)cMi(this,s,o.v())
+    const SETTINGS_LOOP = /for\(var ([\w$]+)=([\w$]+)\.([\w$]+)\(\);\1\.([\w$]+)\(\);\)[\w$]+\(this,[\w$]+,\1\.([\w$]+)\(\)\)/g;
+    const SETTINGS_LOOP_RANGE = 1500;
+    let settingsTabWarned = false;
+
+    function exactlyOne(code: string, pattern: RegExp): RegExpExecArray | null {
+        const found = [...code.matchAll(pattern)];
+        return found.length === 1 ? found[0] : null;
+    }
+
+    // What the patched list calls: puts our tab right after CONTROLS (or last, when CONTROLS is not in the list). Our entry is
+    // made by the game's own entry class, with CONTROLS' name key, which our tab never shows (it has its own text).
+    function addSettingsTab(items: unknown[], make: (key: unknown) => unknown, keyField: string, categoryField: string): unknown[] {
+        try {
+            const at = items.findIndex((item) => isObject(item) && String(item[categoryField]) === SETTINGS_TAB_ANCHOR);
+            const anchor = items[at < 0 ? items.length - 1 : at];
+            if (!isObject(anchor)) return items;
+            if (at < 0 && !settingsTabWarned) {
+                settingsTabWarned = true;
+                warn(`${LOG} no ${SETTINGS_TAB_ANCHOR} tab in the settings list, the extension's tab goes last`);
+            }
+            items.splice(at < 0 ? items.length : at + 1, 0, make(anchor[keyField]));
+        } catch (e: unknown) {
+            warn(`${LOG} could not add the extension's settings tab:`, e instanceof Error ? e.message : e);
+        }
+        return items;
+    }
+
+    function patchSettingsTab(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the settings ${what} in this bundle, settings-tab hook skipped`);
+            return null;
+        };
+        const item = exactlyOne(code, SETTINGS_ITEM_TEXT);
+        if (item === null) return skip('tab entry');
+        const [, itemClass, keyField, categoryField] = item;
+
+        const list = exactlyOne(code, new RegExp(`\\(\\[new ${itemClass}\\([^\\[\\]]*?\\)(?:,new ${itemClass}\\([^\\[\\]]*?\\))*\\]\\)`, 'g'));
+        if (list === null) return skip('tab list');
+        const name = exactlyOne(code, new RegExp(`([\\w$]+)\\.([\\w$]+)\\(([\\w$]+)\\.${keyField}\\)`, 'g'));
+        if (name === null) return skip('tab name');
+        const bar = exactlyOne(code, SETTINGS_BAR);
+        if (bar === null) return skip('bar position');
+        const [, , , , numberField, size, openTab] = bar;
+        const loop = exactlyOne(code.slice(Math.max(0, bar.index - SETTINGS_LOOP_RANGE), bar.index), SETTINGS_LOOP);
+        if (loop === null) return skip('tab loop');
+        const [, , listVar, iterate, hasNext, next] = loop;
+        const count = new RegExp(`8===${listVar.replace(/\$/g, '\\$')}\\.([\\w$]+)\\(\\)\\?-15:-10`).exec(code.slice(Math.max(0, bar.index - SETTINGS_LOOP_RANGE), bar.index));
+        if (count === null) return skip('tab count');
+        const panel = exactlyOne(code, new RegExp(`\\.${numberField}\\)\\{(case 3:default:([\\w$]+)=([\\w$]+)\\([\\w$]+\\);break;(?:case \\d:\\2=\\3\\([\\w$]+\\);break;)*case \\d:\\2=\\3\\([\\w$]+\\)\\})`, 'g'));
+        if (panel === null) return skip('panel choice');
+        const panelVar = panel[2];
+        const panelEnd = panel.index + panel[0].length;
+        const draw = new RegExp(`([\\w$]+)\\.([\\w$]+)\\(${panelVar.replace(/\$/g, '\\$')},([\\w$]+)\\)`).exec(code.slice(panelEnd, panelEnd + 200));
+        if (draw === null) return skip('panel drawing');
+
+        // Our tab's category: what the game keeps as the open tab. The game compares categories as the same object, reads their
+        // number, and calls these three on them.
+        const category: Record<string, unknown> = {
+            [numberField]: SETTINGS_TAB_NUMBER,
+            equals(other: unknown) { return this === other; },
+            hashCode() { return SETTINGS_TAB_NUMBER; },
+            toString() { return 'TWIZZY'; },
+        };
+        window.__kaspSettingsTab = category;
+        window.__kaspSettingsTabAdd = addSettingsTab;
+
+        const ours = 'window.__kaspSettingsTab';
+        // The edits, from the last place in the code to the first, so each index stays right.
+        const edits: { at: number; length: number; text: string }[] = [
+            {
+                at: list.index,
+                length: list[0].length,
+                text: `((window.__kaspSettingsTabAdd||function(a){return a})(${list[0].slice(1, -1)},function(k){return new ${itemClass}(k,${ours})},"${keyField}","${categoryField}"))`,
+            },
+            {
+                at: name.index,
+                length: name[0].length,
+                text: `(${name[3]}.${categoryField}===${ours}?"${SETTINGS_TAB_LABEL}":${name[0]})`,
+            },
+            {
+                at: bar.index,
+                length: bar[0].length,
+                text: `function(c){for(var k=0,w=${listVar}.${iterate}();w.${hasNext}();k=k+1|0)if(w.${next}().${categoryField}===c)return ${size}(5*(k-${listVar}.${count[1]}()+5));return ${size}(-1e3)}(${openTab})`,
+            },
+            {
+                at: panel.index + numberField.length + 3,
+                length: 0,
+                text: `case ${SETTINGS_TAB_NUMBER}:${panelVar}=null;break;`,
+            },
+            {
+                at: panelEnd + draw.index,
+                length: draw[0].length,
+                text: `null!=${panelVar}&&${draw[0]}`,
+            },
+        ];
+        let result = code;
+        for (const edit of edits.sort((a, b) => b.at - a.at)) {
+            result = result.slice(0, edit.at) + edit.text + result.slice(edit.at + edit.length);
+        }
+        return result;
+    }
+
     // The bundle with every hook that could be added, and the labels of those hooks.
     function patchBundle(code: string): { readonly code: string; readonly hooked: string[] } {
         let result = code;
@@ -667,6 +785,11 @@
         if (userId !== null) {
             result = userId;
             hooked.push('user-id');
+        }
+        const settingsTab = patchSettingsTab(result);
+        if (settingsTab !== null) {
+            result = settingsTab;
+            hooked.push('settings-tab');
         }
         const thrown = patchGrenadeThrow(result);
         if (thrown !== null) {
