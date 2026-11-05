@@ -15,10 +15,70 @@
     const PANEL_MARK = 'kasp-panel';
     const SWITCH_MARK = 'kasp-row';
     const SWITCH_ON = 'kasp-on';
-    // The panel's content for 17a: test switches that only flip on screen. 17b replaces them with the real list.
-    const TEST_HEADING = 'Test switches';
-    const TEST_SWITCHES = ['Test switch one', 'Test switch two', 'Test switch three'];
-    const RESET_LABEL = 'reset all';
+    const HEADING_CLASS = 'SettingsComponentStyle-textHeadlineOptions';
+    const FORM_CLASS = 'GameSettingsStyle-containerFormOptions';
+    // The game's own line between two sections of a panel.
+    const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
+    // The value that turns a feature off, the same rule every module reads: only this exact text is off, no key is on.
+    const OFF = '0';
+
+    type SwitchGroup = 'sounds' | 'garage';
+
+    interface SwitchEntry {
+        // The localStorage key the feature's module reads.
+        key: string;
+        label: Record<KaspLanguageCode, string>;
+        group: SwitchGroup;
+        // True when the module applies a change at once; false when it applies after a reload.
+        live: boolean;
+    }
+
+    const GROUPS: ReadonlyArray<{ id: SwitchGroup; heading: Record<KaspLanguageCode, string> }> = [
+        { id: 'sounds', heading: { EN: 'Sounds', RU: 'Звуки' } },
+        { id: 'garage', heading: { EN: 'Garage', RU: 'Гараж' } },
+    ];
+
+    const SWITCHES: readonly SwitchEntry[] = [
+        { key: 'kasp_killsounds', group: 'sounds', live: true, label: { EN: 'Kill and death sounds', RU: 'Звуки убийств и смертей' } },
+        { key: 'kasp_grenadesounds', group: 'sounds', live: true, label: { EN: 'Grenade throw sound', RU: 'Звук броска гранаты' } },
+        { key: 'kasp_battlemusic', group: 'sounds', live: true, label: { EN: 'End of battle music', RU: 'Музыка в конце битвы' } },
+        {
+            key: 'kasp_weaponsounds',
+            group: 'sounds',
+            live: false,
+            label: { EN: 'Weapon sounds (Magnum, Striker, Gauss)', RU: 'Звуки оружия (Магнум, Страйкер, Гаусс)' },
+        },
+        {
+            key: 'kasp_augments',
+            group: 'garage',
+            live: false,
+            label: { EN: 'Augment info and hidden cards', RU: 'Описания устройств и скрытые карточки' },
+        },
+        { key: 'kasp_old_pictures', group: 'garage', live: false, label: { EN: 'Old augment pictures', RU: 'Старые картинки устройств' } },
+    ];
+
+    const RESET_LABEL: Record<KaspLanguageCode, string> = { EN: 'reset all', RU: 'сбросить всё' };
+
+    // A storage that cannot be read counts as on, like in every module.
+    function isOn(key: string): boolean {
+        try {
+            return localStorage.getItem(key) !== OFF;
+        } catch {
+            return true;
+        }
+    }
+
+    // Off writes "0", on removes the key. False when the browser refused, so the switch stays where it was.
+    function save(key: string, on: boolean): boolean {
+        try {
+            if (on) localStorage.removeItem(key);
+            else localStorage.setItem(key, OFF);
+            return true;
+        } catch (error: unknown) {
+            console.warn(`${LOG} could not save ${key}:`, error instanceof Error ? error.message : error);
+            return false;
+        }
+    }
 
     function element(tag: string, className: string, text?: string): HTMLElement {
         const node = document.createElement(tag);
@@ -38,45 +98,65 @@
         });
     }
 
-    // One switch, drawn like the game's own. Not saved anywhere yet: 17b gives it a key and a place to keep it.
+    // One switch, drawn like the game's own.
     function setSwitch(row: HTMLElement, on: boolean): void {
         row.classList.toggle(SWITCH_ON, on);
         row.setAttribute('aria-checked', String(on));
     }
 
-    function makeSwitch(label: string): HTMLElement {
+    // A switch shows what is saved when the panel is made, and a flip is saved at once.
+    function makeSwitch(entry: SwitchEntry, language: KaspLanguageCode): HTMLElement {
         const row = element('div', `CheckBoxComponentStyle-oneSetting ${SWITCH_MARK}`);
         row.setAttribute('role', 'switch');
         const box = element('div', 'CheckBoxStyle-checkbox');
         box.appendChild(element('span', 'kasp-pill'));
         const labelBox = element('div', 'kasp-label-box');
-        labelBox.appendChild(element('span', 'kasp-label', label));
+        labelBox.appendChild(element('span', 'kasp-label', entry.label[language]));
         row.append(box, labelBox);
-        setSwitch(row, true);
-        onPress(row, () => setSwitch(row, !row.classList.contains(SWITCH_ON)));
+        setSwitch(row, isOn(entry.key));
+        onPress(row, () => {
+            const on = !row.classList.contains(SWITCH_ON);
+            if (save(entry.key, on)) setSwitch(row, on);
+        });
         return row;
     }
 
-    // Our panel, in the classes the game's own panels use inside the box. No divider above the first heading: the game draws
-    // dividers only between sections.
+    // Our panel, in the classes the game's own panels use inside the box: one section per group, the game's line between two
+    // sections and none above the first, then RESET ALL. It is made each time our tab opens, so it always shows what is saved.
     function makePanel(): HTMLElement {
+        const language = window.kaspLanguage?.get() ?? 'EN';
         const panel = element('div', `${PANEL_MARK} SettingsComponentStyle-scrollingMenu SettingsComponentStyle-settingsBlockOptions`);
-        const switches = TEST_SWITCHES.map(makeSwitch);
+        const rows: Array<[SwitchEntry, HTMLElement]> = [];
 
-        const section = document.createElement('div');
-        section.appendChild(element('p', 'SettingsComponentStyle-textHeadlineOptions', TEST_HEADING));
-        const form = element('div', 'GameSettingsStyle-containerFormOptions');
-        form.append(...switches);
-        section.appendChild(form);
+        GROUPS.forEach((group, index) => {
+            if (index > 0) panel.appendChild(element('div', DIVIDER_CLASS));
+            const section = document.createElement('div');
+            section.appendChild(element('p', HEADING_CLASS, group.heading[language]));
+            const form = element('div', FORM_CLASS);
+            for (const entry of SWITCHES) {
+                if (entry.group !== group.id) continue;
+                const row = makeSwitch(entry, language);
+                rows.push([entry, row]);
+                form.appendChild(row);
+            }
+            section.appendChild(form);
+            panel.appendChild(section);
+        });
 
+        // RESET ALL removes every key, so every switch is on; a key the browser refused to remove keeps its switch off.
         const resetBox = element('div', 'SettingsButtonsComponentStyle-containerGroupButton');
         const reset = element('div', 'kasp-reset');
         reset.setAttribute('role', 'button');
-        reset.appendChild(element('span', '', RESET_LABEL));
-        onPress(reset, () => switches.forEach((row) => setSwitch(row, true)));
+        reset.appendChild(element('span', '', RESET_LABEL[language]));
+        onPress(reset, () => {
+            for (const [entry, row] of rows) {
+                save(entry.key, true);
+                setSwitch(row, isOn(entry.key));
+            }
+        });
         resetBox.appendChild(reset);
 
-        panel.append(section, resetBox);
+        panel.appendChild(resetBox);
         return panel;
     }
 
