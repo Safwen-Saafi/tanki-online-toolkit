@@ -56,7 +56,7 @@ and installed dependencies before adding machinery.
 - `blueprint/context/garage-augments-screen.md` - read before changing anything in the augments module (the item title, tab detection, the Augments tab tiles and the spec box) or the old augment picture swap (the page hooks in `injector.ts`, `old_pictures.ts`, the Containers matching by stable path)
 - `blueprint/context/kill-events.md` - read before changing anything in the kill sounds (the game's kill events, how the player is identified, the streak rules, how to add a sound)
 - `blueprint/context/battle-sounds.md` - read before changing the end of battle music, the grenade sounds or the weapon sounds (Magnum, Striker, Gauss) (the game's battle time, the music rules, how a grenade throw is detected, how the game's weapon sound files are named and swapped)
-- `blueprint/context/settings-tab.md` - read before changing the extension's tab in the game's settings screen (how the game builds its tabs, bar and panels, the settings-tab hook in `injector.ts` that adds ours, how `settings_tab.ts` fills our panel, and the dead ends)
+- `blueprint/context/settings-tab.md` - read before changing the extension's tab in the game's settings screen (how the game builds its tabs, bar and panels, the settings-tab hook in `injector.ts` that adds ours, how `settings_tab.ts` fills our panel, the switches and how `switches.ts` saves and applies them, and the dead ends)
 
 Reuse relevant context already loaded in the session. Claude Code imports only
 this file; its Blueprint skills load the other files on demand.
