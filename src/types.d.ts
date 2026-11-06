@@ -204,6 +204,16 @@ interface KaspOldPictures {
     readonly markFailed: (address: string) => void;
 }
 
+// Published by src/modules/switches.ts, the one place that knows how a feature's switch is saved (off is the exact text 0 under its
+// localStorage key, on is no key). isOn(key) reads the saved value; set(key, on) saves it (only the settings tab calls it) and is
+// false when the browser refused; onChange(key, action) leaves an action that set calls with the new value when that switch really
+// changes, which is how a live module learns of a change with no loop and no page event.
+interface KaspSwitches {
+    readonly isOn: (key: string) => boolean;
+    readonly set: (key: string, on: boolean) => boolean;
+    readonly onChange: (key: string, action: (on: boolean) => void) => void;
+}
+
 interface Window {
     __kaspSendAction?: (className: string, obj: unknown) => void;
     __kaspSendKill?: (className: string, obj: unknown) => void;
@@ -219,4 +229,5 @@ interface Window {
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
     kaspOldPictures?: KaspOldPictures;
+    kaspSwitches?: KaspSwitches;
 }

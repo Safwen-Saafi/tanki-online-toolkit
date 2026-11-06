@@ -278,8 +278,10 @@
     }
 
     // One sound at a time: a new sound stops the one still playing, except that nothing stops a grenade kill sound
-    // before it ends. An entry with a chance below 1 plays only that often.
+    // before it ends. An entry with a chance below 1 plays only that often. With the switch off nothing plays, but the
+    // counters go on, so turning it back on continues the right streak.
     function playSound(sound: SoundKey): void {
+        if (!switchedOn) return;
         const entry = sounds[sound.kind].get(sound.count);
         if (entry === undefined) return;
         if (sound.kind !== 'grenade' && playingKind === 'grenade' && playing !== null && !playing.paused && !playing.ended) return;
@@ -395,19 +397,14 @@
         }
     }
 
-    // The user's own switch: only the exact value 0 turns the kill sounds off, and the extension never writes it.
-    function isSwitchedOff(): boolean {
-        try {
-            return localStorage.getItem(KILL_SWITCH_KEY) === '0';
-        } catch {
-            return false;
-        }
-    }
+    // The user's switch, set in the extension's settings tab: read once at start and kept here, and the switch service
+    // (src/modules/switches.ts) calls back with every change, so it applies at once with nothing read in between. The sounds
+    // are always loaded for that. Without the service the switch counts as on.
+    let switchedOn = window.kaspSwitches?.isOn(KILL_SWITCH_KEY) ?? true;
+    window.kaspSwitches?.onChange(KILL_SWITCH_KEY, (on) => {
+        switchedOn = on;
+    });
 
-    if (isSwitchedOff()) {
-        console.log(LOG, 'disabled');
-        return;
-    }
     void loadSounds();
 
     window.addEventListener('message', (e: MessageEvent) => {

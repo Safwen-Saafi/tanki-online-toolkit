@@ -20,8 +20,6 @@
     const FORM_CLASS = 'GameSettingsStyle-containerFormOptions';
     // The game's own line between two sections of a panel.
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
-    // The value that turns a feature off, the same rule every module reads: only this exact text is off, no key is on.
-    const OFF = '0';
 
     type SwitchGroup = 'sounds' | 'garage';
 
@@ -69,25 +67,15 @@
         notice: { EN: 'The game will reload when you close settings', RU: 'Игра перезагрузится, когда вы закроете настройки' },
     };
 
-    // A storage that cannot be read counts as on, like in every module.
+    // Through the switch service (src/modules/switches.ts), which knows how a switch is saved and tells the live modules of a
+    // change. Without it every switch shows on and nothing can be saved.
     function isOn(key: string): boolean {
-        try {
-            return localStorage.getItem(key) !== OFF;
-        } catch {
-            return true;
-        }
+        return window.kaspSwitches?.isOn(key) ?? true;
     }
 
-    // Off writes "0", on removes the key. False when the browser refused, so the switch stays where it was.
+    // False when it was not saved, so the switch stays where it was.
     function save(key: string, on: boolean): boolean {
-        try {
-            if (on) localStorage.removeItem(key);
-            else localStorage.setItem(key, OFF);
-            return true;
-        } catch (error: unknown) {
-            console.warn(`${LOG} could not save ${key}:`, error instanceof Error ? error.message : error);
-            return false;
-        }
+        return window.kaspSwitches?.set(key, on) ?? false;
     }
 
     // How each reload switch was when the page started, which is when its module read it.
@@ -245,6 +233,7 @@
     function start(): void {
         observer.observe(document.documentElement, { childList: true, subtree: true });
         sync();
+        if (window.kaspSwitches === undefined) console.warn(`${LOG} the switch service is missing, no switch can be saved`);
         console.log(`${LOG} ready`);
     }
 

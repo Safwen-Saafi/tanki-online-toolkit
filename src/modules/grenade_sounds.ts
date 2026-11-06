@@ -11,19 +11,13 @@
     const SOUND_VOLUME = 0.8;
     const KILL_SWITCH_KEY = 'kasp_grenadesounds';
 
-    // The user's own switch: only the exact value 0 turns the throw sound off, and the extension never writes it.
-    function isSwitchedOff(): boolean {
-        try {
-            return localStorage.getItem(KILL_SWITCH_KEY) === '0';
-        } catch {
-            return false;
-        }
-    }
-
-    if (isSwitchedOff()) {
-        console.log(LOG, 'disabled');
-        return;
-    }
+    // The user's switch, set in the extension's settings tab: read once at start and kept here, and the switch service
+    // (src/modules/switches.ts) calls back with every change, so it applies at once with nothing read in between. The sound
+    // is always loaded for that. Without the service the switch counts as on.
+    let switchedOn = window.kaspSwitches?.isOn(KILL_SWITCH_KEY) ?? true;
+    window.kaspSwitches?.onChange(KILL_SWITCH_KEY, (on) => {
+        switchedOn = on;
+    });
 
     const audio = new Audio(chrome.runtime.getURL(SOUND_FILE));
     audio.preload = 'auto';
@@ -36,8 +30,10 @@
         console.warn(LOG, `could not play ${SOUND_FILE}:`, error instanceof Error ? `${error.name}: ${error.message}` : error);
     }
 
-    // A throw while the sound is still playing starts it again from the beginning.
+    // A throw while the sound is still playing starts it again from the beginning. The throws are still followed with the
+    // switch off (onThrow), so a repeat is still known for one when it is turned back on.
     function playThrowSound(): void {
+        if (!switchedOn) return;
         try {
             audio.currentTime = 0;
             audio.play().catch(warnPlay);
