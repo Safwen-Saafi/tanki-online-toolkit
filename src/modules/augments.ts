@@ -84,13 +84,9 @@
         return Object.values(file.items).reduce((total, byName) => total + Object.keys(byName).length, 0);
     }
 
-    function isDisabled(): boolean {
-        try {
-            return localStorage.getItem(KILL_SWITCH_KEY) === '0';
-        } catch {
-            return false;
-        }
-    }
+    // The user's switch, set in the extension's settings tab: read once at start through the switch service
+    // (src/modules/switches.ts), so a change applies after a reload. Without the service the switch counts as on.
+    const switchedOn = window.kaspSwitches?.isOn(KILL_SWITCH_KEY) ?? true;
 
     // Keeps only the entries that are still a valid file; anything else counts as no cache.
     function readCache(): AugmentsCache {
@@ -1165,8 +1161,8 @@
 
     // After the load event, so the game's own start-up is not delayed.
     function start(): void {
-        if (isDisabled()) {
-            console.log(`${LOG} disabled (localStorage ${KILL_SWITCH_KEY} is 0)`);
+        if (!switchedOn) {
+            console.log(`${LOG} disabled (switch ${KILL_SWITCH_KEY} is off)`);
             return;
         }
         void loadAugments();

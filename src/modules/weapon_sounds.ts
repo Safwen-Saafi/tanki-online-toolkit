@@ -31,14 +31,9 @@
     const MAX_TURRETS = 40;
     const MAX_IDS = 10;
 
-    // The user's own switch: only the exact value 0 turns the replacement off, and the extension never writes it.
-    function isSwitchedOff(): boolean {
-        try {
-            return localStorage.getItem(KILL_SWITCH_KEY) === '0';
-        } catch {
-            return false;
-        }
-    }
+    // The user's switch, set in the extension's settings tab: read once at start through the switch service
+    // (src/modules/switches.ts), so a change applies after a reload. Without the service the switch counts as on.
+    const switchedOn = window.kaspSwitches?.isOn(KILL_SWITCH_KEY) ?? true;
 
     // What the data file holds that was left out. They are printed in one warning when the file is read, so a typo in the
     // file is never lost without a word.
@@ -257,7 +252,7 @@
         refresh();
     }
 
-    if (isSwitchedOff()) {
+    if (!switchedOn) {
         console.log(LOG, 'disabled');
         return;
     }
