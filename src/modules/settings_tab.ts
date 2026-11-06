@@ -1,7 +1,8 @@
 // Isolated-world content script for the extension's tab in the game's settings screen. The tab itself is drawn by the game:
 // src/injector.ts adds it to the game's own tab list, bar and panel tables (the settings-tab hook), and for our tab the game
 // draws its panel box empty. This script puts our panel in that box while our tab is the open one, and takes it out when
-// another tab opens. It never removes or moves anything the game made.
+// another tab opens. It never removes or moves anything the game made. A switch whose module applies it only at start-up is
+// marked; when settings close and one of those differs from how it was when the page started, the page reloads, once.
 // See blueprint/context/settings-tab.md (the game's settings screen, what was proven on it).
 (function () {
     'use strict';
@@ -57,7 +58,16 @@
         { key: 'kasp_old_pictures', group: 'garage', live: false, label: { EN: 'Old augment pictures', RU: 'Старые картинки устройств' } },
     ];
 
-    const RESET_LABEL: Record<KaspLanguageCode, string> = { EN: 'reset all', RU: 'сбросить всё' };
+    // The mark after the label of a switch that applies after a reload, and in the legend that explains it.
+    const RELOAD_MARK = '↻';
+    const NOTICE_SHOWN = 'kasp-waiting';
+
+    const TEXT: Record<'reset' | 'afterReload' | 'reloadsOnClose' | 'notice', Record<KaspLanguageCode, string>> = {
+        reset: { EN: 'reset all', RU: 'сбросить всё' },
+        afterReload: { EN: 'Applies after a reload', RU: 'Применится после перезагрузки' },
+        reloadsOnClose: { EN: 'The game reloads by itself when you close settings', RU: 'Игра перезагрузится сама, когда вы закроете настройки' },
+        notice: { EN: 'The game will reload when you close settings', RU: 'Игра перезагрузится, когда вы закроете настройки' },
+    };
 
     // A storage that cannot be read counts as on, like in every module.
     function isOn(key: string): boolean {
@@ -78,6 +88,16 @@
             console.warn(`${LOG} could not save ${key}:`, error instanceof Error ? error.message : error);
             return false;
         }
+    }
+
+    // How each reload switch was when the page started, which is when its module read it.
+    const atStart = new Map(SWITCHES.filter((entry) => !entry.live).map((entry) => [entry.key, isOn(entry.key)]));
+
+    // True when closing settings will reload: a reload switch differs from how it was at start, so flipping one off and on
+    // again waits for nothing.
+    function reloadWaiting(): boolean {
+        for (const [key, on] of atStart) if (isOn(key) !== on) return true;
+        return false;
     }
 
     function element(tag: string, className: string, text?: string): HTMLElement {
@@ -104,29 +124,59 @@
         row.setAttribute('aria-checked', String(on));
     }
 
-    // A switch shows what is saved when the panel is made, and a flip is saved at once.
-    function makeSwitch(entry: SwitchEntry, language: KaspLanguageCode): HTMLElement {
+    // The ↻ mark. After a label it is read out as its meaning; next to text that already says it, it is not read at all.
+    function makeMark(meaning?: string): HTMLElement {
+        const mark = element('span', 'kasp-mark', RELOAD_MARK);
+        if (meaning === undefined) {
+            mark.setAttribute('aria-hidden', 'true');
+        } else {
+            mark.setAttribute('role', 'img');
+            mark.setAttribute('aria-label', meaning);
+        }
+        return mark;
+    }
+
+    // A switch shows what is saved when the panel is made, and a flip is saved at once; changed runs after every saved flip.
+    function makeSwitch(entry: SwitchEntry, language: KaspLanguageCode, changed: () => void): HTMLElement {
         const row = element('div', `CheckBoxComponentStyle-oneSetting ${SWITCH_MARK}`);
         row.setAttribute('role', 'switch');
         const box = element('div', 'CheckBoxStyle-checkbox');
         box.appendChild(element('span', 'kasp-pill'));
         const labelBox = element('div', 'kasp-label-box');
-        labelBox.appendChild(element('span', 'kasp-label', entry.label[language]));
+        const label = element('span', 'kasp-label', entry.label[language]);
+        if (!entry.live) label.appendChild(makeMark(TEXT.afterReload[language]));
+        labelBox.appendChild(label);
         row.append(box, labelBox);
         setSwitch(row, isOn(entry.key));
         onPress(row, () => {
             const on = !row.classList.contains(SWITCH_ON);
-            if (save(entry.key, on)) setSwitch(row, on);
+            if (!save(entry.key, on)) return;
+            setSwitch(row, on);
+            changed();
         });
         return row;
     }
 
-    // Our panel, in the classes the game's own panels use inside the box: one section per group, the game's line between two
-    // sections and none above the first, then RESET ALL. It is made each time our tab opens, so it always shows what is saved.
+    // Our panel, in the classes the game's own panels use inside the box: the legend, one section per group, the game's line
+    // between two sections and none above the first, then the notice and RESET ALL. It is made each time our tab opens, so it
+    // always shows what is saved.
     function makePanel(): HTMLElement {
         const language = window.kaspLanguage?.get() ?? 'EN';
         const panel = element('div', `${PANEL_MARK} SettingsComponentStyle-scrollingMenu SettingsComponentStyle-settingsBlockOptions`);
         const rows: Array<[SwitchEntry, HTMLElement]> = [];
+
+        const legend = element('p', 'kasp-legend');
+        legend.append(makeMark(), ` ${TEXT.afterReload[language]}. ${TEXT.reloadsOnClose[language]}.`);
+        panel.appendChild(legend);
+
+        // Shown while closing settings will reload; it keeps its place when hidden, so nothing moves.
+        const notice = element('span', 'kasp-notice');
+        notice.setAttribute('role', 'status');
+        notice.append(makeMark(), ` ${TEXT.notice[language]}`);
+        const refreshNotice = (): void => {
+            notice.classList.toggle(NOTICE_SHOWN, reloadWaiting());
+        };
+        refreshNotice();
 
         GROUPS.forEach((group, index) => {
             if (index > 0) panel.appendChild(element('div', DIVIDER_CLASS));
@@ -135,7 +185,7 @@
             const form = element('div', FORM_CLASS);
             for (const entry of SWITCHES) {
                 if (entry.group !== group.id) continue;
-                const row = makeSwitch(entry, language);
+                const row = makeSwitch(entry, language, refreshNotice);
                 rows.push([entry, row]);
                 form.appendChild(row);
             }
@@ -147,14 +197,15 @@
         const resetBox = element('div', 'SettingsButtonsComponentStyle-containerGroupButton');
         const reset = element('div', 'kasp-reset');
         reset.setAttribute('role', 'button');
-        reset.appendChild(element('span', '', RESET_LABEL[language]));
+        reset.appendChild(element('span', '', TEXT.reset[language]));
         onPress(reset, () => {
             for (const [entry, row] of rows) {
                 save(entry.key, true);
                 setSwitch(row, isOn(entry.key));
             }
+            refreshNotice();
         });
-        resetBox.appendChild(reset);
+        resetBox.append(notice, reset);
 
         panel.appendChild(resetBox);
         return panel;
@@ -162,10 +213,18 @@
 
     // A live list, so the check that runs on every page change stays cheap when settings are closed.
     const roots = document.getElementsByClassName(ROOT_CLASS);
+    let settingsOpen = false;
 
     function sync(): void {
         const root = roots[0];
-        if (root === undefined) return;
+        if (root === undefined) {
+            // Settings just closed, in the garage or in a battle (a reload puts the player back in the same battle): every
+            // change saved since the page started applies together, in one reload.
+            if (settingsOpen && reloadWaiting()) window.location.reload();
+            settingsOpen = false;
+            return;
+        }
+        settingsOpen = true;
         const box = Array.from(root.children).find((child) => child.classList.contains(BOX_CLASS));
         if (box === undefined) return;
         const active = root.querySelector(ACTIVE_TAB_SELECTOR);

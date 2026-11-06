@@ -63,6 +63,31 @@
     color: #fff;
 }
 
+/* The ↻ after the label of a switch that applies after a reload; it takes the label's colour. */
+.kasp-label .kasp-mark {
+    margin-left: 0.4em;
+}
+
+/* The legend at the top of the panel, explaining the ↻. */
+.kasp-legend {
+    margin: 0 0 1.25em;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: BaseFontRegular, FallbackFontRegular;
+    font-size: 0.9em;
+}
+
+/* Left of RESET ALL, shown only while closing settings will reload. Hidden, it keeps its place, so the button never moves. */
+.kasp-notice {
+    margin-right: 1.5em;
+    color: #fff;
+    font-family: BaseFontRegular, FallbackFontRegular;
+    visibility: hidden;
+}
+
+.kasp-notice.kasp-waiting {
+    visibility: visible;
+}
+
 /* RESET ALL, drawn like the game's own button at the bottom of its tabs. */
 .kasp-reset {
     display: flex;
