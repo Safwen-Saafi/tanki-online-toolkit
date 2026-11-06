@@ -4,7 +4,8 @@
 // the music already started in this battle, is in sessionStorage so a page reload in the last 50 seconds does not start
 // it again. The music is one loop of 8 bars that ends where it begins (extension/sounds/battle-end.flac, lossless so it has
 // no padding), decoded once and played from memory with loop = true, which repeats it sample for sample; an audio element
-// leaves a small gap at every restart, so it is only the fallback when the sound cannot be decoded.
+// leaves a small gap at every restart, so it is only the fallback when the sound cannot be decoded. Its switch, set in the
+// extension's settings tab, applies at once: turned off, the music stops, and turned on again before the end, it starts.
 (function () {
     'use strict';
 
@@ -45,19 +46,10 @@
         }
     }
 
-    // The user's own switch: only the exact value 0 turns the music off, and the extension never writes it.
-    function isSwitchedOff(): boolean {
-        try {
-            return localStorage.getItem(SWITCH_KEY) === '0';
-        } catch {
-            return false;
-        }
-    }
-
-    if (isSwitchedOff()) {
-        console.log(LOG, 'disabled');
-        return;
-    }
+    // The user's switch, set in the extension's settings tab: read once at start and kept here, and the switch service
+    // (src/modules/switches.ts) calls back with every change (at the end of this script), which applies it at once. Without the
+    // service the switch counts as on.
+    let switchedOn = window.kaspSwitches?.isOn(SWITCH_KEY) ?? true;
 
     // When the battle ends (epoch ms), worked out from the time left when it arrived, or null when no battle is running.
     let endAt: number | null = null;
@@ -182,7 +174,8 @@
         if (detail.remaining >= 0 && detail.remaining !== lastRemaining) {
             lastRemaining = detail.remaining;
             endAt = Date.now() + detail.remaining * 1000;
-            void loadMusic();
+            // Switched off, the 5 MB of decoded music is not made; turned on later, playMusic loads it first.
+            if (switchedOn) void loadMusic();
         }
     }
 
@@ -201,9 +194,24 @@
         }
         if (endAt === null) return;
         const left = (endAt - Date.now()) / 1000;
+        if (!switchedOn) {
+            // Turned off while playing: it stops, and it is no longer "started", so turning it on before the end starts it.
+            if (playing) {
+                stopMusic();
+                started = false;
+                writeStarted(false);
+            }
+            return;
+        }
         if (!started && left > 0 && left <= END_MUSIC_SECONDS) startMusic();
         else if (playing && left * 1000 < -END_GRACE_MS) stopMusic();
     }
 
     setInterval(check, CHECK_MS);
+    // A flip in the settings tab: checked at once, so the music stops, or starts inside the last 50 seconds, without waiting
+    // for the next check.
+    window.kaspSwitches?.onChange(SWITCH_KEY, (on) => {
+        switchedOn = on;
+        check();
+    });
 })();
