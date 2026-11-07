@@ -48,7 +48,10 @@
         { key: 'kasp_deathsounds', group: 'kills', live: true, label: { EN: 'Death taunts', RU: 'Насмешки при смерти' } },
         { key: 'kasp_grenadesounds', group: 'grenade', live: true, label: { EN: 'Grenade throw', RU: 'Бросок гранаты' } },
         { key: 'kasp_grenadekillsound', group: 'grenade', live: true, label: { EN: 'Grenade kill', RU: 'Убийство гранатой' } },
-        { key: 'kasp_weaponsounds', group: 'weapons', live: false, label: { EN: 'Magnum, Striker and Gauss', RU: 'Магнум, Страйкер и Гаусс' } },
+        // One per weapon in extension/data/weapon_sounds.json; the key ends with the group's "weapon".
+        { key: 'kasp_weaponsounds_magnum', group: 'weapons', live: false, label: { EN: 'Magnum', RU: 'Магнум' } },
+        { key: 'kasp_weaponsounds_striker', group: 'weapons', live: false, label: { EN: 'Striker', RU: 'Страйкер' } },
+        { key: 'kasp_weaponsounds_gauss', group: 'weapons', live: false, label: { EN: 'Gauss', RU: 'Гаусс' } },
         { key: 'kasp_battlemusic', group: 'music', live: true, label: { EN: 'End of battle music', RU: 'Музыка в конце битвы' } },
         {
             key: 'kasp_augments',

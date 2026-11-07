@@ -8,8 +8,9 @@
 // It is sent once as it is (kasp:late-sounds), and the injector writes it into the game's decoded sound while that turret is the
 // mounted one. This script makes out the mounted turret from the game's announcement (kasp:mounted: from the garage's items,
 // which carry the item's name, and from the battle's tank list, which carries ids only) and tells the injector (kasp:turret).
-// A file that cannot be loaded leaves its numbers as the game's own sound; when nothing can be loaded, nothing is sent. The
-// whole module is off when the switch is off.
+// A file that cannot be loaded leaves its numbers as the game's own sound; when nothing can be loaded, nothing is sent. Each
+// group names its weapon ("weapon": "magnum"), and each weapon has its own switch in the extension's settings tab, read once at
+// start: a weapon switched off keeps the game's own sounds, and with every weapon off nothing is set up at all.
 (function () {
     'use strict';
 
@@ -17,7 +18,8 @@
     const CONFIG_PATH = 'data/weapon_sounds.json';
     const SKINS_PATH = 'data/skins.json';
     const SOUNDS_DIR = 'sounds/';
-    const KILL_SWITCH_KEY = 'kasp_weaponsounds';
+    // A weapon's switch is this followed by the group's weapon, for example kasp_weaponsounds_magnum.
+    const SWITCH_PREFIX = 'kasp_weaponsounds_';
     const SAFE_FILE_NAME = /^[\w-]+(?:\.[\w-]+)*\.(?:mp3|ogg|wav)$/i;
     // The four numbers of a game sound address joined with "/", for example 0/16723/73/223 (the injector checks it too).
     const RESOURCE_NUMBER = /^\d+(?:\/\d+){1,5}$/;
@@ -31,9 +33,11 @@
     const MAX_TURRETS = 40;
     const MAX_IDS = 10;
 
-    // The user's switch, set in the extension's settings tab: read once at start through the switch service
-    // (src/modules/switches.ts), so a change applies after a reload. Without the service the switch counts as on.
-    const switchedOn = window.kaspSwitches?.isOn(KILL_SWITCH_KEY) ?? true;
+    // A weapon's switch, set in the extension's settings tab: read through the switch service (src/modules/switches.ts) when
+    // the list is read at start, so a change applies after a reload. Without the service every switch counts as on.
+    function isWeaponOn(weapon: string): boolean {
+        return window.kaspSwitches?.isOn(SWITCH_PREFIX + weapon) ?? true;
+    }
 
     // What the data file holds that was left out. They are printed in one warning when the file is read, so a typo in the
     // file is never lost without a word.
@@ -53,8 +57,9 @@
         });
     }
 
-    // One group of the list: a safe file name and at least one usable number, or null. A group with a turret that is not
-    // a plain name is dropped, so a typo never turns a one-turret sound into a sound for every turret.
+    // One group of the list: a safe file name, at least one usable number and the weapon it belongs to, or null. A group with
+    // no plain weapon name is dropped, so every sound has a switch. A group with a turret that is not a plain name is dropped,
+    // so a typo never turns a one-turret sound into a sound for every turret.
     function parseGroup(value: unknown, index: number): WeaponSoundGroup | null {
         const where = `group ${index + 1}`;
         if (!value || typeof value !== 'object') {
@@ -72,12 +77,16 @@
             problems.push(`${label}: no usable number, left out`);
             return null;
         }
-        if (group.turret === undefined) return { file: group.file, numbers };
+        if (typeof group.weapon !== 'string' || !TURRET_NAME.test(group.weapon)) {
+            problems.push(`${label}: weapon ${JSON.stringify(group.weapon)} is not a plain name, left out`);
+            return null;
+        }
+        if (group.turret === undefined) return { file: group.file, numbers, weapon: group.weapon };
         if (typeof group.turret !== 'string' || !TURRET_NAME.test(group.turret)) {
             problems.push(`${label}: turret ${JSON.stringify(group.turret)} is not a plain name, left out`);
             return null;
         }
-        return { file: group.file, numbers, turret: group.turret };
+        return { file: group.file, numbers, weapon: group.weapon, turret: group.turret };
     }
 
     // The ids the game gives each turret in a battle, by the turret's plain name.
@@ -168,6 +177,19 @@
     }
 
     async function start(): Promise<void> {
+        const listResponse = await fetch(chrome.runtime.getURL(CONFIG_PATH));
+        if (!listResponse.ok) throw new Error(`${CONFIG_PATH}: HTTP ${listResponse.status}`);
+        const parsed = parseConfig(await listResponse.json());
+        if (parsed === null) throw new Error(`${CONFIG_PATH} holds no usable file with numbers to replace`);
+        // Only the weapons switched on are set up; with none, nothing is, not even the listener below.
+        const off = [...new Set(parsed.replace.map((group) => group.weapon))].filter((weapon) => !isWeaponOn(weapon));
+        const groups = parsed.replace.filter((group) => !off.includes(group.weapon));
+        if (off.length > 0) console.log(LOG, `switched off: ${off.join(', ')}`);
+        if (groups.length === 0) {
+            console.log(LOG, 'disabled');
+            return;
+        }
+
         let names: Readonly<Record<string, string>> = {};
         let config: WeaponSoundConfig | null = null;
         const idsOfTurret = new Map<string, string>();      // item id -> plain name: the ones in the data file, and the ones learned from the garage
@@ -192,7 +214,7 @@
             window.postMessage(message, window.location.origin);
         };
 
-        // the message may come before the list is loaded, so the listener is the first thing that is set up
+        // set up before the sound files load, since the message may come while they do
         window.addEventListener('message', (e: MessageEvent) => {
             if (e.source !== window) return;
             const next = readMountedTurret(e.data);
@@ -208,15 +230,12 @@
             mounted = next;
             refresh();
         });
-        // the game may have said it before this listener was set up, so the injector is asked to say it again
+        // the game may have said it before this listener was set up (while the list was read, say), so the injector, which keeps
+        // the game's last announcement, is asked to say it again
         const request: KaspMountedRequestMessage = { type: 'kasp:mounted-request' };
         window.postMessage(request, window.location.origin);
 
-        const listResponse = await fetch(chrome.runtime.getURL(CONFIG_PATH));
-        if (!listResponse.ok) throw new Error(`${CONFIG_PATH}: HTTP ${listResponse.status}`);
-        const parsed = parseConfig(await listResponse.json());
-        if (parsed === null) throw new Error(`${CONFIG_PATH} holds no usable file with numbers to replace`);
-        const forTurrets = parsed.replace.filter((group) => group.turret !== undefined);
+        const forTurrets = groups.filter((group) => group.turret !== undefined);
         if (forTurrets.length > 0) {
             try {
                 const skinsResponse = await fetch(chrome.runtime.getURL(SKINS_PATH));
@@ -228,7 +247,7 @@
         }
 
         const [plain, late] = await Promise.all([
-            loadGroups(parsed.replace.filter((group) => group.turret === undefined)),
+            loadGroups(groups.filter((group) => group.turret === undefined)),
             loadGroups(forTurrets),
         ]);
         if (plain.length > 0) {
@@ -252,10 +271,6 @@
         refresh();
     }
 
-    if (!switchedOn) {
-        console.log(LOG, 'disabled');
-        return;
-    }
     start().catch((error: unknown) => {
         console.warn(LOG, 'the game keeps its own weapon sounds:', error instanceof Error ? error.message : error);
     });

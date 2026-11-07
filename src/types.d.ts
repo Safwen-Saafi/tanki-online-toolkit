@@ -118,10 +118,13 @@ interface KaspSoundSwapMessage {
 }
 
 // extension/data/weapon_sounds.json: for each file in extension/sounds/, the resource numbers it replaces. A group with a turret (an item name from skins.json, such as "gauss") is used only while that turret is the
-// mounted one, for sound files that several turrets share (the injector rewrites the game's decoded sound for them).
+// mounted one, for sound files that several turrets share (the injector rewrites the game's decoded sound for them). Every group
+// names the weapon it belongs to (a plain item name, such as "magnum"), whose switch in the extension's settings tab is
+// kasp_weaponsounds_<weapon>.
 interface WeaponSoundGroup {
     readonly file: string;
     readonly numbers: readonly string[];
+    readonly weapon: string;
     readonly turret?: string;
 }
 
