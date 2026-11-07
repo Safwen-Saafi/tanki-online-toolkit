@@ -1,7 +1,6 @@
 // Isolated-world content script. Publishes window.kaspGarageTab.read(), which says which tab of an item's
 // garage screen is open. The Augments, Skins and Shot color tabs share one row of cards, so the tab is told
 // apart by which menu item is active. The position is used, not the label, which changes with the language.
-// Same rule as activeGarageCardSection() in the Kaspersky extension (src/core/gameAugments.ts).
 (function () {
     'use strict';
 

@@ -1,6 +1,5 @@
-// Isolated-world content script. Ported from modules.customGarageSkins in
-// src/kasp_main.ts:2954-3168, but the equipped skin is no longer detected from previews and
-// looked up in a database: its art URL is learned from the game's own Skins tab. Its switch in the extension's settings tab
+// Isolated-world content script. Keeps the player's equipped skins shown on the garage tiles and the main screen; the
+// equipped skin's art URL is learned from the game's own Skins tab. Its switch in the extension's settings tab
 // applies at once: off, nothing is painted, but every equip is still followed and learned.
 (function () {
     'use strict';

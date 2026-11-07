@@ -1,6 +1,6 @@
 // Isolated-world content script. Works out the game's language and shares it with the other modules through
 // window.kaspLanguage: get() is the language so far (EN until one is found) and whenKnown resolves once, when it
-// settles. Ported from utils.getLang() in the Kaspersky extension (src/core/utils.ts). It stops at
+// settles. It stops at
 // the first real answer or when the main menu appears, and has no timeout, because the game can take any time to
 // load and a language change reloads the page.
 (function () {

@@ -1,5 +1,4 @@
-// Isolated-world content script (same world type as the real extension's kasp_main.js).
-// Detection logic ported from modules.changeCounter (src/kasp_main.ts:2840-2952). The
+// Isolated-world content script. Marks the players who changed equipment during the battle in the stats table. The
 // marker is its own cell, pinned at fixed coordinates in the space past the kills/deaths
 // column rather than inserted into the row's flow - the game's own stat cells are pinned
 // the same way, so nothing in that row responds to flex order or column widths. See
