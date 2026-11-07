@@ -2,7 +2,8 @@
 // player's own kill streak and death streak for the current battle, finds multi-kills (several kills inside one short
 // time window) and picks the sound for each of the player's own kills and deaths. A kill with a grenade has a sound of
 // its own that beats all the others. The player's id is learned once and kept; the counters live in sessionStorage,
-// so a page reload in the middle of a battle does not lose them, and are cleared when the battle ends.
+// so a page reload in the middle of a battle does not lose them, and are cleared when the battle ends. Three switches in
+// the extension's settings tab (the kill sounds, the death taunts, the grenade kill sound) each silence their own sounds at once.
 (function () {
     'use strict';
 
@@ -21,7 +22,6 @@
     // extension/sounds/. A count without a file is silent.
     const CONFIG_PATH = 'data/killsounds.json';
     const SOUNDS_DIR = 'sounds/';
-    const KILL_SWITCH_KEY = 'kasp_killsounds';
     const SOUND_VOLUME = 0.8;
     // Past the highest kill streak count in the list, the highest sound plays again every this many kills.
     const STREAK_REPEAT_STEP = 10;
@@ -35,6 +35,15 @@
     // sound of a kill with a grenade.
     type SoundKind = 'multi' | 'streak' | 'death' | 'first' | 'grenade';
     const SOUND_KINDS: readonly SoundKind[] = ['multi', 'streak', 'death', 'first', 'grenade'];
+    // The switch, in the extension's settings tab, that each kind of sound goes with: the kill sounds, the death taunts and
+    // the grenade kill sound.
+    const SWITCH_OF_KIND: Readonly<Record<SoundKind, string>> = {
+        multi: 'kasp_killsounds',
+        streak: 'kasp_killsounds',
+        first: 'kasp_killsounds',
+        death: 'kasp_deathsounds',
+        grenade: 'kasp_grenadekillsound',
+    };
     // What plays for one count: the files to pick from, one at a time without repeating until all have played, and the
     // chance (0 to 1) that anything plays at all.
     interface SoundEntry {
@@ -278,10 +287,10 @@
     }
 
     // One sound at a time: a new sound stops the one still playing, except that nothing stops a grenade kill sound
-    // before it ends. An entry with a chance below 1 plays only that often. With the switch off nothing plays, but the
-    // counters go on, so turning it back on continues the right streak.
+    // before it ends. An entry with a chance below 1 plays only that often. A kind whose switch is off does not play, but
+    // the counters go on, so turning it back on continues the right streak.
     function playSound(sound: SoundKey): void {
-        if (!switchedOn) return;
+        if (switchedOn.get(SWITCH_OF_KIND[sound.kind]) === false) return;
         const entry = sounds[sound.kind].get(sound.count);
         if (entry === undefined) return;
         if (sound.kind !== 'grenade' && playingKind === 'grenade' && playing !== null && !playing.paused && !playing.ended) return;
@@ -397,13 +406,16 @@
         }
     }
 
-    // The user's switch, set in the extension's settings tab: read once at start and kept here, and the switch service
-    // (src/modules/switches.ts) calls back with every change, so it applies at once with nothing read in between. The sounds
-    // are always loaded for that. Without the service the switch counts as on.
-    let switchedOn = window.kaspSwitches?.isOn(KILL_SWITCH_KEY) ?? true;
-    window.kaspSwitches?.onChange(KILL_SWITCH_KEY, (on) => {
-        switchedOn = on;
-    });
+    // The user's switches, set in the extension's settings tab: each read once at start and kept here, and the switch
+    // service (src/modules/switches.ts) calls back with every change, so it applies at once with nothing read in between.
+    // The sounds are always loaded for that. Without the service every switch counts as on.
+    const switchedOn = new Map<string, boolean>();
+    for (const key of new Set(Object.values(SWITCH_OF_KIND))) {
+        switchedOn.set(key, window.kaspSwitches?.isOn(key) ?? true);
+        window.kaspSwitches?.onChange(key, (on) => {
+            switchedOn.set(key, on);
+        });
+    }
 
     void loadSounds();
 

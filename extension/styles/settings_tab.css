@@ -1,9 +1,11 @@
 /* The extension's panel in the game's settings screen (src/modules/settings_tab.ts). The tab and its yellow bar are the
    game's own (the settings-tab hook in src/injector.ts), so only the panel is styled here. */
 
-/* A switch, drawn like the game's own: a pill 2.75em by 1.5em with a knob; everything in em so it scales with the game. */
+/* A switch, drawn like the game's own: a pill 2.75em by 1.5em with a knob; everything in em so it scales with the game. As in
+   the game's rows (measured on the Graphics tab, 2026-11-07), the row is only as wide as its pill and text, and only the pill and
+   the text box show the hand and take the click, so the empty space after the text is not part of the switch. */
 .kasp-row {
-    cursor: pointer;
+    align-self: flex-start;
     user-select: none;
 }
 
@@ -11,6 +13,7 @@
     position: relative;
     display: flex;
     box-sizing: content-box;
+    cursor: pointer;
     width: 2.75em;
     height: 1.5em;
     border: 1px solid rgba(255, 255, 255, 0.2);

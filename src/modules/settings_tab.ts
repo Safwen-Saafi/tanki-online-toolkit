@@ -18,10 +18,12 @@
     const SWITCH_ON = 'kasp-on';
     const HEADING_CLASS = 'SettingsComponentStyle-textHeadlineOptions';
     const FORM_CLASS = 'GameSettingsStyle-containerFormOptions';
-    // The game's own line between two sections of a panel.
+    // The game's own line between two sections of a panel. The game puts it alone in a block of its own, and the line gets its
+    // height from that block: on its own it is 0 pixels tall (both measured on the Graphics tab, 2026-11-07).
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
+    const DIVIDER_BLOCK_CLASS = 'SettingsComponentStyle-commonBlock';
 
-    type SwitchGroup = 'sounds' | 'garage';
+    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'garage';
 
     interface SwitchEntry {
         // The localStorage key the feature's module reads.
@@ -33,20 +35,21 @@
     }
 
     const GROUPS: ReadonlyArray<{ id: SwitchGroup; heading: Record<KaspLanguageCode, string> }> = [
-        { id: 'sounds', heading: { EN: 'Sounds', RU: 'Звуки' } },
+        { id: 'kills', heading: { EN: 'Kill and death sounds', RU: 'Звуки убийств и смертей' } },
+        { id: 'grenade', heading: { EN: 'Grenade sounds', RU: 'Звуки гранаты' } },
+        { id: 'weapons', heading: { EN: 'Weapon sounds', RU: 'Звуки оружия' } },
+        { id: 'music', heading: { EN: 'Music', RU: 'Музыка' } },
         { id: 'garage', heading: { EN: 'Garage', RU: 'Гараж' } },
     ];
 
+    // Shown in this order inside each group.
     const SWITCHES: readonly SwitchEntry[] = [
-        { key: 'kasp_killsounds', group: 'sounds', live: true, label: { EN: 'Kill and death sounds', RU: 'Звуки убийств и смертей' } },
-        { key: 'kasp_grenadesounds', group: 'sounds', live: true, label: { EN: 'Grenade throw sound', RU: 'Звук броска гранаты' } },
-        { key: 'kasp_battlemusic', group: 'sounds', live: true, label: { EN: 'End of battle music', RU: 'Музыка в конце битвы' } },
-        {
-            key: 'kasp_weaponsounds',
-            group: 'sounds',
-            live: false,
-            label: { EN: 'Weapon sounds (Magnum, Striker, Gauss)', RU: 'Звуки оружия (Магнум, Страйкер, Гаусс)' },
-        },
+        { key: 'kasp_killsounds', group: 'kills', live: true, label: { EN: 'Kill streaks and multi-kills', RU: 'Серии и мультиубийства' } },
+        { key: 'kasp_deathsounds', group: 'kills', live: true, label: { EN: 'Death taunts', RU: 'Насмешки при смерти' } },
+        { key: 'kasp_grenadesounds', group: 'grenade', live: true, label: { EN: 'Grenade throw', RU: 'Бросок гранаты' } },
+        { key: 'kasp_grenadekillsound', group: 'grenade', live: true, label: { EN: 'Grenade kill', RU: 'Убийство гранатой' } },
+        { key: 'kasp_weaponsounds', group: 'weapons', live: false, label: { EN: 'Magnum, Striker and Gauss', RU: 'Магнум, Страйкер и Гаусс' } },
+        { key: 'kasp_battlemusic', group: 'music', live: true, label: { EN: 'End of battle music', RU: 'Музыка в конце битвы' } },
         {
             key: 'kasp_augments',
             group: 'garage',
@@ -96,14 +99,18 @@
     }
 
     // Space and Enter do what a click does, as on a real switch or button.
-    function onPress(node: HTMLElement, action: () => void): void {
+    function onKeys(node: HTMLElement, action: () => void): void {
         node.tabIndex = 0;
-        node.addEventListener('click', action);
         node.addEventListener('keydown', (event) => {
             if (event.key !== ' ' && event.key !== 'Enter') return;
             event.preventDefault();
             action();
         });
+    }
+
+    function onPress(node: HTMLElement, action: () => void): void {
+        node.addEventListener('click', action);
+        onKeys(node, action);
     }
 
     // One switch, drawn like the game's own.
@@ -136,12 +143,16 @@
         labelBox.appendChild(label);
         row.append(box, labelBox);
         setSwitch(row, isOn(entry.key));
-        onPress(row, () => {
+        const flip = (): void => {
             const on = !row.classList.contains(SWITCH_ON);
             if (!save(entry.key, on)) return;
             setSwitch(row, on);
             changed();
-        });
+        };
+        // As in the game's rows, only the pill and the text box take the click; the row only takes the keys, for its focus.
+        box.addEventListener('click', flip);
+        labelBox.addEventListener('click', flip);
+        onKeys(row, flip);
         return row;
     }
 
@@ -167,7 +178,11 @@
         refreshNotice();
 
         GROUPS.forEach((group, index) => {
-            if (index > 0) panel.appendChild(element('div', DIVIDER_CLASS));
+            if (index > 0) {
+                const divider = element('div', DIVIDER_BLOCK_CLASS);
+                divider.appendChild(element('div', DIVIDER_CLASS));
+                panel.appendChild(divider);
+            }
             const section = document.createElement('div');
             section.appendChild(element('p', HEADING_CLASS, group.heading[language]));
             const form = element('div', FORM_CLASS);
