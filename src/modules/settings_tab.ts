@@ -57,8 +57,9 @@
             key: 'kasp_augments',
             group: 'garage',
             live: false,
-            label: { EN: 'Augment info and hidden cards', RU: 'Описания устройств и скрытые карточки' },
+            label: { EN: 'Augment info', RU: 'Описания устройств' },
         },
+        { key: 'kasp_hiddencards', group: 'garage', live: false, label: { EN: 'Hidden cards', RU: 'Скрытые карточки' } },
         { key: 'kasp_old_pictures', group: 'garage', live: false, label: { EN: 'Old augment pictures', RU: 'Старые картинки устройств' } },
     ];
 
