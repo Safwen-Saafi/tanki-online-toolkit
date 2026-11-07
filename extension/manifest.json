@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tanki Online ToolKit",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Quality-of-life features for Tanki Online: augment info, hidden cards, old augment pictures, battle sounds, garage skins and more.",
   "content_scripts": [
     {
