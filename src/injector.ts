@@ -673,6 +673,12 @@
         return found.length === 1 ? found[0] : null;
     }
 
+    // A name read from the game's script (letters, digits, _ and $), made safe to search with: a bare $ in a pattern means
+    // "end of text", so a name like Z$ would find nothing. Every name the settings-tab hook puts in a pattern goes through here.
+    function asPattern(name: string): string {
+        return name.replace(/\$/g, '\\$');
+    }
+
     // What the patched list calls: puts our tab right after CONTROLS (or last, when CONTROLS is not in the list). Our entry is
     // made by the game's own entry class, with CONTROLS' name key, which our tab never shows (it has its own text).
     function addSettingsTab(items: unknown[], make: (key: unknown) => unknown, keyField: string, categoryField: string): unknown[] {
@@ -700,9 +706,9 @@
         if (item === null) return skip('tab entry');
         const [, itemClass, keyField, categoryField] = item;
 
-        const list = exactlyOne(code, new RegExp(`\\(\\[new ${itemClass}\\([^\\[\\]]*?\\)(?:,new ${itemClass}\\([^\\[\\]]*?\\))*\\]\\)`, 'g'));
+        const list = exactlyOne(code, new RegExp(`\\(\\[new ${asPattern(itemClass)}\\([^\\[\\]]*?\\)(?:,new ${asPattern(itemClass)}\\([^\\[\\]]*?\\))*\\]\\)`, 'g'));
         if (list === null) return skip('tab list');
-        const name = exactlyOne(code, new RegExp(`([\\w$]+)\\.([\\w$]+)\\(([\\w$]+)\\.${keyField}\\)`, 'g'));
+        const name = exactlyOne(code, new RegExp(`([\\w$]+)\\.([\\w$]+)\\(([\\w$]+)\\.${asPattern(keyField)}\\)`, 'g'));
         if (name === null) return skip('tab name');
         const bar = exactlyOne(code, SETTINGS_BAR);
         if (bar === null) return skip('bar position');
@@ -710,13 +716,13 @@
         const loop = exactlyOne(code.slice(Math.max(0, bar.index - SETTINGS_LOOP_RANGE), bar.index), SETTINGS_LOOP);
         if (loop === null) return skip('tab loop');
         const [, , listVar, iterate, hasNext, next] = loop;
-        const count = new RegExp(`8===${listVar.replace(/\$/g, '\\$')}\\.([\\w$]+)\\(\\)\\?-15:-10`).exec(code.slice(Math.max(0, bar.index - SETTINGS_LOOP_RANGE), bar.index));
+        const count = new RegExp(`8===${asPattern(listVar)}\\.([\\w$]+)\\(\\)\\?-15:-10`).exec(code.slice(Math.max(0, bar.index - SETTINGS_LOOP_RANGE), bar.index));
         if (count === null) return skip('tab count');
-        const panel = exactlyOne(code, new RegExp(`\\.${numberField}\\)\\{(case 3:default:([\\w$]+)=([\\w$]+)\\([\\w$]+\\);break;(?:case \\d:\\2=\\3\\([\\w$]+\\);break;)*case \\d:\\2=\\3\\([\\w$]+\\)\\})`, 'g'));
+        const panel = exactlyOne(code, new RegExp(`\\.${asPattern(numberField)}\\)\\{(case 3:default:([\\w$]+)=([\\w$]+)\\([\\w$]+\\);break;(?:case \\d:\\2=\\3\\([\\w$]+\\);break;)*case \\d:\\2=\\3\\([\\w$]+\\)\\})`, 'g'));
         if (panel === null) return skip('panel choice');
         const panelVar = panel[2];
         const panelEnd = panel.index + panel[0].length;
-        const draw = new RegExp(`([\\w$]+)\\.([\\w$]+)\\(${panelVar.replace(/\$/g, '\\$')},([\\w$]+)\\)`).exec(code.slice(panelEnd, panelEnd + 200));
+        const draw = new RegExp(`([\\w$]+)\\.([\\w$]+)\\(${asPattern(panelVar)},([\\w$]+)\\)`).exec(code.slice(panelEnd, panelEnd + 200));
         if (draw === null) return skip('panel drawing');
 
         // Our tab's category: what the game keeps as the open tab. The game compares categories as the same object, reads their

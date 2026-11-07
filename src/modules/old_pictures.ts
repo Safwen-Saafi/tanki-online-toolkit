@@ -15,7 +15,7 @@
     'use strict';
 
     const LOG = '[KI-test][old pictures]';
-    const KILL_SWITCH_KEY = 'kasp_old_pictures';
+    const SWITCH_KEY = 'kasp_old_pictures';
     const LIST_PATH = 'data/old_pictures.json';
     const FOLDER = 'old_pictures/';
     // A stable path: two or more numbers, then image.svg.
@@ -32,7 +32,7 @@
 
     // The user's switch, set in the extension's settings tab: read once at start through the switch service
     // (src/modules/switches.ts), so a change applies after a reload. Without the service the switch counts as on.
-    const switchedOn = window.kaspSwitches?.isOn(KILL_SWITCH_KEY) ?? true;
+    const switchedOn = window.kaspSwitches?.isOn(SWITCH_KEY) ?? true;
 
     function describeError(e: unknown): string {
         return e instanceof Error ? e.message : String(e);
@@ -111,6 +111,6 @@
         }
     }
 
-    if (!switchedOn) console.log(`${LOG} disabled (switch ${KILL_SWITCH_KEY} is off)`);
+    if (!switchedOn) console.log(`${LOG} disabled (switch ${SWITCH_KEY} is off)`);
     else void load();
 })();

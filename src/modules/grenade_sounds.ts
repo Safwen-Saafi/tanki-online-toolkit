@@ -9,13 +9,13 @@
     const LOG = '[KI-test][grenade_sounds]';
     const SOUND_FILE = 'sounds/grenade-throw.mp3';
     const SOUND_VOLUME = 0.8;
-    const KILL_SWITCH_KEY = 'kasp_grenadesounds';
+    const SWITCH_KEY = 'kasp_grenadesounds';
 
     // The user's switch, set in the extension's settings tab: read once at start and kept here, and the switch service
     // (src/modules/switches.ts) calls back with every change, so it applies at once with nothing read in between. The sound
     // is always loaded for that. Without the service the switch counts as on.
-    let switchedOn = window.kaspSwitches?.isOn(KILL_SWITCH_KEY) ?? true;
-    window.kaspSwitches?.onChange(KILL_SWITCH_KEY, (on) => {
+    let switchedOn = window.kaspSwitches?.isOn(SWITCH_KEY) ?? true;
+    window.kaspSwitches?.onChange(SWITCH_KEY, (on) => {
         switchedOn = on;
     });
 
