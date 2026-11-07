@@ -61,6 +61,7 @@
         },
         { key: 'kasp_hiddencards', group: 'garage', live: false, label: { EN: 'Hidden cards', RU: 'Скрытые карточки' } },
         { key: 'kasp_old_pictures', group: 'garage', live: false, label: { EN: 'Old augment pictures', RU: 'Старые картинки устройств' } },
+        { key: 'kasp_garageskins', group: 'garage', live: true, label: { EN: 'Equipped skins in the garage', RU: 'Надетые скины в гараже' } },
     ];
 
     // The mark after the label of a switch that applies after a reload, and in the legend that explains it.
