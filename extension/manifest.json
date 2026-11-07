@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Tanki Online ToolKit",
   "version": "1.6.0",
-  "description": "Adds quality-of-life features to Tanki Online: flags players who change equipment mid-battle and keeps your chosen garage skins applied.",
+  "description": "Quality-of-life features for Tanki Online: augment info, hidden cards, old augment pictures, battle sounds, garage skins and more.",
   "content_scripts": [
     {
       "matches": [
