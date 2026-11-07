@@ -10,12 +10,12 @@
 // it, and it publishes window.kaspOldPictures so the modules that draw a game picture themselves (augments.ts) show the same
 // picture: the page's hooks never see what an isolated script writes. The rule for a stable path and a file name is also written in
 // src/injector.ts and in scripts/old-style-picture/lib.mjs, on purpose, since scripts share no imports; change all three together.
-// Off when the switch kasp_old_pictures is 0.
+// Off when its switch, kasp_old_pictures, is off in the extension's settings tab.
 (function () {
     'use strict';
 
     const LOG = '[KI-test][old pictures]';
-    const KILL_SWITCH_KEY = 'kasp_old_pictures';
+    const SWITCH_KEY = 'kasp_old_pictures';
     const LIST_PATH = 'data/old_pictures.json';
     const FOLDER = 'old_pictures/';
     // A stable path: two or more numbers, then image.svg.
@@ -30,13 +30,9 @@
     // The old pictures that did not load, so the game's own is shown for them from then on.
     const failed = new Set<string>();
 
-    function isDisabled(): boolean {
-        try {
-            return localStorage.getItem(KILL_SWITCH_KEY) === '0';
-        } catch {
-            return false;
-        }
-    }
+    // The user's switch, set in the extension's settings tab: read once at start through the switch service
+    // (src/modules/switches.ts), so a change applies after a reload. Without the service the switch counts as on.
+    const switchedOn = window.kaspSwitches?.isOn(SWITCH_KEY) ?? true;
 
     function describeError(e: unknown): string {
         return e instanceof Error ? e.message : String(e);
@@ -115,6 +111,6 @@
         }
     }
 
-    if (isDisabled()) console.log(`${LOG} disabled (localStorage ${KILL_SWITCH_KEY} is 0)`);
+    if (!switchedOn) console.log(`${LOG} disabled (switch ${SWITCH_KEY} is off)`);
     else void load();
 })();

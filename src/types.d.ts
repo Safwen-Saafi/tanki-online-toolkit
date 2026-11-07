@@ -118,10 +118,13 @@ interface KaspSoundSwapMessage {
 }
 
 // extension/data/weapon_sounds.json: for each file in extension/sounds/, the resource numbers it replaces. A group with a turret (an item name from skins.json, such as "gauss") is used only while that turret is the
-// mounted one, for sound files that several turrets share (the injector rewrites the game's decoded sound for them).
+// mounted one, for sound files that several turrets share (the injector rewrites the game's decoded sound for them). Every group
+// names the weapon it belongs to (a plain item name, such as "magnum"), whose switch in the extension's settings tab is
+// kasp_weaponsounds_<weapon>.
 interface WeaponSoundGroup {
     readonly file: string;
     readonly numbers: readonly string[];
+    readonly weapon: string;
     readonly turret?: string;
 }
 
@@ -204,6 +207,16 @@ interface KaspOldPictures {
     readonly markFailed: (address: string) => void;
 }
 
+// Published by src/modules/switches.ts, the one place that knows how a feature's switch is saved (off is the exact text 0 under its
+// localStorage key, on is no key). isOn(key) reads the saved value; set(key, on) saves it (only the settings tab calls it) and is
+// false when the browser refused; onChange(key, action) leaves an action that set calls with the new value when that switch really
+// changes, which is how a live module learns of a change with no loop and no page event.
+interface KaspSwitches {
+    readonly isOn: (key: string) => boolean;
+    readonly set: (key: string, on: boolean) => boolean;
+    readonly onChange: (key: string, action: (on: boolean) => void) => void;
+}
+
 interface Window {
     __kaspSendAction?: (className: string, obj: unknown) => void;
     __kaspSendKill?: (className: string, obj: unknown) => void;
@@ -212,7 +225,12 @@ interface Window {
     __kaspSendTankInfo?: (className: string, obj: unknown) => void;
     __kaspSendUserId?: (obj: unknown, idProp: string) => void;
     __kaspSendGarageItem?: (obj: unknown, idProp: string, nameProp: string, categoryProp: string, mountedProp: string) => void;
+    // MAIN world only (src/injector.ts): the category the game keeps as the open settings tab when it is the extension's tab,
+    // and the function the patched settings tab list calls to add that tab.
+    __kaspSettingsTab?: Record<string, unknown>;
+    __kaspSettingsTabAdd?: (items: unknown[], make: (key: unknown) => unknown, keyField: string, categoryField: string) => unknown[];
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
     kaspOldPictures?: KaspOldPictures;
+    kaspSwitches?: KaspSwitches;
 }

@@ -2,7 +2,8 @@
 // small "i" box on every augment tile that opens a spec box on hover. The augment data is what the Augments bot
 // publishes on GitHub Pages; only the file for the game's language is loaded, and it is cached for a few hours.
 // The file has six parts, in reading order: the data, the item and augment on screen, the spec box, the tile boxes, the
-// hidden "?" cards (on the Augments, Skins and Shot color tabs), the tick.
+// hidden "?" cards (on the Augments, Skins and Shot color tabs), the tick. It has two switches in the extension's settings tab:
+// the augment info (the "i" boxes and spec boxes, in the garage and on the Containers screen) and the hidden cards.
 (function () {
     'use strict';
 
@@ -10,7 +11,8 @@
     const BASE_URL = 'https://safwen-saafi.github.io/tanki-online-toolkit/';
     const FILE_NAMES = { EN: 'augments.en.json', RU: 'augments.ru.json' } as const;
     const CACHE_KEY = 'kasp_augments_cache';
-    const KILL_SWITCH_KEY = 'kasp_augments';
+    const INFO_SWITCH_KEY = 'kasp_augments';
+    const HIDDEN_SWITCH_KEY = 'kasp_hiddencards';
     // The bot publishes once a day, so asking more often than this only costs requests.
     const FRESH_MS = 6 * 60 * 60 * 1000;
     const TICK_MS = 250;
@@ -84,13 +86,10 @@
         return Object.values(file.items).reduce((total, byName) => total + Object.keys(byName).length, 0);
     }
 
-    function isDisabled(): boolean {
-        try {
-            return localStorage.getItem(KILL_SWITCH_KEY) === '0';
-        } catch {
-            return false;
-        }
-    }
+    // The user's two switches, set in the extension's settings tab: read once at start through the switch service
+    // (src/modules/switches.ts), so a change applies after a reload. Without the service every switch counts as on.
+    const infoOn = window.kaspSwitches?.isOn(INFO_SWITCH_KEY) ?? true;
+    const hiddenOn = window.kaspSwitches?.isOn(HIDDEN_SWITCH_KEY) ?? true;
 
     // Keeps only the entries that are still a valid file; anything else counts as no cache.
     function readCache(): AugmentsCache {
@@ -526,7 +525,8 @@
         const containers = document.querySelector(REWARD_ROOT_SELECTOR);
         if (containers !== null) {
             removeHiddenMarks();
-            containerTick(containers);
+            // The Containers screen only has spec boxes, which are augment info.
+            if (infoOn) containerTick(containers);
             return;
         }
         rewardDownloadFailed = false;
@@ -541,7 +541,9 @@
             oldTabCards = row === null ? null : rowSignature(row);
         }
         if (row !== null && (tab === 'skins' || tab === 'shot-color')) {
-            cosmeticTick(row, tab);
+            // These two tabs only have hidden cards; the Augments tab's boxes still go when the tab changes.
+            if (hiddenOn) cosmeticTick(row, tab);
+            else removeBoxes();
             return;
         }
         if (item === null || row === null || tab !== 'augments') {
@@ -550,13 +552,17 @@
             return;
         }
         window.dispatchEvent(new CustomEvent(GAME_CARD_REQUEST));
-        row.querySelectorAll(CARD_TITLE_SELECTOR).forEach((title) => {
-            const card = title.parentElement;
-            if (card === null) return;
-            const name = (title.textContent ?? '').trim();
-            syncBox(card, item, name);
-        });
-        if (augmentsFile === null) {
+        if (infoOn) {
+            row.querySelectorAll(CARD_TITLE_SELECTOR).forEach((title) => {
+                const card = title.parentElement;
+                if (card === null) return;
+                const name = (title.textContent ?? '').trim();
+                syncBox(card, item, name);
+            });
+        }
+        // With the info on, a hidden card waits for the augment data, which gives its name and its box; with the info off,
+        // there is no data and no box, and the card is drawn from the game's own name and rank at once.
+        if (!hiddenOn || (infoOn && augmentsFile === null)) {
             removeHiddenMarks();
             return;
         }
@@ -1165,11 +1171,14 @@
 
     // After the load event, so the game's own start-up is not delayed.
     function start(): void {
-        if (isDisabled()) {
-            console.log(`${LOG} disabled (localStorage ${KILL_SWITCH_KEY} is 0)`);
+        if (!infoOn && !hiddenOn) {
+            console.log(`${LOG} disabled (switches ${INFO_SWITCH_KEY} and ${HIDDEN_SWITCH_KEY} are off)`);
             return;
         }
-        void loadAugments();
+        if (!infoOn) console.log(`${LOG} augment info off (switch ${INFO_SWITCH_KEY})`);
+        if (!hiddenOn) console.log(`${LOG} hidden cards off (switch ${HIDDEN_SWITCH_KEY})`);
+        // The augment file is only for the info; the item names (bundled) are needed by both, to know the item on screen.
+        if (infoOn) void loadAugments();
         void loadItemNames();
         observer.observe(document.documentElement, { childList: true, subtree: true });
         setInterval(tick, TICK_MS);

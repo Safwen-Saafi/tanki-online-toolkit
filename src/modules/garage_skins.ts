@@ -1,6 +1,7 @@
 // Isolated-world content script. Ported from modules.customGarageSkins in
 // src/kasp_main.ts:2954-3168, but the equipped skin is no longer detected from previews and
-// looked up in a database: its art URL is learned from the game's own Skins tab.
+// looked up in a database: its art URL is learned from the game's own Skins tab. Its switch in the extension's settings tab
+// applies at once: off, nothing is painted, but every equip is still followed and learned.
 (function () {
     'use strict';
 
@@ -12,6 +13,7 @@
     const BASE_IMG_KEY = 'kasp_base_images';
     const ART_MEMORY_KEY = 'kasp_skin_art';
     const ART_MEMORY_LIMIT = 300;
+    const SWITCH_KEY = 'kasp_garageskins';
 
     const TICK_MS = 250;
     // One tick can catch the marker and the preview out of step mid-render, so a change must hold for two.
@@ -223,22 +225,24 @@
     function markMountedUnknownSkins(
         savedSkins: SavedSkins,
         defaultImages: DefaultImagesMap,
-        prefilledDefaults: SkinsDatabase['defaults']
+        prefilledDefaults: SkinsDatabase['defaults'],
+        paint: boolean
     ): void {
         for (const block of document.querySelectorAll(MOUNTED_BLOCK_SELECTOR)) {
             const src = block.querySelector(MOUNTED_PREVIEW_SELECTOR)?.getAttribute('src') || '';
             const owner = Object.keys(savedSkins).find(item => defaultImages[item]?.includes(src));
-            toggleUnknownLabel(block, !!owner && hasUnknownSkin(owner, savedSkins, prefilledDefaults));
+            toggleUnknownLabel(block, paint && !!owner && hasUnknownSkin(owner, savedSkins, prefilledDefaults));
         }
     }
 
-    // Walks the garage tiles: learns the stock art each one shows (adding it to `defaultImages`) and puts the
+    // Walks the garage tiles: learns the stock art each one shows (adding it to `defaultImages`) and, when painting, puts the
     // "unknown skin" label on the ones whose skin is not known. Returns true when a new stock URL was learned.
     function syncTiles(
         nameTranslate: SkinsDatabase['names'],
         savedSkins: SavedSkins,
         defaultImages: DefaultImagesMap,
-        prefilledDefaults: SkinsDatabase['defaults']
+        prefilledDefaults: SkinsDatabase['defaults'],
+        paint: boolean
     ): boolean {
         let learned = false;
         for (const tile of document.querySelectorAll(TILE_SELECTOR)) {
@@ -262,7 +266,7 @@
                 }
             }
 
-            toggleUnknownLabel(tile, hasUnknownSkin(item, savedSkins, prefilledDefaults));
+            toggleUnknownLabel(tile, paint && hasUnknownSkin(item, savedSkins, prefilledDefaults));
         }
         return learned;
     }
@@ -531,6 +535,21 @@
         if (event.code === 'Space' && !event.repeat && !isTypingTarget(event.target)) saveOnEquip(true);
     }, true);
 
+    // ---- the switch ----
+
+    // The user's switch, set in the extension's settings tab: read once at start and kept here, and the switch service
+    // (src/modules/switches.ts) calls back with every change. Off, the module still follows every equip and keeps learning,
+    // so turning it back on shows the right skin; it only paints nothing. Without the service the switch counts as on.
+    let switchedOn = window.kaspSwitches?.isOn(SWITCH_KEY) ?? true;
+    window.kaspSwitches?.onChange(SWITCH_KEY, (on) => {
+        switchedOn = on;
+        // Turned off, what was painted goes at once, on any screen; turned on, the next tick paints it again.
+        if (!on) {
+            updateGlobalCSS({}, {});
+            document.querySelectorAll('.kasp-unknown-skin').forEach((label) => label.remove());
+        }
+    });
+
     // ---- the tick ----
 
     function tick(): void {
@@ -545,11 +564,12 @@
         const savedSkins = readSavedSkins();
         const defaultImages = mergeDefaultImages(prefilledDefaults, readBaseImages());
 
-        const learnedStock = syncTiles(names, savedSkins, defaultImages, prefilledDefaults);
-        markMountedUnknownSkins(savedSkins, defaultImages, prefilledDefaults);
+        const learnedStock = syncTiles(names, savedSkins, defaultImages, prefilledDefaults, switchedOn);
+        markMountedUnknownSkins(savedSkins, defaultImages, prefilledDefaults, switchedOn);
         if (learnedStock) writeStore(BASE_IMG_KEY, defaultImages);
 
-        updateGlobalCSS(savedSkins, defaultImages);
+        // Switched off, nothing is painted, while everything above still learns.
+        updateGlobalCSS(switchedOn ? savedSkins : {}, defaultImages);
     }
 
     loadArtMemory();
