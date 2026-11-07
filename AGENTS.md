@@ -13,7 +13,7 @@ for optional tool settings.
 
 ## What this is
 
-A description of your project and the problem it solves.
+Tanki Online ToolKit: a personal Manifest V3 Chrome extension that adds quality-of-life features to the browser game Tanki Online, which its own client does not offer: a marker on players who change equipment mid-battle, the chosen garage skins kept on screen, augment info and hidden cards in the garage and on the Containers screen, the old augment pictures, kill, battle and weapon sounds, and a tab in the game's own settings to switch each of them on or off. The repo also holds the Tanki Augments Bot, which publishes the wiki's augment data the extension reads.
 
 This project is built with the **AI Blueprint**, a workflow layer, not an
 app skeleton. To start a new project, scaffold the app first in an empty folder
