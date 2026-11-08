@@ -229,6 +229,8 @@ interface Window {
     // and the function the patched settings tab list calls to add that tab.
     __kaspSettingsTab?: Record<string, unknown>;
     __kaspSettingsTabAdd?: (items: unknown[], make: (key: unknown) => unknown, keyField: string, categoryField: string) => unknown[];
+    // MAIN world only: the address of the change column's header picture, read by the game's header code (build-plan 18a).
+    __kaspChangeHeader?: string;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
     kaspOldPictures?: KaspOldPictures;

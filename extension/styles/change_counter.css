@@ -1,74 +1,19 @@
-/* Panel is 90em wide by default. Widening it only stretches the panel - text and
-   icons keep their own size, and the free space opens up past the last column.
-   Capped against the viewport so it can never run off-screen. */
-.BattleTabStatisticComponentStyle-containerInsideTeams {
-    width: 96em !important;
-    max-width: 98vw !important;
-}
+/* The change column is drawn by the game itself (build-plan 18a, src/injector.ts): one header after the skull and one cell
+   per player row. Its place in the table is set with every other column in battle_tab.css; this file only draws the marker. */
 
-/* Scoped to tbody rows on purpose: the game's thead is position:absolute, so a
-   width:100% on it or on its row resolves against the container rather than the
-   table, stretching the header across the whole panel. */
-.BattleTabStatisticComponentStyle-containerInsideTeams table,
-.BattleTabStatisticComponentStyle-containerInsideTeams tbody>tr {
-    width: 100% !important;
-}
-
-/* The game does not lay its stat cells out in flow - it pins them at fixed
-   coordinates. Measured: the cells' on-screen order does not match their DOM
-   order even though every one of them computes order:0, which is only possible
-   out of flow. So flex order, flex-basis and column percentages have no effect
-   on them, and a cell appended in normal flow lands at the row's origin rather
-   than after the last column.
-
-   This cell is therefore pinned the same way, in the gap past the last column
-   (kills/deaths ends at 525px, the row ends at 600px). Being out of flow, it
-   cannot shift or resize anything else in the row. */
-.BattleTabStatisticComponentStyle-containerInsideTeams tbody>tr {
-    position: relative !important;
-}
-
-/* The header icon is left to anchor against the game's own thead, which is
-   already position:absolute and already sized to its table. Giving the thead or
-   its row a width of our own is what threw the icon out to the panel's edge. */
-.kasp-change-th,
-.kasp-change-td {
-    position: absolute !important;
-    width: 3em !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-    border: none !important;
-}
-
-.kasp-change-td {
-    top: 0 !important;
-    bottom: 0 !important;
-    right: 1em !important;
-}
-
-/* left, top and height come from JS, measured against the body column and the
-   neighbouring header label - see change_counter.ts. Deliberately not set here,
-   since an !important rule would beat the measured inline values. Colour matches
-   the game's own header labels. */
-.kasp-change-th {
-    color: rgb(191, 213, 255);
-    font-size: 1.15em;
-}
-
-/* The warning picture only shows on rows whose player changed equipment. Its image address is set from change_counter.ts,
-   because a url() in this file would resolve against the game's own site, not the extension. */
-.kasp-change-icon {
+/* change_counter.ts gives the marker its content and picture only in the cells of players who changed equipment; the cell
+   is the game's own flex cell, which centres it. */
+[data-kasp-change]::after {
     width: 1.6em;
     height: 1.6em;
+    align-self: center;
     background: center / contain no-repeat;
-    visibility: hidden;
+    opacity: var(--kasp-blink);
 }
 
-/* One blink clock for the whole panel. A CSS animation on each icon starts when that icon starts, so icons lit
+/* One blink clock for the whole panel. A CSS animation on each marker starts when that marker starts, so markers lit
    or re-created at different moments (rows re-sort, players come and go) blink out of step. Here the clock lives on
-   the panel and every icon only reads its value, so a new or moved icon is always in step with the others. */
+   the panel and every marker only reads its value, so a new or moved marker is always in step with the others. */
 @property --kasp-blink {
     syntax: '<number>';
     inherits: true;
@@ -77,11 +22,6 @@
 
 .BattleTabStatisticComponentStyle-container {
     animation: kasp-change-blink 1s step-start infinite;
-}
-
-.kasp-change-td.kasp-changed .kasp-change-icon {
-    visibility: visible;
-    opacity: var(--kasp-blink);
 }
 
 @keyframes kasp-change-blink {

@@ -1,0 +1,2640 @@
+{
+  "schemaVersion": 1,
+  "augments": {
+    "920005132720": {
+      "item": "firebird",
+      "EN": "Compact fuel tanks",
+      "RU": "Компактные баллоны"
+    },
+    "920005132721": {
+      "item": "freeze",
+      "EN": "High pressure pump",
+      "RU": "Насос повышенного давления"
+    },
+    "920005132722": {
+      "item": "isida",
+      "EN": "Broadband radiators",
+      "RU": "Широкополосные излучатели"
+    },
+    "920005132723": {
+      "item": "vulcan",
+      "EN": "Reinforced aiming transmission",
+      "RU": "Усиленные приводы наводки"
+    },
+    "920005132724": {
+      "item": "railgun",
+      "EN": "Round stabilization",
+      "RU": "Стабилизация снаряда"
+    },
+    "920005132725": {
+      "item": "ricochet",
+      "EN": "Minus-field stabilization",
+      "RU": "Стабилизация минус-поля"
+    },
+    "920005132726": {
+      "item": "shaft",
+      "EN": "Heavy capacitors",
+      "RU": "Тяжёлые конденсаторы"
+    },
+    "920005132727": {
+      "item": "hammer",
+      "EN": "Slugger",
+      "RU": "Слаггер"
+    },
+    "920005132728": {
+      "item": "smoky",
+      "EN": "Assault rounds",
+      "RU": "Штурмовые снаряды"
+    },
+    "920005132729": {
+      "item": "thunder",
+      "EN": "Small caliber charging machine",
+      "RU": "Автомат заряжания малого калибра"
+    },
+    "920005132730": {
+      "item": "twins",
+      "EN": "Plasma accelerators",
+      "RU": "Ускорители плазмы"
+    },
+    "920005770320": {
+      "item": "firebird",
+      "EN": "High pressure pump",
+      "RU": "Насос повышенного давления"
+    },
+    "920005770322": {
+      "item": "freeze",
+      "EN": "Corrosive mix",
+      "RU": "Коррозионная смесь"
+    },
+    "920005770324": {
+      "item": "isida",
+      "EN": "Support nanobots",
+      "RU": "Наноботы поддержки"
+    },
+    "920005770326": {
+      "item": "vulcan",
+      "EN": "Shooting speed regulator",
+      "RU": "Регулятор скорости стрельбы"
+    },
+    "920005770328": {
+      "item": "railgun",
+      "EN": "Reinforced aiming transmission",
+      "RU": "Усиленные приводы наводки"
+    },
+    "920005770330": {
+      "item": "railgun",
+      "EN": "Large caliber rounds",
+      "RU": "Крупнокалиберные снаряды"
+    },
+    "920005770332": {
+      "item": "shaft",
+      "EN": "Short-band emitter",
+      "RU": "Короткополосный эмиттер"
+    },
+    "920005770334": {
+      "item": "hammer",
+      "EN": "High-capacity ammo clip",
+      "RU": "Обойма увеличенной ёмкости"
+    },
+    "920005770336": {
+      "item": "smoky",
+      "EN": "High-precision aiming system",
+      "RU": "Система высокоточного прицеливания"
+    },
+    "920005770338": {
+      "item": "thunder",
+      "EN": "Subcaliber rounds",
+      "RU": "Подкалиберные снаряды"
+    },
+    "920006113430": {
+      "item": "twins",
+      "EN": "Stabilized plasma",
+      "RU": "Стабилизированная плазма"
+    },
+    "920006113432": {
+      "item": "ricochet",
+      "EN": "Destabilized plasma",
+      "RU": "Дестабилизированная плазма"
+    },
+    "920009599053": {
+      "item": "magnum",
+      "EN": "Reinforced gun carriage",
+      "RU": "Усиленный лафет"
+    },
+    "920009599054": {
+      "item": "magnum",
+      "EN": "Mortar",
+      "RU": "Миномёт"
+    },
+    "920009599055": {
+      "item": "striker",
+      "EN": "Remote rocket explosives",
+      "RU": "Дистанционный подрыв ракет"
+    },
+    "920009599080": {
+      "item": "isida",
+      "EN": "Nanomass reactor",
+      "RU": "Реактор наномассы"
+    },
+    "920009599090": {
+      "item": "hammer",
+      "EN": "Adaptive reload",
+      "RU": "Адаптивная перезарядка"
+    },
+    "920009599123": {
+      "item": "isida",
+      "EN": "Shock Nanobot Injection",
+      "RU": "Инъекция ударных наноботов"
+    },
+    "920009599124": {
+      "item": "hammer",
+      "EN": "Dragon breath",
+      "RU": "Дыхание дракона"
+    },
+    "920009599125": {
+      "item": "ricochet",
+      "EN": "Berserk",
+      "RU": "Берсерк"
+    },
+    "920009599152": {
+      "item": "smoky",
+      "EN": "Incendiary rounds",
+      "RU": "Зажигательные снаряды"
+    },
+    "920009599153": {
+      "item": "smoky",
+      "EN": "Cryo rounds",
+      "RU": "Криоснаряды"
+    },
+    "920009599170": {
+      "item": "vulcan",
+      "EN": "Incendiary band",
+      "RU": "Зажигательная лента"
+    },
+    "920009599180": {
+      "item": "railgun",
+      "EN": "\"Death Herald\" compulsator",
+      "RU": "Компульсатор «Вестник смерти»"
+    },
+    "920009599230": {
+      "item": "railgun",
+      "EN": "Hyperspace rounds",
+      "RU": "Гиперпространственные снаряды"
+    },
+    "920009599260": {
+      "item": "firebird",
+      "EN": "Incendiary mix",
+      "RU": "Зажигательная смесь"
+    },
+    "920009599261": {
+      "item": "freeze",
+      "EN": "Shock freeze",
+      "RU": "Шоковая заморозка"
+    },
+    "920009599262": {
+      "item": "hammer",
+      "EN": "Duplet",
+      "RU": "Дуплет"
+    },
+    "920009599263": {
+      "item": "twins",
+      "EN": "Heavy plasmagun",
+      "RU": "Тяжёлый плазмомёт"
+    },
+    "920009599264": {
+      "item": "smoky",
+      "EN": "Supercumulative rounds",
+      "RU": "Суперкумулятивные снаряды"
+    },
+    "920009599265": {
+      "item": "smoky",
+      "EN": "Autocannon",
+      "RU": "Автопушка"
+    },
+    "920009599267": {
+      "item": "striker",
+      "EN": "Missile launcher \"Hunter\"",
+      "RU": "Пусковая установка «Охотник»"
+    },
+    "920009599268": {
+      "item": "striker",
+      "EN": "Missile launcher \"Cyclone\"",
+      "RU": "Пусковая установка «Циклон»"
+    },
+    "920009599269": {
+      "item": "striker",
+      "EN": "Missile launcher \"Uranium\"",
+      "RU": "Пусковая установка «Уран»"
+    },
+    "920009599271": {
+      "item": "thunder",
+      "EN": "\"Sledgehammer\" rounds",
+      "RU": "Снаряды «Кувалда»"
+    },
+    "920009599272": {
+      "item": "railgun",
+      "EN": "Electromagnetic accelerator \"Scout\"",
+      "RU": "Электромагнитный ускоритель «Скаут»"
+    },
+    "920009599273": {
+      "item": "railgun",
+      "EN": "Round destabilization",
+      "RU": "Дестабилизация снаряда"
+    },
+    "920009599274": {
+      "item": "magnum",
+      "EN": "Automated gunpowder loading mechanism",
+      "RU": "Автоматизированный механизм загрузки пороха"
+    },
+    "920009599275": {
+      "item": "shaft",
+      "EN": "Light capacitors",
+      "RU": "Лёгкие конденсаторы"
+    },
+    "920009599276": {
+      "item": "shaft",
+      "EN": "Rapid-fire mode",
+      "RU": "Режим серийного огня"
+    },
+    "920009599277": {
+      "item": "ricochet",
+      "EN": "Plasma-torch",
+      "RU": "Плазма-факел"
+    },
+    "920009599290": {
+      "item": "magnum",
+      "EN": "Freezing Core",
+      "RU": "Криоснаряды"
+    },
+    "920009599291": {
+      "item": "magnum",
+      "EN": "Incendiary core",
+      "RU": "Поджигающий сердечник"
+    },
+    "920009599300": {
+      "item": "twins",
+      "EN": "Tempest",
+      "RU": "Буря"
+    },
+    "920009658953": {
+      "item": "vulcan",
+      "EN": "Rubberized rounds",
+      "RU": "Прорезиненные снаряды"
+    },
+    "920009661406": {
+      "item": "gauss",
+      "EN": "Electromagnetic salvo",
+      "RU": "Электромагнитный залп"
+    },
+    "920009663700": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет к поджогу"
+    },
+    "920009663701": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "920009663702": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет от заморозки"
+    },
+    "920009663703": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "920009663704": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "920009663706": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "920009663707": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "920009663708": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет от оглушения"
+    },
+    "920009663710": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет от поджога"
+    },
+    "920009663711": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "920009663712": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет от заморозки"
+    },
+    "920009663713": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "920009663714": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "920009663716": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "920009663717": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "920009663718": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет от оглушения"
+    },
+    "920009663720": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет от поджога"
+    },
+    "920009663721": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "920009663722": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет от заморозки"
+    },
+    "920009663723": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "920009663724": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "920009663726": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "920009663727": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "920009663728": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет от оглушения"
+    },
+    "920009663730": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет от поджога"
+    },
+    "920009663731": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "920009663732": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет от заморозки"
+    },
+    "920009663733": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "920009663734": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "920009663736": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "920009663737": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "920009663738": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет от оглушения"
+    },
+    "920009663740": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет от поджога"
+    },
+    "920009663741": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "920009663742": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет от заморозки"
+    },
+    "920009663743": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "920009663744": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "920009663746": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "920009663747": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "920009663748": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет к оглушению"
+    },
+    "920009663750": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет от поджога"
+    },
+    "920009663751": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "920009663752": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет от заморозки"
+    },
+    "920009663753": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "920009663754": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "920009663756": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "920009663757": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "920009663758": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет от оглушения"
+    },
+    "920009663844": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет от поджога"
+    },
+    "920009663845": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет от заморозки"
+    },
+    "920009663846": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "920009663847": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "920009663848": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "920009665441": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "920009665442": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "920009667133": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет от оглушения"
+    },
+    "920009672943": {
+      "item": "smoky",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672944": {
+      "item": "magnum",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672945": {
+      "item": "firebird",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672946": {
+      "item": "freeze",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672947": {
+      "item": "gauss",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672948": {
+      "item": "isida",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672949": {
+      "item": "vulcan",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672950": {
+      "item": "ricochet",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672951": {
+      "item": "striker",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672952": {
+      "item": "shaft",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672953": {
+      "item": "hammer",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672954": {
+      "item": "thunder",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672955": {
+      "item": "twins",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "920009672956": {
+      "item": "railgun",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "921009682487": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "921009682488": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "921009682489": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет от оглушения"
+    },
+    "921009682490": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет от заморозки"
+    },
+    "921009682492": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "921009682493": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "921009682494": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет от поджога"
+    },
+    "921009682495": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "921009691474": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "921009691475": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет от заморозки"
+    },
+    "921009691477": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "921009691478": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет от поджога"
+    },
+    "921009691479": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "921009691480": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "921009691481": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "921009691483": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет от оглушения"
+    },
+    "921009694542": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет от пробития"
+    },
+    "921009696609": {
+      "item": "freeze",
+      "EN": "Toxic mix",
+      "RU": "Токсичная смесь"
+    },
+    "921009697157": {
+      "item": "hammer",
+      "EN": "Armor-piercing shot",
+      "RU": "Бронебойный выстрел"
+    },
+    "921009697158": {
+      "item": "ricochet",
+      "EN": "Super-smart minus-field",
+      "RU": "Сверхумное минус-поле"
+    },
+    "921009697159": {
+      "item": "smoky",
+      "EN": "Armor-piercing rounds",
+      "RU": "Бронебойные снаряды"
+    },
+    "921009697160": {
+      "item": "striker",
+      "EN": "Armor-piercing missiles",
+      "RU": "Бронебойная боеголовка"
+    },
+    "921009697161": {
+      "item": "railgun",
+      "EN": "Super armor-piercing rounds",
+      "RU": "Суперпробивающие снаряды"
+    },
+    "921009697162": {
+      "item": "magnum",
+      "EN": "Armor-piercing core",
+      "RU": "Бронебойный сердечник"
+    },
+    "921009697163": {
+      "item": "gauss",
+      "EN": "Armor-piercing salvo",
+      "RU": "Бронебойный залп"
+    },
+    "921009697164": {
+      "item": "shaft",
+      "EN": "Armor-piercing sight",
+      "RU": "Бронебойная фокусировка"
+    },
+    "921009697165": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет от пробития"
+    },
+    "921009697166": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет от пробития"
+    },
+    "921009697167": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет от пробития"
+    },
+    "921009697168": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет от пробития"
+    },
+    "921009697169": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет от пробития"
+    },
+    "921009697170": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет от пробития"
+    },
+    "921009697171": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет к пробитию"
+    },
+    "921009697172": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет от пробития"
+    },
+    "921009697173": {
+      "item": "magnum",
+      "EN": "Harpoon",
+      "RU": "Гарпун"
+    },
+    "921009707507": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "921009707508": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "921009707509": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет от заморозки"
+    },
+    "921009707510": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "921009707511": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "921009707512": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет от пробития"
+    },
+    "921009707514": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет от поджога"
+    },
+    "921009707515": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "921009707517": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет от оглушения"
+    },
+    "921009712828": {
+      "item": "smoky",
+      "EN": "Paralyzing Rounds",
+      "RU": "Парализующие снаряды"
+    },
+    "921009712829": {
+      "item": "smoky",
+      "EN": "EMP Rounds",
+      "RU": "EMP-снаряды"
+    },
+    "921009712830": {
+      "item": "smoky",
+      "EN": "Rubberized Rounds",
+      "RU": "Прорезиненные снаряды"
+    },
+    "921009712831": {
+      "item": "smoky",
+      "EN": "Explosive Rounds",
+      "RU": "Разрывные снаряды"
+    },
+    "921009712832": {
+      "item": "smoky",
+      "EN": "Sorted Ammunition",
+      "RU": "Упорядоченная боеукладка"
+    },
+    "921009717315": {
+      "item": "railgun",
+      "EN": "Incendiary rounds",
+      "RU": "Поджигающие снаряды"
+    },
+    "921009717316": {
+      "item": "railgun",
+      "EN": "Cryo rounds",
+      "RU": "Криоснаряды"
+    },
+    "921009717317": {
+      "item": "railgun",
+      "EN": "Stun rounds",
+      "RU": "Оглушающие снаряды"
+    },
+    "921009717318": {
+      "item": "railgun",
+      "EN": "EMP rounds",
+      "RU": "ЭМИ-снаряды"
+    },
+    "921009729062": {
+      "item": "hammer",
+      "EN": "Blunderbuss",
+      "RU": "Бландербас"
+    },
+    "921009729063": {
+      "item": "isida",
+      "EN": "Vampire nanobots",
+      "RU": "Вампирские наноботы"
+    },
+    "921009729064": {
+      "item": "shaft",
+      "EN": "Healing Emitters",
+      "RU": "Восстанавливающие излучатели"
+    },
+    "921009730240": {
+      "item": "striker",
+      "EN": "Stunning missiles",
+      "RU": "Обездвиживающие боеголовки"
+    },
+    "921009739214": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет от подавления"
+    },
+    "921009739215": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет от подавления"
+    },
+    "921009739216": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет к подавлению"
+    },
+    "921009739217": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет от подавления"
+    },
+    "921009739218": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет от подавления"
+    },
+    "921009739219": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет от подавления"
+    },
+    "921009739220": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет от подавления"
+    },
+    "921009739221": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет от подавления"
+    },
+    "921009739222": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет от подавления"
+    },
+    "921009739223": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет от подавления"
+    },
+    "921009739425": {
+      "item": "tesla",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "921009744918": {
+      "item": "hammer",
+      "EN": "Wyvern's Breath",
+      "RU": "Дыхание виверны"
+    },
+    "921009744919": {
+      "item": "hammer",
+      "EN": "Jamming Shot",
+      "RU": "Подавляющий выстрел"
+    },
+    "921009744920": {
+      "item": "hammer",
+      "EN": "Stunning Pellets",
+      "RU": "Парализующая картечь"
+    },
+    "921009744921": {
+      "item": "hammer",
+      "EN": "Magnetic Pellets",
+      "RU": "Магнитная картечь"
+    },
+    "921009747969": {
+      "item": "tesla",
+      "EN": "Acceleration protocol",
+      "RU": "Ускоряющий протокол"
+    },
+    "921009747970": {
+      "item": "tesla",
+      "EN": "Armor-piercing discharge",
+      "RU": "Бронебойный разряд"
+    },
+    "921009747971": {
+      "item": "tesla",
+      "EN": "Dilatory protocol",
+      "RU": "Замедляющий протокол"
+    },
+    "921009747972": {
+      "item": "tesla",
+      "EN": "Electroturret",
+      "RU": "Электропушка"
+    },
+    "921009747973": {
+      "item": "tesla",
+      "EN": "Endothermic lightning",
+      "RU": "Эндотермическая молния"
+    },
+    "921009747974": {
+      "item": "tesla",
+      "EN": "Exothermic lightning",
+      "RU": "Экзотермическая молния"
+    },
+    "921009747975": {
+      "item": "tesla",
+      "EN": "Jamming discharge",
+      "RU": "Подавляющий разряд"
+    },
+    "921009747976": {
+      "item": "tesla",
+      "EN": "Minus-field",
+      "RU": "Минус-поле"
+    },
+    "921009747977": {
+      "item": "tesla",
+      "EN": "Shocking lightning",
+      "RU": "Шоковая молния"
+    },
+    "921009747978": {
+      "item": "tesla",
+      "EN": "Superconducting discharge",
+      "RU": "Сверхпроводящий разряд"
+    },
+    "921009754727": {
+      "item": "hulls",
+      "EN": "Stun Immunity",
+      "RU": "Иммунитет от оглушения"
+    },
+    "921009754728": {
+      "item": "hulls",
+      "EN": "Jammer Immunity",
+      "RU": "Иммунитет от подавления"
+    },
+    "921009754729": {
+      "item": "hulls",
+      "EN": "Heat Immunity",
+      "RU": "Иммунитет от поджога"
+    },
+    "921009754730": {
+      "item": "hulls",
+      "EN": "Heavyweight Construction",
+      "RU": "Утяжеление конструкции"
+    },
+    "921009754731": {
+      "item": "hulls",
+      "EN": "Lightweight Construction",
+      "RU": "Облегчение конструкции"
+    },
+    "921009754732": {
+      "item": "hulls",
+      "EN": "AP Immunity",
+      "RU": "Иммунитет от пробития"
+    },
+    "921009754733": {
+      "item": "hulls",
+      "EN": "Cold Immunity",
+      "RU": "Иммунитет к заморозке"
+    },
+    "921009754734": {
+      "item": "hulls",
+      "EN": "Heat Resistance",
+      "RU": "Защита от поджога"
+    },
+    "921009754737": {
+      "item": "hulls",
+      "EN": "EMP Immunity",
+      "RU": "Иммунитет от ЭМИ"
+    },
+    "921009754738": {
+      "item": "hulls",
+      "EN": "Cold Resistance",
+      "RU": "Защита от заморозки"
+    },
+    "931009760716": {
+      "item": "twins",
+      "EN": "Plasma Turbo Accelerators",
+      "RU": "Турбоускорители плазмы"
+    },
+    "931009760718": {
+      "item": "twins",
+      "EN": "Plasma Disruptor",
+      "RU": "Плазменный дизруптор"
+    },
+    "931009760719": {
+      "item": "twins",
+      "EN": "Plasma Injector",
+      "RU": "Плазменный инжектор"
+    },
+    "931009760720": {
+      "item": "twins",
+      "EN": "Tectonic Plasma",
+      "RU": "Тектоническая плазма"
+    },
+    "931009760721": {
+      "item": "twins",
+      "EN": "Magnetron",
+      "RU": "Магнетрон"
+    },
+    "931009760722": {
+      "item": "twins",
+      "EN": "Cryotron",
+      "RU": "Криотрон"
+    },
+    "931009760723": {
+      "item": "twins",
+      "EN": "Vaporizer",
+      "RU": "Испепелятор"
+    },
+    "931009765498": {
+      "item": "freeze",
+      "EN": "Magnetic Mix",
+      "RU": "Магнитная смесь"
+    },
+    "931009765499": {
+      "item": "freeze",
+      "EN": "Paralyzing Mix",
+      "RU": "Парализующая смесь"
+    },
+    "931009765500": {
+      "item": "freeze",
+      "EN": "Jamming Mix",
+      "RU": "Подавляющая смесь"
+    },
+    "931009767084": {
+      "item": "firebird",
+      "EN": "Magnetic mix",
+      "RU": "Магнитная смесь"
+    },
+    "931009767085": {
+      "item": "firebird",
+      "EN": "Paralyzing mix",
+      "RU": "Парализующая смесь"
+    },
+    "931009767086": {
+      "item": "firebird",
+      "EN": "Jamming mix",
+      "RU": "Подавляющая смесь"
+    },
+    "931009767087": {
+      "item": "firebird",
+      "EN": "Toxic mix",
+      "RU": "Токсичная смесь"
+    },
+    "931009767394": {
+      "item": "firebird",
+      "EN": "Critical Mix",
+      "RU": "Критическая смесь"
+    },
+    "931009771091": {
+      "item": "ricochet",
+      "EN": "Sizzling field",
+      "RU": "Испепеляющее поле"
+    },
+    "931009771092": {
+      "item": "ricochet",
+      "EN": "Cryo field",
+      "RU": "Криополе"
+    },
+    "931009771093": {
+      "item": "ricochet",
+      "EN": "Magnetron",
+      "RU": "Магнетрон"
+    },
+    "931009771094": {
+      "item": "ricochet",
+      "EN": "Tectonic field",
+      "RU": "Тектоническое поле"
+    },
+    "931009771095": {
+      "item": "ricochet",
+      "EN": "Jamming field",
+      "RU": "Подавляющее поле"
+    },
+    "931009771096": {
+      "item": "ricochet",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "931009771097": {
+      "item": "ricochet",
+      "EN": "Helios",
+      "RU": "Гелиос"
+    },
+    "1931009771443": {
+      "item": "thunder",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009772207": {
+      "item": "scorpion",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "1931009773515": {
+      "item": "scorpion",
+      "EN": "Explosive shells",
+      "RU": "Разрывные снаряды"
+    },
+    "1931009773516": {
+      "item": "scorpion",
+      "EN": "Explosive warheads",
+      "RU": "Разрывные боеголовки"
+    },
+    "1931009773517": {
+      "item": "scorpion",
+      "EN": "Incendiary shells",
+      "RU": "Поджигающие снаряды"
+    },
+    "1931009773518": {
+      "item": "scorpion",
+      "EN": "Missile launcher «Wolfpack»",
+      "RU": "Пусковая установка «Стая»"
+    },
+    "1931009773519": {
+      "item": "scorpion",
+      "EN": "Cryo shells",
+      "RU": "Замораживающие снаряды"
+    },
+    "1931009773520": {
+      "item": "scorpion",
+      "EN": "EMP shells",
+      "RU": "EMP-снаряды"
+    },
+    "1931009773521": {
+      "item": "scorpion",
+      "EN": "Stun shells",
+      "RU": "Стан-снаряды"
+    },
+    "1931009773522": {
+      "item": "scorpion",
+      "EN": "Armor-piercing shells",
+      "RU": "Бронебойные снаряды"
+    },
+    "1931009773523": {
+      "item": "scorpion",
+      "EN": "Jamming shells",
+      "RU": "Подавляющие снаряды"
+    },
+    "1931009773524": {
+      "item": "scorpion",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009773525": {
+      "item": "scorpion",
+      "EN": "Uranium shells",
+      "RU": "Урановые снаряды"
+    },
+    "1931009773526": {
+      "item": "scorpion",
+      "EN": "Missile launcher «Tornado»",
+      "RU": "Пусковая установка «Торнадо»"
+    },
+    "1931009773527": {
+      "item": "scorpion",
+      "EN": "Missile launcher «Swarm»",
+      "RU": "Пусковая установка «Рой»"
+    },
+    "1931009773528": {
+      "item": "scorpion",
+      "EN": "Missile launcher «Spear»",
+      "RU": "Пусковая установка «Копьё»"
+    },
+    "1931009774122": {
+      "item": "thunder",
+      "EN": "«Salamander» shells",
+      "RU": "Снаряды «Саламандра»"
+    },
+    "1931009774123": {
+      "item": "thunder",
+      "EN": "«Wyvern» shells",
+      "RU": "Снаряды «Виверна»"
+    },
+    "1931009774124": {
+      "item": "thunder",
+      "EN": "«Magneto» shells",
+      "RU": "Снаряды «Магнето»"
+    },
+    "1931009774125": {
+      "item": "thunder",
+      "EN": "«Peacekeeper» shells",
+      "RU": "Снаряды «Миротворец»"
+    },
+    "1931009774126": {
+      "item": "thunder",
+      "EN": "«Noise» shells",
+      "RU": "Снаряды «Шум»"
+    },
+    "1931009774127": {
+      "item": "thunder",
+      "EN": "«Corrosion» shells",
+      "RU": "Снаряды «Коррозия»"
+    },
+    "1931009774128": {
+      "item": "thunder",
+      "EN": "Vacuum shell",
+      "RU": "Вакуумный снаряд"
+    },
+    "1931009774129": {
+      "item": "thunder",
+      "EN": "Strict ammunition load",
+      "RU": "Строгая погрузка боеприпасов"
+    },
+    "1931009774130": {
+      "item": "thunder",
+      "EN": "«Nanotech» shells",
+      "RU": "Снаряды «Нанотек»"
+    },
+    "1931009774131": {
+      "item": "thunder",
+      "EN": "Adaptive reload",
+      "RU": "Адаптивная перезарядка"
+    },
+    "1931009774132": {
+      "item": "thunder",
+      "EN": "Hyperspeed shells",
+      "RU": "Гиперскоростные снаряды"
+    },
+    "1931009774133": {
+      "item": "thunder",
+      "EN": "«Anvil» shells",
+      "RU": "Снаряды «Наковальня»"
+    },
+    "1931009774507": {
+      "item": "tesla",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009778313": {
+      "item": "hammer",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779108": {
+      "item": "smoky",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779110": {
+      "item": "twins",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779132": {
+      "item": "railgun",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779215": {
+      "item": "smoky",
+      "EN": "Jamming shells",
+      "RU": "Подавляющие снаряды"
+    },
+    "1931009779216": {
+      "item": "railgun",
+      "EN": "Jamming shells",
+      "RU": "Подавляющие снаряды"
+    },
+    "1931009779251": {
+      "item": "striker",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779252": {
+      "item": "striker",
+      "EN": "Missile launcher «Tandem»",
+      "RU": "Пусковая установка «Тандем»"
+    },
+    "1931009779284": {
+      "item": "railgun",
+      "EN": "Hyperspeed shells",
+      "RU": "Гиперскоростные снаряды"
+    },
+    "1931009779324": {
+      "item": "firebird",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779325": {
+      "item": "freeze",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779326": {
+      "item": "isida",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779361": {
+      "item": "hammer",
+      "EN": "Large caliber pellets",
+      "RU": "Крупнокалиберная картечь"
+    },
+    "1931009779362": {
+      "item": "hammer",
+      "EN": "Assault magazine",
+      "RU": "Штурмовая кассета"
+    },
+    "1931009779363": {
+      "item": "vulcan",
+      "EN": "Jamming band",
+      "RU": "Подавляющая лента"
+    },
+    "1931009779364": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779365": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779366": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779367": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779368": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779369": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779370": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779372": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779373": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779374": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779375": {
+      "item": "hulls",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779376": {
+      "item": "shaft",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779377": {
+      "item": "vulcan",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779378": {
+      "item": "firebird",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779379": {
+      "item": "freeze",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779380": {
+      "item": "gauss",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779381": {
+      "item": "hammer",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779382": {
+      "item": "isida",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779383": {
+      "item": "magnum",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779384": {
+      "item": "railgun",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779385": {
+      "item": "ricochet",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779386": {
+      "item": "scorpion",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779387": {
+      "item": "gauss",
+      "EN": "Super Solenoids",
+      "RU": "Суперсоленоиды"
+    },
+    "1931009779388": {
+      "item": "smoky",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779389": {
+      "item": "striker",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779391": {
+      "item": "tesla",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779392": {
+      "item": "thunder",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779393": {
+      "item": "twins",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009779394": {
+      "item": "vulcan",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779395": {
+      "item": "gauss",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779396": {
+      "item": "magnum",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779397": {
+      "item": "shaft",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009779486": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779497": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779498": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779499": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779500": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779501": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779502": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779503": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779504": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779505": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779506": {
+      "item": "hulls",
+      "EN": "Blaster",
+      "RU": "Подрывник"
+    },
+    "1931009779513": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779514": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779515": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779516": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779517": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779518": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779519": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779520": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779521": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779522": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779523": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779524": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779525": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779526": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779527": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779528": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779529": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779530": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779531": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779532": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779533": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779534": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779535": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779536": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779537": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779538": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779539": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779540": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779541": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779542": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779543": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779544": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779545": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779546": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779547": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779548": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779549": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779550": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779551": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779552": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779553": {
+      "item": "hulls",
+      "EN": "Driver",
+      "RU": "Драйвер"
+    },
+    "1931009779554": {
+      "item": "hulls",
+      "EN": "Engineer",
+      "RU": "Инженер"
+    },
+    "1931009779555": {
+      "item": "hulls",
+      "EN": "Miner",
+      "RU": "Минёр"
+    },
+    "1931009779556": {
+      "item": "hulls",
+      "EN": "Lifeguard",
+      "RU": "Спасатель"
+    },
+    "1931009779581": {
+      "item": "isida",
+      "EN": "Jamming nanobots",
+      "RU": "Подавляющие наноботы"
+    },
+    "1931009779663": {
+      "item": "shaft",
+      "EN": "Incendiary Sight",
+      "RU": "Поджигающая фокусировка"
+    },
+    "1931009779698": {
+      "item": "gauss",
+      "EN": "Stunning salvo",
+      "RU": "Оглушающий залп"
+    },
+    "1931009780191": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр "
+    },
+    "1931009780192": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр"
+    },
+    "1931009780193": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр"
+    },
+    "1931009780194": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр"
+    },
+    "1931009780195": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр "
+    },
+    "1931009780196": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр"
+    },
+    "1931009780197": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр "
+    },
+    "1931009780198": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр"
+    },
+    "1931009780199": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр"
+    },
+    "1931009780200": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр"
+    },
+    "1931009780201": {
+      "item": "hulls",
+      "EN": "Grenadier",
+      "RU": "Гренадёр"
+    },
+    "1931009780264": {
+      "item": "tsunami",
+      "EN": "\"Rapier\" Firing Mode",
+      "RU": "Режим стрельбы «Рапира»"
+    },
+    "1931009780274": {
+      "item": "tsunami",
+      "EN": "Adrenaline",
+      "RU": "Адреналин"
+    },
+    "1931009780275": {
+      "item": "tsunami",
+      "EN": "Manual Firing Mode",
+      "RU": "Ручной режим стрельбы"
+    },
+    "1931009780276": {
+      "item": "tsunami",
+      "EN": "Explosive Shells",
+      "RU": "Разрывные снаряды"
+    },
+    "1931009780277": {
+      "item": "tsunami",
+      "EN": "Tungsten Shells",
+      "RU": "Снаряды с вольфрамовым сердечником"
+    },
+    "1931009780278": {
+      "item": "tsunami",
+      "EN": "\"Heat\" Shells",
+      "RU": "Снаряды «Жара»"
+    },
+    "1931009780279": {
+      "item": "tsunami",
+      "EN": "\"Cryo\" Shells",
+      "RU": "Снаряды «Крио»"
+    },
+    "1931009780280": {
+      "item": "tsunami",
+      "EN": "\"Lightning\" Shells",
+      "RU": "Снаряды «Молния»"
+    },
+    "1931009780281": {
+      "item": "tsunami",
+      "EN": "\"Shock\" Shells",
+      "RU": "Снаряды «Шок»"
+    },
+    "1931009780282": {
+      "item": "tsunami",
+      "EN": "\"Drill\" Shells",
+      "RU": "Снаряды «Сверло»"
+    },
+    "1931009780283": {
+      "item": "tsunami",
+      "EN": "\"Noise\" Shells",
+      "RU": "Снаряды «Шум»"
+    },
+    "1931009780284": {
+      "item": "tsunami",
+      "EN": "Pulsar",
+      "RU": "Пульсар"
+    },
+    "1931009780286": {
+      "item": "tsunami",
+      "EN": "\"Duplet\" Firing Mode",
+      "RU": "Режим стрельбы «Дуплет»"
+    },
+    "1931009780287": {
+      "item": "tsunami",
+      "EN": "Megatsunami",
+      "RU": "Мегацунами"
+    },
+    "1931009780288": {
+      "item": "tsunami",
+      "EN": "\"Triplet\" Firing Mode",
+      "RU": "Режим стрельбы «Триплет»"
+    },
+    "1931009780289": {
+      "item": "tsunami",
+      "EN": "Autocannon",
+      "RU": "Автопушка"
+    },
+    "1931009780290": {
+      "item": "tsunami",
+      "EN": "Sorted Ammunition",
+      "RU": "Упорядоченная боеукладка"
+    },
+    "1931009780291": {
+      "item": "tsunami",
+      "EN": "Hyperspeed Shells",
+      "RU": "Гиперскоростные снаряды"
+    },
+    "1931009780292": {
+      "item": "tsunami",
+      "EN": "Polaris",
+      "RU": "Полярис"
+    },
+    "1931009780293": {
+      "item": "tsunami",
+      "EN": "Uranium Shells",
+      "RU": "Урановые снаряды"
+    },
+    "1931009780294": {
+      "item": "tsunami",
+      "EN": "Adaptive Autocannon",
+      "RU": "Адаптивная автопушка"
+    },
+    "1931009780295": {
+      "item": "tsunami",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931009780296": {
+      "item": "tsunami",
+      "EN": "Phoenix",
+      "RU": "Феникс"
+    },
+    "1931009780297": {
+      "item": "tsunami",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931009801096": {
+      "item": "gauss",
+      "EN": "Nemesis",
+      "RU": "Немезида"
+    },
+    "1931009801110": {
+      "item": "striker",
+      "EN": "Missile Launcher «Hydra»",
+      "RU": "Пусковая установка «Гидра»"
+    },
+    "1931009801251": {
+      "item": "magnum",
+      "EN": "Magnetic core",
+      "RU": "Магнитный сердечник"
+    },
+    "1931009801262": {
+      "item": "hammer",
+      "EN": "Heavy Slugger",
+      "RU": "Тяжёлый Слаггер"
+    },
+    "1931009801358": {
+      "item": "gauss",
+      "EN": "Hyperspeed shells",
+      "RU": "Гиперскоростные снаряды"
+    },
+    "1931009801401": {
+      "item": "gauss",
+      "EN": "Faster Horizontal Tracking",
+      "RU": "Улучшенное горизонтальное сопровождение"
+    },
+    "1931009801402": {
+      "item": "gauss",
+      "EN": "Hacked aiming processor",
+      "RU": "Взломанный процессор наведения"
+    },
+    "1931009801403": {
+      "item": "gauss",
+      "EN": "Large Caliber",
+      "RU": "Крупный калибр"
+    },
+    "1931009801404": {
+      "item": "gauss",
+      "EN": "Solenoid Cooling",
+      "RU": "Охлаждение соленоидов"
+    },
+    "1931009801405": {
+      "item": "gauss",
+      "EN": "Incendiary Salvo",
+      "RU": "Поджигающий залп"
+    },
+    "1931009801406": {
+      "item": "gauss",
+      "EN": "Freezing Salvo",
+      "RU": "Криозалп"
+    },
+    "1931009801407": {
+      "item": "gauss",
+      "EN": "Jamming salvo",
+      "RU": "Подавляющий залп"
+    },
+    "1931009801420": {
+      "item": "isida",
+      "EN": "Magnetic Nanobots",
+      "RU": "Намагничивающие наноботы"
+    },
+    "1931009801438": {
+      "item": "ricochet",
+      "EN": "Plasma Resonator",
+      "RU": "Плазменный резонатор"
+    },
+    "1931009801493": {
+      "item": "shaft",
+      "EN": "Stunning Sight",
+      "RU": "Оглушающая фокусировка"
+    },
+    "1931009801523": {
+      "item": "magnum",
+      "EN": "Vacuum core",
+      "RU": "Вакуумный сердечник"
+    },
+    "1931009801639": {
+      "item": "striker",
+      "EN": "Magnetic Missiles ",
+      "RU": "Магнитные боеголовки"
+    },
+    "1931009801640": {
+      "item": "striker",
+      "EN": "Missile launcher «Faust»",
+      "RU": "Пусковая установка «Фауст»"
+    },
+    "1931009801646": {
+      "item": "striker",
+      "EN": "Incendiary Missiles ",
+      "RU": "Поджигающие боеголовки"
+    },
+    "1931009801684": {
+      "item": "hammer",
+      "EN": "Hunter Duplet",
+      "RU": "Охотничий дуплет"
+    },
+    "1931009801685": {
+      "item": "vulcan",
+      "EN": "Armor-Piercing Band",
+      "RU": "Бронебойная лента"
+    },
+    "1931009801828": {
+      "item": "isida",
+      "EN": "Stunning Nanobots",
+      "RU": "Оглушающие наноботы"
+    },
+    "1931009801893": {
+      "item": "magnum",
+      "EN": "Jamming Core ",
+      "RU": "Подавляющий сердечник"
+    },
+    "1931009801899": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009801929": {
+      "item": "vulcan",
+      "EN": "Shredder",
+      "RU": "Шреддер"
+    },
+    "1931009801931": {
+      "item": "vulcan",
+      "EN": "Explosive Band",
+      "RU": "Разрывная лента"
+    },
+    "1931009801943": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009801944": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009801945": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009801946": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009801947": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009801961": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009801962": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009801963": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009801964": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009801971": {
+      "item": "hulls",
+      "EN": "Extreme Lightweight Construction",
+      "RU": "Экстремальное облегчение корпуса"
+    },
+    "1931009802003": {
+      "item": "railgun",
+      "EN": "«Shotgun» rounds",
+      "RU": "Снаряды «Дробовик»"
+    },
+    "1931009802004": {
+      "item": "isida",
+      "EN": "Toxic Nanobots",
+      "RU": "Токсичные наноботы"
+    },
+    "1931009802120": {
+      "item": "striker",
+      "EN": "Vacuum Missiles",
+      "RU": "Вакуумные боеголовки"
+    },
+    "1931009802159": {
+      "item": "striker",
+      "EN": "Missile Launcher «Meteor»",
+      "RU": "Пусковая установка «Метеор»"
+    },
+    "1931009802251": {
+      "item": "vulcan",
+      "EN": "Magnetic Band",
+      "RU": "Магнитная лента"
+    },
+    "1931009802337": {
+      "item": "magnum",
+      "EN": "Stunning Core",
+      "RU": "Оглушающий сердечник"
+    },
+    "1931009802469": {
+      "item": "vulcan",
+      "EN": "Stunning Band",
+      "RU": "Оглушающая лента"
+    },
+    "1931009802470": {
+      "item": "twins",
+      "EN": "Plasmatron",
+      "RU": "Плазмотрон"
+    },
+    "1931009802587": {
+      "item": "isida",
+      "EN": "Sustainable Nanobots",
+      "RU": "Устойчивые наноботы"
+    },
+    "1931009802794": {
+      "item": "shaft",
+      "EN": "Electrifying Sight",
+      "RU": "Электризующая фокусировка"
+    },
+    "1931009802814": {
+      "item": "shaft",
+      "EN": "Jamming Sight",
+      "RU": "Подавляющая фокусировка"
+    },
+    "1931009802815": {
+      "item": "vulcan",
+      "EN": "Freezing Band",
+      "RU": "Замораживающая лента"
+    },
+    "1931009802816": {
+      "item": "smoky",
+      "EN": "Hyperspeed Rounds",
+      "RU": "Гиперскоростные снаряды"
+    },
+    "1931009802903": {
+      "item": "vulcan",
+      "EN": "Large Caliber",
+      "RU": "Крупный калибр"
+    },
+    "1931009802917": {
+      "item": "striker",
+      "EN": "Cryo Missiles",
+      "RU": "Крио боеголовки"
+    },
+    "1931009803070": {
+      "item": "shaft",
+      "EN": "Freezing Sight",
+      "RU": "Замораживающая фокусировка"
+    },
+    "1931009803176": {
+      "item": "magnum",
+      "EN": "Bombard",
+      "RU": "Бомбарда"
+    },
+    "1931009803197": {
+      "item": "hammer",
+      "EN": "Revolver",
+      "RU": "Револьвер"
+    },
+    "1931009803215": {
+      "item": "striker",
+      "EN": "Jamming missiles",
+      "RU": "Подавляющие боеголовки"
+    },
+    "1931009803319": {
+      "item": "magnum",
+      "EN": "Destroyer",
+      "RU": "Разрушитель"
+    },
+    "1931009803491": {
+      "item": "freeze",
+      "EN": "Critical Mix",
+      "RU": "Критическая смесь"
+    },
+    "1931010007070": {
+      "item": "shaft",
+      "EN": "Quasar",
+      "RU": "Квазар"
+    },
+    "1931010007149": {
+      "item": "thunder",
+      "EN": "Bolter",
+      "RU": "Болтер"
+    },
+    "1931010007346": {
+      "item": "freeze",
+      "EN": "Stable Mix",
+      "RU": "Стабилизированная смесь"
+    },
+    "1931010007553": {
+      "item": "tesla",
+      "EN": "Shock Therapy",
+      "RU": "Шоковая терапия"
+    },
+    "1931010007671": {
+      "item": "firebird",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007672": {
+      "item": "freeze",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007673": {
+      "item": "gauss",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007674": {
+      "item": "hammer",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007675": {
+      "item": "isida",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007676": {
+      "item": "magnum",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007677": {
+      "item": "railgun",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007678": {
+      "item": "ricochet",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007679": {
+      "item": "scorpion",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007680": {
+      "item": "shaft",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007681": {
+      "item": "smoky",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007682": {
+      "item": "striker",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007683": {
+      "item": "tesla",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007684": {
+      "item": "thunder",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007685": {
+      "item": "twins",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007686": {
+      "item": "vulcan",
+      "EN": "Camper",
+      "RU": "Кемпер"
+    },
+    "1931010007690": {
+      "item": "firebird",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007691": {
+      "item": "freeze",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007692": {
+      "item": "gauss",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007693": {
+      "item": "hammer",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007694": {
+      "item": "isida",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007695": {
+      "item": "magnum",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007696": {
+      "item": "railgun",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007697": {
+      "item": "ricochet",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007698": {
+      "item": "scorpion",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007699": {
+      "item": "shaft",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007700": {
+      "item": "smoky",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007701": {
+      "item": "striker",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007702": {
+      "item": "tesla",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007703": {
+      "item": "thunder",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007704": {
+      "item": "twins",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007705": {
+      "item": "vulcan",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007804": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007805": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007806": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007807": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007808": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007809": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007810": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007811": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007812": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007813": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007814": {
+      "item": "hulls",
+      "EN": "Excelsior",
+      "RU": "Эксельсиор"
+    },
+    "1931010007882": {
+      "item": "thunder",
+      "EN": "Yamato",
+      "RU": "Ямато"
+    },
+    "1931010007883": {
+      "item": "tesla",
+      "EN": "Increased Voltage",
+      "RU": "Повышенное напряжение"
+    },
+    "1931010007884": {
+      "item": "striker",
+      "EN": "Missile Launcher «Brass Knuckles»",
+      "RU": "Пусковая установка «Кастет»"
+    },
+    "1931010007886": {
+      "item": "shaft",
+      "EN": "Stellarator",
+      "RU": "Стелларатор"
+    },
+    "1931010007887": {
+      "item": "scorpion",
+      "EN": "Vacuum shell",
+      "RU": "Вакуумный снаряд"
+    },
+    "1931010007889": {
+      "item": "railgun",
+      "EN": "Detonator",
+      "RU": "Детонатор"
+    },
+    "1931010007892": {
+      "item": "hammer",
+      "EN": "Boxer",
+      "RU": "Боксёр"
+    },
+    "1931010007893": {
+      "item": "gauss",
+      "EN": "Boxer",
+      "RU": "Боксёр"
+    },
+    "1931010008255": {
+      "item": "railgun",
+      "EN": "«Excalibur» Rounds",
+      "RU": "Снаряды «Экскалибур»"
+    },
+    "1931010008783": {
+      "item": "ricochet",
+      "EN": "Boxer",
+      "RU": "Боксёр"
+    },
+    "1931010008892": {
+      "item": "magnum",
+      "EN": "Carronade",
+      "RU": "Карронада"
+    },
+    "1931010009565": {
+      "item": "hammer",
+      "EN": "Needle Gun",
+      "RU": "Игломёт"
+    },
+    "1931010009999": {
+      "item": "tesla",
+      "EN": "Hadouken",
+      "RU": "Хадукен"
+    }
+  }
+}

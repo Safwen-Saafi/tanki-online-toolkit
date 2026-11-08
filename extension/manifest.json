@@ -23,6 +23,7 @@
         "js/modules/language.js",
         "js/modules/switches.js",
         "js/modules/garage_cards.js",
+        "js/modules/battle_tab.js",
         "js/modules/old_pictures.js",
         "js/modules/garage_tab.js",
         "js/modules/change_counter.js",
@@ -35,6 +36,7 @@
         "js/modules/settings_tab.js"
       ],
       "css": [
+        "styles/battle_tab.css",
         "styles/change_counter.css",
         "styles/garage_skins.css",
         "styles/garage_cards.css",
@@ -51,6 +53,7 @@
         "data/killsounds.json",
         "data/weapon_sounds.json",
         "data/old_pictures.json",
+        "data/augment_ids.json",
         "old_pictures/*",
         "sounds/*",
         "icons/*"

@@ -13,6 +13,7 @@
     const CACHE_KEY = 'kasp_augments_cache';
     const INFO_SWITCH_KEY = 'kasp_augments';
     const HIDDEN_SWITCH_KEY = 'kasp_hiddencards';
+    const BATTLE_INFO_SWITCH_KEY = 'kasp_battleaugments';
     // The bot publishes once a day, so asking more often than this only costs requests.
     const FRESH_MS = 6 * 60 * 60 * 1000;
     const TICK_MS = 250;
@@ -86,10 +87,12 @@
         return Object.values(file.items).reduce((total, byName) => total + Object.keys(byName).length, 0);
     }
 
-    // The user's two switches, set in the extension's settings tab: read once at start through the switch service
-    // (src/modules/switches.ts), so a change applies after a reload. Without the service every switch counts as on.
+    // The user's switches, set in the extension's settings tab, through the switch service (src/modules/switches.ts). The
+    // garage's two are read once at start, so a change applies after a reload; the battle tab's is followed live (18e).
+    // Without the service every switch counts as on.
     const infoOn = window.kaspSwitches?.isOn(INFO_SWITCH_KEY) ?? true;
     const hiddenOn = window.kaspSwitches?.isOn(HIDDEN_SWITCH_KEY) ?? true;
+    let battleInfoOn = window.kaspSwitches?.isOn(BATTLE_INFO_SWITCH_KEY) ?? true;
 
     // Keeps only the entries that are still a valid file; anything else counts as no cache.
     function readCache(): AugmentsCache {
@@ -144,6 +147,14 @@
 
         if (cached === undefined) console.warn(`${LOG} no augment data for ${language}: not reachable and nothing cached`);
         return cached;
+    }
+
+    // The garage and the battle tab both need the file; it is loaded once for both.
+    let augmentsLoad: Promise<void> | null = null;
+
+    function loadAugmentsOnce(): Promise<void> {
+        augmentsLoad ??= loadAugments();
+        return augmentsLoad;
     }
 
     // A language change reloads the page, so the language the game starts in is the only one this page needs.
@@ -405,15 +416,19 @@
         true,
     );
 
-    function moveTooltip(event: MouseEvent): void {
-        const tooltip = getTooltip();
-        const size = tooltip.getBoundingClientRect();
+    // Beside the mouse, on the side that keeps the whole box on screen.
+    function placeNearMouse(box: HTMLElement, event: MouseEvent): void {
+        const size = box.getBoundingClientRect();
         let x = event.clientX + TOOLTIP_GAP;
         let y = event.clientY + TOOLTIP_GAP;
         if (x + size.width > window.innerWidth) x = event.clientX - size.width - TOOLTIP_GAP;
         if (y + size.height > window.innerHeight) y = event.clientY - size.height - TOOLTIP_GAP;
-        tooltip.style.left = `${Math.max(0, x)}px`;
-        tooltip.style.top = `${Math.max(0, y)}px`;
+        box.style.left = `${Math.max(0, x)}px`;
+        box.style.top = `${Math.max(0, y)}px`;
+    }
+
+    function moveTooltip(event: MouseEvent): void {
+        placeNearMouse(getTooltip(), event);
     }
 
     // The corner ornaments and the container icon that go with the augment's rank.
@@ -726,9 +741,10 @@
     }
 
     // The wiki's entry for a hidden card, or, when the wiki does not have the augment yet, one made of what the game says (its name and
-    // rank), so the card is still drawn and its box says there is no information.
+    // rank), so the card is still drawn and its box says there is no information. With the garage's info off the game's own is
+    // used even when the file is loaded for the battle tab, so that switch keeps the wiki out of the garage.
     function hiddenAugment(item: string | null, game: KaspGameCard): Augment {
-        const known = item === null ? undefined : findAugment(item, game.name)?.augment;
+        const known = item === null || !infoOn ? undefined : findAugment(item, game.name)?.augment;
         return known ?? { name: game.name, advantages: [], disadvantages: [], rarity: FRAME_RANKS_BY_GAME[game.rarity] ?? null };
     }
 
@@ -1149,7 +1165,170 @@
         });
     }
 
-    // ---- 7. the tick ----
+    // ---- 7. the augments in the battle tab (build-plan 18d) ----
+
+    // In the battle tab the game shows a player's augments only as icons. It writes each icon's augment number on it
+    // (data-kasp-augment, src/injector.ts), and this bundled list, made from the game's own garage list with scripts/augment-ids/,
+    // turns the number into the turret or hull and the augment's name in each language.
+    const AUGMENT_NUMBER_ATTRIBUTE = 'data-kasp-augment';
+    const AUGMENT_NUMBER = /^\d{1,20}$/;
+    const AUGMENT_ITEM = /^[a-z]{2,20}$/;
+    const MAX_AUGMENT_NAME = 200;
+
+    interface NumberedAugment {
+        readonly item: string;
+        readonly EN: string | undefined;
+        readonly RU: string | undefined;
+    }
+
+    const augmentNumbers = new Map<string, NumberedAugment>();
+
+    function readNumberedAugment(value: unknown): NumberedAugment | null {
+        if (!isRecord(value) || typeof value['item'] !== 'string' || !AUGMENT_ITEM.test(value['item'])) return null;
+        const name = (text: unknown): string | undefined =>
+            typeof text === 'string' && text !== '' && text.length <= MAX_AUGMENT_NAME ? text : undefined;
+        return { item: value['item'], EN: name(value['EN']), RU: name(value['RU']) };
+    }
+
+    async function loadAugmentNumbers(): Promise<void> {
+        try {
+            const response = await fetch(chrome.runtime.getURL('data/augment_ids.json'));
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data: unknown = await response.json();
+            if (!isRecord(data) || data['schemaVersion'] !== 1 || !isRecord(data['augments'])) throw new Error('not a list of augment numbers');
+            let left = 0;
+            for (const [number, value] of Object.entries(data['augments'])) {
+                const entry = AUGMENT_NUMBER.test(number) ? readNumberedAugment(value) : null;
+                if (entry === null) left++;
+                else augmentNumbers.set(number, entry);
+            }
+            if (left > 0) console.warn(`${LOG} ${left} lines of the augment number list were left out`);
+        } catch (e: unknown) {
+            console.warn(`${LOG} could not load the augment number list, the battle tab shows no augment info:`, describeError(e));
+        }
+    }
+
+    // The wiki's text for an augment number, or the box that says there is no information yet (a new augment the list does not
+    // know, until it is made again, or one the wiki lacks).
+    function battleMatch(number: string): AugmentMatch | null {
+        const file = augmentsFile;
+        if (file === null) return null;
+        const entry = augmentNumbers.get(number);
+        const name = entry?.[file.language];
+        if (entry !== undefined && name !== undefined && (entry.item === 'hulls' || file.items[entry.item] !== undefined)) {
+            const found = findAugment(entry.item, name);
+            if (found !== null) return found;
+        }
+        return { language: file.language, augment: { name: name ?? '?', advantages: [], disadvantages: [], rarity: null }, missing: true };
+    }
+
+    // The battle tab's box is smaller than the garage's: the name, a thin line, and the advantages and disadvantages as short
+    // lists of plain text, in the look of the Humungus userscript's box (the owner's decision, 2026-11-08; styles/battle_tab.css).
+    const BATTLE_BOX_ID = 'kasp-battle-box';
+    const BATTLE_MARKER = new RegExp(MARKER_PATTERN.source, 'g');
+
+    // A status effect marker becomes its name ("{freeze|Freezing}" is "Freezing"); one with no name is left out.
+    function plainLine(line: string): string {
+        return line
+            .replace(BATTLE_MARKER, (_marker, _key: string, name: string | undefined, quoted: string | undefined) => name ?? quoted ?? '')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+    }
+
+    function battleSection(kind: 'advantages' | 'disadvantages', heading: string, lines: readonly string[]): HTMLElement {
+        const section = element('div', `kasp-battle-box-section kasp-battle-box-${kind}`);
+        const list = document.createElement('ul');
+        for (const line of lines) list.append(element('li', '', plainLine(line)));
+        section.append(element('span', 'kasp-battle-box-label', heading), list);
+        return section;
+    }
+
+    function getBattleBox(): HTMLElement {
+        const existing = document.getElementById(BATTLE_BOX_ID);
+        if (existing !== null) return existing;
+        const box = element('div', 'kasp-battle-box');
+        box.id = BATTLE_BOX_ID;
+        document.body.append(box);
+        return box;
+    }
+
+    function showBattleBox(match: AugmentMatch, event: MouseEvent): void {
+        const box = getBattleBox();
+        const { augment, language } = match;
+        const sections = element('div', 'kasp-battle-box-sections');
+        if (match.missing === true) {
+            sections.append(element('div', 'kasp-battle-box-note', MISSING_NOTE[language]));
+        } else {
+            if (augment.advantages.length > 0) sections.append(battleSection('advantages', HEADINGS[language].advantages, augment.advantages));
+            if (augment.disadvantages.length > 0) {
+                sections.append(battleSection('disadvantages', HEADINGS[language].disadvantages, augment.disadvantages));
+            }
+        }
+        box.replaceChildren(element('div', 'kasp-battle-box-title', augment.name), element('div', 'kasp-battle-box-line'), sections);
+        box.style.display = 'block';
+        placeNearMouse(box, event);
+    }
+
+    // The icon the box is showing for. The game removes the whole table when Tab is released, which fires no mouseout, so the
+    // box also goes on Tab's keyup and as soon as the mouse moves while its icon is gone.
+    let battleIcon: Element | null = null;
+
+    function hideBattleBox(): void {
+        if (battleIcon === null) return;
+        battleIcon = null;
+        const box = document.getElementById(BATTLE_BOX_ID);
+        if (box !== null) box.style.display = 'none';
+    }
+
+    // One set of listeners for the whole page, no watcher: they only look at what the mouse is on.
+    function followBattleIcons(): void {
+        document.addEventListener('mouseover', (event) => {
+            if (!battleInfoOn) return;
+            const icon = event.target instanceof Element ? event.target.closest(`[${AUGMENT_NUMBER_ATTRIBUTE}]`) : null;
+            if (icon === null || icon === battleIcon) return;
+            const number = icon.getAttribute(AUGMENT_NUMBER_ATTRIBUTE) ?? '';
+            if (!AUGMENT_NUMBER.test(number)) return;
+            const match = battleMatch(number);
+            if (match === null) return;
+            battleIcon = icon;
+            showBattleBox(match, event);
+        }, true);
+        document.addEventListener('mousemove', (event) => {
+            if (battleIcon === null) return;
+            if (battleIcon.isConnected) placeNearMouse(getBattleBox(), event);
+            else hideBattleBox();
+        }, true);
+        document.addEventListener('mouseout', (event) => {
+            if (battleIcon === null) return;
+            const next = event.relatedTarget;
+            if (!(next instanceof Node) || !battleIcon.contains(next)) hideBattleBox();
+        }, true);
+        window.addEventListener('keyup', (event) => {
+            if (event.code === 'Tab') hideBattleBox();
+        }, true);
+        window.addEventListener('keydown', (event) => {
+            if (event.code === 'Escape' || event.code === 'KeyZ') hideBattleBox();
+        }, true);
+    }
+
+    // The battle tab's part starts the first time its switch is on, at start or later in the session.
+    let battleStarted = false;
+
+    function startBattleInfo(): void {
+        if (battleStarted) return;
+        battleStarted = true;
+        void loadAugmentsOnce();
+        void loadAugmentNumbers();
+        followBattleIcons();
+    }
+
+    function onBattleSwitch(on: boolean): void {
+        battleInfoOn = on;
+        if (on) startBattleInfo();
+        else hideBattleBox();
+    }
+
+    // ---- 8. the tick ----
 
     function tick(): void {
         itemTick();
@@ -1171,14 +1350,19 @@
 
     // After the load event, so the game's own start-up is not delayed.
     function start(): void {
-        if (!infoOn && !hiddenOn) {
-            console.log(`${LOG} disabled (switches ${INFO_SWITCH_KEY} and ${HIDDEN_SWITCH_KEY} are off)`);
+        // First, so turning the battle switch on later works even when every switch was off at start.
+        window.kaspSwitches?.onChange(BATTLE_INFO_SWITCH_KEY, onBattleSwitch);
+        if (!infoOn && !hiddenOn && !battleInfoOn) {
+            console.log(`${LOG} disabled (switches ${INFO_SWITCH_KEY}, ${HIDDEN_SWITCH_KEY} and ${BATTLE_INFO_SWITCH_KEY} are off)`);
             return;
         }
         if (!infoOn) console.log(`${LOG} augment info off (switch ${INFO_SWITCH_KEY})`);
         if (!hiddenOn) console.log(`${LOG} hidden cards off (switch ${HIDDEN_SWITCH_KEY})`);
-        // The augment file is only for the info; the item names (bundled) are needed by both, to know the item on screen.
-        if (infoOn) void loadAugments();
+        if (!battleInfoOn) console.log(`${LOG} battle tab augment info off (switch ${BATTLE_INFO_SWITCH_KEY})`);
+        if (infoOn) void loadAugmentsOnce();
+        if (battleInfoOn) startBattleInfo();
+        // The garage's part: the item names (bundled) are needed by the info and the hidden cards, to know the item on screen.
+        if (!infoOn && !hiddenOn) return;
         void loadItemNames();
         observer.observe(document.documentElement, { childList: true, subtree: true });
         setInterval(tick, TICK_MS);
