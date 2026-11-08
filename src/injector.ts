@@ -772,6 +772,84 @@
         return result;
     }
 
+    // The change column of the battle tab (build-plan 18a, see blueprint/context/battle-stats-table.md). The game builds each team
+    // table from a list of header cells, and draws each player row with one function that adds the row's cells in order, the
+    // kills/deaths cell last. Two edits make the game draw one more column itself: a header after the skull, drawn by the game's
+    // own header icon method with our picture, and one more cell after kills/deaths that carries the player's nickname, which
+    // change_counter.ts marks. Both or none: when one place is not found, the game keeps its own table. The places are found by
+    // their shape, as in this build (names change per build):
+    //   headers:  r.columns=function(t,n){... return ku([r,e,u,s,o,new $_(ni,ni,mm(t))])}(t,n),r.keys=i,r.elementClass=Ln(Jk)
+    //   header:   function(t){return function(n){return t.j1u9(n,v),On}}(t)
+    //   row end:  var S=Xk,C=Nn.nut(S);C.juv().zp7(zk().y1u9()); ... T.tao(t.props.itemKey.h1u8_1+"/"+...),C.sao(T.s9k()),n.sao(C.s9k())}
+    //   cell:     function Xk(t){return new Ch(Xn(),t)}, with attributes given the way the rank picture's are: Vn(["alt",null,"src",n])
+    //   nickname: the row data's text, "UserBattleStatistic(userId="+... +", uid="+this.a1u8_1
+    const BATTLE_TAB_CELL_ATTRIBUTE = 'data-kasp-change';
+    const BATTLE_TAB_HEADERS = /\.columns=function\(([\w$]+),[\w$]+\)\{([^]{0,2000}?)return ([\w$]+)\(\[([^[\]]{1,300})\]\)\}\([\w$]+,[\w$]+\),[\w$]+\.keys=[\w$]+,[\w$]+\.elementClass=/g;
+    const BATTLE_TAB_HEADER_ICON = /function\(([\w$]+)\)\{return function\(([\w$]+)\)\{return \1\.([\w$]+)\(\2,[\w$]+\),([\w$]+)\}\}\(\1\)/;
+    const BATTLE_TAB_LAST_HEADER = /new ([\w$]+)\(([\w$]+),\2,[\w$]+\([\w$]+\)\)$/;
+    const BATTLE_TAB_ROW_END = /([\w$]+)\.([\w$]+)\(([\w$]+)\.props\.itemKey\.[\w$]+\+"\/"\+\3\.props\.itemKey\.[\w$]+\),([\w$]+)\.([\w$]+)\(\1\.([\w$]+)\(\)\),([\w$]+)\.\5\(\4\.\6\(\)\)\}/g;
+    const BATTLE_TAB_NICKNAME = /"UserBattleStatistic\(userId="[^]{0,200}?", uid="\+(?:[\w$]+\()?this\.([\w$]+)/g;
+    const BATTLE_TAB_CELL_RANGE = 800;
+    const BATTLE_TAB_FACTORY_RANGE = 3000;
+    const BATTLE_TAB_ROW_RANGE = 10000;
+
+    function patchBattleTab(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the battle tab ${what} in this bundle, battle-tab hook skipped`);
+            return null;
+        };
+        const headers = exactlyOne(code, BATTLE_TAB_HEADERS);
+        if (headers === null) return skip('header list');
+        const [, table, body, , list] = headers;
+        const icon = BATTLE_TAB_HEADER_ICON.exec(body);
+        if (icon === null) return skip('header icon');
+        const [, , , iconMethod, unit] = icon;
+        const last = BATTLE_TAB_LAST_HEADER.exec(list);
+        if (last === null) return skip('last header');
+        const [, columnClass, absent] = last;
+
+        const row = exactlyOne(code, BATTLE_TAB_ROW_END);
+        if (row === null) return skip('row end');
+        const [, , , component, cell, append, build, rowBuilder] = row;
+        const cellCode = new RegExp(`var ([\\w$]+)=([\\w$]+),${asPattern(cell)}=([\\w$]+)\\.([\\w$]+)\\(\\1\\);${asPattern(cell)}\\.([\\w$]+)\\(\\)\\.([\\w$]+)\\(([\\w$]+)\\(\\)\\.([\\w$]+)\\(\\)\\)`)
+            .exec(code.slice(Math.max(0, row.index - BATTLE_TAB_CELL_RANGE), row.index));
+        if (cellCode === null) return skip('kills/deaths cell');
+        const [, , factory, builder, make, css, addStyle, styles, style] = cellCode;
+        const element = new RegExp(`function ${asPattern(factory)}\\(([\\w$]+)\\)\\{return new ([\\w$]+)\\([\\w$]+\\(\\),\\1\\)\\}`)
+            .exec(code.slice(row.index, row.index + BATTLE_TAB_FACTORY_RANGE));
+        if (element === null) return skip('cell element');
+        const attributeLists = [...code.slice(Math.max(0, row.index - BATTLE_TAB_ROW_RANGE), row.index).matchAll(/new [\w$]+\(([\w$]+)\(\["alt",/g)];
+        if (attributeLists.length !== 1) return skip('attribute list');
+        const attributes = attributeLists[0][1];
+        const nickname = exactlyOne(code, BATTLE_TAB_NICKNAME);
+        if (nickname === null) return skip('nickname field');
+
+        const listEnd = headers.index + headers[0].indexOf(`[${list}]`) + 1 + list.length;
+        const header = `,new ${columnClass}(${absent},${absent},function(h){return ${table}.${iconMethod}(h,window.__kaspChangeHeader||""),${unit}})`;
+        const rowEnd = row.index + row[0].length - 1;
+        const kaspCell = `;var kaspCell=${builder}.${make}(function(e){return new ${element[2]}(${attributes}(["${BATTLE_TAB_CELL_ATTRIBUTE}",String(${component}.props.itemKey.${nickname[1]})]),e)});`
+            + `kaspCell.${css}().${addStyle}(${styles}().${style}());${rowBuilder}.${append}(kaspCell.${build}())`;
+        // The row comes after the header list in the game's code; the later edit goes first so the earlier index stays right.
+        const [first, second] = [{ at: listEnd, text: header }, { at: rowEnd, text: kaspCell }].sort((a, b) => b.at - a.at);
+        const once = code.slice(0, first.at) + first.text + code.slice(first.at);
+        return once.slice(0, second.at) + second.text + once.slice(second.at);
+    }
+
+    // The address of the column's header picture, from change_counter.ts (only the isolated world can ask the extension for
+    // it). Checked before the game's code reads it: an extension address of an SVG picture, nothing else.
+    function listenChangeHeader(): void {
+        window.addEventListener('message', (e: MessageEvent) => {
+            if (e.source !== window) return;
+            const data: unknown = e.data;
+            if (!isObject(data) || data['type'] !== 'kasp:change-header') return;
+            const address = data['address'];
+            if (typeof address !== 'string' || address.length > 300 || !/^chrome-extension:\/\/[a-z]+\/[\w/-]+\.svg$/.test(address)) return;
+            window.__kaspChangeHeader = address;
+        });
+    }
+
+    listenChangeHeader();
+
     // The bundle with every hook that could be added, and the labels of those hooks.
     function patchBundle(code: string): { readonly code: string; readonly hooked: string[] } {
         let result = code;
@@ -796,6 +874,11 @@
         if (settingsTab !== null) {
             result = settingsTab;
             hooked.push('settings-tab');
+        }
+        const battleTab = patchBattleTab(result);
+        if (battleTab !== null) {
+            result = battleTab;
+            hooked.push('battle-tab');
         }
         const thrown = patchGrenadeThrow(result);
         if (thrown !== null) {

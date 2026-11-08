@@ -35,6 +35,7 @@
         "js/modules/settings_tab.js"
       ],
       "css": [
+        "styles/battle_tab.css",
         "styles/change_counter.css",
         "styles/garage_skins.css",
         "styles/garage_cards.css",

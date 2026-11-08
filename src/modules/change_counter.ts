@@ -1,22 +1,20 @@
-// Isolated-world content script. Marks the players who changed equipment during the battle in the stats table. The
-// marker is its own cell, pinned at fixed coordinates in the space past the kills/deaths
-// column rather than inserted into the row's flow - the game's own stat cells are pinned
-// the same way, so nothing in that row responds to flex order or column widths. See
-// change_counter.css. The cell is added to every row, visible or not, so the layout never
-// shifts when a player changes equipment mid-battle.
+// Isolated-world content script. Marks the players who changed equipment during the battle in the stats table. The game
+// itself draws the column (build-plan 18a): src/injector.ts adds a header and one more cell to every player row, and the
+// cell carries the player's nickname in data-kasp-change. This script only keeps the list of players who changed and
+// writes one style rule that shows the marker in their cells, so there is nothing to find, measure or redraw in the page.
 (function () {
     'use strict';
 
     const CACHE_KEY = 'kasp_player_changes_cache';
-    const STATS_CONTAINER_SELECTOR = '.BattleTabStatisticComponentStyle-container';
     const BATTLE_CANVAS_SELECTOR = '.BattleComponentStyle-canvasContainer';
-    const MARKER_TITLE = 'Changed equipment during this battle';
-    const MARKER_IMAGE = `url("${chrome.runtime.getURL('icons/change-marker.webp')}")`;
+    const CELL_ATTRIBUTE = 'data-kasp-change';
+    const MARKER_IMAGE = chrome.runtime.getURL('icons/change-marker.webp');
 
     // A player can change equipment once per battle, so only "changed or not" is kept. The set survives a page reload
     // through sessionStorage and is emptied when the battle ends.
     const changedPlayers = new Set<string>();
     let isInBattle = false;
+    const markerRules = document.createElement('style');
 
     function loadCache(): void {
         try {
@@ -45,6 +43,16 @@
         } catch {
             // nothing stored, nothing to clear
         }
+    }
+
+    // One rule for every marked player: the size, the blink and the place come from change_counter.css, this only says
+    // whose cell shows the picture. A nickname is escaped, so no name can break out of its selector.
+    function drawMarkers(): void {
+        const selectors = [...changedPlayers].map((nickname) => `[${CELL_ATTRIBUTE}=${CSS.escape(nickname)}]::after`);
+        markerRules.textContent = selectors.length === 0
+            ? ''
+            : `${selectors.join(',')}{content:"";background-image:url("${MARKER_IMAGE}")}`;
+        if (!markerRules.isConnected) document.documentElement?.appendChild(markerRules);
     }
 
     function isKaspUserActionMessage(data: unknown): data is KaspUserActionMessage {
@@ -82,11 +90,11 @@
         if (detail[0] !== 'TankUserActionLog' || !detail.includes('CHANGE_EQUIPMENT')) return;
 
         const nickname = findNickname(detail);
-        if (!nickname) return;
+        if (!nickname || changedPlayers.has(nickname)) return;
 
         changedPlayers.add(nickname);
         saveCache();
-        sync();
+        drawMarkers();
     });
 
     function checkBattleCanvas(): void {
@@ -95,118 +103,18 @@
         isInBattle = currentInBattle;
         if (!isInBattle) {
             clearCache();
-            sync();
+            drawMarkers();
         }
-    }
-
-    function createMarkerCell(): HTMLElement {
-        const td = document.createElement('td');
-        td.className = 'kasp-change-td';
-        const icon = document.createElement('span');
-        icon.className = 'kasp-change-icon';
-        icon.title = MARKER_TITLE;
-        icon.style.backgroundImage = MARKER_IMAGE;
-        td.appendChild(icon);
-        return td;
-    }
-
-    // Gives every player row its marker cell and lights the ones whose player changed. Returns the first cell, which
-    // the header is aligned to.
-    function syncRows(table: HTMLTableElement): HTMLElement | null {
-        let firstTd: HTMLElement | null = null;
-        for (const row of table.querySelectorAll('tbody > tr')) {
-            const nicknameCell = row.querySelector('.BattleTabStatisticComponentStyle-nicknameCell');
-            if (!nicknameCell) continue;
-
-            let td = row.querySelector<HTMLElement>('.kasp-change-td');
-            if (!td) {
-                td = createMarkerCell();
-                row.appendChild(td);
-            }
-            firstTd ??= td;
-
-            // "[CLAN] Nick" shows the clan tag first; only the nickname is matched.
-            const nickname = (nicknameCell.textContent ?? '').replace(/^\[.*?\]\s*/, '').trim();
-            if (!nickname) continue;
-            td.classList.toggle('kasp-changed', changedPlayers.has(nickname));
-        }
-        return firstTd;
-    }
-
-    function ensureHeaderCell(headerRow: Element): HTMLElement {
-        let th = headerRow.querySelector<HTMLElement>('.kasp-change-th');
-        if (!th) {
-            th = document.createElement('th');
-            th.className = 'kasp-change-th';
-            th.textContent = '⇄';
-            th.title = MARKER_TITLE;
-            headerRow.appendChild(th);
-        }
-        return th;
-    }
-
-    function positionHeaderCell(th: HTMLElement, headerRow: Element, firstTd: HTMLElement | null): void {
-        const headerRect = headerRow.getBoundingClientRect();
-
-        // The header keeps its original width while the body rows stretch with
-        // the widened panel, so the two have different right edges - anchoring
-        // both to `right` drops the label on top of the last header icon. The
-        // header cell is measured against the body column instead, which stays
-        // correct whatever the panel is widened to.
-        if (firstTd) {
-            th.style.left = `${firstTd.getBoundingClientRect().left - headerRect.left}px`;
-        }
-
-        // Vertically the game's labels sit in their own band rather than filling
-        // the header row, so the neighbouring label is copied instead of
-        // stretching to the row's full height.
-        const neighbour = th.previousElementSibling;
-        if (neighbour) {
-            const neighbourRect = neighbour.getBoundingClientRect();
-            th.style.top = `${neighbourRect.top - headerRect.top}px`;
-            th.style.height = `${neighbourRect.height}px`;
-        }
-    }
-
-    function sync(): void {
-        const container = document.querySelector(STATS_CONTAINER_SELECTOR);
-        if (!container) return;
-
-        for (const table of container.querySelectorAll('table')) {
-            const firstTd = syncRows(table);
-            const headerRow = table.querySelector('thead > tr');
-            if (!headerRow) continue;
-            positionHeaderCell(ensureHeaderCell(headerRow), headerRow, firstTd);
-        }
-    }
-
-    // Polling made the marker appear a beat after the panel did, because the panel
-    // renders and the next tick is up to an interval away. Reacting to the DOM
-    // change instead injects it on the very next frame. Throttled to one pass per
-    // frame, since the stats table mutates constantly as scores tick.
-    let scheduled = false;
-    const observer = new MutationObserver(() => {
-        if (scheduled) return;
-        scheduled = true;
-        requestAnimationFrame(() => {
-            scheduled = false;
-            checkBattleCanvas();
-            sync();
-        });
-    });
-
-    function startObserving(): void {
-        observer.observe(document.documentElement, { childList: true, subtree: true });
     }
 
     loadCache();
+    if (document.documentElement) drawMarkers();
+    else document.addEventListener('DOMContentLoaded', drawMarkers, { once: true });
 
-    if (document.documentElement) startObserving();
-    else document.addEventListener('DOMContentLoaded', startObserving, { once: true });
+    // The game draws the change column's header itself, with this picture; only this world can ask the extension for its
+    // address.
+    window.postMessage({ type: 'kasp:change-header', address: chrome.runtime.getURL('icons/change-header.svg') }, window.location.origin);
 
-    // Safety net for any state reached without a DOM mutation.
-    setInterval(() => {
-        checkBattleCanvas();
-        sync();
-    }, 1000);
+    // The end of the battle has no message of its own, so the battle canvas is looked for once a second.
+    setInterval(checkBattleCanvas, 1000);
 })();
