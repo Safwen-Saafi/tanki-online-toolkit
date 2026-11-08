@@ -1064,6 +1064,107 @@
 
     listenChangeHeader();
 
+    // TEST ONLY (chat translation test), rewritten before the feature is built. Every battle chat message the game adds
+    // to its chat list goes through one function, right before the readable text "BattleChat":
+    //   function nct(t,n){n instanceof Ret&&n.v11n_1||t.p12x_1.y(n);...}
+    // The edit adds one call at its start that posts each player's message (the sender's name, clan, rank and side, and the
+    // text) to chat_probe.ts, which shows the translation in its own box. The game's own message is not touched. A team
+    // message is told apart by its class, learned from the game's chat display, which registers it as "onTeamMessage".
+    const CHAT_TEXT_MAX = 1000;
+    const CHAT_LABEL = /^UserLabelData\(userId=-?\d+, uid=(.*?), rank=(\d+), hasPremium=(true|false), clanTag=(.*?), teamRelation=(\w+)\)$/;
+    const RANK_COUNT = 31;
+    const seenChat = new WeakSet<object>();
+    // The game's small rank pictures as full addresses: plain ranks 1 to 31, then premium ranks 1 to 31. Empty when not found.
+    let rankPictures: string[] = [];
+
+    // Called from inside the game's code, so it must never throw into it.
+    window.__kaspChat = function (event: unknown, teamClass: unknown): void {
+        try {
+            if (!isObject(event) || seenChat.has(event)) return;
+            seenChat.add(event);
+            let label: RegExpExecArray | null = null;
+            let text: string | null = null;
+            for (const key of Object.keys(event)) {
+                const value = event[key];
+                if (typeof value === 'string') {
+                    if (text === null) text = value;
+                } else if (isObject(value) && label === null) {
+                    label = CHAT_LABEL.exec(String(value));
+                }
+            }
+            if (label === null || text === null || text.trim() === '' || text.length > CHAT_TEXT_MAX) return;
+            const rank = Number(label[2]);
+            const premium = label[3] === 'true';
+            const message: KaspChatMessage = {
+                type: 'kasp:chat',
+                detail: {
+                    uid: label[1],
+                    clanTag: label[4] === 'null' ? null : label[4],
+                    ally: label[5] === 'ALLY',
+                    team: typeof teamClass === 'function' && event instanceof teamClass,
+                    rankPicture: rankPictures[(premium ? RANK_COUNT : 0) + rank - 1] ?? null,
+                    text,
+                },
+            };
+            window.postMessage(message, window.location.origin);
+        } catch {
+            // a missed message only means one line is not translated
+        }
+    };
+
+    // Each picture of the game is a module of its bundle that gives one file's address, for a rank picture:
+    //   12345:(t,n,i)=>{"use strict";t.exports=i.p+"static/images/31.2d481c05.webp"}
+    // and the game asks for all its rank pictures in one run of calls such as i(12345), six runs of ranks 1 to 31: 32 pixel
+    // plain, 32 pixel premium, then bigger sizes. The first two runs that really are ranks 1 to 31 are taken. i.p is the
+    // folder the bundle came from. Nothing is found, and no rank picture shown, when the game changes this.
+    const RANK_MODULE = /(\d+):\([\w$]+,[\w$]+,[\w$]+\)=>\{"use strict";[\w$]+\.exports=[\w$]+\.p\+"(static\/images\/(\d{1,2})\.[0-9a-f]+\.webp)"\}/g;
+    const RANK_CALL = /[\w$]+\((\d+)\)/g;
+
+    function findRankPictures(code: string, src: string): string[] {
+        const folder = src.indexOf('static/js/');
+        if (folder < 0) return [];
+        const modules = new Map<string, { readonly rank: number; readonly file: string }>();
+        for (const m of code.matchAll(RANK_MODULE)) modules.set(m[1], { rank: Number(m[3]), file: m[2] });
+        let run: string[] = [];
+        for (const m of code.matchAll(RANK_CALL)) {
+            const picture = modules.get(m[1]);
+            if (picture === undefined) continue;
+            if (picture.rank !== (run.length % RANK_COUNT) + 1) run = [];
+            if (picture.rank !== (run.length % RANK_COUNT) + 1) continue;
+            run.push(src.slice(0, folder) + picture.file);
+            if (run.length === 2 * RANK_COUNT) return run;
+        }
+        return [];
+    }
+
+    const CHAT_ANCHOR = '="BattleChat",';
+    const CHAT_ADD = /function ([\w$]+)\(([\w$]+),([\w$]+)\)\{(?=\3 instanceof [\w$]+&&\3\.[\w$]+\|\|\2\.[\w$]+\.[\w$]+\(\3\);)/g;
+    const CHAT_TEAM = /callableName="onTeamMessage",[\w$]+\}\(this\);[\w$]+\.[\w$]+\([\w$]+\(([\w$]+)\),/;
+
+    function patchChatProbe(code: string): string | null {
+        const anchor = code.indexOf(CHAT_ANCHOR);
+        if (anchor < 0) {
+            warn(`${LOG} chat test: the text "BattleChat" was not found, test skipped`);
+            return null;
+        }
+        const start = Math.max(0, anchor - 3000);
+        const before = code.slice(start, anchor);
+        let last: RegExpExecArray | null = null;
+        CHAT_ADD.lastIndex = 0;
+        for (let m = CHAT_ADD.exec(before); m !== null; m = CHAT_ADD.exec(before)) last = m;
+        if (last === null) {
+            warn(`${LOG} chat test: the add message function was not found, test skipped`);
+            return null;
+        }
+        const message = last[3];
+        const team = CHAT_TEAM.exec(code)?.[1];
+        if (team === undefined) warn(`${LOG} chat test: the team message class was not found, team lines get the all chat colour`);
+        const teamClass = team === undefined ? 'null' : `typeof ${team}==="function"?${team}:null`;
+        const at = start + last.index + last[0].length;
+        const call = `window.__kaspChat&&window.__kaspChat(${message},${teamClass});`;
+        return `${code.slice(0, at)}${call}${code.slice(at)}`;
+    }
+
     // The bundle with every hook that could be added, and the labels of those hooks.
     function patchBundle(code: string): { readonly code: string; readonly hooked: string[] } {
         let result = code;
@@ -1114,6 +1215,11 @@
             result = thrown;
             hooked.push('grenade-sounds');
         }
+        const chatProbe = patchChatProbe(result);
+        if (chatProbe !== null) {
+            result = chatProbe;
+            hooked.push('chat-test');
+        }
         return { code: result, hooked };
     }
 
@@ -1129,6 +1235,12 @@
             const res = await fetch(src, { signal: AbortSignal.timeout(BUNDLE_TIMEOUT_MS) });
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const original = await res.text();
+            try {
+                rankPictures = findRankPictures(original, src);
+                log(`${LOG} chat test: ${rankPictures.length} rank pictures found`);
+            } catch {
+                rankPictures = [];
+            }
             const patched = patchBundle(original);
             script.textContent = patched.code;
             if (patched.hooked.length > 0) log(`${LOG} hooks added to the game: ${patched.hooked.join(', ')}`);

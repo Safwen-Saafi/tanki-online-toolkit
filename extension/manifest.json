@@ -33,7 +33,8 @@
         "js/modules/battle_music.js",
         "js/modules/grenade_sounds.js",
         "js/modules/weapon_sounds.js",
-        "js/modules/settings_tab.js"
+        "js/modules/settings_tab.js",
+        "js/modules/chat_probe.js"
       ],
       "css": [
         "styles/battle_tab.css",
