@@ -53,6 +53,7 @@
         "data/killsounds.json",
         "data/weapon_sounds.json",
         "data/old_pictures.json",
+        "data/augment_ids.json",
         "old_pictures/*",
         "sounds/*",
         "icons/*"

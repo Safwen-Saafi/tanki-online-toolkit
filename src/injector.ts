@@ -987,6 +987,45 @@
         return result;
     }
 
+    // The augment numbers of the battle tab (build-plan 18d). A row's turret cell and hull cell each end with the icon of the
+    // player's augment, which the game draws from the augment's number in the player's tank data. Both icons get that number
+    // in data-kasp-augment, so augments.ts can show the augment's text when the mouse is on it. Both or none. As in this build:
+    //   var c=Ak,f=Nn.nut(c),l=f.juv(),v=t.props.itemKey.w1u8_1,w=null==v?null:v.sl3_1;wh(l,new vh(lh(gh(null==w?new mr(-1,-1):w))))
+    // and the same with Mk and v.pl3_1 for the hull's augment.
+    const AUGMENT_ICON = /var ([\w$]+)=([\w$]+),([\w$]+)=([\w$]+)\.([\w$]+)\(\1\),([\w$]+)=\3\.([\w$]+)\(\),([\w$]+)=([\w$]+)\.props\.itemKey\.([\w$]+),([\w$]+)=null==\8\?null:\8\.([\w$]+);[\w$]+\(\6,new [\w$]+\([\w$]+\([\w$]+\(null==\11\?new [\w$]+\(-1,-1\):\11\)\)\)\)/g;
+
+    function patchAugmentIcons(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the augment ${what} in this bundle, augment-icons hook skipped`);
+            return null;
+        };
+        const icons = [...code.matchAll(AUGMENT_ICON)];
+        if (icons.length !== 2) return skip('icons');
+        const edits: { at: number; length: number; text: string }[] = [];
+        for (const icon of icons) {
+            const [whole, factoryVar, factory, , builder, make, , , , component, tank, , field] = icon;
+            const near = code.slice(Math.max(0, icon.index - PROTECTION_MODULE_RANGE), icon.index + PROTECTION_MODULE_RANGE);
+            const made = [...near.matchAll(new RegExp(`function ${asPattern(factory)}\\(([\\w$]+)\\)\\{return new ([\\w$]+)\\([\\w$]+\\(\\),\\1\\)\\}`, 'g'))];
+            if (made.length !== 1) return skip('icon element');
+            const around = code.slice(Math.max(0, icon.index - PROTECTION_ATTRIBUTE_RANGE), icon.index + PROTECTION_ATTRIBUTE_RANGE);
+            const lists = new Set([...around.matchAll(/new [\w$]+\(([\w$]+)\(\["alt",/g)].map((found) => found[1]));
+            if (lists.size !== 1) return skip('attribute list');
+            const [attributes] = lists;
+            const tankInfo = `${component}.props.itemKey.${tank}`;
+            const call = `${builder}.${make}(${factoryVar})`;
+            edits.push({
+                at: icon.index + whole.indexOf(call),
+                length: call.length,
+                text: `${builder}.${make}(function(z){return new ${made[0][2]}(${attributes}(["data-kasp-augment",String(null==${tankInfo}?null:${tankInfo}.${field})]),z)})`,
+            });
+        }
+        let result = code;
+        for (const edit of edits.sort((a, b) => b.at - a.at)) {
+            result = result.slice(0, edit.at) + edit.text + result.slice(edit.at + edit.length);
+        }
+        return result;
+    }
+
     // The address of the column's header picture, from change_counter.ts (only the isolated world can ask the extension for
     // it). Checked before the game's code reads it: an extension address of an SVG picture, nothing else.
     function listenChangeHeader(): void {
@@ -1041,6 +1080,11 @@
         if (turretColours !== null) {
             result = turretColours;
             hooked.push('turret-colours');
+        }
+        const augmentIcons = patchAugmentIcons(result);
+        if (augmentIcons !== null) {
+            result = augmentIcons;
+            hooked.push('augment-icons');
         }
         const thrown = patchGrenadeThrow(result);
         if (thrown !== null) {
