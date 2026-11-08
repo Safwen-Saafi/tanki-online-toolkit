@@ -13,6 +13,7 @@
     const CACHE_KEY = 'kasp_augments_cache';
     const INFO_SWITCH_KEY = 'kasp_augments';
     const HIDDEN_SWITCH_KEY = 'kasp_hiddencards';
+    const BATTLE_INFO_SWITCH_KEY = 'kasp_battleaugments';
     // The bot publishes once a day, so asking more often than this only costs requests.
     const FRESH_MS = 6 * 60 * 60 * 1000;
     const TICK_MS = 250;
@@ -86,10 +87,12 @@
         return Object.values(file.items).reduce((total, byName) => total + Object.keys(byName).length, 0);
     }
 
-    // The user's two switches, set in the extension's settings tab: read once at start through the switch service
-    // (src/modules/switches.ts), so a change applies after a reload. Without the service every switch counts as on.
+    // The user's switches, set in the extension's settings tab, through the switch service (src/modules/switches.ts). The
+    // garage's two are read once at start, so a change applies after a reload; the battle tab's is followed live (18e).
+    // Without the service every switch counts as on.
     const infoOn = window.kaspSwitches?.isOn(INFO_SWITCH_KEY) ?? true;
     const hiddenOn = window.kaspSwitches?.isOn(HIDDEN_SWITCH_KEY) ?? true;
+    let battleInfoOn = window.kaspSwitches?.isOn(BATTLE_INFO_SWITCH_KEY) ?? true;
 
     // Keeps only the entries that are still a valid file; anything else counts as no cache.
     function readCache(): AugmentsCache {
@@ -144,6 +147,14 @@
 
         if (cached === undefined) console.warn(`${LOG} no augment data for ${language}: not reachable and nothing cached`);
         return cached;
+    }
+
+    // The garage and the battle tab both need the file; it is loaded once for both.
+    let augmentsLoad: Promise<void> | null = null;
+
+    function loadAugmentsOnce(): Promise<void> {
+        augmentsLoad ??= loadAugments();
+        return augmentsLoad;
     }
 
     // A language change reloads the page, so the language the game starts in is the only one this page needs.
@@ -730,9 +741,10 @@
     }
 
     // The wiki's entry for a hidden card, or, when the wiki does not have the augment yet, one made of what the game says (its name and
-    // rank), so the card is still drawn and its box says there is no information.
+    // rank), so the card is still drawn and its box says there is no information. With the garage's info off the game's own is
+    // used even when the file is loaded for the battle tab, so that switch keeps the wiki out of the garage.
     function hiddenAugment(item: string | null, game: KaspGameCard): Augment {
-        const known = item === null ? undefined : findAugment(item, game.name)?.augment;
+        const known = item === null || !infoOn ? undefined : findAugment(item, game.name)?.augment;
         return known ?? { name: game.name, advantages: [], disadvantages: [], rarity: FRAME_RANKS_BY_GAME[game.rarity] ?? null };
     }
 
@@ -1271,6 +1283,7 @@
     // One set of listeners for the whole page, no watcher: they only look at what the mouse is on.
     function followBattleIcons(): void {
         document.addEventListener('mouseover', (event) => {
+            if (!battleInfoOn) return;
             const icon = event.target instanceof Element ? event.target.closest(`[${AUGMENT_NUMBER_ATTRIBUTE}]`) : null;
             if (icon === null || icon === battleIcon) return;
             const number = icon.getAttribute(AUGMENT_NUMBER_ATTRIBUTE) ?? '';
@@ -1298,6 +1311,23 @@
         }, true);
     }
 
+    // The battle tab's part starts the first time its switch is on, at start or later in the session.
+    let battleStarted = false;
+
+    function startBattleInfo(): void {
+        if (battleStarted) return;
+        battleStarted = true;
+        void loadAugmentsOnce();
+        void loadAugmentNumbers();
+        followBattleIcons();
+    }
+
+    function onBattleSwitch(on: boolean): void {
+        battleInfoOn = on;
+        if (on) startBattleInfo();
+        else hideBattleBox();
+    }
+
     // ---- 8. the tick ----
 
     function tick(): void {
@@ -1320,18 +1350,19 @@
 
     // After the load event, so the game's own start-up is not delayed.
     function start(): void {
-        if (!infoOn && !hiddenOn) {
-            console.log(`${LOG} disabled (switches ${INFO_SWITCH_KEY} and ${HIDDEN_SWITCH_KEY} are off)`);
+        // First, so turning the battle switch on later works even when every switch was off at start.
+        window.kaspSwitches?.onChange(BATTLE_INFO_SWITCH_KEY, onBattleSwitch);
+        if (!infoOn && !hiddenOn && !battleInfoOn) {
+            console.log(`${LOG} disabled (switches ${INFO_SWITCH_KEY}, ${HIDDEN_SWITCH_KEY} and ${BATTLE_INFO_SWITCH_KEY} are off)`);
             return;
         }
         if (!infoOn) console.log(`${LOG} augment info off (switch ${INFO_SWITCH_KEY})`);
         if (!hiddenOn) console.log(`${LOG} hidden cards off (switch ${HIDDEN_SWITCH_KEY})`);
-        // The augment file is only for the info; the item names (bundled) are needed by both, to know the item on screen.
-        if (infoOn) {
-            void loadAugments();
-            void loadAugmentNumbers();
-            followBattleIcons();
-        }
+        if (!battleInfoOn) console.log(`${LOG} battle tab augment info off (switch ${BATTLE_INFO_SWITCH_KEY})`);
+        if (infoOn) void loadAugmentsOnce();
+        if (battleInfoOn) startBattleInfo();
+        // The garage's part: the item names (bundled) are needed by the info and the hidden cards, to know the item on screen.
+        if (!infoOn && !hiddenOn) return;
         void loadItemNames();
         observer.observe(document.documentElement, { childList: true, subtree: true });
         setInterval(tick, TICK_MS);

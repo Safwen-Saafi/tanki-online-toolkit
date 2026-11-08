@@ -54,7 +54,9 @@
         { key: 'kasp_weaponsounds_striker', group: 'weapons', live: false, label: { EN: 'Striker', RU: 'Страйкер' } },
         { key: 'kasp_weaponsounds_gauss', group: 'weapons', live: false, label: { EN: 'Gauss', RU: 'Гаусс' } },
         { key: 'kasp_battlemusic', group: 'music', live: true, label: { EN: 'End of battle music', RU: 'Музыка в конце битвы' } },
-        { key: 'kasp_protectioncolours', group: 'battle', live: true, label: { EN: 'Coloured icons', RU: 'Цветные значки' } },
+        { key: 'kasp_protectioncolours', group: 'battle', live: true, label: { EN: 'Coloured modules', RU: 'Цветные модули' } },
+        { key: 'kasp_turretcolours', group: 'battle', live: true, label: { EN: 'Coloured turret icons', RU: 'Цветные значки пушек' } },
+        { key: 'kasp_battleaugments', group: 'battle', live: true, label: { EN: 'Augment info', RU: 'Описания устройств' } },
         {
             key: 'kasp_augments',
             group: 'garage',

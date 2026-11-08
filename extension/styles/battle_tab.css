@@ -175,9 +175,10 @@
    protection icon as a stencil filled with a background colour; the turret icon is a white picture that the injector also
    makes its own stencil. Here the colour is the turret's: the same colours as the Humungus userscript (the owner's
    decision, 2026-11-08). A turret's colour is its protection's colour, since the game draws both with the same picture.
-   The enemies' protection against the player's own turret gets a red square. Every colour rule applies only while the
-   switch is on: battle_tab.ts puts data-kasp-plain-protections on the root element while it is off, and the game's own
-   icons show. A type or turret not listed keeps the game's look. */
+   The enemies' protection against the player's own turret gets a red square. Each colour rule applies only while its
+   switch is on (18e): battle_tab.ts puts data-kasp-plain-protections on the root element while Coloured modules is off,
+   and data-kasp-plain-turrets while Coloured turret icons is off, and the game's own icons show. A type or turret not
+   listed keeps the game's look. */
 :root:not([data-kasp-plain-protections]) [data-kasp-protection="FIREBIRD_RESISTANCE"] { --kasp-protection: rgb(255, 51, 0); }
 :root:not([data-kasp-plain-protections]) [data-kasp-protection="FREEZE_RESISTANCE"] { --kasp-protection: rgb(0, 151, 255); }
 :root:not([data-kasp-plain-protections]) [data-kasp-protection="ISIS_RESISTANCE"] { --kasp-protection: rgb(0, 187, 67); }
@@ -235,23 +236,23 @@
 }
 
 /* By the turret's id (the game's own, in decimal): the white picture goes and the colour shows through the stencil. */
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009630983"] { background-image: none !important; background-color: rgb(255, 51, 0) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009631074"] { background-image: none !important; background-color: rgb(0, 151, 255) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009630913"] { background-image: none !important; background-color: rgb(0, 187, 67) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="921009714084"] { background-image: none !important; background-color: rgb(0, 215, 255) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009631046"] { background-image: none !important; background-color: rgb(200, 200, 200) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009630997"] { background-image: none !important; background-color: rgb(0, 255, 0) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009631088"] { background-image: none !important; background-color: rgb(255, 227, 120) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009630969"] { background-image: none !important; background-color: rgb(255, 240, 0) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009630990"] { background-image: none !important; background-color: rgb(161, 151, 253) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009631144"] { background-image: none !important; background-color: rgb(159, 159, 159) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009631123"] { background-image: none !important; background-color: rgb(255, 133, 0) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="1931009780251"] { background-image: none !important; background-color: rgb(226, 206, 129) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="931009771122"] { background-image: none !important; background-color: rgb(255, 61, 61) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009631011"] { background-image: none !important; background-color: rgb(255, 163, 0) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009630976"] { background-image: none !important; background-color: rgb(255, 90, 0) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009631151"] { background-image: none !important; background-color: rgb(1, 255, 162) !important; }
-:root:not([data-kasp-plain-protections]) [data-kasp-turret="920009631158"] { background-image: none !important; background-color: rgb(255, 59, 58) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009630983"] { background-image: none !important; background-color: rgb(255, 51, 0) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009631074"] { background-image: none !important; background-color: rgb(0, 151, 255) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009630913"] { background-image: none !important; background-color: rgb(0, 187, 67) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="921009714084"] { background-image: none !important; background-color: rgb(0, 215, 255) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009631046"] { background-image: none !important; background-color: rgb(200, 200, 200) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009630997"] { background-image: none !important; background-color: rgb(0, 255, 0) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009631088"] { background-image: none !important; background-color: rgb(255, 227, 120) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009630969"] { background-image: none !important; background-color: rgb(255, 240, 0) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009630990"] { background-image: none !important; background-color: rgb(161, 151, 253) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009631144"] { background-image: none !important; background-color: rgb(159, 159, 159) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009631123"] { background-image: none !important; background-color: rgb(255, 133, 0) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="1931009780251"] { background-image: none !important; background-color: rgb(226, 206, 129) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="931009771122"] { background-image: none !important; background-color: rgb(255, 61, 61) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009631011"] { background-image: none !important; background-color: rgb(255, 163, 0) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009630976"] { background-image: none !important; background-color: rgb(255, 90, 0) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009631151"] { background-image: none !important; background-color: rgb(1, 255, 162) !important; }
+:root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009631158"] { background-image: none !important; background-color: rgb(255, 59, 58) !important; }
 
 /* DM: one table, centred, its rows wider, its cells in the game's own flow. Its header row grows to fit its cells, so the
    change column's header does not make the game's headers shrink off their columns (measured 2026-11-07). */
