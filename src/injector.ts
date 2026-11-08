@@ -835,6 +835,158 @@
         return once.slice(0, second.at) + second.text + once.slice(second.at);
     }
 
+    // The protection colours of the battle tab (build-plan 18c, see blueprint/context/battle-stats-table.md). The game draws each
+    // protection icon as a stencil of its turret's picture filled with one colour (red for the protection against the player's
+    // own turret), in two places: a slot of a player row and an item of the count under the tables. The page cannot tell which
+    // turret an icon is for, so the game is made to write it on the element that holds the icon: the type's own name
+    // (RAILGUN_RESISTANCE...) in data-kasp-protection, and data-kasp-own="1" where it draws red; battle_tab.css does the rest.
+    // Both or none. The places, as in this build (names change per build):
+    //   icon:  ze(c,i.bl4_1.equals(t.props.itemKey.t1u8_1)&&!t.props.itemKey.v1u8_1?pi().k1i3_1:pi().g1hz_1),C_(c,"url("+S_.uuq(i.bl4_1)+")")
+    //          ze(h,i.equals(t.pas_1.o1u5_1)?pi().k1i3_1:pi().g1hz_1),C_(h,"url("+S_.uuq(i)+")")
+    //   slot:  function $k(t,n,i){var r=Dk,e=Nn.nut(r), ...   function em(t,n,i,r){var e=qm,u=Nn.nut(e), ...
+    //   made:  function Dk(t){return new ki(Xn(),t)}
+    const PROTECTION_ICON = /([\w$]+)\(([\w$]+),([^?;{}]{1,200})\?[\w$]+\(\)\.[\w$]+:[\w$]+\(\)\.[\w$]+\),[\w$]+\(\2,"url\("\+([\w$]+)\.([\w$]+)\(([\w$.]+)\)\+"\)"\)/g;
+    const PROTECTION_SLOT = /function [\w$]+\(([\w$,]*)\)\{var ([\w$]+)=([\w$]+),[\w$]+=([\w$]+)\.([\w$]+)\(\2\)/g;
+    const PROTECTION_SLOT_RANGE = 1500;
+    const PROTECTION_MODULE_RANGE = 20000;
+    // The attribute list helper is found from the nearest pictures with an alt text, which in this build sit up to 22000
+    // characters from the count's icon; every one of them in reach must use the same helper.
+    const PROTECTION_ATTRIBUTE_RANGE = 30000;
+
+    // The names of the row data's fields that tell an enemy, read from the text the game builds for it:
+    // "UserBattleStatistic(userId="+... +", isLocalUser="+this.z1u7_1+ ... +", team="+this.i1u8_1.toString()+ ...
+    interface RowFields {
+        readonly isLocalUser: string;
+        readonly team: string;
+        readonly isTeamMode: string;
+        readonly currentUserTeam: string;
+    }
+
+    function rowFieldsOf(code: string): RowFields | null {
+        const at = code.indexOf('"UserBattleStatistic(userId="');
+        if (at < 0 || code.indexOf('"UserBattleStatistic(userId="', at + 1) >= 0) return null;
+        // Only the row data's own text, which ends with its function: the next class's text names fields too.
+        const end = code.indexOf('}', at);
+        if (end < 0) return null;
+        const text = code.slice(at, end);
+        const field = (name: string): string | null =>
+            new RegExp(`", ${name}="\\+(?:[\\w$]+\\()?this\\.([\\w$]+)`).exec(text)?.[1] ?? null;
+        const isLocalUser = field('isLocalUser');
+        const team = field('team');
+        const isTeamMode = field('isTeamMode');
+        const currentUserTeam = field('currentUserTeam');
+        if (isLocalUser === null || team === null || isTeamMode === null || currentUserTeam === null) return null;
+        return { isLocalUser, team, isTeamMode, currentUserTeam };
+    }
+
+    function patchProtectionColours(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the protection ${what} in this bundle, protection-colours hook skipped`);
+            return null;
+        };
+        const icons = [...code.matchAll(PROTECTION_ICON)];
+        if (icons.length !== 2 || icons[0][4] !== icons[1][4] || icons[0][5] !== icons[1][5]) return skip('icons');
+        const row = rowFieldsOf(code);
+        if (row === null) return skip('row fields');
+        const edits: { at: number; length: number; text: string }[] = [];
+        for (const icon of icons) {
+            const [, , , condition, , , type] = icon;
+            const before = code.slice(Math.max(0, icon.index - PROTECTION_SLOT_RANGE), icon.index);
+            const slots = [...before.matchAll(PROTECTION_SLOT)];
+            const slot = slots[slots.length - 1];
+            if (slot === undefined) return skip('slot');
+            const [whole, params, slotVar, factory, builder, make] = slot;
+            // The added code reads the icon's own names (i, t...), so the slot must be the icon's own function: no other
+            // function starts in between, and every name the type and the colour test start with is one of its inputs.
+            const inputs = new Set(params.split(','));
+            const used = [...`${type} ${condition}`.matchAll(/(?<![\w$.])([\w$]+)\./g)].map((found) => found[1]);
+            if (/\}function [\w$]+\(/.test(before.slice(slot.index)) || used.some((name) => !inputs.has(name))) return skip('slot');
+            const near = code.slice(Math.max(0, icon.index - PROTECTION_MODULE_RANGE), icon.index + PROTECTION_MODULE_RANGE);
+            const made = [...near.matchAll(new RegExp(`function ${asPattern(factory)}\\(([\\w$]+)\\)\\{return new ([\\w$]+)\\([\\w$]+\\(\\),\\1\\)\\}`, 'g'))];
+            if (made.length !== 1) return skip('slot element');
+            const around = code.slice(Math.max(0, icon.index - PROTECTION_ATTRIBUTE_RANGE), icon.index + PROTECTION_ATTRIBUTE_RANGE);
+            const lists = new Set([...around.matchAll(/new [\w$]+\(([\w$]+)\(\["alt",/g)].map((found) => found[1]));
+            if (lists.size !== 1) return skip('attribute list');
+            const [attributes] = lists;
+            // A row slot belongs to one player, an enemy or not; the count under the tables only counts enemies.
+            const owner = /([\w$]+)\.props\.itemKey\./.exec(condition);
+            let enemy = '"1"';
+            if (type.includes('.')) {
+                if (owner === null) return skip('row owner');
+                const p = `${owner[1]}.props.itemKey`;
+                enemy = `(!${p}.${row.isLocalUser}&&(!${p}.${row.isTeamMode}||!${p}.${row.team}.equals(${p}.${row.currentUserTeam})))?"1":null`;
+            }
+            const call = `${builder}.${make}(${slotVar})`;
+            edits.push({
+                at: Math.max(0, icon.index - PROTECTION_SLOT_RANGE) + slot.index + whole.length - call.length,
+                length: call.length,
+                text: `${builder}.${make}(function(z){return new ${made[0][2]}(${attributes}(["data-kasp-protection",String(${type}),"data-kasp-own",(${condition})?"1":null,"data-kasp-enemy",${enemy}]),z)})`,
+            });
+        }
+        let result = code;
+        for (const edit of edits.sort((a, b) => b.at - a.at)) {
+            result = result.slice(0, edit.at) + edit.text + result.slice(edit.at + edit.length);
+        }
+        return result;
+    }
+
+    // The turret colours of the battle tab (build-plan 18c). A row's turret cell starts with the turret's icon, which the game
+    // draws as a white picture (a CSS background) chosen by the turret's id through a chain of id tests; it is the same picture
+    // as that turret's protection. Two edits, both or none: the icon element gets data-kasp-turret with the turret's id, and the
+    // game also sets the same picture as the icon's stencil (mask-image), which looks exactly the same until battle_tab.css
+    // takes the white picture away and puts the turret's colour behind the stencil. As in this build:
+    //   var e,u,s=Ik,o=Nn.nut(s),_=o.juv(),h=t.props.itemKey.w1u8_1,a=null==h?null:h.rl3_1;null==a||wh(_,new vh(lh((u=Jt(e=a,...)?In():...:cn(),an.ipl(u)))))
+    // The hull cell is drawn the same way just after it; only the first one, the turret's, is edited.
+    const TURRET_ICON = /var ([\w$]+),([\w$]+),([\w$]+)=([\w$]+),([\w$]+)=([\w$]+)\.([\w$]+)\(\3\),([\w$]+)=\5\.([\w$]+)\(\),([\w$]+)=([\w$]+)\.props\.itemKey\.([\w$]+),([\w$]+)=null==\10\?null:\10\.([\w$]+);null==\13\|\|([\w$]+)\(\8,new ([\w$]+)\(([\w$]+)\(\(\2=/g;
+    const TURRET_CHAIN_RANGE = 3000;
+
+    function patchTurretColours(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the turret ${what} in this bundle, turret-colours hook skipped`);
+            return null;
+        };
+        const cells = [...code.matchAll(TURRET_ICON)];
+        if (cells.length !== 2) return skip('icon cells');
+        const turret = cells[0];
+        const [whole, , picture, factoryVar, factory, , builder, make, css, , , component, tank, , field] = turret;
+        // The picture call must end inside the turret icon's own statement: the hull icon's statement after it ends with the
+        // same call, and edits split across the two would leave the game's script broken.
+        const after = code.slice(turret.index + whole.length, turret.index + whole.length + TURRET_CHAIN_RANGE);
+        const statementEnd = after.indexOf(';');
+        if (statementEnd < 0) return skip('icon picture');
+        const chainEnd = new RegExp(`,([\\w$]+)\\.([\\w$]+)\\(${asPattern(picture)}\\)\\)\\)\\)\\)`).exec(after.slice(0, statementEnd));
+        if (chainEnd === null) return skip('icon picture');
+        const near = code.slice(Math.max(0, turret.index - PROTECTION_MODULE_RANGE), turret.index + PROTECTION_MODULE_RANGE);
+        const made = [...near.matchAll(new RegExp(`function ${asPattern(factory)}\\(([\\w$]+)\\)\\{return new ([\\w$]+)\\([\\w$]+\\(\\),\\1\\)\\}`, 'g'))];
+        if (made.length !== 1) return skip('icon element');
+        const around = code.slice(Math.max(0, turret.index - PROTECTION_ATTRIBUTE_RANGE), turret.index + PROTECTION_ATTRIBUTE_RANGE);
+        const lists = new Set([...around.matchAll(/new [\w$]+\(([\w$]+)\(\["alt",/g)].map((found) => found[1]));
+        const masks = new Set([...around.matchAll(/([\w$]+)\([\w$]+,"url\("\+/g)].map((found) => found[1]));
+        if (lists.size !== 1 || masks.size !== 1) return skip('attribute list or stencil setter');
+        const [attributes] = lists;
+        const [mask] = masks;
+
+        const tankInfo = `${component}.props.itemKey.${tank}`;
+        const call = `${builder}.${make}(${factoryVar})`;
+        const callAt = turret.index + whole.indexOf(call);
+        const drawAt = turret.index + whole.lastIndexOf('||') + 2;
+        const endAt = turret.index + whole.length + chainEnd.index + chainEnd[0].length;
+        const edits = [
+            { at: endAt, length: 0, text: `,${mask}(${css},"url("+${chainEnd[1]}.${chainEnd[2]}(${picture})+")"))` },
+            { at: drawAt, length: 0, text: '(' },
+            {
+                at: callAt,
+                length: call.length,
+                text: `${builder}.${make}(function(z){return new ${made[0][2]}(${attributes}(["data-kasp-turret",String(null==${tankInfo}?null:${tankInfo}.${field})]),z)})`,
+            },
+        ];
+        let result = code;
+        for (const edit of edits.sort((a, b) => b.at - a.at)) {
+            result = result.slice(0, edit.at) + edit.text + result.slice(edit.at + edit.length);
+        }
+        return result;
+    }
+
     // The address of the column's header picture, from change_counter.ts (only the isolated world can ask the extension for
     // it). Checked before the game's code reads it: an extension address of an SVG picture, nothing else.
     function listenChangeHeader(): void {
@@ -879,6 +1031,16 @@
         if (battleTab !== null) {
             result = battleTab;
             hooked.push('battle-tab');
+        }
+        const protectionColours = patchProtectionColours(result);
+        if (protectionColours !== null) {
+            result = protectionColours;
+            hooked.push('protection-colours');
+        }
+        const turretColours = patchTurretColours(result);
+        if (turretColours !== null) {
+            result = turretColours;
+            hooked.push('turret-colours');
         }
         const thrown = patchGrenadeThrow(result);
         if (thrown !== null) {

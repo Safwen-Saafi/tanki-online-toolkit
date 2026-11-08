@@ -23,6 +23,7 @@
         "js/modules/language.js",
         "js/modules/switches.js",
         "js/modules/garage_cards.js",
+        "js/modules/battle_tab.js",
         "js/modules/old_pictures.js",
         "js/modules/garage_tab.js",
         "js/modules/change_counter.js",

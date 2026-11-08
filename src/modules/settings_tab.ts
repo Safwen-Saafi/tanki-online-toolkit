@@ -23,7 +23,7 @@
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
     const DIVIDER_BLOCK_CLASS = 'SettingsComponentStyle-commonBlock';
 
-    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'garage';
+    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'garage';
 
     interface SwitchEntry {
         // The localStorage key the feature's module reads.
@@ -39,6 +39,7 @@
         { id: 'grenade', heading: { EN: 'Grenade sounds', RU: 'Звуки гранаты' } },
         { id: 'weapons', heading: { EN: 'Weapon sounds', RU: 'Звуки оружия' } },
         { id: 'music', heading: { EN: 'Music', RU: 'Музыка' } },
+        { id: 'battle', heading: { EN: 'Battle tab', RU: 'Таблица боя' } },
         { id: 'garage', heading: { EN: 'Garage', RU: 'Гараж' } },
     ];
 
@@ -53,6 +54,7 @@
         { key: 'kasp_weaponsounds_striker', group: 'weapons', live: false, label: { EN: 'Striker', RU: 'Страйкер' } },
         { key: 'kasp_weaponsounds_gauss', group: 'weapons', live: false, label: { EN: 'Gauss', RU: 'Гаусс' } },
         { key: 'kasp_battlemusic', group: 'music', live: true, label: { EN: 'End of battle music', RU: 'Музыка в конце битвы' } },
+        { key: 'kasp_protectioncolours', group: 'battle', live: true, label: { EN: 'Coloured icons', RU: 'Цветные значки' } },
         {
             key: 'kasp_augments',
             group: 'garage',
