@@ -333,6 +333,11 @@ does not.
   `extension/data/old_pictures.json`. The command-line version is `node scripts/old-style-picture/make.mjs <picture address> --like <old
   picture>` (`--list-colors` shows the old colours). Run by hand, when a new augment shows in the new style. Not part of the extension, never
   commits. See `scripts/old-style-picture/README.md`.
+- Augment numbers for the battle tab: when the game adds augments (about every two months), paste `scripts/augment-ids/capture.js` into the
+  game's DevTools console in the garage with any turret's Augments tab open, once with the game in English and once in Russian (each run
+  saves `augment-ids-EN.json` or `augment-ids-RU.json` in Downloads), then `node scripts/augment-ids/merge.mjs <EN file> <RU file>` merges them
+  into `extension/data/augment_ids.json` (it checks every line and refuses a broken file; `--dry-run` writes nothing). Until then a new
+  augment says "No information yet" in the battle tab. Not part of the extension, never commits. See `scripts/augment-ids/README.md`.
 - Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`, which
   builds, packages, and opens a **draft** GitHub Release with the zip
   attached and the release commit's body as the description - it never
