@@ -71,6 +71,121 @@
     margin-left: 0.4em;
 }
 
+/* A dropdown under a group's switches, drawn like the game's own (its Language choice on the Game tab, measured 2026-11-08 and
+   turned into em of the game's 12.45px): the title, then a box 30.625em by 3.125em with the chosen value and an arrow, and the
+   list right under it, at most 15.75em tall, one value per 3em. */
+.kasp-choice {
+    margin-top: 0.75em;
+}
+
+.kasp-choice-title {
+    margin: 0 0 1em;
+    color: #fff;
+    font-family: BaseFontRegular, FallbackFontRegular;
+    font-size: 1em;
+    font-weight: 400;
+}
+
+.kasp-dropdown {
+    position: relative;
+    width: 30.625em;
+    height: 3.125em;
+    margin-bottom: 1.75em;
+    user-select: none;
+}
+
+.kasp-dropdown-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+    height: 100%;
+    padding: 0 0.875em;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+}
+
+.kasp-dropdown-control:focus-visible {
+    outline: 1px solid rgba(255, 255, 255, 0.6);
+    outline-offset: 2px;
+}
+
+.kasp-dropdown-value {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+/* The flag before the language's name: 1.5em by 1em, the game's 24 by 16 pixel picture shown smaller, as in the game. */
+.kasp-dropdown-picture {
+    display: block;
+    flex: none;
+    width: 1.5em;
+    height: 1em;
+}
+
+.kasp-dropdown-picture[hidden] {
+    display: none;
+}
+
+.kasp-dropdown-text {
+    margin: 0.2em 0 0.3em 0.3em;
+    color: #fff;
+    font-family: BaseFontRegular, FallbackFontRegular;
+    white-space: nowrap;
+}
+
+/* The arrow: light blue, white while the mouse is on the dropdown, as in the game. */
+.kasp-dropdown-arrow {
+    flex: none;
+    width: 0.813em;
+    height: 0.75em;
+    background: #bfd5ff;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 12'%3E%3Cpath d='M1 3.5l5.5 5.5 5.5-5.5' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 12'%3E%3Cpath d='M1 3.5l5.5 5.5 5.5-5.5' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.kasp-dropdown:hover .kasp-dropdown-arrow {
+    background: #fff;
+}
+
+.kasp-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    max-height: 15.75em;
+    overflow-y: auto;
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+    scrollbar-width: thin;
+    scrollbar-color: #bcbcbc rgba(255, 255, 255, 0.2);
+}
+
+.kasp-dropdown-menu[hidden] {
+    display: none;
+}
+
+.kasp-dropdown-item {
+    display: flex;
+    align-items: center;
+    height: 3em;
+    padding: 0 1em 0 0.6875em;
+    background: rgb(1, 47, 66);
+    cursor: pointer;
+}
+
+.kasp-dropdown-item:hover,
+.kasp-dropdown-item:focus-visible {
+    background: rgb(27, 68, 89);
+    outline: none;
+}
+
+.kasp-dropdown-item .kasp-dropdown-text {
+    cursor: pointer;
+}
+
 /* The legend at the top of the panel, explaining the ↻. */
 .kasp-legend {
     margin: 0 0 1.25em;

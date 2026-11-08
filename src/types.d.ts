@@ -225,11 +225,16 @@ interface KaspOldPictures {
 // Published by src/modules/switches.ts, the one place that knows how a feature's switch is saved (off is the exact text 0 under its
 // localStorage key, on is no key). isOn(key) reads the saved value; set(key, on) saves it (only the settings tab calls it) and is
 // false when the browser refused; onChange(key, action) leaves an action that set calls with the new value when that switch really
-// changes, which is how a live module learns of a change with no loop and no page event.
+// changes, which is how a live module learns of a change with no loop and no page event. A choice (such as the chat's target
+// language) is the same with a text: getChoice(key) is the saved text, or null for the module's default; setChoice(key, null)
+// goes back to that default; onChoice(key, action) is called with the new value when it really changes.
 interface KaspSwitches {
     readonly isOn: (key: string) => boolean;
     readonly set: (key: string, on: boolean) => boolean;
     readonly onChange: (key: string, action: (on: boolean) => void) => void;
+    readonly getChoice: (key: string) => string | null;
+    readonly setChoice: (key: string, value: string | null) => boolean;
+    readonly onChoice: (key: string, action: (value: string | null) => void) => void;
 }
 
 interface Window {

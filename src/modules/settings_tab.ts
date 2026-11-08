@@ -23,7 +23,7 @@
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
     const DIVIDER_BLOCK_CLASS = 'SettingsComponentStyle-commonBlock';
 
-    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'garage';
+    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage';
 
     interface SwitchEntry {
         // The localStorage key the feature's module reads.
@@ -40,6 +40,7 @@
         { id: 'weapons', heading: { EN: 'Weapon sounds', RU: 'Звуки оружия' } },
         { id: 'music', heading: { EN: 'Music', RU: 'Музыка' } },
         { id: 'battle', heading: { EN: 'Battle tab', RU: 'Таблица боя' } },
+        { id: 'chat', heading: { EN: 'Chat', RU: 'Чат' } },
         { id: 'garage', heading: { EN: 'Garage', RU: 'Гараж' } },
     ];
 
@@ -57,6 +58,7 @@
         { key: 'kasp_protectioncolours', group: 'battle', live: true, label: { EN: 'Coloured modules', RU: 'Цветные модули' } },
         { key: 'kasp_turretcolours', group: 'battle', live: true, label: { EN: 'Coloured turret icons', RU: 'Цветные значки пушек' } },
         { key: 'kasp_battleaugments', group: 'battle', live: true, label: { EN: 'Augment info', RU: 'Описания устройств' } },
+        { key: 'kasp_chattranslate', group: 'chat', live: true, label: { EN: 'Translate chat', RU: 'Переводить чат' } },
         {
             key: 'kasp_augments',
             group: 'garage',
@@ -67,6 +69,54 @@
         { key: 'kasp_old_pictures', group: 'garage', live: false, label: { EN: 'Old augment pictures', RU: 'Старые картинки устройств' } },
         { key: 'kasp_garageskins', group: 'garage', live: true, label: { EN: 'Equipped skins in the garage', RU: 'Надетые скины в гараже' } },
         { key: 'kasp_narrowcards', group: 'garage', live: true, label: { EN: 'Narrower garage cards', RU: 'Узкие карточки в гараже' } },
+    ];
+
+    interface ChoiceOption {
+        readonly value: string;
+        readonly label: string;
+        // A small picture before the label (a file of the extension), as the game's Language dropdown shows its flags.
+        readonly picture?: string;
+    }
+
+    // A dropdown under a group's switches. Its module reads it through the switch service, which saves the value under key.
+    interface ChoiceEntry {
+        key: string;
+        group: SwitchGroup;
+        title: Record<KaspLanguageCode, string>;
+        // The value shown when nothing is saved; choosing it removes the key.
+        fallback: string;
+        options: readonly ChoiceOption[];
+    }
+
+    // Google's codes for the languages chat can be translated to, each named in its own language, as the game names its own, with
+    // its flag in extension/flags/<code>.webp: the game's own pictures for the game's languages (English is the UK flag and
+    // Portuguese Brazil's, as in the game), and the others made in the same style and size (Arabic is Saudi Arabia's flag).
+    const CHAT_LANGUAGES: readonly ChoiceOption[] = (
+        [
+            ['en', 'English, EN'],
+            ['ru', 'Русский, RU'],
+            ['uk', 'Українська, UK'],
+            ['pl', 'Polski, PL'],
+            ['de', 'Deutsch, DE'],
+            ['fr', 'Français, FR'],
+            ['es', 'Español, ES'],
+            ['pt', 'Português, PT'],
+            ['it', 'Italiano, IT'],
+            ['tr', 'Türkçe, TR'],
+            ['ar', 'العربية, AR'],
+            ['bg', 'Български, BG'],
+            ['cs', 'Čeština, CS'],
+            ['ro', 'Română, RO'],
+            ['hu', 'Magyar, HU'],
+            ['nl', 'Nederlands, NL'],
+            ['zh-CN', '中文, ZH'],
+            ['ja', '日本語, JA'],
+            ['ko', '한국어, KO'],
+        ] as const
+    ).map(([value, label]) => ({ value, label, picture: `flags/${value}.webp` }));
+
+    const CHOICES: readonly ChoiceEntry[] = [
+        { key: 'kasp_chatlanguage', group: 'chat', title: { EN: 'Translate to', RU: 'Переводить на' }, fallback: 'en', options: CHAT_LANGUAGES },
     ];
 
     // The mark after the label of a switch that applies after a reload, and in the legend that explains it.
@@ -166,6 +216,108 @@
         return row;
     }
 
+    interface Choice {
+        readonly node: HTMLElement;
+        // Shows what is saved again (after RESET ALL).
+        readonly refresh: () => void;
+    }
+
+    // A choice's picture; one that does not load is hidden, and the label stays.
+    function makePicture(): HTMLImageElement {
+        const picture = document.createElement('img');
+        picture.className = 'kasp-dropdown-picture';
+        picture.alt = '';
+        picture.addEventListener('error', () => (picture.hidden = true));
+        return picture;
+    }
+
+    function showPicture(picture: HTMLImageElement, file: string | undefined): void {
+        picture.hidden = file === undefined;
+        if (file !== undefined) picture.src = chrome.runtime.getURL(file);
+    }
+
+    function saved(entry: ChoiceEntry): ChoiceOption {
+        const value = window.kaspSwitches?.getChoice(entry.key) ?? null;
+        return entry.options.find((option) => option.value === value) ?? entry.options.find((option) => option.value === entry.fallback) ?? entry.options[0];
+    }
+
+    // A dropdown drawn like the game's own (its Language choice on the Game tab, measured 2026-11-08): the title, then a box with
+    // the chosen value and an arrow. A click on the box opens the list under it; a click on a value saves it and closes the list;
+    // a click anywhere else, or Escape, closes it.
+    function makeChoice(entry: ChoiceEntry, language: KaspLanguageCode): Choice {
+        const node = element('div', 'kasp-choice');
+        const dropdown = element('div', 'kasp-dropdown');
+        const control = element('div', 'kasp-dropdown-control');
+        control.setAttribute('role', 'button');
+        control.setAttribute('aria-haspopup', 'listbox');
+        control.setAttribute('aria-label', entry.title[language]);
+        const shownPicture = makePicture();
+        const shown = element('span', 'kasp-dropdown-text');
+        const valueBox = element('div', 'kasp-dropdown-value');
+        valueBox.append(shownPicture, shown);
+        control.append(valueBox, element('span', 'kasp-dropdown-arrow'));
+        const menu = element('div', 'kasp-dropdown-menu');
+        menu.setAttribute('role', 'listbox');
+        dropdown.append(control, menu);
+        node.append(element('h3', 'kasp-choice-title', entry.title[language]), dropdown);
+
+        const items = new Map<string, HTMLElement>();
+        const refresh = (): void => {
+            const current = saved(entry);
+            shown.textContent = current.label;
+            showPicture(shownPicture, current.picture);
+            for (const [value, item] of items) item.setAttribute('aria-selected', String(value === current.value));
+        };
+
+        const onOutside = (event: Event): void => {
+            if (event.target instanceof Node && dropdown.contains(event.target)) return;
+            close();
+        };
+        function close(): void {
+            menu.hidden = true;
+            control.setAttribute('aria-expanded', 'false');
+            document.removeEventListener('pointerdown', onOutside, true);
+        }
+        function open(): void {
+            menu.hidden = false;
+            control.setAttribute('aria-expanded', 'true');
+            document.addEventListener('pointerdown', onOutside, true);
+            // The chosen value is in view when the list opens.
+            const chosen = items.get(saved(entry).value);
+            if (chosen !== undefined && chosen.offsetTop + chosen.offsetHeight > menu.clientHeight) {
+                menu.scrollTop = chosen.offsetTop + chosen.offsetHeight - menu.clientHeight;
+            }
+        }
+
+        for (const option of entry.options) {
+            const item = element('div', 'kasp-dropdown-item');
+            item.setAttribute('role', 'option');
+            const picture = makePicture();
+            showPicture(picture, option.picture);
+            item.append(picture, element('span', 'kasp-dropdown-text', option.label));
+            onPress(item, () => {
+                // The fallback is saved as no key, so it stays the default if the default ever changes.
+                if (!(window.kaspSwitches?.setChoice(entry.key, option.value === entry.fallback ? null : option.value) ?? false)) return;
+                refresh();
+                close();
+                control.focus();
+            });
+            items.set(option.value, item);
+            menu.appendChild(item);
+        }
+        onPress(control, () => (menu.hidden ? open() : close()));
+        dropdown.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape' || menu.hidden) return;
+            event.preventDefault();
+            event.stopPropagation();
+            close();
+            control.focus();
+        });
+        close();
+        refresh();
+        return { node, refresh };
+    }
+
     // Our panel, in the classes the game's own panels use inside the box: the legend, one section per group, the game's line
     // between two sections and none above the first, then the notice and RESET ALL. It is made each time our tab opens, so it
     // always shows what is saved.
@@ -173,6 +325,7 @@
         const language = window.kaspLanguage?.get() ?? 'EN';
         const panel = element('div', `${PANEL_MARK} SettingsComponentStyle-scrollingMenu SettingsComponentStyle-settingsBlockOptions`);
         const rows: Array<[SwitchEntry, HTMLElement]> = [];
+        const choices: Array<[ChoiceEntry, Choice]> = [];
 
         const legend = element('p', 'kasp-legend');
         legend.append(makeMark(), ` ${TEXT.afterReload[language]}. ${TEXT.reloadsOnClose[language]}.`);
@@ -203,10 +356,17 @@
                 form.appendChild(row);
             }
             section.appendChild(form);
+            for (const entry of CHOICES) {
+                if (entry.group !== group.id) continue;
+                const choice = makeChoice(entry, language);
+                choices.push([entry, choice]);
+                section.appendChild(choice.node);
+            }
             panel.appendChild(section);
         });
 
-        // RESET ALL removes every key, so every switch is on; a key the browser refused to remove keeps its switch off.
+        // RESET ALL removes every key, so every switch is on and every dropdown shows its default; a key the browser refused to
+        // remove keeps what it had.
         const resetBox = element('div', 'SettingsButtonsComponentStyle-containerGroupButton');
         const reset = element('div', 'kasp-reset');
         reset.setAttribute('role', 'button');
@@ -215,6 +375,10 @@
             for (const [entry, row] of rows) {
                 save(entry.key, true);
                 setSwitch(row, isOn(entry.key));
+            }
+            for (const [entry, choice] of choices) {
+                window.kaspSwitches?.setChoice(entry.key, null);
+                choice.refresh();
             }
             refreshNotice();
         });

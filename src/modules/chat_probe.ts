@@ -1,14 +1,19 @@
 // TEST ONLY (chat translation test), rewritten before the feature is built. The injector posts each player's battle chat
-// message (kasp:chat); the game's own chat line is left as it is. This asks Google for the English text and, when the
-// message was in another language, shows it in a box of its own under the kill feed, in a copy of the game's chat line:
-// rank picture, [clan] name in the sender's side colour, then "[RU->EN] text". A message with letters of another script
-// than English shows three moving dots at once, until the translation comes. The box shows only in a running round, sits
-// in the game's battle area, and starts empty in each battle.
+// message (kasp:chat); the game's own chat line is left as it is. This asks Google for the text in the language chosen in
+// the extension's settings tab (English by default) and, when the message was in another language, shows it in a box of its
+// own under the kill feed, in a copy of the game's chat line: rank picture, [clan] name in the sender's side colour, then
+// "[RU->EN] text". A message with letters of another script than the chosen language's shows three moving dots at once,
+// until the translation comes. The box shows only in a running round, sits in the game's battle area, and starts empty in
+// each battle. The settings tab's switch turns it all off at once: nothing is sent to Google while it is off.
 (function () {
     'use strict';
 
     const LOG = '[KI-test][chat-test]';
-    const TARGET = 'en';
+    const SWITCH_KEY = 'kasp_chattranslate';
+    const LANGUAGE_KEY = 'kasp_chatlanguage';
+    const DEFAULT_TARGET = 'en';
+    // A Google language code, such as en or zh-CN; a saved value of another shape is ignored.
+    const LANGUAGE_CODE = /^[a-z]{2,3}(-[A-Z]{2})?$/;
     const TRANSLATE_URL = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&dt=t';
     const TIMEOUT_MS = 4000;
     const TEXT_MAX = 1000;
@@ -22,8 +27,19 @@
     const ENEMY_COLOUR = '#ff6666';
     const TEXT_COLOUR = '#ffffff';
     const PICTURE_HOST = /(^|\.)tankionline\.com$/;
-    // A letter of another script than Latin: such a message is surely not English, so its dots show at once.
-    const OTHER_SCRIPT = /(?!\p{Script=Latin})\p{L}/u;
+    // The letters of a target language's own script: a message with any other letter is surely in another language, so its
+    // dots show at once. Latin for every target not named here.
+    const SCRIPTS: Readonly<Record<string, RegExp>> = {
+        ru: /\p{Script=Cyrillic}/u,
+        uk: /\p{Script=Cyrillic}/u,
+        bg: /\p{Script=Cyrillic}/u,
+        ar: /\p{Script=Arabic}/u,
+        'zh-CN': /\p{Script=Han}/u,
+        ja: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
+        ko: /[\p{Script=Hangul}\p{Script=Han}]/u,
+    };
+    const LATIN = /\p{Script=Latin}/u;
+    const LETTERS = /\p{L}/gu;
     const CHAT_INPUT = '[class*="BattleChatComponentStyle-input"]';
     const BATTLE_SELECTOR = '.BattleComponentStyle-canvasContainer';
 
@@ -118,9 +134,20 @@
         return { uid: d.uid, clanTag: d.clanTag, ally: d.ally, team: d.team, rankPicture: asPicture(d.rankPicture), text: d.text };
     }
 
+    function surelyForeign(text: string, to: string): boolean {
+        const own = SCRIPTS[to] ?? LATIN;
+        for (const letter of text.matchAll(LETTERS)) if (!own.test(letter[0])) return true;
+        return false;
+    }
+
+    // The code as the line's mark shows it: EN, or ZH for zh-CN.
+    function short(code: string): string {
+        return code.split('-')[0].toUpperCase();
+    }
+
     // Google's answer, or null when the message is already in the target language or did not change.
-    async function askGoogle(text: string): Promise<Translation | null> {
-        const url = `${TRANSLATE_URL}&tl=${TARGET}&q=${encodeURIComponent(text)}`;
+    async function askGoogle(text: string, to: string): Promise<Translation | null> {
+        const url = `${TRANSLATE_URL}&tl=${encodeURIComponent(to)}&q=${encodeURIComponent(text)}`;
         const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const parsed: unknown = await res.json();
@@ -128,19 +155,20 @@
         const pieces: unknown[] = parsed[0];
         const translated = pieces.map((p) => (Array.isArray(p) && typeof p[0] === 'string' ? p[0] : '')).join('').trim();
         const from = parsed[2].toLowerCase();
-        if (from === TARGET || translated === '' || translated.toLowerCase() === text.trim().toLowerCase()) return null;
+        if (from === to.toLowerCase() || translated === '' || translated.toLowerCase() === text.trim().toLowerCase()) return null;
         return { from, text: translated };
     }
 
-    // The same text is asked once (chat spam repeats); a failed answer is forgotten so it can be asked again.
+    // The same text is asked once per target language (chat spam repeats); a failed answer is forgotten so it can be asked again.
     const cache = new Map<string, Promise<Translation | null>>();
 
-    function translate(text: string): Promise<Translation | null> {
-        const known = cache.get(text);
+    function translate(text: string, to: string): Promise<Translation | null> {
+        const key = `${to}\n${text}`;
+        const known = cache.get(key);
         if (known !== undefined) return known;
-        const asked = askGoogle(text);
-        asked.catch(() => cache.delete(text));
-        cache.set(text, asked);
+        const asked = askGoogle(text, to);
+        asked.catch(() => cache.delete(key));
+        cache.set(key, asked);
         if (cache.size > CACHE_MAX) {
             const oldest = cache.keys().next();
             if (!oldest.done) cache.delete(oldest.value);
@@ -246,13 +274,23 @@
         return span;
     }
 
+    // The settings tab's switch and dropdown, read through the switch service; both apply at once.
+    function readLanguage(value: string | null): string {
+        return value !== null && LANGUAGE_CODE.test(value) ? value : DEFAULT_TARGET;
+    }
+
+    let enabled = window.kaspSwitches?.isOn(SWITCH_KEY) ?? true;
+    let language = readLanguage(window.kaspSwitches?.getChoice(LANGUAGE_KEY) ?? null);
+
     function onMessage(message: ChatMessage): void {
+        if (!enabled) return;
         const target = getBox();
         if (target === null) return;
+        const to = language;
         // The line takes its place at once, so lines stay in the order the messages came; it is hidden until the answer
         // unless the message is surely in another language, then it shows its dots.
         const { line, text } = makeLine(message);
-        const sure = OTHER_SCRIPT.test(message.text);
+        const sure = surelyForeign(message.text, to);
         line.hidden = !sure;
         if (sure) text.appendChild(dots());
         target.appendChild(line);
@@ -260,7 +298,7 @@
             trimLines(target);
             showBox(true);
         }
-        translate(message.text)
+        translate(message.text, to)
             .then((result) => {
                 // The battle may have ended, or the line been pushed out, while Google was answering.
                 if (!line.isConnected) return;
@@ -270,7 +308,7 @@
                     showBox(sure);
                     return;
                 }
-                const mark = `[${result.from.toUpperCase()}->${TARGET.toUpperCase()}]`;
+                const mark = `[${short(result.from)}->${short(to)}]`;
                 console.log(`${LOG} translated: "${message.text}" -> ${mark} ${result.text}`);
                 text.textContent = `${mark} ${result.text}`;
                 line.hidden = false;
@@ -342,5 +380,17 @@
         if (time !== null) onBattleTime(time);
     });
 
-    console.log(`${LOG} test build loaded, translations show under the kill feed`);
+    // Off empties the box at once; a new language applies from the next message, and the lines already shown stay.
+    window.kaspSwitches?.onChange(SWITCH_KEY, (on) => {
+        enabled = on;
+        if (!on) box?.replaceChildren();
+        showBox(false);
+        console.log(`${LOG} translation ${on ? 'on' : 'off'}`);
+    });
+    window.kaspSwitches?.onChoice(LANGUAGE_KEY, (value) => {
+        language = readLanguage(value);
+        console.log(`${LOG} translating to ${language}`);
+    });
+
+    console.log(`${LOG} test build loaded, translation ${enabled ? 'on' : 'off'}, translating to ${language}`);
 })();
