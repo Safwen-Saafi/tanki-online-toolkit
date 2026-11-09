@@ -158,10 +158,9 @@ interface KillSoundsConfig {
     readonly grenade: Readonly<Record<string, KillSoundEntry>>;
 }
 
-// TEST ONLY (chat translation test), rewritten before the feature is built. Posted by src/injector.ts for each player's
-// battle chat message. ally is the sender's side relative to the local player, own is true for the player's own message,
-// team is true for a team only message, and rankPicture is the address of the game's small picture of the sender's rank
-// (null when it was not found).
+// Posted by src/injector.ts for each player's battle chat message, for src/modules/chat_translation.ts. ally is the sender's
+// side relative to the local player, own is true for the player's own message, team is true for a team only message, and
+// rankPicture is the address of the game's small picture of the sender's rank (null when it was not found).
 interface KaspChatMessage {
     readonly type: "kasp:chat";
     readonly detail: {
@@ -253,7 +252,7 @@ interface Window {
     __kaspSettingsTabAdd?: (items: unknown[], make: (key: unknown) => unknown, keyField: string, categoryField: string) => unknown[];
     // MAIN world only: the address of the change column's header picture, read by the game's header code (build-plan 18a).
     __kaspChangeHeader?: string;
-    // TEST ONLY (chat translation test), rewritten before the feature is built.
+    // MAIN world only: called by the game's chat code with each message it adds, and the team message class (build-plan 19).
     __kaspChat?: (event: unknown, teamClass: unknown) => void;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;

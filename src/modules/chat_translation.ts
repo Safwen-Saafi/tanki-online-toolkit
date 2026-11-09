@@ -1,5 +1,6 @@
-// TEST ONLY (chat translation test), rewritten before the feature is built. The injector posts each player's battle chat
-// message (kasp:chat); the game's own chat line is left as it is. This asks Google for the text in the language chosen in
+// Isolated-world content script for the chat translation (build-plan 19, see blueprint/context/chat-translation.md). The
+// injector posts each player's battle chat message (kasp:chat); the game's own chat line is left as it is. This asks Google
+// (its free translate address, no key) for the text in the language chosen in
 // the extension's settings tab (English by default) and, when the message was in another language, shows it in a box of its
 // own under the kill feed, in a copy of the game's chat line: rank picture, [clan] name in the sender's side colour, then
 // "[RU->EN] text". A message with letters of another script than the chosen language's shows three moving dots at once,
@@ -13,7 +14,6 @@
 (function () {
     'use strict';
 
-    const LOG = '[KI-test][chat-test]';
     const SWITCH_KEY = 'kasp_chattranslate';
     const LANGUAGE_KEY = 'kasp_chatlanguage';
     const DEFAULT_TARGET = 'en';
@@ -258,7 +258,6 @@
     // False while the game's round is not running: in the lobby, before the round starts and on the results screen
     // (kasp:battle-time). It stays true if that message never comes, so the box still works when that hook is lost.
     let roundRunning = true;
-    let placeLogged = false;
 
     function addStyle(): void {
         if (document.getElementById(`${BOX_ID}-style`) !== null) return;
@@ -266,12 +265,6 @@
         style.id = `${BOX_ID}-style`;
         style.textContent = STYLE;
         (document.head || document.documentElement).appendChild(style);
-    }
-
-    function describe(element: Element | null): string {
-        if (element === null) return 'nothing';
-        const style = getComputedStyle(element);
-        return `${element.tagName.toLowerCase()}${[...element.classList].map((c) => `.${c}`).join('')} (position ${style.position}, z-index ${style.zIndex})`;
     }
 
     // The box sits right after the game's battle canvas, at the canvas's own z-index, so what the game shows over its canvas
@@ -293,10 +286,6 @@
             canvas.after(created);
         } else {
             battle.appendChild(created);
-        }
-        if (!placeLogged) {
-            placeLogged = true;
-            console.log(`${LOG} box placed after ${describe(canvas)}, inside ${describe(created.parentElement)}, battle area ${describe(battle)}`);
         }
         box = created;
         return created;
@@ -377,21 +366,19 @@
             .then((result) => {
                 // The battle may have ended, or the line been pushed out, while Google was answering.
                 if (!line.isConnected) return;
+                // null: already in the chosen language, or Google gave the same text back, so there is nothing to show.
                 if (result === null) {
-                    console.log(`${LOG} kept: "${message.text}"`);
                     line.remove();
                     showBox(sure);
                     return;
                 }
-                const mark = `[${short(result.from)}->${short(to)}]`;
-                console.log(`${LOG} translated: "${message.text}" -> ${mark} ${result.text}`);
-                text.textContent = `${mark} ${result.text}`;
+                text.textContent = `[${short(result.from)}->${short(to)}] ${result.text}`;
                 line.hidden = false;
                 trimLines(target);
                 showBox(true);
             })
-            .catch((e: unknown) => {
-                console.warn(`${LOG} Google failed, no translation: ${e instanceof Error ? `${e.name}: ${e.message}` : String(e)}`);
+            .catch(() => {
+                // Google failed or took too long: the message stays untranslated.
                 if (!line.isConnected) return;
                 line.remove();
                 showBox(sure);
@@ -506,21 +493,20 @@
                 }
                 // null: the typed text is already in that language, so it is the text that goes.
                 const text = result === null ? original : result.text;
+                // Longer than the game's limit: the game would not send it, so the typed text stays.
                 if (text.length > SEND_MAX) {
-                    console.log(`${LOG} button ${index + 1}: the translation has ${text.length} letters, more than the game's ${SEND_MAX}`);
                     paint();
                     fail(index);
                     return;
                 }
                 put(input, text);
                 done = { original, translated: text, button: index };
-                console.log(`${LOG} button ${index + 1}: "${original}" -> ${to}: "${text}"`);
                 paint();
             })
-            .catch((e: unknown) => {
+            .catch(() => {
+                // Google failed or took too long: the typed text stays.
                 if (asked !== question) return;
                 waiting = null;
-                console.warn(`${LOG} button ${index + 1}: Google failed: ${e instanceof Error ? `${e.name}: ${e.message}` : String(e)}`);
                 paint();
                 fail(index);
             });
@@ -662,11 +648,9 @@
         enabled = on;
         if (!on) box?.replaceChildren();
         showBox(false);
-        console.log(`${LOG} translation ${on ? 'on' : 'off'}`);
     });
     window.kaspSwitches?.onChoice(LANGUAGE_KEY, (value) => {
         language = readLanguage(value);
-        console.log(`${LOG} translating to ${language}`);
     });
     // Settings and the chat box are never open together, so a change shows the next time the chat opens.
     window.kaspSwitches?.onChange(BUTTONS_KEY, (on) => {
@@ -675,16 +659,10 @@
             bar?.remove();
             bar = null;
         }
-        console.log(`${LOG} translation buttons ${on ? 'on' : 'off'}`);
     });
     BUTTON_KEYS.forEach((key, index) => {
         window.kaspSwitches?.onChoice(key, (value) => {
             buttonLanguages[index] = readButtonLanguage(index, value);
-            console.log(`${LOG} button ${index + 1} translates to ${buttonLanguages[index]}`);
         });
     });
-
-    console.log(
-        `${LOG} test build loaded, translation ${enabled ? 'on' : 'off'}, translating to ${language}, buttons ${buttonsOn ? 'on' : 'off'} (${buttonLanguages.join(', ')})`,
-    );
 })();

@@ -15,6 +15,7 @@
 // unpatched), so the extension can lose a hook but never the game. One more part patches nothing: it reads each garage card's
 // name, rank and picture address from the game's React data for the hidden augment cards (kasp:cards-request from augments.ts).
 // Another part swaps the game's augment pictures for the old ones bundled in the extension, as the game assigns their addresses (kasp:old-pictures from old_pictures.ts).
+// The chat translation hook posts each player's battle chat message (window.__kaspChat, kasp:chat) for chat_translation.ts.
 (function () {
     'use strict';
 
@@ -1064,12 +1065,13 @@
 
     listenChangeHeader();
 
-    // TEST ONLY (chat translation test), rewritten before the feature is built. Every battle chat message the game adds
-    // to its chat list goes through one function, right before the readable text "BattleChat":
+    // The chat translation hook (build-plan 19, see blueprint/context/chat-translation.md). Every battle chat message the
+    // game adds to its chat list goes through one function, right before the readable text "BattleChat":
     //   function nct(t,n){n instanceof Ret&&n.v11n_1||t.p12x_1.y(n);...}
-    // The edit adds one call at its start that posts each player's message (the sender's name, clan, rank and side, and the
-    // text) to chat_probe.ts, which shows the translation in its own box. The game's own message is not touched. A team
-    // message is told apart by its class, learned from the game's chat display, which registers it as "onTeamMessage".
+    // The edit adds one call at its start (window.__kaspChat) that posts each player's message (kasp:chat: the sender's name,
+    // clan, rank picture and side, whether it is the player's own, whether it is a team message, and the text) to
+    // chat_translation.ts, which shows the translation in its own box. The game's own message is not touched. A team message
+    // is told apart by its class, learned from the game's chat display, which registers it as "onTeamMessage".
     const CHAT_TEXT_MAX = 1000;
     const CHAT_LABEL = /^UserLabelData\(userId=(-?\d+), uid=(.*?), rank=(\d+), hasPremium=(true|false), clanTag=(.*?), teamRelation=(\w+)\)$/;
     const RANK_COUNT = 31;
@@ -1143,10 +1145,10 @@
     const CHAT_ADD = /function ([\w$]+)\(([\w$]+),([\w$]+)\)\{(?=\3 instanceof [\w$]+&&\3\.[\w$]+\|\|\2\.[\w$]+\.[\w$]+\(\3\);)/g;
     const CHAT_TEAM = /callableName="onTeamMessage",[\w$]+\}\(this\);[\w$]+\.[\w$]+\([\w$]+\(([\w$]+)\),/;
 
-    function patchChatProbe(code: string): string | null {
+    function patchChat(code: string): string | null {
         const anchor = code.indexOf(CHAT_ANCHOR);
         if (anchor < 0) {
-            warn(`${LOG} chat test: the text "BattleChat" was not found, test skipped`);
+            warn(`${LOG} could not find the battle chat in this bundle, chat-translation hook skipped`);
             return null;
         }
         const start = Math.max(0, anchor - 3000);
@@ -1155,12 +1157,12 @@
         CHAT_ADD.lastIndex = 0;
         for (let m = CHAT_ADD.exec(before); m !== null; m = CHAT_ADD.exec(before)) last = m;
         if (last === null) {
-            warn(`${LOG} chat test: the add message function was not found, test skipped`);
+            warn(`${LOG} could not find the chat's add message function in this bundle, chat-translation hook skipped`);
             return null;
         }
         const message = last[3];
         const team = CHAT_TEAM.exec(code)?.[1];
-        if (team === undefined) warn(`${LOG} chat test: the team message class was not found, team lines get the all chat colour`);
+        if (team === undefined) warn(`${LOG} could not find the team message class in this bundle, translated team lines get the all chat colour`);
         const teamClass = team === undefined ? 'null' : `typeof ${team}==="function"?${team}:null`;
         const at = start + last.index + last[0].length;
         const call = `window.__kaspChat&&window.__kaspChat(${message},${teamClass});`;
@@ -1217,10 +1219,10 @@
             result = thrown;
             hooked.push('grenade-sounds');
         }
-        const chatProbe = patchChatProbe(result);
-        if (chatProbe !== null) {
-            result = chatProbe;
-            hooked.push('chat-test');
+        const chat = patchChat(result);
+        if (chat !== null) {
+            result = chat;
+            hooked.push('chat-translation');
         }
         return { code: result, hooked };
     }
@@ -1239,10 +1241,10 @@
             const original = await res.text();
             try {
                 rankPictures = findRankPictures(original, src);
-                log(`${LOG} chat test: ${rankPictures.length} rank pictures found`);
             } catch {
                 rankPictures = [];
             }
+            if (rankPictures.length === 0) warn(`${LOG} could not find the rank pictures in this bundle, translated chat lines show no rank`);
             const patched = patchBundle(original);
             script.textContent = patched.code;
             if (patched.hooked.length > 0) log(`${LOG} hooks added to the game: ${patched.hooked.join(', ')}`);
