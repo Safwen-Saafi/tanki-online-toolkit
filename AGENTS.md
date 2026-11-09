@@ -13,7 +13,7 @@ for optional tool settings.
 
 ## What this is
 
-Tanki Online ToolKit: a personal Manifest V3 Chrome extension that adds quality-of-life features to the browser game Tanki Online, which its own client does not offer: a marker on players who change equipment mid-battle, the chosen garage skins kept on screen, augment info and hidden cards in the garage and on the Containers screen, the old augment pictures, kill, battle and weapon sounds, and a tab in the game's own settings to switch each of them on or off. The repo also holds the Tanki Augments Bot, which publishes the wiki's augment data the extension reads.
+Tanki Online ToolKit: a personal Manifest V3 Chrome extension that adds quality-of-life features to the browser game Tanki Online, which its own client does not offer: a marker on players who change equipment mid-battle, the chosen garage skins kept on screen, augment info and hidden cards in the garage and on the Containers screen, the old augment pictures, kill, battle and weapon sounds, the battle chat translated into a language the player picks (other players' messages in a box under the kill feed, the player's own through buttons beside the chat box), and a tab in the game's own settings to switch each of them on or off. The repo also holds the Tanki Augments Bot, which publishes the wiki's augment data the extension reads.
 
 This project is built with the **AI Blueprint**, a workflow layer, not an
 app skeleton. To start a new project, scaffold the app first in an empty folder
@@ -56,7 +56,8 @@ and installed dependencies before adding machinery.
 - `blueprint/context/garage-augments-screen.md` - read before changing anything in the augments module (the item title, tab detection, the Augments tab tiles and the spec box) or the old augment picture swap (the page hooks in `injector.ts`, `old_pictures.ts`, the Containers matching by stable path)
 - `blueprint/context/kill-events.md` - read before changing anything in the kill sounds (the game's kill events, how the player is identified, the streak rules, how to add a sound)
 - `blueprint/context/battle-sounds.md` - read before changing the end of battle music, the grenade sounds or the weapon sounds (Magnum, Striker, Gauss) (the game's battle time, the music rules, how a grenade throw is detected, how the game's weapon sound files are named and swapped)
-- `blueprint/context/settings-tab.md` - read before changing the extension's tab in the game's settings screen (how the game builds its tabs, bar and panels, the settings-tab hook in `injector.ts` that adds ours, how `settings_tab.ts` fills our panel, the switches and how `switches.ts` saves and applies them, and the dead ends)
+- `blueprint/context/settings-tab.md` - read before changing the extension's tab in the game's settings screen (how the game builds its tabs, bar and panels, the settings-tab hook in `injector.ts` that adds ours, how `settings_tab.ts` fills our panel, the switches and the dropdowns and how `switches.ts` saves and applies them, and the dead ends)
+- `blueprint/context/chat-translation.md` - read before changing the chat translation (how the game handles its battle chat and chat box, the chat hook in `injector.ts`, the box under the kill feed and the translation buttons in `chat_translation.ts`, Google's translate address, the flags, and the dead ends)
 
 Reuse relevant context already loaded in the session. Claude Code imports only
 this file; its Blueprint skills load the other files on demand.

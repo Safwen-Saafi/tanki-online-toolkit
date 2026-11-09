@@ -158,6 +158,22 @@ interface KillSoundsConfig {
     readonly grenade: Readonly<Record<string, KillSoundEntry>>;
 }
 
+// Posted by src/injector.ts for each player's battle chat message, for src/modules/chat_translation.ts. ally is the sender's
+// side relative to the local player, own is true for the player's own message, team is true for a team only message, and
+// rankPicture is the address of the game's small picture of the sender's rank (null when it was not found).
+interface KaspChatMessage {
+    readonly type: "kasp:chat";
+    readonly detail: {
+        readonly uid: string;
+        readonly clanTag: string | null;
+        readonly ally: boolean;
+        readonly own: boolean;
+        readonly team: boolean;
+        readonly rankPicture: string | null;
+        readonly text: string;
+    };
+}
+
 // Published by src/modules/language.ts. get() is EN until the language is found; whenKnown resolves once with the
 // settled language (a language change reloads the page, so it does not change after that).
 interface KaspLanguage {
@@ -210,11 +226,16 @@ interface KaspOldPictures {
 // Published by src/modules/switches.ts, the one place that knows how a feature's switch is saved (off is the exact text 0 under its
 // localStorage key, on is no key). isOn(key) reads the saved value; set(key, on) saves it (only the settings tab calls it) and is
 // false when the browser refused; onChange(key, action) leaves an action that set calls with the new value when that switch really
-// changes, which is how a live module learns of a change with no loop and no page event.
+// changes, which is how a live module learns of a change with no loop and no page event. A choice (such as the chat's target
+// language) is the same with a text: getChoice(key) is the saved text, or null for the module's default; setChoice(key, null)
+// goes back to that default; onChoice(key, action) is called with the new value when it really changes.
 interface KaspSwitches {
     readonly isOn: (key: string) => boolean;
     readonly set: (key: string, on: boolean) => boolean;
     readonly onChange: (key: string, action: (on: boolean) => void) => void;
+    readonly getChoice: (key: string) => string | null;
+    readonly setChoice: (key: string, value: string | null) => boolean;
+    readonly onChoice: (key: string, action: (value: string | null) => void) => void;
 }
 
 interface Window {
@@ -231,6 +252,8 @@ interface Window {
     __kaspSettingsTabAdd?: (items: unknown[], make: (key: unknown) => unknown, keyField: string, categoryField: string) => unknown[];
     // MAIN world only: the address of the change column's header picture, read by the game's header code (build-plan 18a).
     __kaspChangeHeader?: string;
+    // MAIN world only: called by the game's chat code with each message it adds, and the team message class (build-plan 19).
+    __kaspChat?: (event: unknown, teamClass: unknown) => void;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
     kaspOldPictures?: KaspOldPictures;
