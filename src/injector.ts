@@ -1071,7 +1071,7 @@
     // text) to chat_probe.ts, which shows the translation in its own box. The game's own message is not touched. A team
     // message is told apart by its class, learned from the game's chat display, which registers it as "onTeamMessage".
     const CHAT_TEXT_MAX = 1000;
-    const CHAT_LABEL = /^UserLabelData\(userId=-?\d+, uid=(.*?), rank=(\d+), hasPremium=(true|false), clanTag=(.*?), teamRelation=(\w+)\)$/;
+    const CHAT_LABEL = /^UserLabelData\(userId=(-?\d+), uid=(.*?), rank=(\d+), hasPremium=(true|false), clanTag=(.*?), teamRelation=(\w+)\)$/;
     const RANK_COUNT = 31;
     const seenChat = new WeakSet<object>();
     // The game's small rank pictures as full addresses: plain ranks 1 to 31, then premium ranks 1 to 31. Empty when not found.
@@ -1093,14 +1093,16 @@
                 }
             }
             if (label === null || text === null || text.trim() === '' || text.length > CHAT_TEXT_MAX) return;
-            const rank = Number(label[2]);
-            const premium = label[3] === 'true';
+            const rank = Number(label[3]);
+            const premium = label[4] === 'true';
             const message: KaspChatMessage = {
                 type: 'kasp:chat',
                 detail: {
-                    uid: label[1],
-                    clanTag: label[4] === 'null' ? null : label[4],
-                    ally: label[5] === 'ALLY',
+                    uid: label[2],
+                    clanTag: label[5] === 'null' ? null : label[5],
+                    ally: label[6] === 'ALLY',
+                    // the player's own message (the id from the game's SetUserId)
+                    own: ownUserId !== '' && label[1] === ownUserId,
                     team: typeof teamClass === 'function' && event instanceof teamClass,
                     rankPicture: rankPictures[(premium ? RANK_COUNT : 0) + rank - 1] ?? null,
                     text,

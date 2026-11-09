@@ -78,6 +78,11 @@
     margin-top: 0.75em;
 }
 
+/* Dropdowns one under another are spaced by the dropdown's own bottom margin only, as the game spaces its rows. */
+.kasp-choice + .kasp-choice {
+    margin-top: 0;
+}
+
 .kasp-choice-title {
     margin: 0 0 1em;
     color: #fff;

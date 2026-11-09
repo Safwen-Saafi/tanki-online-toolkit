@@ -159,14 +159,16 @@ interface KillSoundsConfig {
 }
 
 // TEST ONLY (chat translation test), rewritten before the feature is built. Posted by src/injector.ts for each player's
-// battle chat message. ally is the sender's side relative to the local player, team is true for a team only message, and
-// rankPicture is the address of the game's small picture of the sender's rank (null when it was not found).
+// battle chat message. ally is the sender's side relative to the local player, own is true for the player's own message,
+// team is true for a team only message, and rankPicture is the address of the game's small picture of the sender's rank
+// (null when it was not found).
 interface KaspChatMessage {
     readonly type: "kasp:chat";
     readonly detail: {
         readonly uid: string;
         readonly clanTag: string | null;
         readonly ally: boolean;
+        readonly own: boolean;
         readonly team: boolean;
         readonly rankPicture: string | null;
         readonly text: string;

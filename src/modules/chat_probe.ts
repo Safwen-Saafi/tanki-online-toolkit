@@ -4,7 +4,12 @@
 // own under the kill feed, in a copy of the game's chat line: rank picture, [clan] name in the sender's side colour, then
 // "[RU->EN] text". A message with letters of another script than the chosen language's shows three moving dots at once,
 // until the translation comes. The box shows only in a running round, sits in the game's battle area, and starts empty in
-// each battle. The settings tab's switch turns it all off at once: nothing is sent to Google while it is off.
+// each battle. The settings tab's switch turns it all off at once: nothing is sent to Google while it is off. The player's own
+// messages are not shown in the box.
+// The player's own messages: while the game's chat box is open, three buttons beside it (or Alt+1, Alt+2, Alt+3) put the
+// typed text into the language chosen for that button, in the chat box itself; the game sends whatever is in the box when the
+// player presses Enter, as always. The same button again gives the typed text back. Only the text of a pressed button goes to
+// Google. A translation longer than the game's limit, or a failed one, leaves the text as typed and the button flashes red.
 (function () {
     'use strict';
 
@@ -42,6 +47,17 @@
     const LETTERS = /\p{L}/gu;
     const CHAT_INPUT = '[class*="BattleChatComponentStyle-input"]';
     const BATTLE_SELECTOR = '.BattleComponentStyle-canvasContainer';
+    // The game's chat row (the chat box and the button after it), and the bordered box around the text field.
+    const CHAT_ROW = '.BattleChatComponentStyle-container';
+    const CHAT_FIELD_BOX = '[class*="BattleChatComponentStyle-inputContainer"]';
+    const BUTTONS_KEY = 'kasp_chatbuttons';
+    // The settings tab's dropdown for each button, and the language it has when nothing is saved.
+    const BUTTON_KEYS = ['kasp_chatbutton1', 'kasp_chatbutton2', 'kasp_chatbutton3'] as const;
+    const BUTTON_DEFAULTS = ['ru', 'en', 'pt'] as const;
+    const BUTTONS_ID = 'kasp-chat-buttons';
+    // The game's own limit (its chat code): a longer message is not sent, and its text turns red in the chat box.
+    const SEND_MAX = 170;
+    const FAIL_MS = 1500;
 
     const STYLE = `
 #${BOX_ID} {
@@ -71,7 +87,7 @@
     width: 24px;
     height: 24px;
 }
-#${BOX_ID} .kasp-chat-dots i {
+.kasp-chat-dots i {
     display: inline-block;
     width: 5px;
     height: 5px;
@@ -82,21 +98,80 @@
     vertical-align: middle;
     animation: kasp-chat-dot 1s ease-in-out infinite;
 }
-#${BOX_ID} .kasp-chat-dots i:nth-child(2) {
+.kasp-chat-dots i:nth-child(2) {
     animation-delay: 0.15s;
 }
-#${BOX_ID} .kasp-chat-dots i:nth-child(3) {
+.kasp-chat-dots i:nth-child(3) {
     animation-delay: 0.3s;
 }
 @keyframes kasp-chat-dot {
     0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
     40% { opacity: 1; transform: translateY(-3px); }
+}
+/* The translation buttons beside the game's chat box, drawn like that box (measured 2026-11-08: a dark see-through fill, a
+   2 pixel border, corners of 0.5rem, the text in the game's medium font at 1.25rem); rem is the game's own size unit. */
+#${BUTTONS_ID} {
+    position: fixed;
+    z-index: 2147483647;
+    display: flex;
+    gap: 0.5rem;
+    user-select: none;
+}
+#${BUTTONS_ID} .kasp-chat-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    box-sizing: border-box;
+    height: 100%;
+    min-width: 4.5rem;
+    padding: 0 0.75rem;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.5rem;
+    background: rgba(0, 10, 15, 0.5);
+    color: #fff;
+    font: 1.25rem BaseFontMedium, FallbackFontMedium, sans-serif;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+#${BUTTONS_ID} .kasp-chat-button:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+}
+#${BUTTONS_ID} .kasp-chat-button.kasp-active {
+    border-color: #76ff33;
+}
+#${BUTTONS_ID} .kasp-chat-button.kasp-failed {
+    border-color: ${ENEMY_COLOUR};
+}
+#${BUTTONS_ID} .kasp-chat-button-top {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    height: 1.5rem;
+}
+#${BUTTONS_ID} .kasp-chat-button img {
+    display: block;
+    width: 1.5rem;
+    height: 1rem;
+}
+#${BUTTONS_ID} .kasp-chat-button-key {
+    color: rgba(255, 255, 255, 0.5);
+    font: 0.8rem BaseFontRegular, FallbackFontRegular, sans-serif;
+}
+#${BUTTONS_ID} .kasp-chat-dots,
+#${BUTTONS_ID} .kasp-waiting .kasp-chat-button-code {
+    display: none;
+}
+#${BUTTONS_ID} .kasp-waiting .kasp-chat-dots {
+    display: inline;
 }`;
 
     interface ChatMessage {
         readonly uid: string;
         readonly clanTag: string | null;
         readonly ally: boolean;
+        readonly own: boolean;
         readonly team: boolean;
         readonly rankPicture: string | null;
         readonly text: string;
@@ -129,9 +204,9 @@
         const d = record.detail as Record<string, unknown>;
         if (typeof d.uid !== 'string' || d.uid.length > 50) return null;
         if (d.clanTag !== null && (typeof d.clanTag !== 'string' || d.clanTag.length > 20)) return null;
-        if (typeof d.ally !== 'boolean' || typeof d.team !== 'boolean') return null;
+        if (typeof d.ally !== 'boolean' || typeof d.own !== 'boolean' || typeof d.team !== 'boolean') return null;
         if (typeof d.text !== 'string' || d.text.trim() === '' || d.text.length > TEXT_MAX) return null;
-        return { uid: d.uid, clanTag: d.clanTag, ally: d.ally, team: d.team, rankPicture: asPicture(d.rankPicture), text: d.text };
+        return { uid: d.uid, clanTag: d.clanTag, ally: d.ally, own: d.own, team: d.team, rankPicture: asPicture(d.rankPicture), text: d.text };
     }
 
     function surelyForeign(text: string, to: string): boolean {
@@ -283,7 +358,7 @@
     let language = readLanguage(window.kaspSwitches?.getChoice(LANGUAGE_KEY) ?? null);
 
     function onMessage(message: ChatMessage): void {
-        if (!enabled) return;
+        if (!enabled || message.own) return;
         const target = getBox();
         if (target === null) return;
         const to = language;
@@ -346,7 +421,179 @@
         showBox(false);
     }
 
-    function isChatInput(target: EventTarget | null): boolean {
+    // The translation buttons beside the game's chat box, for the player's own messages.
+    interface Translated {
+        readonly original: string;
+        readonly translated: string;
+        readonly button: number;
+    }
+
+    function readButtonLanguage(index: number, value: string | null): string {
+        return value !== null && LANGUAGE_CODE.test(value) ? value : BUTTON_DEFAULTS[index];
+    }
+
+    let buttonsOn = window.kaspSwitches?.isOn(BUTTONS_KEY) ?? true;
+    const buttonLanguages: string[] = BUTTON_KEYS.map((key, index) => readButtonLanguage(index, window.kaspSwitches?.getChoice(key) ?? null));
+    let bar: HTMLDivElement | null = null;
+    let field: HTMLInputElement | null = null;
+    // The last translation a button put in the chat box; it counts while the box still shows it.
+    let done: Translated | null = null;
+    // The button waiting for Google, and the number of the last question, so an old answer is dropped.
+    let waiting: number | null = null;
+    let question = 0;
+    // True while this script changes the chat box itself, so the change is not taken for the player's typing.
+    let putting = false;
+    const failTimers = [0, 0, 0];
+
+    // Puts the text in the game's chat box the way the game reads it: the game sends the box's value when Enter is pressed
+    // (proven 2026-11-08: the text put in was sent exactly as it was, and the box kept the focus).
+    function put(input: HTMLInputElement, text: string): void {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        putting = true;
+        try {
+            if (setter === undefined) input.value = text;
+            else setter.call(input, text);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        } finally {
+            putting = false;
+        }
+        input.setSelectionRange(text.length, text.length);
+    }
+
+    function paint(): void {
+        if (bar === null) return;
+        Array.from(bar.children).forEach((button, index) => {
+            button.classList.toggle('kasp-waiting', waiting === index);
+            button.classList.toggle('kasp-active', done !== null && done.button === index && field !== null && field.value === done.translated);
+        });
+    }
+
+    function fail(index: number): void {
+        const button = bar?.children[index];
+        if (button === undefined) return;
+        button.classList.add('kasp-failed');
+        window.clearTimeout(failTimers[index]);
+        failTimers[index] = window.setTimeout(() => button.classList.remove('kasp-failed'), FAIL_MS);
+    }
+
+    function press(index: number): void {
+        const input = field;
+        if (input === null || !input.isConnected || waiting !== null) return;
+        const showing = input.value;
+        const last = done !== null && showing === done.translated ? done : null;
+        // The same button again, on its own translation, gives the typed text back.
+        if (last !== null && last.button === index) {
+            put(input, last.original);
+            done = null;
+            paint();
+            return;
+        }
+        // Another button, on a translation, translates the typed text, not the translation.
+        const original = last !== null ? last.original : showing;
+        if (original.trim() === '') return;
+        const to = buttonLanguages[index];
+        const asked = ++question;
+        waiting = index;
+        paint();
+        translate(original, to)
+            .then((result) => {
+                if (asked !== question) return;
+                waiting = null;
+                // The chat closed, or its text changed, while Google was answering: the answer is dropped.
+                if (field !== input || input.value !== showing) {
+                    paint();
+                    return;
+                }
+                // null: the typed text is already in that language, so it is the text that goes.
+                const text = result === null ? original : result.text;
+                if (text.length > SEND_MAX) {
+                    console.log(`${LOG} button ${index + 1}: the translation has ${text.length} letters, more than the game's ${SEND_MAX}`);
+                    paint();
+                    fail(index);
+                    return;
+                }
+                put(input, text);
+                done = { original, translated: text, button: index };
+                console.log(`${LOG} button ${index + 1}: "${original}" -> ${to}: "${text}"`);
+                paint();
+            })
+            .catch((e: unknown) => {
+                if (asked !== question) return;
+                waiting = null;
+                console.warn(`${LOG} button ${index + 1}: Google failed: ${e instanceof Error ? `${e.name}: ${e.message}` : String(e)}`);
+                paint();
+                fail(index);
+            });
+    }
+
+    function makeButton(index: number): HTMLDivElement {
+        const code = buttonLanguages[index];
+        const button = document.createElement('div');
+        button.className = 'kasp-chat-button';
+        button.title = `Alt+${index + 1}`;
+        const top = document.createElement('div');
+        top.className = 'kasp-chat-button-top';
+        const flag = document.createElement('img');
+        flag.alt = '';
+        flag.addEventListener('error', () => flag.remove());
+        flag.src = chrome.runtime.getURL(`flags/${code}.webp`);
+        const name = document.createElement('span');
+        name.className = 'kasp-chat-button-code';
+        name.textContent = short(code);
+        top.append(flag, name, dots());
+        const key = document.createElement('span');
+        key.className = 'kasp-chat-button-key';
+        key.textContent = `Alt+${index + 1}`;
+        button.append(top, key);
+        // The button never takes the focus, so the chat stays open, and the game never sees the press.
+        for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup'] as const) {
+            button.addEventListener(type, (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+        }
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            press(index);
+        });
+        return button;
+    }
+
+    // Right after the game's chat row (its chat box and the button after it), as tall as the chat box and level with it.
+    function place(): void {
+        if (bar === null || field === null) return;
+        const row = (field.closest(CHAT_ROW) ?? field).getBoundingClientRect();
+        const fieldBox = (field.closest(CHAT_FIELD_BOX) ?? field).getBoundingClientRect();
+        bar.style.left = `calc(${row.right}px + 0.6rem)`;
+        bar.style.top = `${fieldBox.top}px`;
+        bar.style.height = `${fieldBox.height}px`;
+    }
+
+    function showButtons(input: HTMLInputElement): void {
+        field = input;
+        done = null;
+        bar?.remove();
+        bar = null;
+        if (!buttonsOn) return;
+        addStyle();
+        bar = document.createElement('div');
+        bar.id = BUTTONS_ID;
+        bar.append(...BUTTON_KEYS.map((_key, index) => makeButton(index)));
+        document.body.appendChild(bar);
+        place();
+        paint();
+    }
+
+    function hideButtons(): void {
+        bar?.remove();
+        bar = null;
+        field = null;
+        done = null;
+        waiting = null;
+        question++;
+    }
+
+    function isChatInput(target: EventTarget | null): target is HTMLInputElement {
         return target instanceof HTMLInputElement && target.closest(CHAT_INPUT) !== null;
     }
 
@@ -356,6 +603,7 @@
             if (!isChatInput(event.target)) return;
             inputOpen = true;
             showBox(false);
+            showButtons(event.target);
         },
         true,
     );
@@ -365,9 +613,38 @@
             if (!isChatInput(event.target)) return;
             inputOpen = false;
             showBox(false);
+            hideButtons();
         },
         true,
     );
+    // The player typing: a question still waiting is dropped, and a button's translation stops counting once the text changes.
+    document.addEventListener(
+        'input',
+        (event: Event) => {
+            if (putting || event.target !== field) return;
+            if (waiting !== null) {
+                waiting = null;
+                question++;
+            }
+            paint();
+        },
+        true,
+    );
+    // Alt+1, Alt+2, Alt+3 press the buttons while the chat box is open (the game does nothing with them there, proven
+    // 2026-11-08). With the buttons off, the keys go to the game as always.
+    window.addEventListener(
+        'keydown',
+        (event: KeyboardEvent) => {
+            if (bar === null || field === null || document.activeElement !== field || !event.altKey) return;
+            const index = ['Digit1', 'Digit2', 'Digit3'].indexOf(event.code);
+            if (index < 0) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            press(index);
+        },
+        true,
+    );
+    window.addEventListener('resize', place);
 
     window.addEventListener('message', (event: MessageEvent) => {
         if (event.source !== window) return;
@@ -391,6 +668,23 @@
         language = readLanguage(value);
         console.log(`${LOG} translating to ${language}`);
     });
+    // Settings and the chat box are never open together, so a change shows the next time the chat opens.
+    window.kaspSwitches?.onChange(BUTTONS_KEY, (on) => {
+        buttonsOn = on;
+        if (!on) {
+            bar?.remove();
+            bar = null;
+        }
+        console.log(`${LOG} translation buttons ${on ? 'on' : 'off'}`);
+    });
+    BUTTON_KEYS.forEach((key, index) => {
+        window.kaspSwitches?.onChoice(key, (value) => {
+            buttonLanguages[index] = readButtonLanguage(index, value);
+            console.log(`${LOG} button ${index + 1} translates to ${buttonLanguages[index]}`);
+        });
+    });
 
-    console.log(`${LOG} test build loaded, translation ${enabled ? 'on' : 'off'}, translating to ${language}`);
+    console.log(
+        `${LOG} test build loaded, translation ${enabled ? 'on' : 'off'}, translating to ${language}, buttons ${buttonsOn ? 'on' : 'off'} (${buttonLanguages.join(', ')})`,
+    );
 })();

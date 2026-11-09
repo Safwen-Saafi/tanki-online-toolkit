@@ -59,6 +59,7 @@
         { key: 'kasp_turretcolours', group: 'battle', live: true, label: { EN: 'Coloured turret icons', RU: 'Цветные значки пушек' } },
         { key: 'kasp_battleaugments', group: 'battle', live: true, label: { EN: 'Augment info', RU: 'Описания устройств' } },
         { key: 'kasp_chattranslate', group: 'chat', live: true, label: { EN: 'Translate chat', RU: 'Переводить чат' } },
+        { key: 'kasp_chatbuttons', group: 'chat', live: true, label: { EN: 'Translation buttons in my chat', RU: 'Кнопки перевода в моём чате' } },
         {
             key: 'kasp_augments',
             group: 'garage',
@@ -78,10 +79,11 @@
         readonly picture?: string;
     }
 
-    // A dropdown under a group's switches. Its module reads it through the switch service, which saves the value under key.
+    // A dropdown, shown right under the switch whose key is after. Its module reads it through the switch service, which saves the
+    // value under key.
     interface ChoiceEntry {
         key: string;
-        group: SwitchGroup;
+        after: string;
         title: Record<KaspLanguageCode, string>;
         // The value shown when nothing is saved; choosing it removes the key.
         fallback: string;
@@ -116,7 +118,15 @@
     ).map(([value, label]) => ({ value, label, picture: `flags/${value}.webp` }));
 
     const CHOICES: readonly ChoiceEntry[] = [
-        { key: 'kasp_chatlanguage', group: 'chat', title: { EN: 'Translate to', RU: 'Переводить на' }, fallback: 'en', options: CHAT_LANGUAGES },
+        { key: 'kasp_chatlanguage', after: 'kasp_chattranslate', title: { EN: 'Translate to', RU: 'Переводить на' }, fallback: 'en', options: CHAT_LANGUAGES },
+        // The three buttons shown beside the chat box while the player types (Alt+1, Alt+2, Alt+3).
+        ...(['ru', 'en', 'pt'] as const).map((fallback, index) => ({
+            key: `kasp_chatbutton${index + 1}`,
+            after: 'kasp_chatbuttons',
+            title: { EN: `Button ${index + 1} (Alt+${index + 1})`, RU: `Кнопка ${index + 1} (Alt+${index + 1})` },
+            fallback,
+            options: CHAT_LANGUAGES,
+        })),
     ];
 
     // The mark after the label of a switch that applies after a reload, and in the legend that explains it.
@@ -348,19 +358,25 @@
             }
             const section = document.createElement('div');
             section.appendChild(element('p', HEADING_CLASS, group.heading[language]));
-            const form = element('div', FORM_CLASS);
+            // The switches sit in the game's form box; a switch's dropdowns go right under it, outside that box, and the next
+            // switches start a new one.
+            let form: HTMLElement | null = null;
             for (const entry of SWITCHES) {
                 if (entry.group !== group.id) continue;
                 const row = makeSwitch(entry, language, refreshNotice);
                 rows.push([entry, row]);
+                if (form === null) {
+                    form = element('div', FORM_CLASS);
+                    section.appendChild(form);
+                }
                 form.appendChild(row);
-            }
-            section.appendChild(form);
-            for (const entry of CHOICES) {
-                if (entry.group !== group.id) continue;
-                const choice = makeChoice(entry, language);
-                choices.push([entry, choice]);
-                section.appendChild(choice.node);
+                for (const choiceEntry of CHOICES) {
+                    if (choiceEntry.after !== entry.key) continue;
+                    const choice = makeChoice(choiceEntry, language);
+                    choices.push([choiceEntry, choice]);
+                    section.appendChild(choice.node);
+                    form = null;
+                }
             }
             panel.appendChild(section);
         });
