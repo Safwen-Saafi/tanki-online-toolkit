@@ -1,0 +1,134 @@
+/* The chat translation (src/modules/chat_translation.ts, build-plan 19): the box of translated lines under the kill feed and
+   the translation buttons beside the game's chat box. See blueprint/context/chat-translation.md. */
+
+/* The box: a copy of the game's chat line look (bold 'Open Sans', a black shadow), on the right under the kill feed and as wide
+   as its widest rows. The game's own chat lines are drawn on its canvas, so these are copied, not reused. */
+#kasp-chat-translations {
+    position: fixed;
+    top: 44vh;
+    right: 2vw;
+    width: 18vw;
+    pointer-events: none;
+    font: bold 15px/23px 'Open Sans', sans-serif;
+    color: #ffffff;
+    text-shadow: 0 0 5px #000, 0 0 5px #000;
+}
+
+#kasp-chat-translations[hidden],
+#kasp-chat-translations [hidden] {
+    display: none;
+}
+
+/* A line: the rank picture in a 26 pixel gap on the left, so the name and every wrapped line start on one edge. */
+#kasp-chat-translations .kasp-chat-line {
+    position: relative;
+    padding-left: 26px;
+    text-align: left;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+#kasp-chat-translations .kasp-chat-rank {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24px;
+    height: 24px;
+}
+
+/* Three moving dots while a translation is on its way, in a line of the box and on a button. */
+.kasp-chat-dots i {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    margin: 0 2px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 3px #000;
+    vertical-align: middle;
+    animation: kasp-chat-dot 1s ease-in-out infinite;
+}
+
+.kasp-chat-dots i:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.kasp-chat-dots i:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes kasp-chat-dot {
+    0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+    40% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* The translation buttons beside the game's chat box, drawn like that box (measured 2026-11-08: a dark see-through fill, a
+   2 pixel border, corners of 0.5rem, the text in the game's medium font at 1.25rem); rem is the game's own size unit. Their
+   place and height are set by the script from the chat box. Green: the chat box holds that button's translation. Red: it
+   failed, or the translation is longer than the game sends. */
+#kasp-chat-buttons {
+    position: fixed;
+    z-index: 2147483647;
+    display: flex;
+    gap: 0.5rem;
+    user-select: none;
+}
+
+#kasp-chat-buttons .kasp-chat-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    box-sizing: border-box;
+    height: 100%;
+    min-width: 4.5rem;
+    padding: 0 0.75rem;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.5rem;
+    background: rgba(0, 10, 15, 0.5);
+    color: #fff;
+    font: 1.25rem BaseFontMedium, FallbackFontMedium, sans-serif;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+#kasp-chat-buttons .kasp-chat-button:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+#kasp-chat-buttons .kasp-chat-button.kasp-active {
+    border-color: #76ff33;
+}
+
+#kasp-chat-buttons .kasp-chat-button.kasp-failed {
+    border-color: #ff6666;
+}
+
+#kasp-chat-buttons .kasp-chat-button-top {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    height: 1.5rem;
+}
+
+#kasp-chat-buttons .kasp-chat-button img {
+    display: block;
+    width: 1.5rem;
+    height: 1rem;
+}
+
+#kasp-chat-buttons .kasp-chat-button-key {
+    color: rgba(255, 255, 255, 0.5);
+    font: 0.8rem BaseFontRegular, FallbackFontRegular, sans-serif;
+}
+
+/* While waiting, the dots take the place of the language code. */
+#kasp-chat-buttons .kasp-chat-dots,
+#kasp-chat-buttons .kasp-waiting .kasp-chat-button-code {
+    display: none;
+}
+
+#kasp-chat-buttons .kasp-waiting .kasp-chat-dots {
+    display: inline;
+}

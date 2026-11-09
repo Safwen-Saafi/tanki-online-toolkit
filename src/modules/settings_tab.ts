@@ -117,6 +117,8 @@
         ] as const
     ).map(([value, label]) => ({ value, label, picture: `flags/${value}.webp` }));
 
+    // The fallbacks are also written in chat_translation.ts (DEFAULT_TARGET and BUTTON_DEFAULTS), whose copy decides what happens
+    // when nothing is saved. Change both together.
     const CHOICES: readonly ChoiceEntry[] = [
         { key: 'kasp_chatlanguage', after: 'kasp_chattranslate', title: { EN: 'Translate to', RU: 'Переводить на' }, fallback: 'en', options: CHAT_LANGUAGES },
         // The three buttons shown beside the chat box while the player types (Alt+1, Alt+2, Alt+3).

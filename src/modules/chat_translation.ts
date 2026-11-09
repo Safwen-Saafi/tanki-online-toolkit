@@ -16,6 +16,8 @@
 
     const SWITCH_KEY = 'kasp_chattranslate';
     const LANGUAGE_KEY = 'kasp_chatlanguage';
+    // The default languages (this one and BUTTON_DEFAULTS) are also each dropdown's fallback in CHOICES in settings_tab.ts:
+    // choosing a default saves no key, so this copy decides what happens. Change both together.
     const DEFAULT_TARGET = 'en';
     // A Google language code, such as en or zh-CN; a saved value of another shape is ignored.
     const LANGUAGE_CODE = /^[a-z]{2,3}(-[A-Z]{2})?$/;
@@ -26,6 +28,7 @@
     const MAX_LINES = 8;
     const SHOW_MS = 10000;
     const CACHE_MAX = 200;
+    // The box and the buttons get their look from extension/styles/chat_translation.css, by these ids.
     const BOX_ID = 'kasp-chat-translations';
     // The game's chat colours: an ally's name, an enemy's name, and the text of a message to all.
     const ALLY_COLOUR = '#33bbff';
@@ -58,114 +61,6 @@
     // The game's own limit (its chat code): a longer message is not sent, and its text turns red in the chat box.
     const SEND_MAX = 170;
     const FAIL_MS = 1500;
-
-    const STYLE = `
-#${BOX_ID} {
-    position: fixed;
-    top: 44vh;
-    right: 2vw;
-    width: 18vw;
-    pointer-events: none;
-    font: bold 15px/23px 'Open Sans', sans-serif;
-    color: ${TEXT_COLOUR};
-    text-shadow: 0 0 5px #000, 0 0 5px #000;
-}
-#${BOX_ID}[hidden], #${BOX_ID} [hidden] {
-    display: none;
-}
-#${BOX_ID} .kasp-chat-line {
-    position: relative;
-    padding-left: 26px;
-    text-align: left;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-}
-#${BOX_ID} .kasp-chat-rank {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 24px;
-    height: 24px;
-}
-.kasp-chat-dots i {
-    display: inline-block;
-    width: 5px;
-    height: 5px;
-    margin: 0 2px;
-    border-radius: 50%;
-    background: currentColor;
-    box-shadow: 0 0 3px #000;
-    vertical-align: middle;
-    animation: kasp-chat-dot 1s ease-in-out infinite;
-}
-.kasp-chat-dots i:nth-child(2) {
-    animation-delay: 0.15s;
-}
-.kasp-chat-dots i:nth-child(3) {
-    animation-delay: 0.3s;
-}
-@keyframes kasp-chat-dot {
-    0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
-    40% { opacity: 1; transform: translateY(-3px); }
-}
-/* The translation buttons beside the game's chat box, drawn like that box (measured 2026-11-08: a dark see-through fill, a
-   2 pixel border, corners of 0.5rem, the text in the game's medium font at 1.25rem); rem is the game's own size unit. */
-#${BUTTONS_ID} {
-    position: fixed;
-    z-index: 2147483647;
-    display: flex;
-    gap: 0.5rem;
-    user-select: none;
-}
-#${BUTTONS_ID} .kasp-chat-button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.2rem;
-    box-sizing: border-box;
-    height: 100%;
-    min-width: 4.5rem;
-    padding: 0 0.75rem;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    border-radius: 0.5rem;
-    background: rgba(0, 10, 15, 0.5);
-    color: #fff;
-    font: 1.25rem BaseFontMedium, FallbackFontMedium, sans-serif;
-    cursor: pointer;
-    transition: border-color 0.2s;
-}
-#${BUTTONS_ID} .kasp-chat-button:hover {
-    border-color: rgba(255, 255, 255, 0.5);
-}
-#${BUTTONS_ID} .kasp-chat-button.kasp-active {
-    border-color: #76ff33;
-}
-#${BUTTONS_ID} .kasp-chat-button.kasp-failed {
-    border-color: ${ENEMY_COLOUR};
-}
-#${BUTTONS_ID} .kasp-chat-button-top {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    height: 1.5rem;
-}
-#${BUTTONS_ID} .kasp-chat-button img {
-    display: block;
-    width: 1.5rem;
-    height: 1rem;
-}
-#${BUTTONS_ID} .kasp-chat-button-key {
-    color: rgba(255, 255, 255, 0.5);
-    font: 0.8rem BaseFontRegular, FallbackFontRegular, sans-serif;
-}
-#${BUTTONS_ID} .kasp-chat-dots,
-#${BUTTONS_ID} .kasp-waiting .kasp-chat-button-code {
-    display: none;
-}
-#${BUTTONS_ID} .kasp-waiting .kasp-chat-dots {
-    display: inline;
-}`;
 
     interface ChatMessage {
         readonly uid: string;
@@ -259,14 +154,6 @@
     // (kasp:battle-time). It stays true if that message never comes, so the box still works when that hook is lost.
     let roundRunning = true;
 
-    function addStyle(): void {
-        if (document.getElementById(`${BOX_ID}-style`) !== null) return;
-        const style = document.createElement('style');
-        style.id = `${BOX_ID}-style`;
-        style.textContent = STYLE;
-        (document.head || document.documentElement).appendChild(style);
-    }
-
     // The box sits right after the game's battle canvas, at the canvas's own z-index, so what the game shows over its canvas
     // (menus, the TAB table) should cover the box too, and the box goes away with the battle: a new battle area gets a new,
     // empty box. Null when no battle is on screen.
@@ -275,7 +162,6 @@
         if (battle === null) return null;
         if (box !== null && box.isConnected && battle.contains(box)) return box;
         box?.remove();
-        addStyle();
         const created = document.createElement('div');
         created.id = BOX_ID;
         created.hidden = true;
@@ -338,13 +224,14 @@
         return span;
     }
 
-    // The settings tab's switch and dropdown, read through the switch service; both apply at once.
-    function readLanguage(value: string | null): string {
-        return value !== null && LANGUAGE_CODE.test(value) ? value : DEFAULT_TARGET;
+    // A language chosen in the settings tab (a saved Google code), or the fallback when nothing valid is saved.
+    function readCode(value: string | null, fallback: string): string {
+        return value !== null && LANGUAGE_CODE.test(value) ? value : fallback;
     }
 
+    // The settings tab's switch and dropdown, read through the switch service; both apply at once.
     let enabled = window.kaspSwitches?.isOn(SWITCH_KEY) ?? true;
-    let language = readLanguage(window.kaspSwitches?.getChoice(LANGUAGE_KEY) ?? null);
+    let language = readCode(window.kaspSwitches?.getChoice(LANGUAGE_KEY) ?? null, DEFAULT_TARGET);
 
     function onMessage(message: ChatMessage): void {
         if (!enabled || message.own) return;
@@ -415,12 +302,8 @@
         readonly button: number;
     }
 
-    function readButtonLanguage(index: number, value: string | null): string {
-        return value !== null && LANGUAGE_CODE.test(value) ? value : BUTTON_DEFAULTS[index];
-    }
-
     let buttonsOn = window.kaspSwitches?.isOn(BUTTONS_KEY) ?? true;
-    const buttonLanguages: string[] = BUTTON_KEYS.map((key, index) => readButtonLanguage(index, window.kaspSwitches?.getChoice(key) ?? null));
+    const buttonLanguages: string[] = BUTTON_KEYS.map((key, index) => readCode(window.kaspSwitches?.getChoice(key) ?? null, BUTTON_DEFAULTS[index]));
     let bar: HTMLDivElement | null = null;
     let field: HTMLInputElement | null = null;
     // The last translation a button put in the chat box; it counts while the box still shows it.
@@ -561,7 +444,6 @@
         bar?.remove();
         bar = null;
         if (!buttonsOn) return;
-        addStyle();
         bar = document.createElement('div');
         bar.id = BUTTONS_ID;
         bar.append(...BUTTON_KEYS.map((_key, index) => makeButton(index)));
@@ -650,7 +532,7 @@
         showBox(false);
     });
     window.kaspSwitches?.onChoice(LANGUAGE_KEY, (value) => {
-        language = readLanguage(value);
+        language = readCode(value, DEFAULT_TARGET);
     });
     // Settings and the chat box are never open together, so a change shows the next time the chat opens.
     window.kaspSwitches?.onChange(BUTTONS_KEY, (on) => {
@@ -662,7 +544,7 @@
     });
     BUTTON_KEYS.forEach((key, index) => {
         window.kaspSwitches?.onChoice(key, (value) => {
-            buttonLanguages[index] = readButtonLanguage(index, value);
+            buttonLanguages[index] = readCode(value, BUTTON_DEFAULTS[index]);
         });
     });
 })();

@@ -42,7 +42,8 @@
         "styles/garage_skins.css",
         "styles/garage_cards.css",
         "styles/augments.css",
-        "styles/settings_tab.css"
+        "styles/settings_tab.css",
+        "styles/chat_translation.css"
       ],
       "run_at": "document_start"
     }
