@@ -1081,7 +1081,7 @@
 
     // Called from inside the game's code, so it must never throw into it. Nothing is posted while the player's own id is unknown
     // (the user id hook was not added): the player's own messages could not be told apart, and they must never reach Google
-    // except through a translation button (audit finding F-57).
+    // except through a translation button.
     window.__kaspChat = function (event: unknown, teamClass: unknown): void {
         try {
             if (ownUserId === '' || !isObject(event) || seenChat.has(event)) return;

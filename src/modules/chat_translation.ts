@@ -63,7 +63,7 @@
     const FAIL_MS = 1500;
 
     // The two messages this module reads, in their shared shapes from src/types.d.ts, so a renamed field breaks the build here
-    // instead of making the module drop every message (audit finding F-58).
+    // instead of making the module drop every message.
     type ChatMessage = KaspChatMessage['detail'];
     type BattleTime = KaspBattleTimeMessage['detail'];
 
