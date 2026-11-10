@@ -951,6 +951,27 @@
         return window.kaspOldPictures?.keyOf(address) ?? address;
     }
 
+    // The devs redrew most augment pictures but not all, and an old file can write a badge's numbers rounded another way
+    // (17.255 in the old Vulcan Excelsior, 17.2549 in the new Vulcan tiles). So two drawings with the same letters whose numbers all
+    // differ by at most this much are one drawing: in the game's 527 pictures the same drawing differs by at most 0.0005, two
+    // different ones by at least 0.25.
+    const DRAWING_ALLOWANCE = 0.001;
+    const DRAWING_TOKEN = /[A-Za-z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g;
+    const drawingsByShape = new Map<string, { readonly drawing: string; readonly numbers: readonly number[] }[]>();
+
+    // The first drawing seen that is the same as this one within the allowance, or this one.
+    function sameDrawing(drawing: string): string {
+        const tokens = drawing.match(DRAWING_TOKEN) ?? [];
+        const shape = tokens.map((token) => (/[A-Za-z]/.test(token) ? token : 'n')).join('');
+        const numbers = tokens.filter((token) => !/[A-Za-z]/.test(token)).map(Number);
+        const known = drawingsByShape.get(shape) ?? [];
+        const same = known.find((other) => other.numbers.every((value, index) => Math.abs(value - (numbers[index] ?? NaN)) <= DRAWING_ALLOWANCE));
+        if (same !== undefined) return same.drawing;
+        known.push({ drawing, numbers });
+        drawingsByShape.set(shape, known);
+        return drawing;
+    }
+
     // The picture is a CSS background set by a class the game makes per picture, so it is read again only when that class changes:
     // getComputedStyle on every tile of every pass would be too slow.
     function tilePicture(tile: Element): string | null {
@@ -1004,7 +1025,7 @@
                     const res = await fetch(address);
                     if (!res.ok) throw new Error('HTTP ' + res.status);
                     const drawings = new Set<string>();
-                    for (const match of (await res.text()).matchAll(SVG_PATH)) drawings.add((match[1] ?? '').replace(/\s+/g, ' ').trim());
+                    for (const match of (await res.text()).matchAll(SVG_PATH)) drawings.add(sameDrawing((match[1] ?? '').replace(/\s+/g, ' ').trim()));
                     if (drawings.size === 0) throw new Error('no drawing');
                     rewardDrawings.set(key, drawings);
                 } catch (e) {
