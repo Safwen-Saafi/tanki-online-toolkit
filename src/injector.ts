@@ -636,14 +636,14 @@
     function patchUserId(code: string): string | null {
         const text = /return"SetUserId\(userId="\+[\w$]*\(?this\.([\w$]+)/.exec(code);
         if (text === null) {
-            warn(`${LOG} could not find the user id class in this bundle, the battle's turret hook is skipped`);
+            warn(`${LOG} could not find the user id class in this bundle, the battle's turret hook and the chat translation are skipped`);
             return null;
         }
         const property = text[1];
         const tail = new RegExp(`this\\.${property}=([\\w$]+)\\}`, 'g');
         const found = code.match(tail);
         if (found === null || found.length !== 1) {
-            warn(`${LOG} could not find the user id constructor in this bundle, the battle's turret hook is skipped`);
+            warn(`${LOG} could not find the user id constructor in this bundle, the battle's turret hook and the chat translation are skipped`);
             return null;
         }
         return code.replace(tail, (_whole, value: string) => `this.${property}=${value},window.__kaspSendUserId(this,"${property}")}`);
@@ -1079,10 +1079,12 @@
     // The game's small rank pictures as full addresses: plain ranks 1 to 31, then premium ranks 1 to 31. Empty when not found.
     let rankPictures: string[] = [];
 
-    // Called from inside the game's code, so it must never throw into it.
+    // Called from inside the game's code, so it must never throw into it. Nothing is posted while the player's own id is unknown
+    // (the user id hook was not added): the player's own messages could not be told apart, and they must never reach Google
+    // except through a translation button (audit finding F-57).
     window.__kaspChat = function (event: unknown, teamClass: unknown): void {
         try {
-            if (!isObject(event) || seenChat.has(event)) return;
+            if (ownUserId === '' || !isObject(event) || seenChat.has(event)) return;
             seenChat.add(event);
             let label: RegExpExecArray | null = null;
             let text: string | null = null;
@@ -1103,8 +1105,8 @@
                     uid: label[2],
                     clanTag: label[5] === 'null' ? null : label[5],
                     ally: label[6] === 'ALLY',
-                    // the player's own message (the id from the game's SetUserId)
-                    own: ownUserId !== '' && label[1] === ownUserId,
+                    // the player's own message (the id from the game's SetUserId, known here: see above)
+                    own: label[1] === ownUserId,
                     team: typeof teamClass === 'function' && event instanceof teamClass,
                     rankPicture: rankPictures[(premium ? RANK_COUNT : 0) + rank - 1] ?? null,
                     text,
