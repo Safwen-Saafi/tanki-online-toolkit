@@ -1,0 +1,7 @@
+/* The game's debug info line in the screen corner (UID, TYPE, VER, UPD, SRV and the battery) is hidden on every screen. Its
+   wrapper is the game's named style class ClientInfoComponentStyle-main, so hiding it hides the whole bar; if a game update
+   renames it, the line just shows again. The rule waits for the switch: src/modules/debug_line.ts sets data-kasp-show-debug-line
+   on the root while it is off. */
+:root:not([data-kasp-show-debug-line]) .ClientInfoComponentStyle-main {
+    display: none !important;
+}

@@ -22,6 +22,7 @@
       "js": [
         "js/modules/language.js",
         "js/modules/switches.js",
+        "js/modules/debug_line.js",
         "js/modules/messages.js",
         "js/modules/battle.js",
         "js/modules/garage_cards.js",
@@ -45,7 +46,8 @@
         "styles/garage_cards.css",
         "styles/augments.css",
         "styles/settings_tab.css",
-        "styles/chat_translation.css"
+        "styles/chat_translation.css",
+        "styles/debug_line.css"
       ],
       "run_at": "document_start"
     }
