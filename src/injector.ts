@@ -1897,6 +1897,32 @@
     }
 
     if (!oldPicturesSwitchedOff()) installOldPictures();
+
+    // The game's start screen waits for any button unless window.skipEntranceAnyKey is on: the game's own launcher setting, which
+    // it writes once at start from its launch parameters (off in the browser) and reads once, when the start screen opens. While
+    // the switch is on, the setting always reads true and the game's own write is ignored, so the lobby opens directly. The switch
+    // only matters when the game starts, so it is read here once, with the rule of switches.ts, before the game's script runs.
+    function skipStartSwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_skipstart') === '0';
+        } catch {
+            return false;
+        }
+    }
+
+    function installStartScreenSkip(): void {
+        try {
+            Object.defineProperty(window, 'skipEntranceAnyKey', {
+                configurable: true,
+                get: () => true,
+                set: () => {},
+            });
+        } catch (e) {
+            warn(`${LOG} the start screen skip could not be set, the start screen stays:`, e instanceof Error ? e.message : e);
+        }
+    }
+
+    if (!skipStartSwitchedOff()) installStartScreenSkip();
     installCardReader();
     installRewardReader();
 
