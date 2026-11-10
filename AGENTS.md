@@ -13,7 +13,7 @@ for optional tool settings.
 
 ## What this is
 
-Tanki Online ToolKit: a personal Manifest V3 Chrome extension that adds quality-of-life features to the browser game Tanki Online, which its own client does not offer: a marker on players who change equipment mid-battle, the chosen garage skins kept on screen, augment info and hidden cards in the garage and on the Containers screen, the old augment pictures, kill, battle and weapon sounds, the battle chat translated into a language the player picks (other players' messages in a box under the kill feed, the player's own through buttons beside the chat box), and a tab in the game's own settings to switch each of them on or off. The repo also holds the Tanki Augments Bot, which publishes the wiki's augment data the extension reads.
+Tanki Online ToolKit: a personal Manifest V3 Chrome extension that adds quality-of-life features to the browser game Tanki Online, which its own client does not offer: a marker on players who change equipment mid-battle, the chosen garage skins kept on screen, augment info and hidden cards in the garage and on the Containers screen, the old augment pictures, kill, battle and weapon sounds, the battle chat translated into a language the player picks (other players' messages in a box under the kill feed, the player's own through buttons beside the chat box), the game's debug info line in the screen corner hidden, and a tab in the game's own settings to switch each of them on or off. The repo also holds the Tanki Augments Bot, which publishes the wiki's augment data the extension reads.
 
 ## Proportional engineering
 

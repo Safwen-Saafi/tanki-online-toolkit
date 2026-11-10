@@ -27,7 +27,7 @@
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
     const DIVIDER_BLOCK_CLASS = 'SettingsComponentStyle-commonBlock';
 
-    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage';
+    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'interface';
 
     interface SwitchEntry {
         // The localStorage key the feature's module reads.
@@ -46,6 +46,7 @@
         { id: 'battle', heading: { EN: 'Battle tab', RU: 'Таблица боя' } },
         { id: 'chat', heading: { EN: 'Chat', RU: 'Чат' } },
         { id: 'garage', heading: { EN: 'Garage', RU: 'Гараж' } },
+        { id: 'interface', heading: { EN: 'Interface', RU: 'Интерфейс' } },
     ];
 
     // Shown in this order inside each group.
@@ -74,6 +75,7 @@
         { key: 'kasp_old_pictures', group: 'garage', live: false, label: { EN: 'Old augment pictures', RU: 'Старые картинки устройств' } },
         { key: 'kasp_garageskins', group: 'garage', live: true, label: { EN: 'Equipped skins in the garage', RU: 'Надетые скины в гараже' } },
         { key: 'kasp_narrowcards', group: 'garage', live: true, label: { EN: 'Narrower garage cards', RU: 'Узкие карточки в гараже' } },
+        { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },
     ];
 
     interface ChoiceOption {
