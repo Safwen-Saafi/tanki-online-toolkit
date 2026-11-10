@@ -35,6 +35,29 @@
     const MIN_STRING_LENGTH = 2;
     const MAX_STRING_LENGTH = 29;
 
+    // Every message posted on the page reaches every message listener of this world, the game's own messages too (its coroutines
+    // post one for each batch of work), so this world has one listener for the extension's messages: it drops anything that is
+    // not an object with a type at once and hands the rest to the one part that reads that type. A part that throws changes
+    // nothing for the game.
+    const messageParts = new Map<string, (data: Record<string, unknown>) => void>();
+
+    function onMessage(type: string, read: (data: Record<string, unknown>) => void): void {
+        messageParts.set(type, read);
+    }
+
+    window.addEventListener('message', (e: MessageEvent) => {
+        if (e.source !== window) return;
+        const data: unknown = e.data;
+        if (!isObject(data) || typeof data['type'] !== 'string') return;
+        const read = messageParts.get(data['type']);
+        if (read === undefined) return;
+        try {
+            read(data);
+        } catch {
+            // a message that cannot be read leaves things as they were
+        }
+    });
+
     // The strings and numbers inside an object, to MAX_DEPTH levels, as short trimmed strings.
     function collectStrings(root: unknown): string[] {
         const found: string[] = [];
@@ -201,10 +224,7 @@
     // load and may do it before the receiver is listening.
     let announcedTurret: KaspMountedMessage | null = null;
 
-    window.addEventListener('message', (e: MessageEvent) => {
-        if (e.source !== window) return;
-        const data: unknown = e.data;
-        if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'kasp:mounted-request') return;
+    onMessage('kasp:mounted-request', () => {
         if (announcedTurret !== null) window.postMessage(announcedTurret, window.location.origin);
     });
 
@@ -438,10 +458,7 @@
     function installSoundSwap(): void {
         const addressOfData = new WeakMap<object, string>();
 
-        window.addEventListener('message', (e: MessageEvent) => {
-            if (e.source !== window) return;
-            const data: unknown = e.data;
-            if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'kasp:sound-swap') return;
+        onMessage('kasp:sound-swap', (data) => {
             const next = readSwapMessage(data);
             if (next !== null) {
                 soundSwap = next;
@@ -451,27 +468,22 @@
             }
         });
 
-        window.addEventListener('message', (e: MessageEvent) => {
-            if (e.source !== window) return;
-            const data: unknown = e.data;
-            if (!data || typeof data !== 'object') return;
-            const type = (data as { type?: unknown }).type;
-            if (type === 'kasp:late-sounds') {
-                const groups = readLateMessage(data);
-                if (groups !== null) {
-                    lateGroups = groups;
-                    lateDecoded.clear();
-                    scheduleApply();
-                } else if (!warnedLate) {
-                    warnedLate = true;
-                    warn(`${LOG} a turret sound message was not understood, the game's own lock sounds stay`);
-                }
-            } else if (type === 'kasp:turret') {
-                const { turret } = data as { turret?: unknown };
-                if (typeof turret === 'string' && (turret === '' || TURRET_NAME.test(turret))) {
-                    activeTurret = turret;
-                    scheduleApply();
-                }
+        onMessage('kasp:late-sounds', (data) => {
+            const groups = readLateMessage(data);
+            if (groups !== null) {
+                lateGroups = groups;
+                lateDecoded.clear();
+                scheduleApply();
+            } else if (!warnedLate) {
+                warnedLate = true;
+                warn(`${LOG} a turret sound message was not understood, the game's own lock sounds stay`);
+            }
+        });
+        onMessage('kasp:turret', (data) => {
+            const turret = data['turret'];
+            if (typeof turret === 'string' && (turret === '' || TURRET_NAME.test(turret))) {
+                activeTurret = turret;
+                scheduleApply();
             }
         });
 
@@ -1053,10 +1065,7 @@
     // The address of the column's header picture, from change_counter.ts (only the isolated world can ask the extension for
     // it). Checked before the game's code reads it: an extension address of an SVG picture, nothing else.
     function listenChangeHeader(): void {
-        window.addEventListener('message', (e: MessageEvent) => {
-            if (e.source !== window) return;
-            const data: unknown = e.data;
-            if (!isObject(data) || data['type'] !== 'kasp:change-header') return;
+        onMessage('kasp:change-header', (data) => {
             const address = data['address'];
             if (typeof address !== 'string' || address.length > 300 || !/^chrome-extension:\/\/[a-z]+\/[\w/-]+\.svg$/.test(address)) return;
             window.__kaspChangeHeader = address;
@@ -1229,8 +1238,10 @@
         return { code: result, hooked };
     }
 
+    // An inline script runs while it is added, so its 10 MB of text can go right after.
     function runScript(script: HTMLScriptElement): void {
         (document.head || document.documentElement).appendChild(script);
+        if (script.src === '') script.textContent = '';
     }
 
     // Puts the game's bundle back after it was held back. Whatever fails, the game still gets its code: the fetched
@@ -1653,7 +1664,7 @@
     // The old picture's address for a game address, or the address itself.
     function oldAddress(address: string): string {
         const pictures = oldPictures;
-        if (pictures === null) return address;
+        if (pictures === null || !address.includes('image.svg')) return address;
         const path = oldStablePath(address);
         if (path === null || !pictures.keys.has(path) || failedOldPaths.has(path)) return address;
         return pictures.base + path.slice(1, -'/image.svg'.length).replace(/\//g, '-') + '.svg';
@@ -1759,10 +1770,8 @@
 
     // Each function below hooks one way the game can give a picture an address. Every hook keeps the game's own value on any error.
     function hookMessage(): void {
-        window.addEventListener('message', (e: MessageEvent) => {
-            if (e.source !== window || oldPictures !== null) return;
-            const data: unknown = e.data;
-            if (!isObject(data) || data['type'] !== 'kasp:old-pictures') return;
+        onMessage('kasp:old-pictures', (data) => {
+            if (oldPictures !== null) return;
             const next = readOldPicturesMessage(data);
             if (next === null) {
                 warn(`${LOG} an old pictures message was not understood, the game's own pictures stay`);
@@ -1877,7 +1886,17 @@
         hookFetch();
     }
 
-    installOldPictures();
+    // Old augment pictures applies after a reload, so with it off (the exact text 0 under its key, the rule of switches.ts) none of
+    // these hooks is put in front of the page's own functions. A storage that cannot be read counts as on, as there.
+    function oldPicturesSwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_old_pictures') === '0';
+        } catch {
+            return false;
+        }
+    }
+
+    if (!oldPicturesSwitchedOff()) installOldPictures();
     installCardReader();
     installRewardReader();
 

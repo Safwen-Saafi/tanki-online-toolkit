@@ -10,10 +10,9 @@
     const LOG = '[KI-test][kill_sounds]';
     const STATE_KEY = 'kasp_kill_state';
     const OWN_KEY = 'kasp_own_player';
-    const BATTLE_CANVAS_SELECTOR = '.BattleComponentStyle-canvasContainer';
     // The player's own name in the HUD, written as "[CLAN] nickname" or just "nickname".
     const OWN_NAME_SELECTOR = '.UserInfoContainerStyle-userNameRank';
-    const CHECK_MS = 500;
+    const NAME_CHECK_MS = 500;
     // A multi-kill is the number of the player's kills inside one window that opens at the first of them: kills that
     // arrive within this time after it belong to it, and the next kill after the window opens a new one.
     const MULTI_KILL_WINDOW_MS = 500;
@@ -330,7 +329,6 @@
     let state: KillState = readState();
     let own: OwnPlayer | null = readOwn();
     let nameChecked = false;
-    let inBattle = false;
 
     // The id is learned from the first event that names the player, found by the HUD name, and then kept for good.
     function ownEventOf(event: KaspKillEvent): OwnEvent | null {
@@ -419,10 +417,7 @@
 
     void loadSounds();
 
-    window.addEventListener('message', (e: MessageEvent) => {
-        // The injector posts from the page to this same window; anything else is not ours.
-        if (e.source !== window) return;
-        const data: unknown = e.data;
+    window.kaspMessages?.on('kasp:kill', (data) => {
         if (!isKillMessage(data)) return;
         const mine = ownEventOf(data.detail);
         if (mine !== null) handleOwnEvent(mine, data.detail.damageType);
@@ -441,18 +436,17 @@
         }
     }
 
-    // The battle canvas only exists while a battle is on screen; leaving it ends the battle's counters.
-    function checkBattle(): void {
+    // Looked for until it has been read once, then never again.
+    const nameTimer = window.setInterval(() => {
         checkOwnName();
-        const now = document.querySelector(BATTLE_CANVAS_SELECTOR) !== null;
-        if (now === inBattle) return;
-        inBattle = now;
-        if (!inBattle) {
-            state = FRESH_STATE;
-            resetMultiWindow();
-            clearState();
-        }
-    }
+        if (nameChecked) window.clearInterval(nameTimer);
+    }, NAME_CHECK_MS);
 
-    setInterval(checkBattle, CHECK_MS);
+    // Leaving the battle (the battle service, src/modules/battle.ts, sees its canvas go away) ends the battle's counters.
+    window.kaspBattle?.onChange((on) => {
+        if (on) return;
+        state = FRESH_STATE;
+        resetMultiWindow();
+        clearState();
+    });
 })();

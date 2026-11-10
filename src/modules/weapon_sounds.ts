@@ -215,9 +215,8 @@
         };
 
         // set up before the sound files load, since the message may come while they do
-        window.addEventListener('message', (e: MessageEvent) => {
-            if (e.source !== window) return;
-            const next = readMountedTurret(e.data);
+        window.kaspMessages?.on('kasp:mounted', (data) => {
+            const next = readMountedTurret(data);
             if (next === null) return;
             // an item the garage names teaches the id for the battle's lists, which give no names
             if (next.name !== '') {

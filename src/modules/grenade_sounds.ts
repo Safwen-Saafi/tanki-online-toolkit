@@ -70,10 +70,8 @@
         playThrowSound();
     }
 
-    window.addEventListener('message', (e: MessageEvent) => {
-        // The injector posts from the page to this same window; anything else is not ours.
-        if (e.source !== window) return;
-        if (isThrowMessage(e.data)) onThrow(e.data.reloadMs);
+    window.kaspMessages?.on('kasp:grenade-throw', (data) => {
+        if (isThrowMessage(data)) onThrow(data.reloadMs);
     });
 
     console.log(LOG, 'ready');

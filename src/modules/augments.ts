@@ -1358,14 +1358,30 @@
     // box also goes on Tab's keyup and as soon as the mouse moves while its icon is gone.
     let battleIcon: Element | null = null;
 
+    // Added while the box shows and removed when it goes, so a mouse move costs nothing the rest of the time.
+    function onBattleMouseMove(event: MouseEvent): void {
+        if (battleIcon === null) return;
+        if (battleIcon.isConnected) placeNearMouse(getBattleBox(), event);
+        else hideBattleBox();
+    }
+
+    function onBattleMouseOut(event: MouseEvent): void {
+        if (battleIcon === null) return;
+        const next = event.relatedTarget;
+        if (!(next instanceof Node) || !battleIcon.contains(next)) hideBattleBox();
+    }
+
     function hideBattleBox(): void {
         if (battleIcon === null) return;
         battleIcon = null;
+        document.removeEventListener('mousemove', onBattleMouseMove, true);
+        document.removeEventListener('mouseout', onBattleMouseOut, true);
         const box = document.getElementById(BATTLE_BOX_ID);
         if (box !== null) box.style.display = 'none';
     }
 
-    // One set of listeners for the whole page, no watcher: they only look at what the mouse is on.
+    // One set of listeners for the whole page, no watcher: they only look at what the mouse is on, and the mouse moves are only
+    // followed while the box shows.
     function followBattleIcons(): void {
         document.addEventListener('mouseover', (event) => {
             if (!battleInfoOn) return;
@@ -1375,18 +1391,12 @@
             if (!AUGMENT_NUMBER.test(number)) return;
             const match = battleMatch(number);
             if (match === null) return;
+            if (battleIcon === null) {
+                document.addEventListener('mousemove', onBattleMouseMove, true);
+                document.addEventListener('mouseout', onBattleMouseOut, true);
+            }
             battleIcon = icon;
             showBattleBox(match, event);
-        }, true);
-        document.addEventListener('mousemove', (event) => {
-            if (battleIcon === null) return;
-            if (battleIcon.isConnected) placeNearMouse(getBattleBox(), event);
-            else hideBattleBox();
-        }, true);
-        document.addEventListener('mouseout', (event) => {
-            if (battleIcon === null) return;
-            const next = event.relatedTarget;
-            if (!(next instanceof Node) || !battleIcon.contains(next)) hideBattleBox();
         }, true);
         window.addEventListener('keyup', (event) => {
             if (event.code === 'Tab') hideBattleBox();
@@ -1433,6 +1443,37 @@
         });
     });
 
+    // A battle has none of the garage's screens and its page changes many times a second, so the page is not watched while a
+    // battle is on screen (the battle service, src/modules/battle.ts) and none of them is. The garage can still be opened from a
+    // battle to change equipment, so a check twice a second looks for them there and the watcher comes back with them.
+    const GARAGE_CHECK_MS = 500;
+    const garageScreens = [
+        'TanksPartComponentStyle-descriptionContainer',
+        'SkinsAndAlterationsStyle-SkinsVerticalComponent',
+        'ContainerInfoComponentStyle-lootBoxContainer',
+    ].map((name) => document.getElementsByClassName(name));
+    let watching = false;
+    let tickTimer: number | undefined;
+
+    function setWatching(on: boolean): void {
+        if (on === watching) return;
+        watching = on;
+        if (on) {
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+            tickTimer = window.setInterval(tick, TICK_MS);
+        } else {
+            observer.disconnect();
+            window.clearInterval(tickTimer);
+            tickTimer = undefined;
+        }
+        // Coming back, it catches up at once; going, it takes away what is left of the garage's drawings.
+        tick();
+    }
+
+    function checkWatching(): void {
+        setWatching(!(window.kaspBattle?.isOn() ?? false) || garageScreens.some((screen) => screen[0] !== undefined));
+    }
+
     // After the load event, so the game's own start-up is not delayed.
     function start(): void {
         // First, so turning the battle switch on later works even when every switch was off at start.
@@ -1449,8 +1490,9 @@
         // The garage's part: the item names (bundled) are needed by the info and the hidden cards, to know the item on screen.
         if (!infoOn && !hiddenOn) return;
         void loadItemNames();
-        observer.observe(document.documentElement, { childList: true, subtree: true });
-        setInterval(tick, TICK_MS);
+        checkWatching();
+        window.setInterval(checkWatching, GARAGE_CHECK_MS);
+        window.kaspBattle?.onChange(checkWatching);
     }
 
     if (document.readyState === 'complete') start();

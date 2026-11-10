@@ -8,24 +8,13 @@
     height: 1.6em;
     align-self: center;
     background: center / contain no-repeat;
-    opacity: var(--kasp-blink);
 }
 
-/* One blink clock for the whole panel. A CSS animation on each marker starts when that marker starts, so markers lit
-   or re-created at different moments (rows re-sort, players come and go) blink out of step. Here the clock lives on
-   the panel and every marker only reads its value, so a new or moved marker is always in step with the others. */
-@property --kasp-blink {
-    syntax: '<number>';
-    inherits: true;
-    initial-value: 1;
-}
-
-.BattleTabStatisticComponentStyle-container {
-    animation: kasp-change-blink 1s step-start infinite;
-}
-
-@keyframes kasp-change-blink {
-    50% {
-        --kasp-blink: 0;
-    }
+/* One blink clock for every marker: change_counter.ts flips this attribute on the root element twice a second, only while
+   someone is marked in a battle, so every marker blinks in step and only the marked cells are restyled. A CSS animation on
+   each marker would start when that marker starts, so markers lit or re-created at different moments (rows re-sort, players
+   come and go) would blink out of step; an animation on the panel kept them in step but restyled the whole table on every
+   frame. */
+:root[data-kasp-blink-off] [data-kasp-change]::after {
+    opacity: 0;
 }

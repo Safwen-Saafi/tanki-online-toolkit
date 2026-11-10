@@ -12,11 +12,9 @@
     const LOG = '[KI-test][battle_music]';
     const STATE_KEY = 'kasp_battle_music';
     const SWITCH_KEY = 'kasp_battlemusic';
-    const BATTLE_CANVAS_SELECTOR = '.BattleComponentStyle-canvasContainer';
     const MUSIC_FILE = 'sounds/battle-end.flac';
     const END_MUSIC_SECONDS = 50;
     const MUSIC_VOLUME = 0.7;
-    const CHECK_MS = 500;
     // If the game's end message never comes, the music is stopped this long after the calculated end of the battle.
     const END_GRACE_MS = 10000;
 
@@ -58,7 +56,8 @@
     let lastRemaining: number | null = null;
     let started = readStarted();
     let playing = false;
-    let inBattle = false;
+    // The one timer of the count down: it wakes check() when there is something to do, and nothing runs in between.
+    let timer: number | undefined;
     // The music decoded in memory, and what plays it. The fallback audio element is made only when the decoding fails.
     let context: AudioContext | null = null;
     let buffer: AudioBuffer | null = null;
@@ -85,6 +84,7 @@
                     const data = await response.arrayBuffer();
                     context = new AudioContext();
                     buffer = await context.decodeAudioData(data);
+                    if (!playing) pauseEngine();
                 } catch (error: unknown) {
                     buffer = null;
                     warnPlay(error);
@@ -92,6 +92,14 @@
             })();
         }
         return loading;
+    }
+
+    // A running sound engine keeps the browser's audio thread busy even when it is silent, so it is paused whenever no music
+    // plays; playMusic starts it again.
+    function pauseEngine(): void {
+        context?.suspend().catch(() => {
+            // a closed engine has nothing to pause
+        });
     }
 
     function fallbackElement(): HTMLAudioElement {
@@ -148,6 +156,7 @@
         }
         source = null;
         gain = null;
+        pauseEngine();
         try {
             fallback?.pause();
             if (fallback !== null) fallback.currentTime = 0;
@@ -163,6 +172,7 @@
         lastRemaining = null;
         started = false;
         writeStarted(false);
+        schedule();
     }
 
     function onBattleTime(detail: KaspBattleTimeMessage['detail']): void {
@@ -176,40 +186,50 @@
             endAt = Date.now() + detail.remaining * 1000;
             // Switched off, the 5 MB of decoded music is not made; turned on later, playMusic loads it first.
             if (switchedOn) void loadMusic();
+            check();
         }
     }
 
-    window.addEventListener('message', (e: MessageEvent) => {
-        // The injector posts from the page to this same window; anything else is not ours.
-        if (e.source !== window) return;
-        const data: unknown = e.data;
+    window.kaspMessages?.on('kasp:battle-time', (data) => {
         if (isBattleTimeMessage(data)) onBattleTime(data.detail);
     });
 
     function check(): void {
-        const onScreen = document.querySelector(BATTLE_CANVAS_SELECTOR) !== null;
-        if (onScreen !== inBattle) {
-            inBattle = onScreen;
-            if (!inBattle) endBattle();
-        }
-        if (endAt === null) return;
-        const left = (endAt - Date.now()) / 1000;
-        if (!switchedOn) {
-            // Turned off while playing: it stops, and it is no longer "started", so turning it on before the end starts it.
-            if (playing) {
+        if (endAt !== null) {
+            const left = (endAt - Date.now()) / 1000;
+            if (!switchedOn) {
+                // Turned off while playing: it stops, and it is no longer "started", so turning it on before the end starts it.
+                if (playing) {
+                    stopMusic();
+                    started = false;
+                    writeStarted(false);
+                }
+            } else if (!started && left > 0 && left <= END_MUSIC_SECONDS) {
+                startMusic();
+            } else if (playing && left * 1000 <= -END_GRACE_MS) {
                 stopMusic();
-                started = false;
-                writeStarted(false);
             }
-            return;
         }
-        if (!started && left > 0 && left <= END_MUSIC_SECONDS) startMusic();
-        else if (playing && left * 1000 < -END_GRACE_MS) stopMusic();
+        schedule();
     }
 
-    setInterval(check, CHECK_MS);
-    // A flip in the settings tab: checked at once, so the music stops, or starts inside the last 50 seconds, without waiting
-    // for the next check.
+    // The next moment check() has something to do: the start of the last 50 seconds, or, while the music plays, the end of the
+    // grace time after the calculated end. Nothing, when the battle is too far gone for the music or the switch is off.
+    function schedule(): void {
+        window.clearTimeout(timer);
+        timer = undefined;
+        if (endAt === null || !switchedOn) return;
+        let at: number | null = null;
+        if (!started && endAt > Date.now()) at = endAt - END_MUSIC_SECONDS * 1000;
+        else if (playing) at = endAt + END_GRACE_MS;
+        if (at !== null) timer = window.setTimeout(check, Math.max(0, at - Date.now()));
+    }
+
+    // Leaving the battle (the battle service, src/modules/battle.ts, sees its canvas go away) ends it here too.
+    window.kaspBattle?.onChange((on) => {
+        if (!on) endBattle();
+    });
+    // A flip in the settings tab: checked at once, so the music stops, or starts inside the last 50 seconds.
     window.kaspSwitches?.onChange(SWITCH_KEY, (on) => {
         switchedOn = on;
         check();

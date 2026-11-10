@@ -6,8 +6,10 @@
     'use strict';
 
     const CACHE_KEY = 'kasp_player_changes_cache';
-    const BATTLE_CANVAS_SELECTOR = '.BattleComponentStyle-canvasContainer';
     const CELL_ATTRIBUTE = 'data-kasp-change';
+    // While the root element has it, change_counter.css hides every marker.
+    const BLINK_ATTRIBUTE = 'data-kasp-blink-off';
+    const BLINK_MS = 500;
     const MARKER_IMAGE = chrome.runtime.getURL('icons/change-marker.webp');
 
     // A player can change equipment once per battle, so only "changed or not" is kept. The set survives a page reload
@@ -45,6 +47,22 @@
         }
     }
 
+    // The one blink clock of every marker (why it is an attribute on the root element: change_counter.css). It runs only while
+    // someone is marked in a battle.
+    let blinkTimer: number | undefined;
+
+    function updateBlink(): void {
+        const wanted = isInBattle && changedPlayers.size > 0;
+        if (wanted === (blinkTimer !== undefined)) return;
+        if (wanted) {
+            blinkTimer = window.setInterval(() => document.documentElement?.toggleAttribute(BLINK_ATTRIBUTE), BLINK_MS);
+            return;
+        }
+        window.clearInterval(blinkTimer);
+        blinkTimer = undefined;
+        document.documentElement?.removeAttribute(BLINK_ATTRIBUTE);
+    }
+
     // One rule for every marked player: the size, the blink and the place come from change_counter.css, this only says
     // whose cell shows the picture. A nickname is escaped, so no name can break out of its selector.
     function drawMarkers(): void {
@@ -53,6 +71,7 @@
             ? ''
             : `${selectors.join(',')}{content:"";background-image:url("${MARKER_IMAGE}")}`;
         if (!markerRules.isConnected) document.documentElement?.appendChild(markerRules);
+        updateBlink();
     }
 
     function isKaspUserActionMessage(data: unknown): data is KaspUserActionMessage {
@@ -81,10 +100,7 @@
         return typeof found === 'string' ? found : undefined;
     }
 
-    window.addEventListener('message', (e: MessageEvent) => {
-        // The injector posts from the page to this same window; anything else is not ours.
-        if (e.source !== window) return;
-        const data: unknown = e.data;
+    window.kaspMessages?.on('kasp:useraction', (data) => {
         if (!isKaspUserActionMessage(data)) return;
         const detail = data.detail;
         if (detail[0] !== 'TankUserActionLog' || !detail.includes('CHANGE_EQUIPMENT')) return;
@@ -97,14 +113,16 @@
         drawMarkers();
     });
 
-    function checkBattleCanvas(): void {
-        const currentInBattle = document.querySelector(BATTLE_CANVAS_SELECTOR) !== null;
-        if (currentInBattle === isInBattle) return;
-        isInBattle = currentInBattle;
-        if (!isInBattle) {
-            clearCache();
-            drawMarkers();
+    // The end of the battle has no message of its own, so the battle service (src/modules/battle.ts) says when the battle
+    // canvas goes away.
+    function onBattle(on: boolean): void {
+        isInBattle = on;
+        if (on) {
+            updateBlink();
+            return;
         }
+        clearCache();
+        drawMarkers();
     }
 
     loadCache();
@@ -115,6 +133,5 @@
     // address.
     window.postMessage({ type: 'kasp:change-header', address: chrome.runtime.getURL('icons/change-header.svg') }, window.location.origin);
 
-    // The end of the battle has no message of its own, so the battle canvas is looked for once a second.
-    setInterval(checkBattleCanvas, 1000);
+    window.kaspBattle?.onChange(onBattle);
 })();
