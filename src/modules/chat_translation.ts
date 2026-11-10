@@ -62,15 +62,10 @@
     const SEND_MAX = 170;
     const FAIL_MS = 1500;
 
-    interface ChatMessage {
-        readonly uid: string;
-        readonly clanTag: string | null;
-        readonly ally: boolean;
-        readonly own: boolean;
-        readonly team: boolean;
-        readonly rankPicture: string | null;
-        readonly text: string;
-    }
+    // The two messages this module reads, in their shared shapes from src/types.d.ts, so a renamed field breaks the build here
+    // instead of making the module drop every message (audit finding F-58).
+    type ChatMessage = KaspChatMessage['detail'];
+    type BattleTime = KaspBattleTimeMessage['detail'];
 
     interface Translation {
         readonly from: string;
@@ -93,10 +88,10 @@
     }
 
     function readMessage(data: unknown): ChatMessage | null {
-        if (!data || typeof data !== 'object') return null;
-        const record = data as Record<string, unknown>;
-        if (record.type !== 'kasp:chat' || !record.detail || typeof record.detail !== 'object') return null;
-        const d = record.detail as Record<string, unknown>;
+        if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'kasp:chat') return null;
+        const detail = (data as { detail?: unknown }).detail;
+        if (!detail || typeof detail !== 'object') return null;
+        const d = detail as Partial<Record<keyof ChatMessage, unknown>>;
         if (typeof d.uid !== 'string' || d.uid.length > 50) return null;
         if (d.clanTag !== null && (typeof d.clanTag !== 'string' || d.clanTag.length > 20)) return null;
         if (typeof d.ally !== 'boolean' || typeof d.own !== 'boolean' || typeof d.team !== 'boolean') return null;
@@ -272,17 +267,11 @@
             });
     }
 
-    interface BattleTime {
-        readonly remaining: number;
-        readonly roundStarted: boolean;
-        readonly battleLoaded: boolean;
-    }
-
     function readBattleTime(data: unknown): BattleTime | null {
-        if (!data || typeof data !== 'object') return null;
-        const record = data as Record<string, unknown>;
-        if (record.type !== 'kasp:battle-time' || !record.detail || typeof record.detail !== 'object') return null;
-        const d = record.detail as Record<string, unknown>;
+        if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'kasp:battle-time') return null;
+        const detail = (data as { detail?: unknown }).detail;
+        if (!detail || typeof detail !== 'object') return null;
+        const d = detail as Partial<Record<keyof BattleTime, unknown>>;
         if (typeof d.remaining !== 'number' || typeof d.roundStarted !== 'boolean' || typeof d.battleLoaded !== 'boolean') return null;
         return { remaining: d.remaining, roundStarted: d.roundStarted, battleLoaded: d.battleLoaded };
     }
