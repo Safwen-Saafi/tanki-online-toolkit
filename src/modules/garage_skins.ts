@@ -511,12 +511,16 @@
         return null;
     }
 
+    // Kept by the tick: whether one of the garage's screens is on the page. A press of Space, the fire key in a battle, or of the
+    // mouse looks for the garage's tabs only then, so a battle's shots and clicks search nothing.
+    let garageOnScreen = false;
+
     // The logs showed that no press ever lands on the equip button: a skin is equipped by pressing the card that is
     // already selected again (a double click). The button and Space are still watched.
     // On window, in the capture phase, and from pointerdown on: the game may handle the press early or redraw the button
     // before the click, and a press must be seen before anything else can stop it.
     window.addEventListener('pointerdown', (event) => {
-        if (!(event.target instanceof Element) || window.kaspGarageTab?.read() !== 'skins') return;
+        if (!garageOnScreen || !(event.target instanceof Element) || window.kaspGarageTab?.read() !== 'skins') return;
         if (event.target.closest(EQUIP_BUTTON_SELECTOR) !== null) {
             saveOnEquip(true);
             return;
@@ -531,7 +535,7 @@
         if (state.kind === 'ready' && state.selectedTitle?.toLowerCase() === title.toLowerCase()) saveOnEquip(doublePress);
     }, true);
     window.addEventListener('keydown', (event) => {
-        if (event.code === 'Space' && !event.repeat && !isTypingTarget(event.target)) saveOnEquip(true);
+        if (event.code === 'Space' && !event.repeat && garageOnScreen && !isTypingTarget(event.target)) saveOnEquip(true);
     }, true);
 
     // ---- the switch ----
@@ -552,7 +556,8 @@
     // ---- the tick ----
 
     function tick(): void {
-        if (!skinsData || document.querySelector(GARAGE_SCREEN_SELECTOR) === null) return;
+        garageOnScreen = document.querySelector(GARAGE_SCREEN_SELECTOR) !== null;
+        if (!skinsData || !garageOnScreen) return;
         const { names, defaults: prefilledDefaults } = skinsData;
 
         const skinsScreen = readSkinsScreen(names);

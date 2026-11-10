@@ -503,14 +503,12 @@
     );
     window.addEventListener('resize', place);
 
-    window.addEventListener('message', (event: MessageEvent) => {
-        if (event.source !== window) return;
-        const message = readMessage(event.data);
-        if (message !== null) {
-            onMessage(message);
-            return;
-        }
-        const time = readBattleTime(event.data);
+    window.kaspMessages?.on('kasp:chat', (data) => {
+        const message = readMessage(data);
+        if (message !== null) onMessage(message);
+    });
+    window.kaspMessages?.on('kasp:battle-time', (data) => {
+        const time = readBattleTime(data);
         if (time !== null) onBattleTime(time);
     });
 

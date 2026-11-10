@@ -22,6 +22,8 @@
       "js": [
         "js/modules/language.js",
         "js/modules/switches.js",
+        "js/modules/messages.js",
+        "js/modules/battle.js",
         "js/modules/garage_cards.js",
         "js/modules/battle_tab.js",
         "js/modules/old_pictures.js",

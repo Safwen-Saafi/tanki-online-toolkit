@@ -9,6 +9,10 @@
 
     const LOG = '[KI-test][settings_tab]';
     const ROOT_CLASS = 'SettingsComponentStyle-blockContentOptions';
+    // The two places the game adds its settings screen to, as a direct child (probe, 2026-11-10): the app's root element in the
+    // lobby and the garage, and the battle canvas's box in a battle (itself inside the app's root).
+    const APP_ROOT_ID = 'app-root';
+    const BATTLE_CANVAS_CLASS = 'BattleComponentStyle-canvasContainer';
     const BOX_CLASS = 'SettingsComponentStyle-containerBlock';
     const ACTIVE_TAB_SELECTOR = 'ul > .SettingsMenuComponentStyle-activeItemOptions';
     // The name the injector gives our tab; the same in both game languages. The page's text is drawn in capitals by CSS.
@@ -406,9 +410,15 @@
         return panel;
     }
 
-    // A live list, so the check that runs on every page change stays cheap when settings are closed.
+    // A live list, so a check reads the page again only after it changed.
     const roots = document.getElementsByClassName(ROOT_CLASS);
     let settingsOpen = false;
+
+    function setOpen(open: boolean): void {
+        if (open === settingsOpen) return;
+        settingsOpen = open;
+        watch();
+    }
 
     function sync(): void {
         const root = roots[0];
@@ -416,10 +426,10 @@
             // Settings just closed, in the garage or in a battle (a reload puts the player back in the same battle): every
             // change saved since the page started applies together, in one reload.
             if (settingsOpen && reloadWaiting()) window.location.reload();
-            settingsOpen = false;
+            setOpen(false);
             return;
         }
-        settingsOpen = true;
+        setOpen(true);
         const box = Array.from(root.children).find((child) => child.classList.contains(BOX_CLASS));
         if (box === undefined) return;
         const active = root.querySelector(ACTIVE_TAB_SELECTOR);
@@ -433,12 +443,50 @@
         }
     }
 
+    function adds(record: MutationRecord, className: string): boolean {
+        for (const node of record.addedNodes) {
+            if (node instanceof Element && (node.classList.contains(className) || node.getElementsByClassName(className)[0] !== undefined)) return true;
+        }
+        return false;
+    }
+
+    // While settings are closed, only the two places the settings screen is added to are watched, and only their own children, so
+    // a battle's many changes deeper in the page wake nothing. While settings are open, or before the app's root exists, or if a
+    // game update renames it, the whole page is watched, so tab switches inside the screen are seen and nothing is missed.
+    let watchingPlaces = false;
+
+    function watch(): void {
+        observer.disconnect();
+        const appRoot = document.getElementById(APP_ROOT_ID);
+        watchingPlaces = !settingsOpen && appRoot !== null;
+        if (appRoot === null || !watchingPlaces) {
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+            return;
+        }
+        observer.observe(appRoot, { childList: true });
+        const battle = appRoot.getElementsByClassName(BATTLE_CANVAS_CLASS)[0];
+        if (battle !== undefined) observer.observe(battle, { childList: true });
+    }
+
     // The callback runs right after the game changes the page and before the screen is drawn, so our panel goes in, and comes
-    // out, in the same frame as the game's change: nothing flashes.
-    const observer = new MutationObserver(sync);
+    // out, in the same frame as the game's change: nothing flashes. While settings are closed only what was added is looked at
+    // (the settings screen opens by being added to the page).
+    const observer = new MutationObserver((records) => {
+        if (watchingPlaces) {
+            // A battle started: its canvas's box is the second place.
+            if (records.some((record) => adds(record, BATTLE_CANVAS_CLASS))) watch();
+        } else if (!settingsOpen && document.getElementById(APP_ROOT_ID) !== null) {
+            watch();
+        }
+        if (settingsOpen || records.some((record) => adds(record, ROOT_CLASS))) sync();
+    });
 
     function start(): void {
-        observer.observe(document.documentElement, { childList: true, subtree: true });
+        watch();
+        // A safety net for a battle canvas added deeper than the app's root's own children.
+        window.kaspBattle?.onChange(() => {
+            if (!settingsOpen) watch();
+        });
         sync();
         if (window.kaspSwitches === undefined) console.warn(`${LOG} the switch service is missing, no switch can be saved`);
         console.log(`${LOG} ready`);

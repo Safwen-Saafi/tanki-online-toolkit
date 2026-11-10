@@ -238,6 +238,19 @@ interface KaspSwitches {
     readonly onChoice: (key: string, action: (value: string | null) => void) => void;
 }
 
+// Published by src/modules/messages.ts, the one message listener of the isolated world. on(type, action) calls the action with
+// every message of that type posted from this window (an object, not yet checked beyond its type).
+interface KaspMessages {
+    readonly on: (type: string, action: (data: Readonly<Record<string, unknown>>) => void) => void;
+}
+
+// Published by src/modules/battle.ts, the one place that checks whether a battle is on screen. isOn() is the last answer;
+// onChange(action) is called with the new value only when it changes.
+interface KaspBattle {
+    readonly isOn: () => boolean;
+    readonly onChange: (action: (on: boolean) => void) => void;
+}
+
 interface Window {
     __kaspSendAction?: (className: string, obj: unknown) => void;
     __kaspSendKill?: (className: string, obj: unknown) => void;
@@ -258,4 +271,6 @@ interface Window {
     kaspGarageTab?: KaspGarageTabReader;
     kaspOldPictures?: KaspOldPictures;
     kaspSwitches?: KaspSwitches;
+    kaspMessages?: KaspMessages;
+    kaspBattle?: KaspBattle;
 }
