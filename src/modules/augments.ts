@@ -913,8 +913,9 @@
     // A tile on this screen has no name and no turret, and the game's list of rewards (read by injector.ts) has the name only. But each
     // augment's picture is an SVG that draws its turret's badge in the corner, the same on all of that turret's augments. So the badge is
     // learned from the tiles whose name belongs to one turret only, and then every tile has to show its turret's badge to get an answer.
-    // A tile the rule is not sure of says there is no information, because a wrong spec is worse than none. Everything is worked out again on
-    // each load, so nothing is stored. See blueprint/context/containers-augments-research.md.
+    // A tile the rule is not sure of says there is no information, because a wrong spec is worse than none. Reading every picture takes
+    // about a second, so the answers of the last few lists are saved and taken again, after a reload too, only for the exact same list,
+    // augment file, version and rule. See blueprint/context/containers-augments-research.md.
     const REWARD_ROOT_SELECTOR = '.ContainerInfoComponentStyle-lootBoxContainer';
     const REWARD_TILE_SELECTOR = '.RewardCardComponentStyle-imageBlock';
     const REWARD_PICTURE_SELECTOR = '[class~="-backgroundImageContain"]';
@@ -931,6 +932,11 @@
     const BADGE_MIN_TILES = 2;
     const CSS_URL = /url\("?([^")]+)"?\)/;
     const SVG_PATH = /\sd="([^"]+)"/g;
+    const ANSWERS_KEY = 'kasp_container_answers';
+    const MAX_SAVED_LISTS = 5;
+    // Part of the saved answers' id: raise it whenever a change to the name matching, sameDrawing, judgeTiles or workOutTurrets can
+    // change an answer, so the answers saved by the old rule are worked out again.
+    const RULE_VERSION = 1;
 
     let rewardListText: string | null = null;
     // Pictures are known by their stable path (old_pictures.ts), because the tile may show the old picture while the game's list holds
@@ -1117,20 +1123,78 @@
         return judgeTiles(buckets, placed);
     }
 
+    // The answers depend on the list, the augment file's names and the rule, so all of them are in the id of the saved answers.
+    async function listId(text: string, file: AugmentsFile): Promise<string | null> {
+        try {
+            const source = JSON.stringify([RULE_VERSION, chrome.runtime.getManifest().version, file.language, file.generatedAt, text]);
+            const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(source));
+            return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+        } catch {
+            return null;
+        }
+    }
+
+    function readSavedLists(): Record<string, unknown>[] {
+        try {
+            const raw = localStorage.getItem(ANSWERS_KEY);
+            const value: unknown = raw === null ? [] : JSON.parse(raw);
+            return (Array.isArray(value) ? (value as unknown[]) : []).filter(isRecord).filter((saved) => typeof saved['id'] === 'string');
+        } catch {
+            return [];
+        }
+    }
+
+    // The saved answers of this list, only when there is a valid answer for every one of its pictures.
+    function savedAnswers(id: string, names: ReadonlyMap<string, string>, file: AugmentsFile): ReadonlyMap<string, string> | null {
+        const stored = readSavedLists().find((saved) => saved['id'] === id)?.['answers'];
+        if (!isRecord(stored)) return null;
+        const answers = new Map<string, string>();
+        for (const key of names.keys()) {
+            const answer = stored[key];
+            if (typeof answer !== 'string' || (answer !== NOT_SURE && file.items[answer] === undefined)) return null;
+            answers.set(key, answer);
+        }
+        return answers;
+    }
+
+    let answersSaveWarned = false;
+
+    function saveAnswers(id: string, answers: ReadonlyMap<string, string>): void {
+        try {
+            const others = readSavedLists().filter((saved) => saved['id'] !== id);
+            const lists = [{ id, answers: Object.fromEntries(answers) }, ...others].slice(0, MAX_SAVED_LISTS);
+            localStorage.setItem(ANSWERS_KEY, JSON.stringify(lists));
+        } catch (e) {
+            if (answersSaveWarned) return;
+            answersSaveWarned = true;
+            console.warn(`${LOG} could not save the Containers answers:`, describeError(e));
+        }
+    }
+
     // The whole list is learned from, never the tiles on screen, and only when every picture was read: fewer pictures could change an answer.
-    async function learnRewards(text: string | null, names: ReadonlyMap<string, string>, file: AugmentsFile): Promise<void> {
+    // A list worked out before, on this page or an earlier one, takes its saved answers and reads no picture.
+    async function learnRewards(text: string, names: ReadonlyMap<string, string>, file: AugmentsFile): Promise<void> {
         rewardWorking = true;
         try {
-            const missing = [...names.keys()].filter((address) => !rewardDrawings.has(address));
-            if (!(await downloadDrawings(missing))) {
-                rewardDownloadFailed = true;
-                return;
+            const id = await listId(text, file);
+            const saved = id === null ? null : savedAnswers(id, names, file);
+            if (saved !== null) {
+                rewardAnswers = saved;
+            } else {
+                const missing = [...names.keys()].filter((address) => !rewardDrawings.has(address));
+                if (!(await downloadDrawings(missing))) {
+                    rewardDownloadFailed = true;
+                    return;
+                }
+                rewardAnswers = workOutTurrets(file, names);
+                if (id !== null) saveAnswers(id, rewardAnswers);
             }
-            rewardAnswers = workOutTurrets(file, names);
             answeredList = text;
         } finally {
             rewardWorking = false;
         }
+        // Nothing on the page changes when the answers are ready, so the boxes would wait for the timer's next pass.
+        boxTick();
     }
 
     // Says there is no information, like a garage tile the wiki lacks: a tile with no wiki text, or one the rule is not sure of.
