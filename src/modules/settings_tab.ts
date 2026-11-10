@@ -76,6 +76,8 @@
         { key: 'kasp_garageskins', group: 'garage', live: true, label: { EN: 'Equipped skins in the garage', RU: 'Надетые скины в гараже' } },
         { key: 'kasp_narrowcards', group: 'garage', live: true, label: { EN: 'Narrower garage cards', RU: 'Узкие карточки в гараже' } },
         { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },
+        // Read by the injector when the game starts, so a change applies at the next start, with no reload when settings close.
+        { key: 'kasp_skipstart', group: 'interface', live: true, label: { EN: 'Skip the start screen', RU: 'Пропускать стартовый экран' } },
     ];
 
     interface ChoiceOption {
