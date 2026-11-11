@@ -1,5 +1,5 @@
-/* The in-battle stats table (Tab) in the Humungus userscript's layout (build-plan 18; the owner chose its method on
-   2026-11-08). The game lays its row cells out one after another and shows a player's protections only while the mouse is
+/* The in-battle stats table (Tab) with every cell at a fixed spot (build-plan 18, the owner's choice of 2026-11-08).
+   The game lays its row cells out one after another and shows a player's protections only while the mouse is
    on that row. Here every header and every row cell of the two team tables gets its own fixed spot in em, the protections
    cell shows on every row, and the change column the game draws for us (src/injector.ts) gets the last spot. A row cell is
    found by the game's class for it, a header by its place, since the game's headers carry no class. The DM table keeps the
@@ -173,8 +173,8 @@
 /* Coloured icons (build-plan 18c). The game writes each protection's type on the slot that holds its icon and percent, in
    the rows and in the count under the tables, and each player's turret id on the turret icon (src/injector.ts). It draws a
    protection icon as a stencil filled with a background colour; the turret icon is a white picture that the injector also
-   makes its own stencil. Here the colour is the turret's: the same colours as the Humungus userscript (the owner's
-   decision, 2026-11-08). A turret's colour is its protection's colour, since the game draws both with the same picture.
+   makes its own stencil. Here the colour is the turret's, from a fixed list (the owner's decision,
+   2026-11-08). A turret's colour is its protection's colour, since the game draws both with the same picture.
    The enemies' protection against the player's own turret gets a red square. Each colour rule applies only while its
    switch is on (18e): battle_tab.ts puts data-kasp-plain-protections on the root element while Coloured modules is off,
    and data-kasp-plain-turrets while Coloured turret icons is off, and the game's own icons show. A type or turret not
@@ -205,10 +205,9 @@
     background-color: var(--kasp-protection, currentColor) !important;
 }
 
-/* The enemies' protection against the player's own turret, marked as Humungus marks it (read from its code, 2026-11-08): a
-   dark red square with 3px corners behind the icon and the percent, and the percent in yellow. Humungus marks it wherever
-   the game draws it red, teammates too; here only on enemies (the owner's choice). A teammate's keeps the normal text
-   colour. */
+/* The enemies' protection against the player's own turret: a dark red square with 3px corners behind the icon and the
+   percent, and the percent in yellow. The game draws it red on teammates too; the square goes on enemies only (the owner's
+   choice, 2026-11-08). A teammate's keeps the normal text colour. */
 :root:not([data-kasp-plain-protections]) [data-kasp-protection][data-kasp-own][data-kasp-enemy] {
     background-color: rgb(68, 38, 59) !important;
     border-radius: 3px !important;
@@ -272,77 +271,91 @@
     width: auto !important;
 }
 
-/* The augment box of the battle tab (build-plan 18d, augments.ts): small and plain, in the look of the Humungus userscript's
-   box, by the owner's decision of 2026-11-08 (the garage's box is too big for the battle tab). The font is the game's own. */
+/* The augment box of the battle tab (augments.ts showBattleBox): the garage's box (styles/augments.css) made small, its two
+   columns stacked, in the game's own font ("Garage Mini", the owner's choice of 2026-11-10). Only the sizes differ here; the
+   rank colours, pictures and colours of the text come from the garage's rules. */
 #kasp-battle-box {
-    position: fixed;
-    z-index: 2147483647;
-    display: none;
-    max-width: 290px;
-    padding: 6px 10px;
-    pointer-events: none;
-    background: #001926f2;
-    border: 1px solid #e05d38;
-    border-radius: 5px;
-    box-shadow: 0 0 6px #e05d3833, 0 3px 10px #0000004d;
-    color: #e5e5e5;
+    min-width: 224px;
+    max-width: 350px;
+    box-shadow:
+        0 0 10px color-mix(in srgb, var(--kasp-frame) 38%, transparent),
+        0 6px 16px rgba(0, 0, 0, 0.6);
     font-family: BaseFontMedium, FallbackFontMedium, sans-serif;
-    font-size: 10.7px;
-    letter-spacing: 0.3px;
+    font-size: 12px;
+    line-height: 1.3;
     white-space: normal;
 }
 
-#kasp-battle-box .kasp-battle-box-title {
-    color: #ffd23c;
-    font-size: 11.8px;
-    font-weight: 700;
-    text-align: center;
+#kasp-battle-box .kasp-spec-corner-start,
+#kasp-battle-box .kasp-spec-corner-end {
+    width: 29px;
+    height: 29px;
 }
 
-#kasp-battle-box .kasp-battle-box-line {
-    height: 1px;
-    margin: 4px 0;
-    background: #e05d38;
-    opacity: 0.5;
+#kasp-battle-box .kasp-spec-container {
+    top: 9px;
+    right: 11px;
+    width: 22px;
+    height: 15px;
 }
 
-#kasp-battle-box .kasp-battle-box-sections {
-    display: flex;
+#kasp-battle-box .kasp-spec-name {
+    padding: 8px 44px 8px 12px;
+    font-size: 12.6px;
+    letter-spacing: 0.03em;
+}
+
+#kasp-battle-box .kasp-spec-columns {
     flex-direction: column;
-    gap: 4px;
 }
 
-#kasp-battle-box .kasp-battle-box-note {
-    text-align: center;
+#kasp-battle-box .kasp-spec-col {
+    padding: 7px 12px;
 }
 
-#kasp-battle-box .kasp-battle-box-label {
-    font-size: 9.6px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+#kasp-battle-box .kasp-spec-col + .kasp-spec-col {
+    border-left: 0;
+    border-top: 1px solid rgba(120, 165, 205, 0.18);
 }
 
-#kasp-battle-box ul {
-    list-style: none;
-    margin: 2px 0 0;
-    padding-left: 10px;
+#kasp-battle-box .kasp-spec-heading {
+    gap: 6px;
+    font-size: 10.8px;
+    letter-spacing: 0.04em;
 }
 
-#kasp-battle-box li {
-    position: relative;
-    line-height: 1.3;
-    margin-bottom: 1px;
-    padding-left: 10px;
+#kasp-battle-box .kasp-spec-sign {
+    width: 13px;
+    height: 13px;
 }
 
-#kasp-battle-box li::before {
-    content: "▸";
-    position: absolute;
-    left: 0;
+#kasp-battle-box .kasp-spec-lines {
+    margin-top: 5px;
 }
 
-#kasp-battle-box .kasp-battle-box-advantages .kasp-battle-box-label { color: #64dc64; }
-#kasp-battle-box .kasp-battle-box-advantages li { color: #b4f0b4; }
-#kasp-battle-box .kasp-battle-box-disadvantages .kasp-battle-box-label { color: #f05050; }
-#kasp-battle-box .kasp-battle-box-disadvantages li { color: #faa0a0; }
+#kasp-battle-box .kasp-spec-line {
+    margin-bottom: 3px;
+    padding-left: 12px;
+}
+
+#kasp-battle-box .kasp-spec-line::before {
+    top: 0.42em;
+    left: 1px;
+    border-top-width: 3px;
+    border-bottom-width: 3px;
+    border-left-width: 5px;
+}
+
+#kasp-battle-box .kasp-spec-effect {
+    height: 1.3em;
+    margin-right: 3px;
+}
+
+#kasp-battle-box .kasp-spec-note {
+    gap: 6px;
+    padding: 9px 12px 10px;
+}
+
+#kasp-battle-box .kasp-spec-note-icon {
+    height: 1.3em;
+}

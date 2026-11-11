@@ -444,15 +444,15 @@
         return decorations;
     }
 
-    function showTooltip(match: AugmentMatch, event: MouseEvent): void {
-        const tooltip = getTooltip();
+    // The battle tab's box is filled the same way; its own styles make it small (styles/battle_tab.css).
+    function fillSpecBox(box: HTMLElement, match: AugmentMatch): void {
         const { augment, language } = match;
-        tooltip.replaceChildren(...buildDecorations(augment.rarity), element('div', 'kasp-spec-name', augment.name));
+        box.replaceChildren(...buildDecorations(augment.rarity), element('div', 'kasp-spec-name', augment.name));
         if (match.missing === true) {
             // The warning picture is the one the change counter puts beside a player who changed equipment.
             const note = element('div', 'kasp-spec-note', MISSING_NOTE[language]);
             note.append(icon('kasp-spec-note-icon', 'change-marker.webp'));
-            tooltip.append(note);
+            box.append(note);
         } else {
             const columns = element('div', 'kasp-spec-columns');
             if (augment.advantages.length > 0) {
@@ -461,9 +461,14 @@
             if (augment.disadvantages.length > 0) {
                 columns.append(buildColumn('negative', HEADINGS[language].disadvantages, augment.disadvantages));
             }
-            tooltip.append(columns);
+            box.append(columns);
         }
-        tooltip.dataset['rarity'] = augment.rarity ?? '';
+        box.dataset['rarity'] = augment.rarity ?? '';
+    }
+
+    function showTooltip(match: AugmentMatch, event: MouseEvent): void {
+        const tooltip = getTooltip();
+        fillSpecBox(tooltip, match);
         tooltip.style.display = 'block';
         moveTooltip(event);
     }
@@ -1307,31 +1312,14 @@
         return { language: file.language, augment: { name: name ?? '?', advantages: [], disadvantages: [], rarity: null }, missing: true };
     }
 
-    // The battle tab's box is smaller than the garage's: the name, a thin line, and the advantages and disadvantages as short
-    // lists of plain text, in the look of the Humungus userscript's box (the owner's decision, 2026-11-08; styles/battle_tab.css).
+    // The battle tab's box is the garage's box with its own id, made small by styles/battle_tab.css (the owner's choice of
+    // 2026-11-10).
     const BATTLE_BOX_ID = 'kasp-battle-box';
-    const BATTLE_MARKER = new RegExp(MARKER_PATTERN.source, 'g');
-
-    // A status effect marker becomes its name ("{freeze|Freezing}" is "Freezing"); one with no name is left out.
-    function plainLine(line: string): string {
-        return line
-            .replace(BATTLE_MARKER, (_marker, _key: string, name: string | undefined, quoted: string | undefined) => name ?? quoted ?? '')
-            .replace(/\s{2,}/g, ' ')
-            .trim();
-    }
-
-    function battleSection(kind: 'advantages' | 'disadvantages', heading: string, lines: readonly string[]): HTMLElement {
-        const section = element('div', `kasp-battle-box-section kasp-battle-box-${kind}`);
-        const list = document.createElement('ul');
-        for (const line of lines) list.append(element('li', '', plainLine(line)));
-        section.append(element('span', 'kasp-battle-box-label', heading), list);
-        return section;
-    }
 
     function getBattleBox(): HTMLElement {
         const existing = document.getElementById(BATTLE_BOX_ID);
         if (existing !== null) return existing;
-        const box = element('div', 'kasp-battle-box');
+        const box = element('div', 'kasp-spec-tooltip');
         box.id = BATTLE_BOX_ID;
         document.body.append(box);
         return box;
@@ -1339,17 +1327,7 @@
 
     function showBattleBox(match: AugmentMatch, event: MouseEvent): void {
         const box = getBattleBox();
-        const { augment, language } = match;
-        const sections = element('div', 'kasp-battle-box-sections');
-        if (match.missing === true) {
-            sections.append(element('div', 'kasp-battle-box-note', MISSING_NOTE[language]));
-        } else {
-            if (augment.advantages.length > 0) sections.append(battleSection('advantages', HEADINGS[language].advantages, augment.advantages));
-            if (augment.disadvantages.length > 0) {
-                sections.append(battleSection('disadvantages', HEADINGS[language].disadvantages, augment.disadvantages));
-            }
-        }
-        box.replaceChildren(element('div', 'kasp-battle-box-title', augment.name), element('div', 'kasp-battle-box-line'), sections);
+        fillSpecBox(box, match);
         box.style.display = 'block';
         placeNearMouse(box, event);
     }
