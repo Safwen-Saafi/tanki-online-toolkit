@@ -1218,6 +1218,103 @@
         return `${code.slice(0, at)}${call}${code.slice(at)}`;
     }
 
+    // ---- the daily offer quick buying (build-plan 24, see blueprint/context/shop-quick-buy.md) ----
+    // After every shop purchase the game draws a "Purchase successful" dialog. For a purchase made by clicking a card of the
+    // showcase (the daily offer) the patched click function leaves a note, window.__kaspShopSkipUntil (a time, a few seconds
+    // ahead). The dialog's render and mount functions read it: while the note holds, or for a dialog already skipped, the dialog
+    // draws nothing, and when it mounts the note is used up and the game's own close function runs, as if the player had pressed
+    // Enter. A dialog that mounts with no note (every other purchase) is untouched. Nothing watches the page: the game's own code
+    // calls these functions when it clicks and when it draws, and no timer is started. As in this build (names change per build):
+    //   click:  .onClick=function(t,n,i){return function(){var t;return t=n,z0(i)&&!p2t().aar().faq_1.apw_1.et6()&&p2t().aar().gaq(new n0(t)),jq}}
+    //   render: xq(ZHi).jap=function(t){var n=!CHi(this);if(this.pas_1.z1so_1.r())return jq;var i=Mq(LYt);t.yao(i,BHi(this,n))}
+    //   mount:  xq(ZHi).componentDidMount=function(){return this.k1hu()}
+    //   close:  (u=function(){return EHi(e),jq}).callableName="close"   (inside BHi, the builder the render calls)
+    // The click edit puts the note in front of the game's buy action, after the game's own checks (a card that is sold, or a
+    // purchase still waiting for its answer, never leaves a note). The three edits are made all or none.
+    const SHOP_NOTE_MS = 8000;
+    const SHOP_CLOSE_RANGE = 1500;
+    const skippedDialogs = new WeakSet<object>();
+
+    function shopNoteHolds(): boolean {
+        const until = window.__kaspShopSkipUntil;
+        return typeof until === 'number' && Date.now() < until;
+    }
+
+    // Called from inside the game's code, so these must never throw into it.
+    window.__kaspShopHide = function (dialog: object): boolean {
+        try {
+            return skippedDialogs.has(dialog) || shopNoteHolds();
+        } catch {
+            return false;
+        }
+    };
+
+    window.__kaspShopMounted = function (dialog: object, close: () => void): void {
+        try {
+            if (!skippedDialogs.has(dialog)) {
+                if (!shopNoteHolds()) return;
+                skippedDialogs.add(dialog);
+                window.__kaspShopSkipUntil = 0;
+            }
+            // A microtask runs before the browser paints, so the dialog is never seen, and the game's mounting is over by then.
+            queueMicrotask(() => {
+                try {
+                    close();
+                } catch (e: unknown) {
+                    // The game's close could not run: show the dialog as the game drew it, so it is never left hidden and stuck.
+                    warn(`${LOG} the shop dialog could not be closed, it is shown:`, e instanceof Error ? e.message : e);
+                    skippedDialogs.delete(dialog);
+                    const redraw = (dialog as { forceUpdate?: unknown }).forceUpdate;
+                    if (typeof redraw === 'function') redraw.call(dialog);
+                }
+            });
+        } catch {
+            // an error here leaves the game's dialog as it is
+        }
+    };
+
+    function shopQuickBuySwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_shopquickbuy') === '0';
+        } catch {
+            return false;
+        }
+    }
+
+    function patchShopQuickBuy(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the shop ${what} in this bundle, shop quick buying skipped`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const click = exactlyOne(code, new RegExp(`\\.onClick=function\\(${N},${N},${N}\\)\\{return function\\(\\)\\{var (${N});return \\1=${N},${N}\\(${N}\\)&&!${N}\\(\\)\\.${N}\\(\\)\\.${N}\\.${N}\\.${N}\\(\\)&&(${N}\\(\\)\\.${N}\\(\\)\\.${N}\\(new ${N}\\(\\1\\)\\)),(${N})\\}\\}`, 'g'));
+        if (click === null) return skip('card click');
+        const render = exactlyOne(code, new RegExp(`(${N})\\((${N})\\)\\.jap=function\\(t\\)\\{var n=!${N}\\(this\\);if\\(this\\.pas_1\\.${N}\\.r\\(\\)\\)return (${N});var i=Mq\\(${N}\\);t\\.yao\\(i,(${N})\\(this,n\\)\\)\\}`, 'g'));
+        if (render === null) return skip('success dialog render');
+        const [, classWrapper, dialogClass, unit, builder] = render;
+        const mount = exactlyOne(code, new RegExp(`${asPattern(classWrapper)}\\(${asPattern(dialogClass)}\\)\\.componentDidMount=function\\(\\)\\{return this\\.(${N})\\(\\)\\}`, 'g'));
+        if (mount === null) return skip('success dialog mount');
+        const builderAt = code.indexOf(`function ${builder}(t,n){`);
+        const close = builderAt < 0 ? null : new RegExp(`\\(${N}=function\\(\\)\\{return (${N})\\(${N}\\),${asPattern(unit)}\\}\\)\\.callableName="close"`).exec(code.slice(builderAt, builderAt + SHOP_CLOSE_RANGE));
+        if (close === null) return skip('success dialog close');
+
+        const call = click[2];
+        const callAt = click.index + click[0].lastIndexOf(`&&${call},`) + 2;
+        return applyEdits(code, [
+            { at: callAt, length: call.length, text: `(window.__kaspShopSkipUntil=Date.now()+${SHOP_NOTE_MS},${call})` },
+            {
+                at: render.index + render[0].indexOf('function(t){') + 'function(t){'.length,
+                length: 0,
+                text: `if(window.__kaspShopHide&&window.__kaspShopHide(this))return ${unit};`,
+            },
+            {
+                at: mount.index,
+                length: mount[0].length,
+                text: `${classWrapper}(${dialogClass}).componentDidMount=function(){var $kr=this.${mount[1]}(),$ks=this;window.__kaspShopMounted&&window.__kaspShopMounted($ks,function(){${close[1]}($ks)});return $kr}`,
+            },
+        ]);
+    }
+
     // The bundle with every hook that could be added, and the labels of those hooks.
     function patchBundle(code: string): { readonly code: string; readonly hooked: string[] } {
         let result = code;
@@ -1277,6 +1374,13 @@
         if (chat !== null) {
             result = chat;
             hooked.push('chat-translation');
+        }
+        if (!shopQuickBuySwitchedOff()) {
+            const shop = patchShopQuickBuy(result);
+            if (shop !== null) {
+                result = shop;
+                hooked.push('shop-quick-buy');
+            }
         }
         // Last, so every other edit finds the game's code as it was.
         if (theme !== null) {

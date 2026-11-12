@@ -279,6 +279,11 @@ interface Window {
     __kaspChangeHeader?: string;
     // MAIN world only: called by the game's chat code with each message it adds, and the team message class (build-plan 19).
     __kaspChat?: (event: unknown, teamClass: unknown) => void;
+    // MAIN world only (build-plan 24): the time (ms) until which the next shop success dialog is skipped, set by the patched showcase
+    // card click and used up by the dialog's mount; and the two functions the patched dialog calls when it draws and when it mounts.
+    __kaspShopSkipUntil?: number;
+    __kaspShopHide?: (dialog: object) => boolean;
+    __kaspShopMounted?: (dialog: object, close: () => void) => void;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
     kaspOldPictures?: KaspOldPictures;
