@@ -188,8 +188,7 @@
     }
 
     // Called by the game's code each time one of the showcase cards mounts (six times when the showcase opens). The button is added
-    // to the cards' grid once; the grid is thrown away by the game when the player leaves the showcase, and the button with it. Every
-    // call also reads the cards again, so the last of the six sees them all.
+    // to the cards' grid once. Every call also reads the cards again, so the last of the six sees them all.
     function ensureButton(): void {
         const grid = currentGrid();
         if (grid === null) return;
@@ -204,12 +203,30 @@
         refreshButton();
     }
 
+    // The game reuses the cards' grid element for the other shop tabs and only removes what it made itself, so the button and the
+    // mark on the grid would stay. Found by its id, not through the grid's class: the game may have changed the class by now.
+    function removeButton(): void {
+        const button = document.getElementById(BUTTON_CLASS);
+        if (button === null) return;
+        button.parentElement?.removeAttribute(GRID_MARK);
+        button.remove();
+        window.clearTimeout(refreshTimer);
+    }
+
     if (!isSwitchedOff()) {
         window.__kaspShopCard = (): void => {
             try {
                 ensureButton();
             } catch {
                 // a button that cannot be added leaves the shop as the game drew it
+            }
+        };
+        // Called by each showcase card the game unmounts (six calls when the player leaves the showcase, the later ones find nothing).
+        window.__kaspShopCardGone = (): void => {
+            try {
+                removeButton();
+            } catch {
+                // the game's own unmounting goes on whatever happens here
             }
         };
     }

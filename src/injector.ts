@@ -1233,7 +1233,9 @@
     // The click edit puts the note in front of the game's buy action, after the game's own checks (a card that is sold, or a
     // purchase still waiting for its answer, never leaves a note). The fourth edit gives the showcase card, which has no mount
     // function, one that calls window.__kaspShopCard (shop_quick_buy.ts), which adds the Buy all button once to the cards' grid.
-    // The four edits are made all or none.
+    // The game reuses that grid element for the other shop tabs (Keys, Tankoins and so on), and what we add to it is not React's, so
+    // it would stay there: the card also gets an unmount function that calls window.__kaspShopCardGone, which takes the button out.
+    // The edits are made all or none (the card's two functions count as one).
     const SHOP_NOTE_MS = 8000;
     const SHOP_CLOSE_RANGE = 1500;
     const skippedDialogs = new WeakSet<object>();
@@ -1307,6 +1309,7 @@
         if (card === null) return skip('card render');
         const [, cardWrapper, cardClass] = card;
         if (new RegExp(`${asPattern(cardWrapper)}\\(${asPattern(cardClass)}\\)\\.componentDidMount=`).test(code)) return skip('card mount (the card has one already)');
+        if (new RegExp(`${asPattern(cardWrapper)}\\(${asPattern(cardClass)}\\)\\.componentWillUnmount=`).test(code)) return skip('card unmount (the card has one already)');
 
         const call = click[2];
         const callAt = click.index + click[0].lastIndexOf(`&&${call},`) + 2;
@@ -1320,7 +1323,7 @@
             {
                 at: card.index,
                 length: 0,
-                text: `${cardWrapper}(${cardClass}).componentDidMount=function(){window.__kaspShopCard&&window.__kaspShopCard()},`,
+                text: `${cardWrapper}(${cardClass}).componentDidMount=function(){window.__kaspShopCard&&window.__kaspShopCard()},${cardWrapper}(${cardClass}).componentWillUnmount=function(){window.__kaspShopCardGone&&window.__kaspShopCardGone()},`,
             },
             {
                 at: mount.index,

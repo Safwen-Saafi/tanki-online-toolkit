@@ -287,6 +287,8 @@ interface Window {
     // MAIN world only, defined by src/modules/shop_quick_buy.ts: called by each showcase card the game mounts (adds the Buy all button),
     // and, with the injector's skipped dialog, the signal that a purchase of a running Buy all went through.
     __kaspShopCard?: () => void;
+    // Called by each showcase card the game unmounts (takes the Buy all button out, the game reuses its grid for the other shop tabs).
+    __kaspShopCardGone?: () => void;
     __kaspShopDialogShown?: () => void;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
