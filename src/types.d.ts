@@ -279,6 +279,17 @@ interface Window {
     __kaspChangeHeader?: string;
     // MAIN world only: called by the game's chat code with each message it adds, and the team message class (build-plan 19).
     __kaspChat?: (event: unknown, teamClass: unknown) => void;
+    // MAIN world only (build-plan 24): the time (ms) until which the next shop success dialog is skipped, set by the patched showcase
+    // card click and used up by the dialog's mount; and the two functions the patched dialog calls when it draws and when it mounts.
+    __kaspShopSkipUntil?: number;
+    __kaspShopHide?: (dialog: object) => boolean;
+    __kaspShopMounted?: (dialog: object, close: () => void) => void;
+    // MAIN world only, defined by src/modules/shop_quick_buy.ts: called by each showcase card the game mounts (adds the Buy all button),
+    // and, with the injector's skipped dialog, the signal that a purchase of a running Buy all went through.
+    __kaspShopCard?: () => void;
+    // Called by each showcase card the game unmounts (takes the Buy all button out, the game reuses its grid for the other shop tabs).
+    __kaspShopCardGone?: () => void;
+    __kaspShopDialogShown?: () => void;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
     kaspOldPictures?: KaspOldPictures;

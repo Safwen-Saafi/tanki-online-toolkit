@@ -27,7 +27,7 @@
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
     const DIVIDER_BLOCK_CLASS = 'SettingsComponentStyle-commonBlock';
 
-    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'interface' | 'colour' | 'tabColours' | 'loading';
+    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'shop' | 'interface' | 'colour' | 'tabColours' | 'loading';
 
     interface SwitchEntry {
         // The localStorage key the feature's module reads.
@@ -46,6 +46,7 @@
         { id: 'battle', heading: { EN: 'Battle tab', RU: 'Таблица боя' } },
         { id: 'chat', heading: { EN: 'Chat', RU: 'Чат' } },
         { id: 'garage', heading: { EN: 'Garage', RU: 'Гараж' } },
+        { id: 'shop', heading: { EN: 'Shop', RU: 'Магазин' } },
         { id: 'interface', heading: { EN: 'Interface', RU: 'Интерфейс' } },
         // No switch: its row of colour circles (THEME_COLOURS).
         { id: 'colour', heading: { EN: 'Game colour', RU: 'Цвет игры' } },
@@ -81,6 +82,8 @@
         { key: 'kasp_old_pictures', group: 'garage', live: false, label: { EN: 'Old augment pictures', RU: 'Старые картинки устройств' } },
         { key: 'kasp_garageskins', group: 'garage', live: true, label: { EN: 'Equipped skins in the garage', RU: 'Надетые скины в гараже' } },
         { key: 'kasp_narrowcards', group: 'garage', live: true, label: { EN: 'Narrower garage cards', RU: 'Узкие карточки в гараже' } },
+        // Read by the injector when the game starts: the daily offer's click buys without the success dialog (a change needs a reload).
+        { key: 'kasp_shopquickbuy', group: 'shop', live: false, label: { EN: 'Daily offer quick buying', RU: 'Быстрая покупка ежедневного предложения' } },
         { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },
         // Read by the injector when the game starts, so a change applies at the next start, with no reload when settings close.
         { key: 'kasp_skipstart', group: 'interface', live: true, label: { EN: 'Skip the start screen', RU: 'Пропускать стартовый экран' } },

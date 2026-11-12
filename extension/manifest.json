@@ -11,7 +11,8 @@
         "*://tankionline.com/*"
       ],
       "js": [
-        "js/injector.js"
+        "js/injector.js",
+        "js/modules/shop_quick_buy.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"
@@ -49,7 +50,8 @@
         "styles/augments.css",
         "styles/settings_tab.css",
         "styles/chat_translation.css",
-        "styles/debug_line.css"
+        "styles/debug_line.css",
+        "styles/shop_quick_buy.css"
       ],
       "run_at": "document_start"
     }

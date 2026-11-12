@@ -1,0 +1,54 @@
+/* Daily offer quick buying (build-plan 24): the Buy all button next to the showcase cards, in the look of the game's own buttons, in em
+   from the values measured on the game (blueprint/context/shop-quick-buy.md). The navy text follows the game colour the way
+   settings_tab.css does (the green of the button is the game's own and stays). shop_quick_buy.ts makes the element; nothing here runs. */
+
+/* The cards' grid becomes the button's frame only while our button is in it (the attribute is put on the grid with the button), so
+   no other grid of the game is touched. */
+[data-kasp-buyall] {
+    position: relative;
+}
+
+/* Left of the grid, level with the first card, one em from the grid's edge (the owner's place, 2026-11-12). */
+.kasp-buyall {
+    position: absolute;
+    top: 0.25em;
+    right: calc(100% + 1em);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 12.375em;
+    height: 3.125em;
+    padding: 0 1.8em;
+    border-radius: 0.75em;
+    background: rgb(118, 255, 51);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: background 0.3s, opacity 0.3s;
+}
+
+.kasp-buyall:not(.kasp-done):hover {
+    background: rgb(106, 230, 46);
+}
+
+/* While a Buy all is running. */
+.kasp-buyall.kasp-busy {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Every card is taken: nothing to buy. */
+.kasp-buyall.kasp-done {
+    filter: grayscale(1);
+    opacity: 0.45;
+    cursor: default;
+}
+
+.kasp-buyall span {
+    color: hsl(from rgb(0, 25, 38) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
+    font-family: BaseFontBold, FallbackFontBold;
+    font-weight: 500;
+    text-transform: uppercase;
+    pointer-events: none;
+}
