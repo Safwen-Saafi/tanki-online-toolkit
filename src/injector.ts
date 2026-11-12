@@ -1229,8 +1229,11 @@
     //   render: xq(ZHi).jap=function(t){var n=!CHi(this);if(this.pas_1.z1so_1.r())return jq;var i=Mq(LYt);t.yao(i,BHi(this,n))}
     //   mount:  xq(ZHi).componentDidMount=function(){return this.k1hu()}
     //   close:  (u=function(){return EHi(e),jq}).callableName="close"   (inside BHi, the builder the render calls)
+    //   card:   xq(xXi).jap=function(t){var n=aXi,i=Dq.nut(n),r=i.juv();sXi().r1sx(r),this.props.card.xq4_1||T0(this.props.card)?(...
     // The click edit puts the note in front of the game's buy action, after the game's own checks (a card that is sold, or a
-    // purchase still waiting for its answer, never leaves a note). The three edits are made all or none.
+    // purchase still waiting for its answer, never leaves a note). The fourth edit gives the showcase card, which has no mount
+    // function, one that calls window.__kaspShopCard (shop_quick_buy.ts), which adds the Buy all button once to the cards' grid.
+    // The four edits are made all or none.
     const SHOP_NOTE_MS = 8000;
     const SHOP_CLOSE_RANGE = 1500;
     const skippedDialogs = new WeakSet<object>();
@@ -1255,6 +1258,8 @@
                 if (!shopNoteHolds()) return;
                 skippedDialogs.add(dialog);
                 window.__kaspShopSkipUntil = 0;
+                // Tells a running Buy all (shop_quick_buy.ts) that the purchase went through.
+                window.__kaspShopDialogShown?.();
             }
             // A microtask runs before the browser paints, so the dialog is never seen, and the game's mounting is over by then.
             queueMicrotask(() => {
@@ -1298,6 +1303,11 @@
         const close = builderAt < 0 ? null : new RegExp(`\\(${N}=function\\(\\)\\{return (${N})\\(${N}\\),${asPattern(unit)}\\}\\)\\.callableName="close"`).exec(code.slice(builderAt, builderAt + SHOP_CLOSE_RANGE));
         if (close === null) return skip('success dialog close');
 
+        const card = exactlyOne(code, new RegExp(`(${N})\\((${N})\\)\\.jap=function\\(t\\)\\{var n=${N},i=${N}\\.nut\\(n\\),r=i\\.juv\\(\\);${N}\\(\\)\\.${N}\\(r\\),this\\.props\\.card\\.${N}\\|\\|${N}\\(this\\.props\\.card\\)\\?`, 'g'));
+        if (card === null) return skip('card render');
+        const [, cardWrapper, cardClass] = card;
+        if (new RegExp(`${asPattern(cardWrapper)}\\(${asPattern(cardClass)}\\)\\.componentDidMount=`).test(code)) return skip('card mount (the card has one already)');
+
         const call = click[2];
         const callAt = click.index + click[0].lastIndexOf(`&&${call},`) + 2;
         return applyEdits(code, [
@@ -1306,6 +1316,11 @@
                 at: render.index + render[0].indexOf('function(t){') + 'function(t){'.length,
                 length: 0,
                 text: `if(window.__kaspShopHide&&window.__kaspShopHide(this))return ${unit};`,
+            },
+            {
+                at: card.index,
+                length: 0,
+                text: `${cardWrapper}(${cardClass}).componentDidMount=function(){window.__kaspShopCard&&window.__kaspShopCard()},`,
             },
             {
                 at: mount.index,

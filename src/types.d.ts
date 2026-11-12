@@ -284,6 +284,10 @@ interface Window {
     __kaspShopSkipUntil?: number;
     __kaspShopHide?: (dialog: object) => boolean;
     __kaspShopMounted?: (dialog: object, close: () => void) => void;
+    // MAIN world only, defined by src/modules/shop_quick_buy.ts: called by each showcase card the game mounts (adds the Buy all button),
+    // and, with the injector's skipped dialog, the signal that a purchase of a running Buy all went through.
+    __kaspShopCard?: () => void;
+    __kaspShopDialogShown?: () => void;
     kaspLanguage?: KaspLanguage;
     kaspGarageTab?: KaspGarageTabReader;
     kaspOldPictures?: KaspOldPictures;
