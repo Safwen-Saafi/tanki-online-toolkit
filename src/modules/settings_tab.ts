@@ -27,7 +27,7 @@
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
     const DIVIDER_BLOCK_CLASS = 'SettingsComponentStyle-commonBlock';
 
-    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'interface';
+    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'interface' | 'colour' | 'tabColours';
 
     interface SwitchEntry {
         // The localStorage key the feature's module reads.
@@ -47,6 +47,10 @@
         { id: 'chat', heading: { EN: 'Chat', RU: 'Чат' } },
         { id: 'garage', heading: { EN: 'Garage', RU: 'Гараж' } },
         { id: 'interface', heading: { EN: 'Interface', RU: 'Интерфейс' } },
+        // No switch: its row of colour circles (THEME_COLOURS).
+        { id: 'colour', heading: { EN: 'Game colour', RU: 'Цвет игры' } },
+        // Its switch, then its four colour squares (TAB_COLOURS).
+        { id: 'tabColours', heading: { EN: 'Battle tab colours', RU: 'Цвета таблицы боя' } },
     ];
 
     // Shown in this order inside each group.
@@ -78,6 +82,8 @@
         { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },
         // Read by the injector when the game starts, so a change applies at the next start, with no reload when settings close.
         { key: 'kasp_skipstart', group: 'interface', live: true, label: { EN: 'Skip the start screen', RU: 'Пропускать стартовый экран' } },
+        // On: the battle tab takes the four colours below, whatever the game colour (battle_tab.ts, styles/battle_tab.css).
+        { key: 'kasp_tabcolours', group: 'tabColours', live: true, label: { EN: 'Own colours', RU: 'Свои цвета' } },
     ];
 
     interface ChoiceOption {
@@ -139,12 +145,39 @@
         })),
     ];
 
+    // The game colour (build-plan 22), one circle each. The colour work is the injector's: it reads THEME_KEY when the game starts
+    // and writes the colour into the game's code, so a new colour applies at the next start (the game restarts when the settings
+    // close). The names are also in injector.ts (THEMES); change both together. Blue is the game's own look and is saved as no key.
+    const THEME_KEY = 'kasp_theme';
+    const THEME_FALLBACK = 'blue';
+    const THEME_COLOURS: ReadonlyArray<{ value: string; label: Record<KaspLanguageCode, string> }> = [
+        { value: 'blue', label: { EN: "Blue (the game's own)", RU: 'Синий (как в игре)' } },
+        { value: 'pink', label: { EN: 'Pink', RU: 'Розовый' } },
+        { value: 'purple', label: { EN: 'Purple', RU: 'Фиолетовый' } },
+        { value: 'crimson', label: { EN: 'Crimson', RU: 'Багровый' } },
+        { value: 'teal', label: { EN: 'Teal', RU: 'Бирюзовый' } },
+        { value: 'bronze', label: { EN: 'Bronze', RU: 'Бронзовый' } },
+    ];
+    const COLOUR_CHOSEN = 'kasp-chosen';
+
+    // The battle tab's own colours (owner, 2026-11-11), each picked freely and saved as #rrggbb. The fallbacks are the game's own
+    // colours, also written in styles/battle_tab.css; change both together. Choosing the fallback, or pressing the colour's Default
+    // button (owner, 2026-11-12), removes the key.
+    const TAB_COLOURS: ReadonlyArray<{ key: string; fallback: string; label: Record<KaspLanguageCode, string> }> = [
+        { key: 'kasp_tabcolour_bg', fallback: '#001926', label: { EN: 'Background', RU: 'Фон' } },
+        { key: 'kasp_tabcolour_allies', fallback: '#00d4ff', label: { EN: "Allies' rows", RU: 'Строки союзников' } },
+        { key: 'kasp_tabcolour_enemies', fallback: '#fe6666', label: { EN: "Enemies' rows", RU: 'Строки противников' } },
+        { key: 'kasp_tabcolour_box', fallback: '#1d3650', label: { EN: 'Augment info box', RU: 'Окно описания устройства' } },
+    ];
+    const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
+
     // The mark after the label of a switch that applies after a reload, and in the legend that explains it.
     const RELOAD_MARK = '↻';
     const NOTICE_SHOWN = 'kasp-waiting';
 
-    const TEXT: Record<'reset' | 'afterReload' | 'reloadsOnClose' | 'notice', Record<KaspLanguageCode, string>> = {
+    const TEXT: Record<'reset' | 'defaultColour' | 'afterReload' | 'reloadsOnClose' | 'notice', Record<KaspLanguageCode, string>> = {
         reset: { EN: 'reset all', RU: 'сбросить всё' },
+        defaultColour: { EN: 'Default', RU: 'Сбросить' },
         afterReload: { EN: 'Applies after a reload', RU: 'Применится после перезагрузки' },
         reloadsOnClose: { EN: 'The game reloads by itself when you close settings', RU: 'Игра перезагрузится сама, когда вы закроете настройки' },
         notice: { EN: 'The game will reload when you close settings', RU: 'Игра перезагрузится, когда вы закроете настройки' },
@@ -164,11 +197,14 @@
     // How each reload switch was when the page started, which is when its module read it.
     const atStart = new Map(SWITCHES.filter((entry) => !entry.live).map((entry) => [entry.key, isOn(entry.key)]));
 
-    // True when closing settings will reload: a reload switch differs from how it was at start, so flipping one off and on
-    // again waits for nothing.
+    // The game colour is written into the game's code when it starts (injector.ts), so a new colour waits for the next start too.
+    const themeAtStart = window.kaspSwitches?.getChoice(THEME_KEY) ?? null;
+
+    // True when closing settings will reload: a reload switch, or the game colour, differs from how it was at start, so flipping
+    // one off and on again waits for nothing.
     function reloadWaiting(): boolean {
         for (const [key, on] of atStart) if (isOn(key) !== on) return true;
-        return false;
+        return (window.kaspSwitches?.getChoice(THEME_KEY) ?? null) !== themeAtStart;
     }
 
     function element(tag: string, className: string, text?: string): HTMLElement {
@@ -338,6 +374,80 @@
         return { node, refresh };
     }
 
+    // The row of colour circles: the saved colour has the ring, and a click saves another (a value the row does not know shows Blue,
+    // as the injector reads it). Nothing is repainted now: the injector reads the key when the game starts, so the ↻ notice shows and
+    // the game reloads when the settings close.
+    function makePalette(title: string, language: KaspLanguageCode, onChange: () => void): Choice {
+        const node = element('div', 'kasp-palette');
+        node.setAttribute('role', 'radiogroup');
+        node.setAttribute('aria-label', title);
+        const circles = new Map<string, HTMLElement>();
+        const refresh = (): void => {
+            const saved = window.kaspSwitches?.getChoice(THEME_KEY) ?? null;
+            const current = THEME_COLOURS.some((colour) => colour.value === saved) ? saved : THEME_FALLBACK;
+            for (const [value, circle] of circles) {
+                circle.classList.toggle(COLOUR_CHOSEN, value === current);
+                circle.setAttribute('aria-checked', String(value === current));
+            }
+        };
+        for (const colour of THEME_COLOURS) {
+            const circle = element('div', 'kasp-colour');
+            circle.dataset['kaspColour'] = colour.value;
+            circle.setAttribute('role', 'radio');
+            circle.setAttribute('aria-label', colour.label[language]);
+            circle.title = colour.label[language];
+            onPress(circle, () => {
+                if (!(window.kaspSwitches?.setChoice(THEME_KEY, colour.value === THEME_FALLBACK ? null : colour.value) ?? false)) return;
+                refresh();
+                onChange();
+            });
+            circles.set(colour.value, circle);
+            node.appendChild(circle);
+        }
+        refresh();
+        return { node, refresh };
+    }
+
+    // One colour of the battle tab: its name, as the game titles a dropdown, a square that opens the browser's colour picker, and
+    // a Default button that gives the game's own colour back (greyed while it is already that). The battle tab follows while the
+    // player moves in the picker (battle_tab.ts applies every change at once). The button sits outside the label, so pressing it
+    // does not open the picker.
+    function makePicker(entry: { key: string; fallback: string; label: Record<KaspLanguageCode, string> }, language: KaspLanguageCode): Choice {
+        const node = element('div', 'kasp-choice kasp-pick');
+        const label = element('label', 'kasp-pick-label');
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.className = 'kasp-pick-input';
+        input.setAttribute('aria-label', entry.label[language]);
+        label.append(element('h3', 'kasp-choice-title', entry.label[language]), input);
+        const back = element('div', 'kasp-pick-default', TEXT.defaultColour[language]);
+        back.setAttribute('role', 'button');
+        back.setAttribute('aria-label', `${TEXT.defaultColour[language]}: ${entry.label[language]}`);
+        node.append(label, back);
+        const showDefault = (value: string): void => {
+            const atDefault = value === entry.fallback;
+            back.classList.toggle('kasp-at-default', atDefault);
+            back.setAttribute('aria-disabled', String(atDefault));
+        };
+        const refresh = (): void => {
+            const saved = window.kaspSwitches?.getChoice(entry.key) ?? null;
+            input.value = saved !== null && HEX_COLOUR.test(saved) ? saved.toLowerCase() : entry.fallback;
+            showDefault(input.value);
+        };
+        input.addEventListener('input', () => {
+            const value = input.value.toLowerCase();
+            window.kaspSwitches?.setChoice(entry.key, value === entry.fallback ? null : value);
+            showDefault(value);
+        });
+        onPress(back, () => {
+            if (input.value.toLowerCase() === entry.fallback) return;
+            if (!(window.kaspSwitches?.setChoice(entry.key, null) ?? false)) return;
+            refresh();
+        });
+        refresh();
+        return { node, refresh };
+    }
+
     // Our panel, in the classes the game's own panels use inside the box: the legend, one section per group, the game's line
     // between two sections and none above the first, then the notice and RESET ALL. It is made each time our tab opens, so it
     // always shows what is saved.
@@ -346,6 +456,8 @@
         const panel = element('div', `${PANEL_MARK} SettingsComponentStyle-scrollingMenu SettingsComponentStyle-settingsBlockOptions`);
         const rows: Array<[SwitchEntry, HTMLElement]> = [];
         const choices: Array<[ChoiceEntry, Choice]> = [];
+        let palette: Choice | null = null;
+        const pickers: Array<[string, Choice]> = [];
 
         const legend = element('p', 'kasp-legend');
         legend.append(makeMark(), ` ${TEXT.afterReload[language]}. ${TEXT.reloadsOnClose[language]}.`);
@@ -367,7 +479,10 @@
                 panel.appendChild(divider);
             }
             const section = document.createElement('div');
-            section.appendChild(element('p', HEADING_CLASS, group.heading[language]));
+            const heading = element('p', HEADING_CLASS, group.heading[language]);
+            // The game colour applies after a restart, like the switches with the same mark.
+            if (group.id === 'colour') heading.append(' ', makeMark());
+            section.appendChild(heading);
             // The switches sit in the game's form box; a switch's dropdowns go right under it, outside that box, and the next
             // switches start a new one.
             let form: HTMLElement | null = null;
@@ -388,6 +503,17 @@
                     form = null;
                 }
             }
+            if (group.id === 'tabColours') {
+                for (const entry of TAB_COLOURS) {
+                    const picker = makePicker(entry, language);
+                    pickers.push([entry.key, picker]);
+                    section.appendChild(picker.node);
+                }
+            }
+            if (group.id === 'colour') {
+                palette = makePalette(group.heading[language], language, refreshNotice);
+                section.appendChild(palette.node);
+            }
             panel.appendChild(section);
         });
 
@@ -405,6 +531,12 @@
             for (const [entry, choice] of choices) {
                 window.kaspSwitches?.setChoice(entry.key, null);
                 choice.refresh();
+            }
+            window.kaspSwitches?.setChoice(THEME_KEY, null);
+            palette?.refresh();
+            for (const [key, picker] of pickers) {
+                window.kaspSwitches?.setChoice(key, null);
+                picker.refresh();
             }
             refreshNotice();
         });
@@ -495,6 +627,7 @@
         if (window.kaspSwitches === undefined) console.warn(`${LOG} the switch service is missing, no switch can be saved`);
         console.log(`${LOG} ready`);
     }
+
 
     if (document.readyState === 'complete') start();
     else window.addEventListener('load', start, { once: true });

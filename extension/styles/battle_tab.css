@@ -313,9 +313,10 @@
     padding: 7px 12px;
 }
 
+/* The line between the stacked columns follows the game colour, as the garage box's lines do (styles/augments.css). */
 #kasp-battle-box .kasp-spec-col + .kasp-spec-col {
     border-left: 0;
-    border-top: 1px solid rgba(120, 165, 205, 0.18);
+    border-top: 1px solid hsl(from rgba(120, 165, 205, 0.18) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
 }
 
 #kasp-battle-box .kasp-spec-heading {
@@ -359,3 +360,40 @@
 #kasp-battle-box .kasp-spec-note-icon {
     height: 1.3em;
 }
+
+/* The battle tab's own colours (owner, 2026-11-11). While the "Own colours" switch is on (battle_tab.ts puts data-kasp-tab-colours on
+   the root element), the Tab screen's background, the allies' and the enemies' rows and our augment box take the player's colours,
+   written by battle_tab.ts as the variables below, whatever the game colour. The fallbacks are the game's own colours, also written in
+   settings_tab.ts (TAB_COLOURS); change both together. The game's see-through strengths are kept: 75% for the background, 15% for a
+   row and 25% for the player's own row (the game's selectedRowBackGround). An ally's row carries data-kasp-ally, written by the game
+   itself (patchBattleTabRows in injector.ts): the player's own row and, in a team battle, the teammates'. A spectator sees every row
+   as an enemy's. Plain CSS on plain attributes: nothing runs, watches or searches in a battle. */
+:root[data-kasp-tab-colours] :is(.BattleTabStatisticComponentStyle-containerInside, .BattleTabStatisticComponentStyle-containerInsideTeams, .BattleTabStatisticComponentStyle-containerInsideResults) {
+    background-color: color-mix(in srgb, var(--kasp-tab-bg, #001926) 75%, transparent) !important;
+}
+
+:root[data-kasp-tab-colours] .BattleTabStatisticComponentStyle-rowBackGround {
+    background-color: color-mix(in srgb, var(--kasp-tab-enemies, #fe6666) 15%, transparent) !important;
+}
+
+:root[data-kasp-tab-colours] .BattleTabStatisticComponentStyle-rowBackGround[data-kasp-ally] {
+    background-color: color-mix(in srgb, var(--kasp-tab-allies, #00d4ff) 15%, transparent) !important;
+}
+
+:root[data-kasp-tab-colours] .BattleTabStatisticComponentStyle-selectedRowBackGround {
+    background-color: color-mix(in srgb, var(--kasp-tab-allies, #00d4ff) 25%, transparent) !important;
+}
+
+/* Our augment box: the picked colour, a little darker towards the corner, and its lines in a pale see-through mix of it. */
+:root[data-kasp-tab-colours] #kasp-battle-box {
+    background: linear-gradient(135deg, var(--kasp-tab-box, #1d3650), color-mix(in srgb, var(--kasp-tab-box, #1d3650) 75%, black)) !important;
+}
+
+:root[data-kasp-tab-colours] #kasp-battle-box .kasp-spec-name {
+    border-bottom-color: color-mix(in srgb, color-mix(in srgb, var(--kasp-tab-box, #1d3650), white 45%) 35%, transparent) !important;
+}
+
+:root[data-kasp-tab-colours] #kasp-battle-box .kasp-spec-col + .kasp-spec-col {
+    border-top-color: color-mix(in srgb, color-mix(in srgb, var(--kasp-tab-box, #1d3650), white 45%) 35%, transparent) !important;
+}
+
