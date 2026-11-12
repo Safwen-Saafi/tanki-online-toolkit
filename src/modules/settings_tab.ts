@@ -27,7 +27,7 @@
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
     const DIVIDER_BLOCK_CLASS = 'SettingsComponentStyle-commonBlock';
 
-    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'interface' | 'colour' | 'tabColours';
+    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'interface' | 'colour' | 'tabColours' | 'loading';
 
     interface SwitchEntry {
         // The localStorage key the feature's module reads.
@@ -51,6 +51,8 @@
         { id: 'colour', heading: { EN: 'Game colour', RU: 'Цвет игры' } },
         // Its switch, then its four colour squares (TAB_COLOURS).
         { id: 'tabColours', heading: { EN: 'Battle tab colours', RU: 'Цвета таблицы боя' } },
+        // No switch: its two picture rows (LOADING_PICTURES).
+        { id: 'loading', heading: { EN: 'Loading screens', RU: 'Экраны загрузки' } },
     ];
 
     // Shown in this order inside each group.
@@ -171,16 +173,49 @@
     ];
     const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
 
+    // The player's own pictures for the game's loading screens and its entrance frame (build-plan 23). The picture work and the drawing are
+    // src/modules/loading_screens.ts's: it reads the keys once when the page starts, so a new or removed picture applies at the next
+    // start (the game reloads when the settings close, like the game colour). The keys are also written there; change both together.
+    const LOADING_PICTURES: ReadonlyArray<{ key: string; label: Record<KaspLanguageCode, string>; hint: Record<KaspLanguageCode, string> }> = [
+        {
+            key: 'kasp_loadpic_battle',
+            label: { EN: 'Battle loading picture', RU: 'Картинка загрузки боя' },
+            hint: { EN: 'Behind the tips while a battle loads', RU: 'Под подсказками, пока загружается бой' },
+        },
+        {
+            key: 'kasp_loadpic_plain',
+            label: { EN: 'Plain loading screen', RU: 'Простой экран загрузки' },
+            hint: { EN: 'Behind "Loading" when the lobby changes screen and when the game opens', RU: 'Под надписью «Загрузка» при смене экрана лобби и при запуске игры' },
+        },
+        {
+            key: 'kasp_loadpic_start',
+            label: { EN: 'Start and login screens', RU: 'Стартовый экран и вход' },
+            hint: { EN: 'Behind "Press any button to start" and the login and sign-up screens', RU: 'Под надписью «Нажмите любую кнопку» и на экранах входа и регистрации' },
+        },
+    ];
+
     // The mark after the label of a switch that applies after a reload, and in the legend that explains it.
     const RELOAD_MARK = '↻';
     const NOTICE_SHOWN = 'kasp-waiting';
 
-    const TEXT: Record<'reset' | 'defaultColour' | 'afterReload' | 'reloadsOnClose' | 'notice', Record<KaspLanguageCode, string>> = {
+    const TEXT: Record<
+        'reset' | 'defaultColour' | 'afterReload' | 'reloadsOnClose' | 'notice' | 'choosePicture' | 'gameOwn' | 'making' | 'notImage' | 'tooBig' | 'noRoom',
+        Record<KaspLanguageCode, string>
+    > = {
         reset: { EN: 'reset all', RU: 'сбросить всё' },
         defaultColour: { EN: 'Default', RU: 'Сбросить' },
         afterReload: { EN: 'Applies after a reload', RU: 'Применится после перезагрузки' },
         reloadsOnClose: { EN: 'The game reloads by itself when you close settings', RU: 'Игра перезагрузится сама, когда вы закроете настройки' },
         notice: { EN: 'The game will reload when you close settings', RU: 'Игра перезагрузится, когда вы закроете настройки' },
+        choosePicture: { EN: 'Choose picture', RU: 'Выбрать картинку' },
+        gameOwn: { EN: "The game's own", RU: 'Как в игре' },
+        making: { EN: 'Making the picture...', RU: 'Готовлю картинку...' },
+        notImage: { EN: 'The browser cannot open this file as a picture.', RU: 'Браузер не может открыть этот файл как картинку.' },
+        tooBig: { EN: 'This picture is too big. Pick a smaller one.', RU: 'Эта картинка слишком большая. Выберите поменьше.' },
+        noRoom: {
+            EN: 'The browser has no room left to save it. Pick a smaller picture or remove the other one.',
+            RU: 'В браузере не осталось места, чтобы сохранить её. Выберите картинку поменьше или уберите другую.',
+        },
     };
 
     // Through the switch service (src/modules/switches.ts), which knows how a switch is saved and tells the live modules of a
@@ -200,10 +235,14 @@
     // The game colour is written into the game's code when it starts (injector.ts), so a new colour waits for the next start too.
     const themeAtStart = window.kaspSwitches?.getChoice(THEME_KEY) ?? null;
 
+    // The loading pictures are read when the page starts (loading_screens.ts), so a change waits for the next start too.
+    const picturesAtStart = new Map(LOADING_PICTURES.map((entry) => [entry.key, window.kaspSwitches?.getChoice(entry.key) ?? null]));
+
     // True when closing settings will reload: a reload switch, or the game colour, differs from how it was at start, so flipping
     // one off and on again waits for nothing.
     function reloadWaiting(): boolean {
         for (const [key, on] of atStart) if (isOn(key) !== on) return true;
+        for (const [key, value] of picturesAtStart) if ((window.kaspSwitches?.getChoice(key) ?? null) !== value) return true;
         return (window.kaspSwitches?.getChoice(THEME_KEY) ?? null) !== themeAtStart;
     }
 
@@ -448,6 +487,82 @@
         return { node, refresh };
     }
 
+    // One loading screen's picture: its name and a line saying where it shows, a preview of the saved picture (or "The game's own"),
+    // a Choose picture button that opens the file picker, and a Default button that removes the picture (greyed while there is none).
+    // The file is shrunk by loading_screens.ts; a message line under the row says why a file was not taken. A new picture applies at
+    // the next start, so changed (the notice's check) runs after every saved change.
+    function makeLoadingPicture(
+        entry: { key: string; label: Record<KaspLanguageCode, string>; hint: Record<KaspLanguageCode, string> },
+        language: KaspLanguageCode,
+        changed: () => void,
+    ): Choice {
+        const node = element('div', 'kasp-choice kasp-loadpic');
+        const preview = element('div', 'kasp-loadpic-preview');
+        const picture = document.createElement('img');
+        picture.className = 'kasp-loadpic-image';
+        picture.alt = '';
+        const none = element('span', 'kasp-loadpic-none', TEXT.gameOwn[language]);
+        preview.append(picture, none);
+        const choose = element('div', 'kasp-pick-default kasp-loadpic-choose', TEXT.choosePicture[language]);
+        choose.setAttribute('role', 'button');
+        choose.setAttribute('aria-label', `${TEXT.choosePicture[language]}: ${entry.label[language]}`);
+        const back = element('div', 'kasp-pick-default', TEXT.defaultColour[language]);
+        back.setAttribute('role', 'button');
+        back.setAttribute('aria-label', `${TEXT.defaultColour[language]}: ${entry.label[language]}`);
+        const buttons = element('div', 'kasp-loadpic-buttons');
+        buttons.append(choose, back);
+        const row = element('div', 'kasp-loadpic-row');
+        row.append(preview, buttons);
+        const message = element('p', 'kasp-loadpic-message');
+        message.setAttribute('role', 'status');
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.hidden = true;
+        node.append(element('h3', 'kasp-choice-title', entry.label[language]), element('p', 'kasp-loadpic-hint', entry.hint[language]), row, message, input);
+
+        const refresh = (): void => {
+            const value = window.kaspSwitches?.getChoice(entry.key) ?? null;
+            const has = value !== null && (window.kaspLoadingScreens?.isPicture(value) ?? false);
+            if (has) picture.src = value;
+            else picture.removeAttribute('src');
+            preview.classList.toggle('kasp-loadpic-has', has);
+            back.classList.toggle('kasp-at-default', !has);
+            back.setAttribute('aria-disabled', String(!has));
+            message.textContent = '';
+        };
+        const take = async (file: File): Promise<void> => {
+            const maker = window.kaspLoadingScreens;
+            if (maker === undefined) return;
+            message.textContent = TEXT.making[language];
+            const made = await maker.fromFile(file);
+            if (!made.ok) {
+                message.textContent = TEXT[made.reason][language];
+                return;
+            }
+            if (!(window.kaspSwitches?.setChoice(entry.key, made.value) ?? false)) {
+                message.textContent = TEXT.noRoom[language];
+                return;
+            }
+            refresh();
+            changed();
+        };
+        input.addEventListener('change', () => {
+            const file = input.files?.[0];
+            input.value = '';
+            if (file !== undefined) void take(file);
+        });
+        onPress(choose, () => input.click());
+        onPress(back, () => {
+            if (back.classList.contains('kasp-at-default')) return;
+            if (!(window.kaspSwitches?.setChoice(entry.key, null) ?? false)) return;
+            refresh();
+            changed();
+        });
+        refresh();
+        return { node, refresh };
+    }
+
     // Our panel, in the classes the game's own panels use inside the box: the legend, one section per group, the game's line
     // between two sections and none above the first, then the notice and RESET ALL. It is made each time our tab opens, so it
     // always shows what is saved.
@@ -458,6 +573,7 @@
         const choices: Array<[ChoiceEntry, Choice]> = [];
         let palette: Choice | null = null;
         const pickers: Array<[string, Choice]> = [];
+        const loadings: Array<[string, Choice]> = [];
 
         const legend = element('p', 'kasp-legend');
         legend.append(makeMark(), ` ${TEXT.afterReload[language]}. ${TEXT.reloadsOnClose[language]}.`);
@@ -480,8 +596,8 @@
             }
             const section = document.createElement('div');
             const heading = element('p', HEADING_CLASS, group.heading[language]);
-            // The game colour applies after a restart, like the switches with the same mark.
-            if (group.id === 'colour') heading.append(' ', makeMark());
+            // The game colour and the loading pictures apply after a restart, like the switches with the same mark.
+            if (group.id === 'colour' || group.id === 'loading') heading.append(' ', makeMark());
             section.appendChild(heading);
             // The switches sit in the game's form box; a switch's dropdowns go right under it, outside that box, and the next
             // switches start a new one.
@@ -508,6 +624,13 @@
                     const picker = makePicker(entry, language);
                     pickers.push([entry.key, picker]);
                     section.appendChild(picker.node);
+                }
+            }
+            if (group.id === 'loading') {
+                for (const entry of LOADING_PICTURES) {
+                    const picture = makeLoadingPicture(entry, language, refreshNotice);
+                    loadings.push([entry.key, picture]);
+                    section.appendChild(picture.node);
                 }
             }
             if (group.id === 'colour') {
@@ -537,6 +660,10 @@
             for (const [key, picker] of pickers) {
                 window.kaspSwitches?.setChoice(key, null);
                 picker.refresh();
+            }
+            for (const [key, picture] of loadings) {
+                window.kaspSwitches?.setChoice(key, null);
+                picture.refresh();
             }
             refreshNotice();
         });

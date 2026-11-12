@@ -23,6 +23,7 @@
       "js": [
         "js/modules/language.js",
         "js/modules/switches.js",
+        "js/modules/loading_screens.js",
         "js/modules/debug_line.js",
         "js/modules/messages.js",
         "js/modules/battle.js",

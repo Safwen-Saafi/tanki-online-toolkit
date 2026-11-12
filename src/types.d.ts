@@ -238,6 +238,18 @@ interface KaspSwitches {
     readonly onChoice: (key: string, action: (value: string | null) => void) => void;
 }
 
+// Published by src/modules/loading_screens.ts (build-plan 23). fromFile makes the saved picture of a loading screen from the
+// player's file: "notImage" when the browser cannot open it, "tooBig" when it is over 25 MB or still too long as text at the lowest
+// quality. isPicture says whether a saved value is an image address the module would draw.
+type KaspLoadingPicture =
+    | { readonly ok: true; readonly value: string }
+    | { readonly ok: false; readonly reason: 'notImage' | 'tooBig' };
+
+interface KaspLoadingScreens {
+    readonly fromFile: (file: Blob) => Promise<KaspLoadingPicture>;
+    readonly isPicture: (value: string | null) => boolean;
+}
+
 // Published by src/modules/messages.ts, the one message listener of the isolated world. on(type, action) calls the action with
 // every message of that type posted from this window (an object, not yet checked beyond its type).
 interface KaspMessages {
@@ -271,6 +283,7 @@ interface Window {
     kaspGarageTab?: KaspGarageTabReader;
     kaspOldPictures?: KaspOldPictures;
     kaspSwitches?: KaspSwitches;
+    kaspLoadingScreens?: KaspLoadingScreens;
     kaspMessages?: KaspMessages;
     kaspBattle?: KaspBattle;
 }

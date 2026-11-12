@@ -376,3 +376,85 @@
     outline-offset: 2px;
 }
 
+
+/* A loading screen's picture (build-plan 23): its name and a line saying where it shows, then a small preview of the saved picture
+   (or "The game's own") beside two buttons, then a message line that keeps its place when empty, so nothing moves. The buttons
+   are the Default button's look. */
+.kasp-loadpic {
+    width: 30.625em;
+    margin-bottom: 1.5em;
+}
+
+.kasp-loadpic .kasp-choice-title {
+    margin-bottom: 0.25em;
+}
+
+.kasp-loadpic-hint {
+    margin: 0 0 0.75em;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: BaseFontRegular, FallbackFontRegular;
+    font-size: 0.875em;
+}
+
+.kasp-loadpic-row {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+}
+
+.kasp-loadpic-preview {
+    position: relative;
+    flex: none;
+    box-sizing: border-box;
+    width: 10em;
+    height: 5.625em;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 0.25em;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.kasp-loadpic-image {
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.kasp-loadpic-has .kasp-loadpic-image {
+    display: block;
+}
+
+.kasp-loadpic-none {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: BaseFontRegular, FallbackFontRegular;
+    font-size: 0.875em;
+}
+
+.kasp-loadpic-has .kasp-loadpic-none {
+    display: none;
+}
+
+.kasp-loadpic-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5em;
+}
+
+.kasp-loadpic-buttons .kasp-pick-default {
+    margin-left: 0;
+}
+
+.kasp-loadpic-message {
+    min-height: 1.25em;
+    margin: 0.5em 0 0;
+    color: #fe6666;
+    font-family: BaseFontRegular, FallbackFontRegular;
+    font-size: 0.875em;
+}
