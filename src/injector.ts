@@ -1294,7 +1294,7 @@
         const N = '[\\w$]+';
         const click = exactlyOne(code, new RegExp(`\\.onClick=function\\(${N},${N},${N}\\)\\{return function\\(\\)\\{var (${N});return \\1=${N},${N}\\(${N}\\)&&!${N}\\(\\)\\.${N}\\(\\)\\.${N}\\.${N}\\.${N}\\(\\)&&(${N}\\(\\)\\.${N}\\(\\)\\.${N}\\(new ${N}\\(\\1\\)\\)),(${N})\\}\\}`, 'g'));
         if (click === null) return skip('card click');
-        const render = exactlyOne(code, new RegExp(`(${N})\\((${N})\\)\\.jap=function\\(t\\)\\{var n=!${N}\\(this\\);if\\(this\\.pas_1\\.${N}\\.r\\(\\)\\)return (${N});var i=Mq\\(${N}\\);t\\.yao\\(i,(${N})\\(this,n\\)\\)\\}`, 'g'));
+        const render = exactlyOne(code, new RegExp(`(${N})\\((${N})\\)\\.${N}=function\\(t\\)\\{var n=!${N}\\(this\\);if\\(this\\.${N}\\.${N}\\.r\\(\\)\\)return (${N});var i=${N}\\(${N}\\);t\\.${N}\\(i,(${N})\\(this,n\\)\\)\\}`, 'g'));
         if (render === null) return skip('success dialog render');
         const [, classWrapper, dialogClass, unit, builder] = render;
         const mount = exactlyOne(code, new RegExp(`${asPattern(classWrapper)}\\(${asPattern(dialogClass)}\\)\\.componentDidMount=function\\(\\)\\{return this\\.(${N})\\(\\)\\}`, 'g'));
@@ -1303,7 +1303,7 @@
         const close = builderAt < 0 ? null : new RegExp(`\\(${N}=function\\(\\)\\{return (${N})\\(${N}\\),${asPattern(unit)}\\}\\)\\.callableName="close"`).exec(code.slice(builderAt, builderAt + SHOP_CLOSE_RANGE));
         if (close === null) return skip('success dialog close');
 
-        const card = exactlyOne(code, new RegExp(`(${N})\\((${N})\\)\\.jap=function\\(t\\)\\{var n=${N},i=${N}\\.nut\\(n\\),r=i\\.juv\\(\\);${N}\\(\\)\\.${N}\\(r\\),this\\.props\\.card\\.${N}\\|\\|${N}\\(this\\.props\\.card\\)\\?`, 'g'));
+        const card = exactlyOne(code, new RegExp(`(${N})\\((${N})\\)\\.${N}=function\\(t\\)\\{var n=${N},i=${N}\\.${N}\\(n\\),r=i\\.${N}\\(\\);${N}\\(\\)\\.${N}\\(r\\),this\\.props\\.card\\.${N}\\|\\|${N}\\(this\\.props\\.card\\)\\?`, 'g'));
         if (card === null) return skip('card render');
         const [, cardWrapper, cardClass] = card;
         if (new RegExp(`${asPattern(cardWrapper)}\\(${asPattern(cardClass)}\\)\\.componentDidMount=`).test(code)) return skip('card mount (the card has one already)');

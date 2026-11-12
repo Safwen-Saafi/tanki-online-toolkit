@@ -1,7 +1,6 @@
-/* Daily offer quick buying (build-plan 24): the Buy all button next to the showcase cards and our dialog, in the look of the game's
-   own dialogs and buttons, in em from the values measured on the game (blueprint/context/shop-quick-buy.md). The navy texts follow the
-   game colour the way settings_tab.css does (the green of the buttons is the game's own and stays). shop_quick_buy.ts makes the
-   elements; nothing here runs. */
+/* Daily offer quick buying (build-plan 24): the Buy all button next to the showcase cards, in the look of the game's own buttons, in em
+   from the values measured on the game (blueprint/context/shop-quick-buy.md). The navy text follows the game colour the way
+   settings_tab.css does (the green of the button is the game's own and stays). shop_quick_buy.ts makes the element; nothing here runs. */
 
 /* The cards' grid becomes the button's frame only while our button is in it (the attribute is put on the grid with the button), so
    no other grid of the game is touched. */
@@ -29,7 +28,7 @@
     transition: background 0.3s, opacity 0.3s;
 }
 
-.kasp-buyall:hover {
+.kasp-buyall:not(.kasp-done):hover {
     background: rgb(106, 230, 46);
 }
 
@@ -39,131 +38,17 @@
     cursor: default;
 }
 
-.kasp-buyall span,
-.kasp-dialog-ok span {
+/* Every card is taken: nothing to buy. */
+.kasp-buyall.kasp-done {
+    filter: grayscale(1);
+    opacity: 0.45;
+    cursor: default;
+}
+
+.kasp-buyall span {
     color: hsl(from rgb(0, 25, 38) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
     font-family: BaseFontBold, FallbackFontBold;
     font-weight: 500;
     text-transform: uppercase;
     pointer-events: none;
-}
-
-/* Our dialog: the game's shade (full window, black at 50%, over everything but the game's own dialogs' z-index plus one) and the
-   game's dialog box (31.625em wide with 2em around it, at least 14.125em tall, the title above, the text in the middle, the green
-   button below). */
-.kasp-dialog-shade {
-    position: fixed;
-    inset: 0;
-    z-index: 61;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
-    font-family: BaseFontRegular, FallbackFontRegular;
-}
-
-.kasp-dialog {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: stretch;
-    box-sizing: content-box;
-    width: 31.625em;
-    min-height: 14.125em;
-    padding: 2em;
-    background: hsl(from rgb(0 25 38 / 0.75) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
-    outline: 0.063em solid rgba(255, 255, 255, 0.25);
-    box-shadow: 0 0.313em 1.25em rgba(0, 0, 0, 0.25);
-    color: #fff;
-}
-
-.kasp-dialog-head {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    width: 100%;
-}
-
-.kasp-dialog-title {
-    margin: 0;
-    color: #fff;
-    font-family: BaseFontBold, FallbackFontBold;
-    font-size: 1.5em;
-    font-weight: 500;
-    line-height: normal;
-    text-transform: uppercase;
-}
-
-/* The close cross, drawn with two bars: 1.5em, at the right edge, white. */
-.kasp-dialog-cross {
-    position: absolute;
-    right: 0.1875em;
-    width: 1.5em;
-    height: 1.5em;
-    cursor: pointer;
-}
-
-.kasp-dialog-cross::before,
-.kasp-dialog-cross::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 15%;
-    width: 70%;
-    height: 0.125em;
-    border-radius: 0.0625em;
-    background: rgba(255, 255, 255, 0.75);
-    transition: background 0.3s;
-}
-
-.kasp-dialog-cross::before {
-    transform: rotate(45deg);
-}
-
-.kasp-dialog-cross::after {
-    transform: rotate(-45deg);
-}
-
-.kasp-dialog-cross:hover::before,
-.kasp-dialog-cross:hover::after {
-    background: #fff;
-}
-
-.kasp-dialog-body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-
-.kasp-dialog-text {
-    color: #fff;
-    font-size: 1em;
-    line-height: normal;
-}
-
-.kasp-dialog-foot {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.kasp-dialog-ok {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    min-width: 12.375em;
-    height: 3.125em;
-    padding: 0 1.8em;
-    border-radius: 0.75em;
-    background: rgb(118, 255, 51);
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.3s;
-}
-
-.kasp-dialog-ok:hover {
-    background: rgb(106, 230, 46);
 }
