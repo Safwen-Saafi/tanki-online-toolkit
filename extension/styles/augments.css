@@ -3,12 +3,16 @@
    container icon, the plus and minus signs and the effect icons are the images in extension/icons/. */
 /* The colours are the wiki's own (its skin stylesheet): the rank colours of its rarity tables, the green of its
    links and Advantages heading, the red of its Disadvantages heading and the pale blue of an augment's name. */
+/* Every weak blue of ours is written as itself with the game colour's hue and strength (--kasp-theme-hue and --kasp-theme-strength,
+   written by src/injector.ts, build-plan 22b), so it follows the game colour the way the game's own blues do; with the game's blue
+   the variables are absent and each is its own colour. The very light blues (the pale blue of icons and text) keep their colour,
+   as the game's do. */
 :root {
     --kasp-rank-rare: #64abe9;
     --kasp-rank-epic: #9a71dc;
     --kasp-rank-legendary: #ffd562;
     --kasp-rank-exotic: #ff9184;
-    --kasp-rank-neutral: #7d9dba;
+    --kasp-rank-neutral: hsl(from #7d9dba var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
     --kasp-spec-positive: #46df11;
     --kasp-spec-negative: #f33;
     --kasp-spec-link: #46df11;
@@ -61,7 +65,7 @@
     justify-content: center;
     border: 1px solid var(--kasp-frame);
     border-radius: 6px;
-    background: rgba(8, 20, 36, 0.88);
+    background: hsl(from rgba(8, 20, 36, 0.88) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
     color: #fff;
     font: 700 13px/1 sans-serif;
     cursor: help;
@@ -70,7 +74,7 @@
 
 .kasp-spec-btn:hover {
     background: var(--kasp-frame);
-    color: #08121f;
+    color: hsl(from #08121f var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
 }
 
 .kasp-spec-tooltip {
@@ -82,7 +86,7 @@
     max-width: 560px;
     border: 1px solid var(--kasp-frame);
     border-radius: 3px;
-    background: linear-gradient(135deg, #1d3650, #162539);
+    background: linear-gradient(135deg, hsl(from #1d3650 var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l), hsl(from #162539 var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l));
     box-shadow:
         0 0 14px color-mix(in srgb, var(--kasp-frame) 40%, transparent),
         0 8px 24px rgba(0, 0, 0, 0.6);
@@ -124,7 +128,7 @@
 
 .kasp-spec-name {
     padding: 12px 64px 12px 18px;
-    border-bottom: 1px solid rgba(120, 165, 205, 0.28);
+    border-bottom: 1px solid hsl(from rgba(120, 165, 205, 0.28) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
     color: var(--kasp-title);
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -155,7 +159,7 @@
 }
 
 .kasp-spec-col + .kasp-spec-col {
-    border-left: 1px solid rgba(120, 165, 205, 0.28);
+    border-left: 1px solid hsl(from rgba(120, 165, 205, 0.28) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
 }
 
 .kasp-spec-heading {

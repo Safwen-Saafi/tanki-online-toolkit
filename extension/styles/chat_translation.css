@@ -1,6 +1,11 @@
 /* The chat translation (src/modules/chat_translation.ts, build-plan 19): the box of translated lines under the kill feed and
    the translation buttons beside the game's chat box. See blueprint/context/chat-translation.md. */
 
+/* Every weak blue of ours is written as itself with the game colour's hue and strength (--kasp-theme-hue and --kasp-theme-strength,
+   written by src/injector.ts, build-plan 22b), so it follows the game colour the way the game's own blues do; with the game's blue
+   the variables are absent and each is its own colour. The very light blues (the pale blue of icons and text) keep their colour,
+   as the game's do. */
+
 /* The box: a copy of the game's chat line look (bold 'Open Sans', a black shadow), on the right under the kill feed and as wide
    as its widest rows. The game's own chat lines are drawn on its canvas, so these are copied, not reused. */
 #kasp-chat-translations {
@@ -86,7 +91,7 @@
     padding: 0 0.75rem;
     border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 0.5rem;
-    background: rgba(0, 10, 15, 0.5);
+    background: hsl(from rgba(0, 10, 15, 0.5) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
     color: #fff;
     font: 1.25rem BaseFontMedium, FallbackFontMedium, sans-serif;
     cursor: pointer;

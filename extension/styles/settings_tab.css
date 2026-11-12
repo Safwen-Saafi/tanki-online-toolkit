@@ -1,6 +1,11 @@
 /* The extension's panel in the game's settings screen (src/modules/settings_tab.ts). The tab and its yellow bar are the
    game's own (the settings-tab hook in src/injector.ts), so only the panel is styled here. */
 
+/* Every weak blue of ours is written as itself with the game colour's hue and strength (--kasp-theme-hue and --kasp-theme-strength,
+   written by src/injector.ts, build-plan 22b), so it follows the game colour the way the game's own blues do; with the game's blue
+   the variables are absent and each is its own colour. The very light blues (the pale blue of icons and text) keep their colour,
+   as the game's do. */
+
 /* A switch, drawn like the game's own: a pill 2.75em by 1.5em with a knob; everything in em so it scales with the game. As in
    the game's rows (measured on the Graphics tab, 2026-11-07), the row is only as wide as its pill and text, and only the pill and
    the text box show the hand and take the click, so the empty space after the text is not part of the switch. */
@@ -177,18 +182,72 @@
     align-items: center;
     height: 3em;
     padding: 0 1em 0 0.6875em;
-    background: rgb(1, 47, 66);
+    background: hsl(from rgb(1, 47, 66) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
     cursor: pointer;
 }
 
 .kasp-dropdown-item:hover,
 .kasp-dropdown-item:focus-visible {
-    background: rgb(27, 68, 89);
+    background: hsl(from rgb(27, 68, 89) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
     outline: none;
 }
 
 .kasp-dropdown-item .kasp-dropdown-text {
     cursor: pointer;
+}
+
+/* The Game colour row (build-plan 22): one circle per colour, filled with a fixed sample of it, so the circles never change with
+   the game's colour. The chosen one has the green ring of a switch that is on; the mouse and the keyboard focus show a white one. */
+.kasp-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+    margin: 1em 0 1.75em;
+}
+
+.kasp-colour {
+    box-sizing: border-box;
+    width: 2.5em;
+    height: 2.5em;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    transition: outline-color 0.2s;
+}
+
+.kasp-colour:hover,
+.kasp-colour:focus-visible {
+    outline-color: rgba(255, 255, 255, 0.6);
+}
+
+.kasp-colour.kasp-chosen {
+    outline-color: #76ff33;
+}
+
+.kasp-colour[data-kasp-colour='blue'] {
+    background: #2f6fb5;
+}
+
+.kasp-colour[data-kasp-colour='pink'] {
+    background: #ec6fae;
+}
+
+.kasp-colour[data-kasp-colour='purple'] {
+    background: #8c55d9;
+}
+
+.kasp-colour[data-kasp-colour='crimson'] {
+    background: #9e2340;
+}
+
+.kasp-colour[data-kasp-colour='teal'] {
+    background: #1f7f74;
+}
+
+.kasp-colour[data-kasp-colour='bronze'] {
+    background: #a8682a;
 }
 
 /* The legend at the top of the panel, explaining the ↻. */
@@ -230,9 +289,90 @@
 }
 
 .kasp-reset span {
-    color: rgb(0, 25, 38);
+    color: hsl(from rgb(0, 25, 38) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
     font-family: BaseFontBold, FallbackFontBold;
     font-weight: 500;
     text-transform: uppercase;
     cursor: pointer;
 }
+
+/* A colour of the battle tab: its name, then a square that opens the browser's colour picker, then its Default button, on one
+   line. The name and the square are one label, so a press on the name opens the picker too. */
+.kasp-pick {
+    display: flex;
+    align-items: center;
+    width: 30.625em;
+    margin-bottom: 1em;
+}
+
+.kasp-pick-label {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+}
+
+.kasp-pick-default {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 2em;
+    margin-left: 0.75em;
+    padding: 0 0.75em;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 0.25em;
+    color: #fff;
+    font-family: BaseFontRegular, FallbackFontRegular;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+}
+
+.kasp-pick-default:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.kasp-pick-default:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.6);
+    outline-offset: 2px;
+}
+
+/* Already the game's own colour: nothing to give back. */
+.kasp-pick-default.kasp-at-default {
+    opacity: 0.35;
+    background: none;
+    cursor: default;
+}
+
+.kasp-pick .kasp-choice-title {
+    margin: 0;
+}
+
+.kasp-pick-input {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 4.5em;
+    height: 2em;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 0.25em;
+    background: none;
+    cursor: pointer;
+}
+
+.kasp-pick-input::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.kasp-pick-input::-webkit-color-swatch {
+    border: none;
+    border-radius: 0.2em;
+}
+
+.kasp-pick-input:hover,
+.kasp-pick-input:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.6);
+    outline-offset: 2px;
+}
+

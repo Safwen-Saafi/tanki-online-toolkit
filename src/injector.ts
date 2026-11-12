@@ -16,6 +16,8 @@
 // name, rank and picture address from the game's React data for the hidden augment cards (kasp:cards-request from augments.ts).
 // Another part swaps the game's augment pictures for the old ones bundled in the extension, as the game assigns their addresses (kasp:old-pictures from old_pictures.ts).
 // The chat translation hook posts each player's battle chat message (window.__kaspChat, kasp:chat) for chat_translation.ts.
+// The game colour part paints the game's blue look in the colour saved under kasp_theme, by rewriting the colours in the game's
+// code once before it runs; a new colour applies at the next start.
 (function () {
     'use strict';
 
@@ -980,6 +982,42 @@
         return applyEdits(code, edits);
     }
 
+    // The battle tab's own colours (owner, 2026-11-11): every player row of the Tab screen that is an ally's (the player's own, or a
+    // teammate's in a team battle) gets data-kasp-ally="1", so battle_tab.css colours the allies' and the enemies' rows with a
+    // plain attribute and nothing has to be checked while the table is open. The row is made by the row component's own maker,
+    // found by the row's key text, as in this build (names change per build):
+    //   An(Jk).jap=function(t){var n=Sk,i=Nn.nut(n);i.cap("BattleTabStatisticRow_"+this.props.itemKey.y1u7_1.toString());
+    // The maker is replaced by the same element class with the attribute; the row data is read right there (this.props.itemKey),
+    // with the row fields read from the row data's text, as for the enemies' protection icons.
+    // The row's element maker sits further from the row's code than other makers (about 69000 characters in this build); it
+    // must still be the only one of its name and shape in reach.
+    const BATTLE_TAB_ROW_ELEMENT_RANGE = 120000;
+    const BATTLE_TAB_ROW = /var ([\w$]+)=([\w$]+),([\w$]+)=([\w$]+)\.([\w$]+)\(\1\);\3\.[\w$]+\("BattleTabStatisticRow_"\+this\.props\.itemKey\./g;
+
+    function patchBattleTabRows(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the battle tab row ${what} in this bundle, the allies' rows keep the enemies' colour`);
+            return null;
+        };
+        const rows = [...code.matchAll(BATTLE_TAB_ROW)];
+        if (rows.length !== 1) return skip('maker');
+        const [whole, factoryVar, factory, , builder, make] = rows[0];
+        const fields = rowFieldsOf(code);
+        if (fields === null) return skip('fields');
+        const made = [...around(code, rows[0].index, BATTLE_TAB_ROW_ELEMENT_RANGE).matchAll(elementMaker(factory))];
+        const element = made.length === 1 ? made[0][2] : undefined;
+        if (element === undefined) return skip('element');
+        const attributes = attributeHelperNear(code, rows[0].index);
+        if (attributes === null) return skip('attribute list');
+        const p = 'this.props.itemKey';
+        const ally = `${p}.${fields.isLocalUser}||${p}.${fields.isTeamMode}&&${p}.${fields.team}!=null&&${p}.${fields.team}.equals(${p}.${fields.currentUserTeam})`;
+        // Read here, where this is the row, and handed to the maker, which runs later.
+        const maker = `function(kaspAlly){return ${makerWithAttributes(element, attributes, '"data-kasp-ally",kaspAlly')}}((${ally})?"1":null)`;
+        const call = `${builder}.${make}(${factoryVar})`;
+        const at = rows[0].index + whole.indexOf(call);
+        return applyEdits(code, [{ at, length: call.length, text: `${builder}.${make}(${maker})` }]);
+    }
+
     // The turret colours of the battle tab (build-plan 18c). A row's turret cell starts with the turret's icon, which the game
     // draws as a white picture (a CSS background) chosen by the turret's id through a chain of id tests; it is the same picture
     // as that turret's protection. Two edits, both or none: the icon element gets data-kasp-turret with the turret's id, and the
@@ -1210,6 +1248,11 @@
             result = battleTab;
             hooked.push('battle-tab');
         }
+        const battleTabRows = patchBattleTabRows(result);
+        if (battleTabRows !== null) {
+            result = battleTabRows;
+            hooked.push('battle-tab-rows');
+        }
         const protectionColours = patchProtectionColours(result);
         if (protectionColours !== null) {
             result = protectionColours;
@@ -1234,6 +1277,14 @@
         if (chat !== null) {
             result = chat;
             hooked.push('chat-translation');
+        }
+        // Last, so every other edit finds the game's code as it was.
+        if (theme !== null) {
+            const coloured = patchColours(result, theme);
+            if (coloured.count > 0) {
+                result = coloured.code;
+                hooked.push(`game-colour (${coloured.count} colours, ${coloured.kept} kept styles)`);
+            }
         }
         return { code: result, hooked };
     }
@@ -1602,6 +1653,279 @@
         });
     }
 
+    // ---- the game colour ----
+
+    // The game's look is one family of weak blues (the navy backgrounds, the see-through tints), written in the game's own code in
+    // two ways: as colour text ("#001926", "rgba(0, 25, 38, 0)") and as numbers given to its colour makers (t$(0,25,38)). With a
+    // colour saved under kasp_theme, those colours are rewritten once in the game's code before it runs (patchColours, called by
+    // patchBundle), so the game draws itself in that colour on every screen, battles included, and nothing of this part runs while
+    // the game is played (owner, 2026-11-11). The page's own style elements (its first loading screen) are painted while the page
+    // loads, then nothing watches. A new colour applies at the next start: settings_tab.ts reloads the game when its settings close.
+    const THEME_KEY = 'kasp_theme';
+    // Kept before the old pictures part wraps it, so the values this part writes are not seen by any hook.
+    const nativeSetProperty = CSSStyleDeclaration.prototype.setProperty;
+    const MAX_THEME_DEPTH = 6;
+    // A colour of the game's theme: a blue hue, and weak (the gap between its strongest and weakest channel). The strong blues mean
+    // something (the cyan of rare items, the blue team) and stay, as every other hue does.
+    const THEME_HUE_MIN = 185;
+    const THEME_HUE_MAX = 240;
+    const THEME_GAP_MIN = 0.04 * 255;
+    const THEME_GAP_MAX = 0.45 * 255;
+    // The very light blues (the icons and the pale text, all at 87% lightness; every other blue of the game is at 48% or darker)
+    // keep the game's own colour (owner, 2026-11-11).
+    const THEME_LIGHTNESS_MAX = 0.7;
+    // A url(...) is passed through untouched: a picture address or an SVG id is not a colour.
+    const COLOUR_TOKEN =
+        /url\([^)]*\)|rgba?\(\s*(\d+(?:\.\d+)?)\s*[,\s]\s*(\d+(?:\.\d+)?)\s*[,\s]\s*(\d+(?:\.\d+)?)\s*(?:[,/]\s*(\d*\.?\d+%?)\s*)?\)|#([0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})(?![\w-])/gi;
+    // A call to one of the game's colour makers with plain numbers, name(r,g,b) or name(r,g,b,alpha), as the minified code writes
+    // them. A call after "new " or after "." is something else (a 3D value, a method: new E$(0,0,80), x.n23(0,0,75)) and stays.
+    const COLOUR_CALL = /(?<![\w$.])(?<!new )([\w$]+)\((\d{1,3}),(\d{1,3}),(\d{1,3})(,(?:\d*\.)?\d+)?\)/g;
+
+    type Rgb = readonly [number, number, number];
+
+    // The new look of a theme colour: its lightness, saturation and alpha are kept and its hue is replaced (null: no colour at all).
+    interface Theme {
+        readonly hue: number | null;
+    }
+
+    // The owner's choice of 2026-11-11: Pink and Purple kept, and three deep ones. A value saved before (grey, red, green) is no
+    // longer one of them and gives the game's blue.
+    const THEMES: Readonly<Record<string, Theme>> = {
+        pink: { hue: 330 },
+        purple: { hue: 275 },
+        crimson: { hue: 345 },
+        teal: { hue: 170 },
+        bronze: { hue: 30 },
+    };
+
+    // The saved colour, or null for the game's own blue (no key, another value, or a storage that cannot be read). Read once, when
+    // the page starts: a new colour comes with the next start.
+    function savedTheme(): Theme | null {
+        try {
+            const value = localStorage.getItem(THEME_KEY);
+            return value !== null && Object.prototype.hasOwnProperty.call(THEMES, value) ? THEMES[value] : null;
+        } catch {
+            return null;
+        }
+    }
+
+    const theme = savedTheme();
+
+    function isThemeColour([r, g, b]: Rgb): boolean {
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const gap = max - min;
+        if (gap <= THEME_GAP_MIN || gap > THEME_GAP_MAX) return false;
+        if ((max + min) / 2 / 255 > THEME_LIGHTNESS_MAX) return false;
+        let hue = max === r ? ((g - b) / gap) % 6 : max === g ? (b - r) / gap + 2 : (r - g) / gap + 4;
+        hue *= 60;
+        if (hue < 0) hue += 360;
+        return hue >= THEME_HUE_MIN && hue <= THEME_HUE_MAX;
+    }
+
+    function toSaturationLightness([r, g, b]: Rgb): [number, number] {
+        const max = Math.max(r, g, b) / 255;
+        const min = Math.min(r, g, b) / 255;
+        const lightness = (max + min) / 2;
+        const range = max - min;
+        return [range === 0 ? 0 : range / (1 - Math.abs(2 * lightness - 1)), lightness];
+    }
+
+    function fromHsl(hue: number, saturation: number, lightness: number): Rgb {
+        const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+        const x = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+        const m = lightness - chroma / 2;
+        const [r, g, b] =
+            hue < 60 ? [chroma, x, 0] : hue < 120 ? [x, chroma, 0] : hue < 180 ? [0, chroma, x] : hue < 240 ? [0, x, chroma] : hue < 300 ? [x, 0, chroma] : [chroma, 0, x];
+        return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+    }
+
+    function themedColour(colour: Rgb, next: Theme): Rgb {
+        const [saturation, lightness] = toSaturationLightness(colour);
+        return next.hue === null ? fromHsl(0, 0, lightness) : fromHsl(next.hue, saturation, lightness);
+    }
+
+    const toHex = (channel: number): string => channel.toString(16).padStart(2, '0');
+
+    // Every theme colour of a text in the saved colour, each written in its own form: a hex colour stays a hex colour (with its
+    // alpha digits), an rgb() or rgba() stays one. Counts what it changed.
+    function recolourText(text: string, next: Theme, changed: { count: number }): string {
+        return text.replace(COLOUR_TOKEN, (whole: string, r?: string, g?: string, b?: string, alpha?: string, hex?: string) => {
+            if (hex !== undefined) {
+                const full = hex.length <= 4 ? hex.split('').map((digit) => digit + digit).join('') : hex;
+                const rgb: Rgb = [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16)];
+                if (!isThemeColour(rgb)) return whole;
+                changed.count++;
+                return `#${themedColour(rgb, next).map(toHex).join('')}${full.slice(6)}`;
+            }
+            if (r === undefined || g === undefined || b === undefined) return whole;
+            const rgb: Rgb = [+r, +g, +b];
+            if (!isThemeColour(rgb)) return whole;
+            changed.count++;
+            const [nr, ng, nb] = themedColour(rgb, next);
+            return alpha === undefined ? `rgb(${nr}, ${ng}, ${nb})` : `rgba(${nr}, ${ng}, ${nb}, ${alpha})`;
+        });
+    }
+
+    // Every theme colour a colour maker is given in plain numbers, in the saved colour. Counts what it changed.
+    function recolourCalls(text: string, next: Theme, changed: { count: number }): string {
+        return text.replace(COLOUR_CALL, (whole: string, name: string, r: string, g: string, b: string, alpha?: string) => {
+            const rgb: Rgb = [+r, +g, +b];
+            if (rgb[0] > 255 || rgb[1] > 255 || rgb[2] > 255 || !isThemeColour(rgb)) return whole;
+            changed.count++;
+            return `${name}(${themedColour(rgb, next).join(',')}${alpha ?? ''})`;
+        });
+    }
+
+    // The parts of the game the repaint leaves in the game's own blue (owner, 2026-11-12): the "Press any button to start" screen.
+    // Its dark top fade is the shared style "entranceGradient" (the login and sign-up screens use it too, and keep it as well) and
+    // its loading ring is StartScreenComponentStyle's "circleLoader". Each is one small style function in the game's code, found by
+    // the name the game gives it (and, when given, by the style it belongs to); the colours inside it are never rewritten.
+    const THEME_KEPT_STYLES: readonly { readonly property: string; readonly style?: string }[] = [
+        { property: 'entranceGradient' },
+        { property: 'circleLoader', style: 'StartScreenComponentStyle' },
+    ];
+    // A style function is a few hundred characters; a longer span means the end was not found right.
+    const MAX_KEPT_STYLE_LENGTH = 4000;
+    // A style function sits a little before the constructor line that names it (about 1000 and 10000 characters in this build);
+    // one found further away belongs to another module, which uses the same short names.
+    const MAX_KEPT_STYLE_DISTANCE = 50000;
+
+    // Where a style's own function sits in the game's code, as [start, end), or null when it cannot be told for sure. A style
+    // object's constructor makes each property from its function, as in this build:
+    //   var a=this.quw([],Os),c=se;this.o1x4_1=a.iuv(this,gt("circleLoader",1,c,...))
+    // and the function itself (function Os(t){...}) is written before the constructor, in the same module.
+    function keptStyleSpan(code: string, property: string, style?: string): readonly [number, number] | null {
+        let from = 0;
+        let to = code.length;
+        if (style !== undefined) {
+            const registered = new RegExp(`[\\w$]+\\(([\\w$]+),"${style}"`).exec(code);
+            if (registered === null) return null;
+            to = registered.index;
+            from = code.lastIndexOf(`function ${registered[1]}(){`, to);
+            if (from < 0) return null;
+        }
+        const made = /this\.[\w$]+\(\[[^\]]*\],([\w$]+)\)[^;]{0,40};this\.[\w$]+=[\w$]+\.[\w$]+\(this,[\w$]+$/;
+        const found: { readonly name: string; readonly at: number }[] = [];
+        let at = code.indexOf(`("${property}"`, from);
+        while (at >= 0 && at < to) {
+            const match = made.exec(code.slice(Math.max(from, at - 300), at));
+            if (match !== null) found.push({ name: match[1], at });
+            at = code.indexOf(`("${property}"`, at + 1);
+        }
+        if (found.length !== 1) return null;
+        // The short names repeat from module to module, so the nearest one before the constructor is this module's.
+        const start = code.lastIndexOf(`function ${found[0].name}(t){`, found[0].at);
+        if (start < 0 || found[0].at - start > MAX_KEPT_STYLE_DISTANCE) return null;
+        const end = code.indexOf('}function', start);
+        if (end < 0 || end - start > MAX_KEPT_STYLE_LENGTH) return null;
+        return [start, end + 1];
+    }
+
+    // The game's code with its theme colours in the saved colour: first the colour text, then the colour makers' numbers, everywhere
+    // but in the kept styles. A colour it made is never a theme colour again (its hue is the saved one, or none), so nothing is
+    // changed twice.
+    function patchColours(code: string, next: Theme): { readonly code: string; readonly count: number; readonly kept: number } {
+        const changed = { count: 0 };
+        const spans: (readonly [number, number])[] = [];
+        for (const kept of THEME_KEPT_STYLES) {
+            const span = keptStyleSpan(code, kept.property, kept.style);
+            if (span === null) warn(`${LOG} could not find the game's ${kept.property} style in this bundle, it takes the game colour too`);
+            else spans.push(span);
+        }
+        spans.sort((a, b) => a[0] - b[0]);
+        const recolour = (part: string): string => recolourCalls(recolourText(part, next, changed), next, changed);
+        let result = '';
+        let at = 0;
+        let kept = 0;
+        for (const [start, end] of spans) {
+            if (start < at) continue;
+            result += recolour(code.slice(at, start)) + code.slice(start, end);
+            at = end;
+            kept++;
+        }
+        return { code: result + recolour(code.slice(at)), count: changed.count, kept };
+    }
+
+    // The page's own style elements, which are not in the game's code: every colour of a declaration block in the saved colour.
+    function paintStyle(style: CSSStyleDeclaration, next: Theme): void {
+        for (let index = 0; index < style.length; index++) {
+            const name = style.item(index);
+            const current = style.getPropertyValue(name);
+            if (!current.includes('rgb') && !current.includes('#')) continue;
+            const value = recolourText(current, next, { count: 0 });
+            if (value !== current) nativeSetProperty.call(style, name, value, style.getPropertyPriority(name));
+        }
+    }
+
+    // A rule and the rules inside it (@media, @supports, @keyframes).
+    function paintRule(rule: CSSRule, depth: number, next: Theme): void {
+        if (depth > MAX_THEME_DEPTH) return;
+        const style = (rule as { style?: unknown }).style;
+        if (style instanceof CSSStyleDeclaration) paintStyle(style, next);
+        const inner = (rule as { cssRules?: unknown }).cssRules;
+        if (inner instanceof CSSRuleList) {
+            for (let index = 0; index < inner.length; index++) paintRule(inner[index], depth + 1, next);
+        }
+    }
+
+    function paintSheet(sheet: CSSStyleSheet, next: Theme): void {
+        try {
+            const rules = sheet.cssRules;
+            for (let index = 0; index < rules.length; index++) paintRule(rules[index], 0, next);
+        } catch {
+            // a sheet from another site cannot be read, and what is left keeps the game's colours
+        }
+    }
+
+    // The extension's own stylesheets are not in the game's code, so they follow through two variables on the root element: each
+    // of our weak blues is written as itself with this hue and strength (build-plan 22b). Written once, at start.
+    function writeThemeVariables(next: Theme): void {
+        const style = document.documentElement.style;
+        nativeSetProperty.call(style, '--kasp-theme-hue', String(next.hue ?? 0));
+        nativeSetProperty.call(style, '--kasp-theme-strength', next.hue === null ? '0' : '1');
+    }
+
+    // The page's own style elements (its first loading screen among them) are parsed, not in the game's code, so until the page
+    // has loaded each one is painted as it arrives, before it is drawn. Then this watch stops for good, and every sheet is painted
+    // once more (the game's own rules are already in the colour, and a made colour is never changed again).
+    function paintWhileLoading(next: Theme): void {
+        const paintAll = (): void => {
+            for (const sheet of Array.from(document.styleSheets)) paintSheet(sheet, next);
+        };
+        if (document.readyState !== 'loading') {
+            paintAll();
+            return;
+        }
+        const arrivals = new MutationObserver((records) => {
+            for (const record of records) {
+                for (const node of record.addedNodes) {
+                    if (node instanceof HTMLStyleElement && node.sheet !== null) paintSheet(node.sheet, next);
+                }
+            }
+        });
+        arrivals.observe(document.documentElement, { childList: true, subtree: true });
+        document.addEventListener(
+            'DOMContentLoaded',
+            () => {
+                arrivals.disconnect();
+                paintAll();
+            },
+            { once: true },
+        );
+    }
+
+    // With the game's own blue saved, nothing at all.
+    function startGameColour(): void {
+        if (theme === null) return;
+        try {
+            writeThemeVariables(theme);
+            paintWhileLoading(theme);
+        } catch (e) {
+            warn(`${LOG} the game colour could not be applied, the game keeps its blue:`, e instanceof Error ? e.message : e);
+        }
+    }
+
     // ---- the old augment pictures ----
 
     // The devs replaced the augment pictures with new ones; old_pictures.ts bundles the old ones and posts kasp:old-pictures (the
@@ -1923,6 +2247,7 @@
     }
 
     if (!skipStartSwitchedOff()) installStartScreenSkip();
+    startGameColour();
     installCardReader();
     installRewardReader();
 
