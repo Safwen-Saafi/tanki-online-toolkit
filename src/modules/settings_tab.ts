@@ -82,6 +82,8 @@
         { key: 'kasp_old_pictures', group: 'garage', live: false, label: { EN: 'Old augment pictures', RU: 'Старые картинки устройств' } },
         { key: 'kasp_garageskins', group: 'garage', live: true, label: { EN: 'Equipped skins in the garage', RU: 'Надетые скины в гараже' } },
         { key: 'kasp_narrowcards', group: 'garage', live: true, label: { EN: 'Narrower garage cards', RU: 'Узкие карточки в гараже' } },
+        // Read by the injector when the game starts: the website's camera, light, drone place and floor in the garage (a change needs a reload).
+        { key: 'kasp_showroom', group: 'garage', live: false, label: { EN: 'Showroom garage', RU: 'Гараж-витрина' } },
         // Read by the injector when the game starts: the daily offer's click buys without the success dialog (a change needs a reload).
         { key: 'kasp_shopquickbuy', group: 'shop', live: false, label: { EN: 'Daily offer quick buying', RU: 'Быстрая покупка ежедневного предложения' } },
         { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },
