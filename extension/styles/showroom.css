@@ -1,0 +1,17 @@
+/* The showroom garage's floor (build-plan 25). src/modules/showroom.ts draws the live floor at the very back of #root. Every lobby
+   screen sits in a box of its own right under #app-root that paints the game's dark radial background: here that box paints the
+   calm, still copy of the floor instead (--kasp-showroom-calm, made once at page load), and the garage's box, which showroom.ts
+   marks, is see-through so the live floor shows. Everything a screen draws stays on top. Only boxes whose class is exactly
+   -container: the start screen's box (which also carries its picture) and the loading screens keep their own backgrounds.
+   Only while the switch is on (src/modules/showroom_floor.ts writes the attribute). */
+html[data-kasp-showroom-floor] #app-root > div[class="-container"] {
+    background: var(--kasp-showroom-calm, none) center / cover no-repeat !important;
+}
+
+html[data-kasp-showroom-floor] #app-root > div[class="-container"][data-kasp-showroom-garage] {
+    background: none !important;
+}
+
+html[data-kasp-showroom-battle] #kasp-showroom-floor {
+    display: none !important;
+}

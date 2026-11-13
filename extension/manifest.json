@@ -12,7 +12,8 @@
       ],
       "js": [
         "js/injector.js",
-        "js/modules/shop_quick_buy.js"
+        "js/modules/shop_quick_buy.js",
+        "js/modules/showroom.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"
@@ -28,6 +29,7 @@
         "js/modules/debug_line.js",
         "js/modules/messages.js",
         "js/modules/battle.js",
+        "js/modules/showroom_floor.js",
         "js/modules/garage_cards.js",
         "js/modules/battle_tab.js",
         "js/modules/old_pictures.js",
@@ -51,7 +53,8 @@
         "styles/settings_tab.css",
         "styles/chat_translation.css",
         "styles/debug_line.css",
-        "styles/shop_quick_buy.css"
+        "styles/shop_quick_buy.css",
+        "styles/showroom.css"
       ],
       "run_at": "document_start"
     }
@@ -67,7 +70,8 @@
         "old_pictures/*",
         "flags/*",
         "sounds/*",
-        "icons/*"
+        "icons/*",
+        "showroom/*"
       ],
       "matches": [
         "*://*.tankionline.com/*"
