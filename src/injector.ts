@@ -18,6 +18,7 @@
 // The chat translation hook posts each player's battle chat message (window.__kaspChat, kasp:chat) for chat_translation.ts.
 // The game colour part paints the game's blue look in the colour saved under kasp_theme, by rewriting the colours in the game's
 // code once before it runs; a new colour applies at the next start.
+// The showroom part edits the garage's 3D code at start so it calls window.__kaspShowroom (src/modules/showroom.ts) every frame.
 (function () {
     'use strict';
 
@@ -1333,6 +1334,90 @@
         ]);
     }
 
+    // ---- the showroom garage (build-plan 25, see blueprint/context/garage-restyle-research.md) ----
+    // Four edits, all or none, so the garage's 3D looks and moves like the official skins preview page; the work itself is in
+    // src/modules/showroom.ts (window.__kaspShowroom). Every name is read from this bundle by its shape, as in this build:
+    //   settings: "TankPreviewSettings(cameraHeight="+this.aah_1+", distanceToTank="+this.bah_1+", lookAtZOffset="+this.cah_1+...
+    //   camera:   Gr(ph).gai=function(t,n,i,r,e,u,s,o){var _=-r/i*Math.sin(n),h=r/i*Math.cos(n),a=-e/i,c=1/i/s,f=this.sah_1.bah_1*c,...
+    //             this.qah_1.h38(_,h,this.vah_1.t35_1.h20_1+this.sah_1.cah_1+a)   (the scene, once per frame: angle n, sideways pan r)
+    //   drone:    Gr(S_).nac=function(t){var n=Ie(),i=x_().uab_1.f20_1,...,s=10*Math.sin(u);t&&(s*=-1,e*=-1),this.t35_1.f20_1=this.mac_1.f20_1+i,...
+    //   update:   Gr(Q_).n36=function(t){var n=this.nae_1;null==n||n.nac(!1);var i=this.oae_1;null==i||i.nac(!0),this.faf_1.n36(t)}
+    //   shown:    Gr(ph).fai=function(t){var n=this.vah_1.nae_1;null==n||n.p3k(t)}
+    //   light:    function lh(t,n,i,r){var e,u;if(t=t===Wr?xu(100,100,100):t,n=n===Wr?xu(200,200,200):n,...  (TankPreviewLightSettings)
+    // The camera edit asks showroom.ts for the lens, distance, heights, angle and pan and reads them in place of the four settings for
+    // that frame only: the settings are never written, since the main lobby's own 3D tank uses this same code (showroom.ts answers
+    // only while the garage is open, so that tank keeps the game's camera). The update edit moves the
+    // drone and its mirror copy after the game placed them (the copy's height is turned over) and shows them only on the Drones tab;
+    // the light edit makes the defaults full ambient light and a light at 0.45, which the scene applies once at strength 1.
+    const SHOWROOM_CAMERA_RANGE = 1500;
+    function patchShowroom(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the garage ${what} in this bundle, the showroom garage is skipped`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const settings = exactlyOne(code, new RegExp(`"TankPreviewSettings\\(cameraHeight="\\+this\\.(${N})\\+", distanceToTank="\\+this\\.(${N})\\+", lookAtZOffset="\\+this\\.(${N})\\+", lookAtXOffset="\\+this\\.${N}\\+", cameraFov="\\+this\\.(${N})\\+"`, 'g'));
+        if (settings === null) return skip('camera settings');
+        const [, heightField, distanceField, lookField, fovField] = settings;
+        const camera = exactlyOne(code, new RegExp(`=function\\((${N}),(${N}),(${N}),(${N}),${N},${N},${N},${N}\\)\\{var ${N}=-\\4/\\3\\*Math\\.sin\\(\\2\\),${N}=\\4/\\3\\*Math\\.cos\\(\\2\\),[^;]{0,80}?=this\\.(${N})\\.${asPattern(distanceField)}\\*`, 'g'));
+        if (camera === null) return skip('camera function');
+        const [, , angle, , pan, settingsField] = camera;
+        const tank = new RegExp(`this\\.(${N})\\.(${N})\\.(${N})\\+this\\.${asPattern(settingsField)}\\.${asPattern(lookField)}\\+`).exec(code.slice(camera.index, camera.index + SHOWROOM_CAMERA_RANGE));
+        if (tank === null) return skip('tank place');
+        const [, modelField, placeField, heightAxis] = tank;
+        const drone = exactlyOne(code, new RegExp(`\\.(${N})=function\\((${N})\\)\\{var (${N})=${N}\\(\\),(${N})=${N}\\(\\)\\.${N}\\.(${N}),(${N})=${N}\\(\\)\\.${N}\\.(${N}),(${N})=${N}\\(\\)\\.${N}\\.(${N}),(${N})=\\3/1e3,(${N})=10\\*Math\\.sin\\(\\10\\);\\2&&\\(\\11\\*=-1,\\8\\*=-1\\),this\\.(${N})\\.\\5=this\\.(${N})\\.\\5\\+\\4,`, 'g'));
+        if (drone === null) return skip('drone');
+        const [, place, , , , xAxis, , yAxis, , zAxis, , , dronePlace] = drone;
+        const update = exactlyOne(code, new RegExp(`\\.(${N})=function\\((${N})\\)\\{var (${N})=this\\.(${N});null==\\3\\|\\|\\3\\.${asPattern(place)}\\(!1\\);var (${N})=this\\.(${N});null==\\5\\|\\|\\5\\.${asPattern(place)}\\(!0\\),this\\.${N}\\.${N}\\(\\2\\)\\}`, 'g'));
+        if (update === null) return skip('model update');
+        const [, updateName, , droneVar, droneField, mirrorVar] = update;
+        // The camera function ends by calling the model's update; the four settings it reads are swapped only up to there.
+        const bodyAt = camera.index + camera[0].indexOf('{') + 1;
+        const bodyEnd = code.indexOf(`this.${modelField}.${updateName}(${camera[1]})}`, bodyAt);
+        if (bodyEnd < 0 || bodyEnd - bodyAt > SHOWROOM_CAMERA_RANGE) return skip('camera function end');
+        const reads: Edit[] = [];
+        for (const [field, key] of [[distanceField, 'distance'], [heightField, 'height'], [lookField, 'look'], [fovField, 'fov']]) {
+            const read = `this.${settingsField}.${field}`;
+            const found = [...code.slice(bodyAt, bodyEnd).matchAll(new RegExp(`${asPattern(read).replace(/\./g, '\\.')}(?![\\w$])`, 'g'))];
+            if (found.length === 0) return skip(`camera ${key}`);
+            for (const one of found) reads.push({ at: bodyAt + (one.index ?? 0), length: read.length, text: `($kaspCam?$kaspCam.${key}:${read})` });
+        }
+        const shows = exactlyOne(code, new RegExp(`=function\\((${N})\\)\\{var (${N})=this\\.${asPattern(modelField)}\\.${asPattern(droneField)};null==\\2\\|\\|\\2\\.(${N})\\(\\1\\)\\}`, 'g'));
+        if (shows === null) return skip('drone switch');
+        const show = shows[3];
+        const lightText = exactlyOne(code, /"TankPreviewLightSettings\(ambientColor="/g);
+        const lightClass = lightText === null ? null : /[\w$]+\(([\w$]+)\)\.toString=function\(\)\{return$/.exec(code.slice(lightText.index - 60, lightText.index));
+        if (lightClass === null) return skip('light settings');
+        const light = exactlyOne(code, new RegExp(`function ${asPattern(lightClass[1])}\\((${N}),(${N}),${N},${N}\\)\\{var ${N},${N};if\\(\\1=\\1===(${N})\\?(${N})\\(100,100,100\\):\\1,\\2=\\2===\\3\\?\\4\\(200,200,200\\):\\2,`, 'g'));
+        if (light === null) return skip('light colours');
+
+        const move = (part: string, sign: string): string =>
+            `${part}&&(${part}.${dronePlace}.${xAxis}+=$kaspDrone.x,${part}.${dronePlace}.${yAxis}+=$kaspDrone.y,${part}.${dronePlace}.${zAxis}${sign}=$kaspDrone.z,${part}.${show}($kaspDrone.shown))`;
+        return applyEdits(code, [
+            {
+                at: bodyAt,
+                length: 0,
+                text: `var $kaspCam=window.__kaspShowroom&&window.__kaspShowroom.camera(this.${modelField}.${placeField}.${heightAxis});$kaspCam&&(${angle}=$kaspCam.angle,${pan}=${pan}+$kaspCam.side);`,
+            },
+            ...reads,
+            {
+                at: update.index + update[0].length - 1,
+                length: 0,
+                text: `;var $kaspDrone=window.__kaspShowroom&&window.__kaspShowroom.drone();$kaspDrone&&(${move(droneVar, '+')},${move(mirrorVar, '-')})`,
+            },
+            { at: light.index + light[0].indexOf('(100,100,100)'), length: '(100,100,100)'.length, text: '(255,255,255)' },
+            { at: light.index + light[0].indexOf('(200,200,200)'), length: '(200,200,200)'.length, text: '(115,115,115)' },
+        ]);
+    }
+
+    function showroomSwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_showroom') === '0';
+        } catch {
+            return false;
+        }
+    }
+
     // The bundle with every hook that could be added, and the labels of those hooks.
     function patchBundle(code: string): { readonly code: string; readonly hooked: string[] } {
         let result = code;
@@ -1398,6 +1483,13 @@
             if (shop !== null) {
                 result = shop;
                 hooked.push('shop-quick-buy');
+            }
+        }
+        if (!showroomSwitchedOff()) {
+            const showroom = patchShowroom(result);
+            if (showroom !== null) {
+                result = showroom;
+                hooked.push('showroom');
             }
         }
         // Last, so every other edit finds the game's code as it was.
