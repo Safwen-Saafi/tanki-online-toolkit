@@ -263,7 +263,33 @@ interface KaspBattle {
     readonly onChange: (action: (on: boolean) => void) => void;
 }
 
+// Defined by src/modules/showroom.ts (MAIN world, build-plan 25) and called only by the 3D tank code the injector edits, once per
+// frame. camera(tankHeight) gives the lens (fov, radians), the distance, camera height and look height (game units), the angle
+// (radians) and the sideways pan to add, or null outside the garage (the game's own camera); drone() gives the move from the game's
+// drone place (game units) and whether the Drones tab is open, or null when no garage camera ran this frame. One object each, reused.
+interface KaspShowroomCamera {
+    fov: number;
+    distance: number;
+    height: number;
+    look: number;
+    angle: number;
+    side: number;
+}
+
+interface KaspShowroomDrone {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+    shown: boolean;
+}
+
+interface KaspShowroom {
+    readonly camera: (tankHeight: number) => KaspShowroomCamera | null;
+    readonly drone: () => KaspShowroomDrone | null;
+}
+
 interface Window {
+    __kaspShowroom?: KaspShowroom;
     __kaspSendAction?: (className: string, obj: unknown) => void;
     __kaspSendKill?: (className: string, obj: unknown) => void;
     __kaspSendBattleTime?: (className: string, obj: unknown) => void;
