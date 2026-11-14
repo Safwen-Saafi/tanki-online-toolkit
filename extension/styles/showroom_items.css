@@ -1,0 +1,76 @@
+/* The showroom garage's Turrets and Hulls screens (build-plan 25c): the owner's layout, proven live on 2026-11-14. The tank stays
+   free on the left; everything about the item is in one column on the right: the level, stats and buttons, then the Augments/Skins
+   block and the protection module right above the item cards. The top box (the item's name, its description and Read more) is
+   hidden: the name still shows on the item's card. The game's blur behind the blocks goes, and the item cards get the main
+   screen's frosted glass.
+
+   Only while the Turrets or Hulls tab is open: the 1st or 2nd item of the garage's category bar is the lit one (read by place, so any
+   game language works; if the game ever reorders its tabs, this rule needs a change). The other tabs keep the game's own screens.
+   Every rule also waits for item 25's switch (data-kasp-showroom-floor, written by src/modules/showroom_floor.ts while it is on).
+   This file borrows two things from showroom_panels.css, which is always loaded with it: the --kasp-gl-* glass colours and the
+   kasp-showroom-from-right slide. No script: nothing runs while playing. */
+
+/* the top box: the item's name, its description and Read more */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) .TanksPartBaseComponentStyle-tankPartContainer .ItemDescriptionComponentStyle-descriptionBlockDevice {
+    display: none !important;
+}
+
+/* The Augments/Skins block and the protection module: the right column, right above the item cards, as wide as the column. It is
+   placed from the bottom, because the column above it is taller or shorter from item to item. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-descriptionContainer {
+    position: fixed !important;
+    right: 6em !important;
+    left: auto !important;
+    top: auto !important;
+    bottom: 13em !important;
+    width: 22.5em !important;
+    height: auto !important;
+    margin: 0 !important;
+    z-index: 2 !important;
+}
+
+/* the level, stats and buttons share a row with the moved block: with it gone they would slide to the left */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-tankPartUpgrades {
+    margin-left: auto !important;
+}
+
+/* the moved blocks now stand in the right column, so they slide in from the right like the rest of it */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-descriptionContainer .GarageCommonStyle-animatedBlurredLeftBlock,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-commonBlockDescriptionDevices {
+    animation: kasp-showroom-from-right 200ms ease-out both !important;
+}
+
+/* No slide-in on the boxes that hold the moved block: while such a box slides in, a fixed block inside it is placed from the box,
+   not from the screen, so it showed in its old place for a moment. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) *:has(.TanksPartComponentStyle-descriptionContainer) {
+    animation: none !important;
+    transition: none !important;
+}
+
+/* the game's blur behind the item screen's blocks: the thin dark background */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredRightBlock {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* The item cards (tiles) along the bottom: the main screen's frosted glass. Only the fill changes: the game marks the selected card
+   with a white ring and the others with a thin pale one, drawn as its box-shadow with no class of its own, so the box-shadow stays
+   the game's and the selected card still stands out. The light along the top edge is a 1px background layer for the same reason. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) .garage-item {
+    background:
+        linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
+        linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%),
+        var(--kasp-gl-shade) !important;
+    border-radius: 1.1em !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: background 0.3s ease !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) .garage-item:hover {
+    background:
+        linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
+        linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%),
+        var(--kasp-gl-shade) !important;
+}

@@ -55,7 +55,8 @@
         "styles/debug_line.css",
         "styles/shop_quick_buy.css",
         "styles/showroom.css",
-        "styles/showroom_panels.css"
+        "styles/showroom_panels.css",
+        "styles/showroom_items.css"
       ],
       "run_at": "document_start"
     }
