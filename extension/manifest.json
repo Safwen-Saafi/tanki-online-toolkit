@@ -56,7 +56,8 @@
         "styles/shop_quick_buy.css",
         "styles/showroom.css",
         "styles/showroom_panels.css",
-        "styles/showroom_items.css"
+        "styles/showroom_items.css",
+        "styles/showroom_tabs.css"
       ],
       "run_at": "document_start"
     }

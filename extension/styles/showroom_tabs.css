@@ -1,0 +1,252 @@
+/* The showroom garage's tabs (build-plan 25g): the owner's design from a concept picture, proven live with the probe
+   blueprint/reference/garage-mirror-probe.js v1.6 on 2026-11-14. The garage's tab bar (Turrets, Hulls, Grenades, Drones, Protection,
+   Supplies, Paints) becomes a full-height glass column on the right, from under the header to above the item cards, its tabs as our
+   own icons by place (any game language) and the game's Q and E marks as an up and a down arrow at its ends. The screens opened from
+   Turrets or Hulls (Augments, Skins, Shot colour) have a shorter bar of their own: it becomes the same column with its own icons,
+   and the screen's content ends before it. The bar's own line and its two side arrows are hidden.
+
+   Which bar is which: the garage's own bar is the one with a 7th tab; a garage box with a bar but no 7th tab is a sub-screen. Only
+   the line and the side arrows are hidden in a bar's box, never anything else: on the sub-screens that box holds the whole screen.
+   The game's em follows the window's height, so the column scales with the window; on a very short window the tabs scroll.
+   Every rule waits for item 25's switch (data-kasp-showroom-floor, written by src/modules/showroom_floor.ts while it is on).
+   Borrowed from showroom_panels.css, always loaded with it: the --kasp-gl-* glass colours. No script: nothing runs while playing. */
+
+html[data-kasp-showroom-floor] {
+    --kasp-showroom-tab-icon: #d3dbf7;
+    --kasp-showroom-tab-lit: rgb(48 118 42 / 0.92);
+    --kasp-showroom-tab-lit-edge: rgb(118 255 51 / 0.22);
+    --kasp-showroom-tab-lit-icon: #79ff3a;
+}
+
+/* the garage's own bar box: no background or edge of its own (the row it leaves stays, empty) */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuComponentStyle-garageMenuContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)) {
+    background: none !important;
+    border: 0 !important;
+    border-image: none !important;
+    box-shadow: none !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuComponentStyle-garageMenuContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))::before,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuComponentStyle-garageMenuContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))::after {
+    display: none !important;
+}
+
+/* the bar's line, and the two arrows beside the tabs */
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuComponentStyle-garageMenuContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .GarageMenuComponentStyle-garageMenuContainer) .MenuComponentStyle-decorLineMenu,
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuComponentStyle-garageMenuContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .GarageMenuComponentStyle-garageMenuContainer) :has(> .MenuComponentStyle-blockButtonsQECommunity) > :not(.MenuComponentStyle-blockButtonsQECommunity) {
+    display: none !important;
+}
+
+/* the column: the 25b frosted glass, right of the screen, from 7.3em under the top to 13em above the bottom */
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) {
+    position: fixed !important;
+    right: 1em !important;
+    left: auto !important;
+    top: 7.3em !important;
+    bottom: 13em !important;
+    width: 4.6em !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0.5em 0 !important;
+    box-sizing: border-box !important;
+    z-index: 3 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.3em !important;
+    background:
+        linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
+        linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%),
+        var(--kasp-gl-shade) !important;
+    border: 1px solid var(--kasp-gl-edge) !important;
+    border-radius: 1.1em !important;
+    transform: none !important;
+    overflow: hidden !important;
+}
+
+/* every box between the column and the tabs: the tabs spread over the whole height (auto margins, so a short window scrolls) */
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) *:has(.MenuComponentStyle-mainMenuItem) {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0.3em !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    scrollbar-width: none !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    background: none !important;
+    border: 0 !important;
+}
+
+/* a tab: its text and its lit underline hidden, our icon drawn in its place */
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem {
+    position: relative !important;
+    flex: none !important;
+    box-sizing: border-box !important;
+    width: 3.8em !important;
+    height: 3.8em !important;
+    min-width: 0 !important;
+    margin: auto 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-indent: 300% !important;
+    color: transparent !important;
+    text-shadow: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0.95em !important;
+    cursor: pointer !important;
+    transition: background 0.2s ease !important;
+}
+
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem > [class*="-menuItemActive"] {
+    display: none !important;
+}
+
+/* the up and down arrows: the game's Q and E marks, emptied (their own click stays) */
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem)) {
+    display: block !important;
+    position: relative !important;
+    flex: none !important;
+    box-sizing: border-box !important;
+    width: 3.8em !important;
+    height: 2.2em !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    text-indent: 300% !important;
+    white-space: nowrap !important;
+    color: transparent !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0.7em !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    transition: background 0.2s ease, opacity 0.2s ease !important;
+}
+
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem)) * {
+    color: transparent !important;
+}
+
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem::before,
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem))::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0.85em !important;
+    display: block !important;
+    text-indent: 0 !important;
+    border: 0 !important;
+    transform: none !important;
+    opacity: 1 !important;
+    background: var(--kasp-showroom-tab-icon) !important;
+    -webkit-mask: var(--kasp-showroom-tab-shape) center / contain no-repeat !important;
+    mask: var(--kasp-showroom-tab-shape) center / contain no-repeat !important;
+    transition: background 0.2s ease !important;
+}
+
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem))::before {
+    inset: 0.45em 1.2em !important;
+}
+
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem:hover,
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem)):hover {
+    background: rgb(255 255 255 / 0.07) !important;
+}
+
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem:hover::before,
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem)):hover::before {
+    background: #fff !important;
+}
+
+/* the lit tab: a green square with a green icon */
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem[class*="activeMenu"] {
+    background: var(--kasp-showroom-tab-lit) !important;
+    box-shadow: inset 0 0 0 1px var(--kasp-showroom-tab-lit-edge) !important;
+}
+
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem[class*="activeMenu"]::before {
+    background: var(--kasp-showroom-tab-lit-icon) !important;
+}
+
+/* the arrows' chevrons; dim when there is no tab further that way */
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :first-child:not(:has(.MenuComponentStyle-mainMenuItem)) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 15.5l7-7 7 7' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :last-child:not(:has(.MenuComponentStyle-mainMenuItem)) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 8.5l7 7 7-7' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity):has(.MenuComponentStyle-mainMenuItem:nth-child(1 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) > :first-child:not(:has(.MenuComponentStyle-mainMenuItem)),
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity):has(.MenuComponentStyle-mainMenuItem:nth-last-child(1 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) > :last-child:not(:has(.MenuComponentStyle-mainMenuItem)) {
+    opacity: 0.3 !important;
+}
+
+/* the garage's tabs, by place */
+/* Turrets: a flask */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)) .MenuComponentStyle-mainMenuItem:nth-child(1 of .MenuComponentStyle-mainMenuItem) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M8 2.2h8a.9.9 0 0 1 0 1.8h-.6v5l4.7 7.4A3.2 3.2 0 0 1 17.4 21H6.6a3.2 3.2 0 0 1-2.7-4.6L8.6 9V4H8a.9.9 0 0 1 0-1.8z M10.4 4v5.5l-2 3.1h7.2l-2-3.1V4z'/%3E%3C/svg%3E");
+}
+
+/* Hulls: a gear */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)) .MenuComponentStyle-mainMenuItem:nth-child(2 of .MenuComponentStyle-mainMenuItem) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' stroke='black' stroke-width='1.1' stroke-linejoin='round' d='M10.10 4.33L10.42 1.52L13.58 1.52L13.90 4.33L16.07 5.23L18.30 3.47L20.53 5.70L18.77 7.93L19.67 10.10L22.48 10.42L22.48 13.58L19.67 13.90L18.77 16.07L20.53 18.30L18.30 20.53L16.07 18.77L13.90 19.67L13.58 22.48L10.42 22.48L10.10 19.67L7.93 18.77L5.70 20.53L3.47 18.30L5.23 16.07L4.33 13.90L1.52 13.58L1.52 10.42L4.33 10.10L5.23 7.93L3.47 5.70L5.70 3.47L7.93 5.23Z M15.7 12a3.7 3.7 0 1 0-7.4 0a3.7 3.7 0 1 0 7.4 0z'/%3E%3C/svg%3E");
+}
+
+/* Grenades: a ball with a wave */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)) .MenuComponentStyle-mainMenuItem:nth-child(3 of .MenuComponentStyle-mainMenuItem) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='m'%3E%3Crect width='24' height='24' fill='white'/%3E%3Cpath d='M2 12.2c1.7-1.8 3.3-1.8 5 0s3.3 1.8 5 0 3.3-1.8 5 0 3.3 1.8 5 0' fill='none' stroke='black' stroke-width='1.8'/%3E%3Cpath d='M5.2 7.4h13.6M5.2 17h13.6' stroke='black' stroke-width='1.3' stroke-dasharray='1.5 1.5'/%3E%3C/mask%3E%3C/defs%3E%3Cg mask='url(%23m)'%3E%3Ccircle cx='12' cy='12' r='9.8'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Drones: a drone */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)) .MenuComponentStyle-mainMenuItem:nth-child(4 of .MenuComponentStyle-mainMenuItem) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='m'%3E%3Crect width='24' height='24' fill='white'/%3E%3Ccircle cx='9.9' cy='11.6' r='1.35' fill='black'/%3E%3Ccircle cx='14.1' cy='11.6' r='1.35' fill='black'/%3E%3Cpath d='M9.9 15h4.2' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/mask%3E%3C/defs%3E%3Cg mask='url(%23m)'%3E%3Ccircle cx='12' cy='12' r='5.8'/%3E%3Cpath d='M7.7 7.7L4.2 4.2M16.3 7.7l3.5-3.5M7.7 16.3l-3.5 3.5M16.3 16.3l3.5 3.5' stroke='black' stroke-width='2.6' stroke-linecap='round'/%3E%3C/g%3E%3Ccircle cx='3.8' cy='3.8' r='2.1'/%3E%3Ccircle cx='20.2' cy='3.8' r='2.1'/%3E%3Ccircle cx='3.8' cy='20.2' r='2.1'/%3E%3Ccircle cx='20.2' cy='20.2' r='2.1'/%3E%3C/svg%3E");
+}
+
+/* Protection: a half-hollow shield */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)) .MenuComponentStyle-mainMenuItem:nth-child(5 of .MenuComponentStyle-mainMenuItem) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2l8.4 3.2v6.2c0 5.2-3.6 9-8.4 10.6-4.8-1.6-8.4-5.4-8.4-10.6V5.2z M11 5.3L6.1 7.2v4.2c0 3.5 1.9 6.1 4.9 7.6z'/%3E%3C/svg%3E");
+}
+
+/* Supplies: four squares */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)) .MenuComponentStyle-mainMenuItem:nth-child(6 of .MenuComponentStyle-mainMenuItem) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='m'%3E%3Crect width='24' height='24' fill='white'/%3E%3Ccircle cx='6.8' cy='6.8' r='1.5' fill='black'/%3E%3Ccircle cx='17.2' cy='6.8' r='1.5' fill='black'/%3E%3Ccircle cx='6.8' cy='17.2' r='1.5' fill='black'/%3E%3Ccircle cx='17.2' cy='17.2' r='1.5' fill='black'/%3E%3C/mask%3E%3C/defs%3E%3Cg mask='url(%23m)'%3E%3Crect x='2.4' y='2.4' width='8.8' height='8.8' rx='2.4'/%3E%3Crect x='12.8' y='2.4' width='8.8' height='8.8' rx='2.4'/%3E%3Crect x='2.4' y='12.8' width='8.8' height='8.8' rx='2.4'/%3E%3Crect x='12.8' y='12.8' width='8.8' height='8.8' rx='2.4'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Paints: a bucket */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)) .MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M13 4.8L20.2 12 13 19.2 5.8 12z' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round'/%3E%3Cpath d='M5.8 12h14.4L13 19.2z'/%3E%3Cpath d='M13 4.8l3.6-3.2' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'/%3E%3Cpath d='M4.2 15.4c1.4 2 2.1 3.1 2.1 4.1a2.1 2.1 0 0 1-4.2 0c0-1 .7-2.1 2.1-4.1z'/%3E%3C/svg%3E");
+}
+
+/* the sub-screens' tabs, by place */
+/* Augments: an octagon with a pulse */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity .MenuComponentStyle-mainMenuItem:nth-child(1 of .MenuComponentStyle-mainMenuItem) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='m'%3E%3Crect width='24' height='24' fill='white'/%3E%3Cpath d='M6.6 12.4h2.6l1.6-3.2 2.2 6.2 1.6-3H17.4' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/mask%3E%3C/defs%3E%3Cg mask='url(%23m)'%3E%3Cpath d='M8.2 2.2h7.6l6 6v7.6l-6 6H8.2l-6-6V8.2z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Skins: a sparkle */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity .MenuComponentStyle-mainMenuItem:nth-child(2 of .MenuComponentStyle-mainMenuItem) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 2.6l2 5.4 5.4 2-5.4 2-2 5.4-2-5.4-5.4-2 5.4-2z'/%3E%3Cpath d='M18 13.2l1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1z'/%3E%3C/svg%3E");
+}
+
+/* Shot colour: an orb */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity .MenuComponentStyle-mainMenuItem:nth-child(3 of .MenuComponentStyle-mainMenuItem) {
+    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='m'%3E%3Crect width='24' height='24' fill='white'/%3E%3Cpath d='M7.4 11a5 5 0 0 1 3.6-3.6' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round'/%3E%3C/mask%3E%3C/defs%3E%3Cg mask='url(%23m)'%3E%3Ccircle cx='12' cy='12' r='9.4'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* the sub-screens' content ends before the column */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) {
+    padding-right: 6.6em !important;
+    box-sizing: border-box !important;
+}
