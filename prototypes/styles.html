@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en" data-colour="pink" data-style="frosted">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game style mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="garage.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/"}}</script>
+<script>
+  // open in the owner's Game colour (pink) unless the address says otherwise
+  if (!location.hash) history.replaceState(null, '', '#colour=pink');
+  window.MOCKUP = {
+    screen: 'styles',
+    stage: { 1: { x: -1.21133, y: 0.514267, scale: 0.007079, camZ: 9, lookY: 1.2 } }, // the website's own numbers (layout 1)
+  };
+</script>
+<script src="mockup.js"></script>
+<style>
+  /* The garage main screen as built in 25b, in the game's own unit: 1em is 14.4 px on a 988 px tall window, like the game.
+     The column: GS, Turrets, Hulls, Drones and Grenades, protection, centred under the 6em header; the supplies bar along the
+     bottom left, level with the protection panel; the photo button above it. Every colour comes from theme.css. */
+  .game { font-size: calc(100vh / 68.6); --b: calc(50vh - 30.8em); }
+  .game *, .game *::before, .game *::after { box-sizing: border-box; }
+
+  /* ---------- the two styles: one panel rule each ---------- */
+  .gp { position: absolute; border-radius: var(--gl-radius);
+    background: linear-gradient(180deg, var(--gl-fill-top), var(--gl-fill) 45%), var(--gl-shade); background-clip: padding-box;
+    transition: border-color var(--speed) ease, background var(--speed) ease, box-shadow var(--speed) ease; }
+
+  /* Frosted glass: a soft fill, a thin white edge, a 1px light along the top inside */
+  [data-style="frosted"] .gp { border: var(--gl-border) solid var(--gl-edge); box-shadow: inset 0 1px 0 var(--gl-inner-light), var(--gl-drop); }
+  [data-style="frosted"] .gp.hov:hover, [data-style="frosted"] .gp.is-hover {
+    border-color: var(--gl-edge-hover); background: linear-gradient(180deg, var(--gl-fill-hover), var(--gl-fill) 60%), var(--gl-shade); }
+
+  /* Holo gradient: the same fill, a border fading Game colour > white > a neighbour colour, a shine line along the top */
+  [data-style="holo"] .gp { border: var(--gl-border) solid transparent; box-shadow: var(--gl-drop); }
+  [data-style="holo"] .gp::before { content: ""; position: absolute; inset: calc(-1 * var(--gl-border)); border-radius: inherit;
+    padding: var(--gl-border); background: var(--holo-border); opacity: 0.85; pointer-events: none; transition: opacity var(--speed) ease;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+  [data-style="holo"] .gp::after { content: ""; position: absolute; left: 14%; right: 14%; top: calc(-1 * var(--gl-border)); height: 1px;
+    background: var(--holo-shine); pointer-events: none; }
+  [data-style="holo"] .gp.hov:hover, [data-style="holo"] .gp.is-hover { box-shadow: var(--gl-drop), var(--holo-glow);
+    background: linear-gradient(180deg, var(--gl-fill-hover), var(--gl-fill) 60%), var(--gl-shade); }
+  [data-style="holo"] .gp.hov:hover::before, [data-style="holo"] .gp.is-hover::before { opacity: 1; }
+
+  /* small cells inside a panel (supplies, protection modules) */
+  .cell { position: relative; border-radius: var(--gl-radius-sm); background: var(--gl-cell); transition: background var(--speed) ease, box-shadow var(--speed) ease; }
+  .cell:hover, .cell.is-hover { background: var(--gl-cell-hover); }
+  [data-style="frosted"] .cell:hover, [data-style="frosted"] .cell.is-hover { box-shadow: inset 0 0 0 1px var(--gl-edge-hover); }
+  [data-style="holo"] .cell:hover, [data-style="holo"] .cell.is-hover { box-shadow: inset 0 0 0 1px var(--holo-a), 0 0 14px hsl(var(--hue) 100% 68% / 0.25); }
+
+  /* ---------- header ---------- */
+  .hdr { position: absolute; left: 0; right: 0; top: 0; height: 6em; display: flex; align-items: stretch; border-radius: 0;
+    background: linear-gradient(180deg, var(--gl-shade), hsl(var(--hue) 60% 5% / 0.12)); }
+  [data-style="frosted"] .hdr { border: 0; border-bottom: 1px solid var(--gl-edge); box-shadow: none; }
+  [data-style="holo"] .hdr { border: 0; box-shadow: none; }
+  [data-style="holo"] .hdr::before { inset: auto 0 0 0; height: 1px; padding: 0; border-radius: 0; -webkit-mask: none; mask: none; opacity: 0.7; }
+  [data-style="holo"] .hdr::after { display: none; }
+  .hdr .sq { width: 6em; display: grid; place-items: center; position: relative; border-right: 1px solid rgb(255 255 255 / 0.08); }
+  .hdr .sq .i { width: 1.9em; height: 1.9em; }
+  .hdr .sq .key { position: absolute; top: 0.4em; left: 0.4em; font-size: 0.75em; min-width: 1.6em; height: 1.6em; }
+  .hdr .rk { width: 6em; display: grid; place-items: center; border-right: 1px solid rgb(255 255 255 / 0.08); color: var(--danger); }
+  .hdr .rk .i { width: 2.8em; height: 2.8em; }
+  .hdr .who { display: flex; flex-direction: column; justify-content: center; gap: 0.5em; padding: 0 1.2em; min-width: 16em; }
+  .hdr .who b { font-weight: var(--fw-medium); font-size: 1.05em; }
+  .hdr .who .xp { height: 0.3em; border-radius: 0.15em; background: rgb(255 255 255 / 0.12); }
+  .hdr .who .xp i { width: 97%; }
+  .hdr .who .xp-text { font-size: 0.95em; }
+  .hdr .title { font-size: 2.2em; letter-spacing: 0.02em; top: 50%; transform: translate(-50%, -50%); }
+  .hdr .title small { margin-left: 0.4em; }
+  .hdr .money { margin-left: auto; display: flex; flex-direction: column; justify-content: center; gap: 0.9em; padding: 0 1.4em;
+    border-left: 1px solid rgb(255 255 255 / 0.08); font-weight: var(--fw-medium); font-size: 1.15em; }
+  .hdr .money span { display: flex; align-items: center; gap: 0.5em; }
+  .hdr .money .add { margin-left: 0.6em; color: var(--danger); }
+  .hdr .money .crystal .add { color: var(--crystal); }
+
+  /* ---------- the right column ---------- */
+  .rc { right: 6em; width: 23em; }
+  .gs { bottom: calc(var(--b) + 44.6em); height: 10.97em; padding: 0.5em 1em 0.6em; }
+  .gs-top { display: flex; align-items: center; justify-content: space-between; height: 3.9em; }
+  .gs-logo { font-weight: 900; font-style: italic; font-size: 2em; color: var(--accent); letter-spacing: -0.04em; }
+  .gs-num { font-size: 3.3em; font-weight: var(--fw-medium); color: var(--ruby); line-height: 1; font-variant-numeric: tabular-nums; }
+  .gs-rows { display: grid; grid-template-columns: 1fr 1fr; column-gap: 1.1em; font-size: 0.95em; white-space: nowrap; }
+  .gs-rows > div { height: 2.05em; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgb(255 255 255 / 0.1); }
+  .gs-rows b { color: var(--accent); font-weight: var(--fw-medium); }
+  .gs-rows b small { color: var(--faint); font-size: 0.8em; margin-left: 0.2em; font-weight: var(--fw-bold); }
+
+  .card { cursor: pointer; } /* no overflow: hidden, it would cut off the Holo border and its shine line */
+  .card .name { position: absolute; left: 0.85em; top: 0.7em; font-weight: var(--fw-bold); text-transform: uppercase; color: var(--muted); }
+  .card .pic { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); width: 60%; height: 58%; object-fit: contain;
+    filter: drop-shadow(0 0.6em 0.7em rgb(0 0 0 / 0.5)); }
+  .card .glyph { font-size: inherit; position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); width: 4.6em; height: 4.6em; color: #9fbf62; }
+  .card .arrow-up { position: absolute; right: 0.8em; bottom: 0.7em; font-size: 1.6em; }
+  .card .icons { position: absolute; left: 0.75em; bottom: 0.65em; display: flex; gap: 0.35em; }
+  .card .icons > * { width: 2em; height: 2em; border-radius: 0.5em; display: grid; place-items: center; background: rgb(0 0 0 / 0.35); }
+  .card .icons img { width: 1.8em; height: 1.8em; }
+  .card .badge { font-size: 0.85em; font-weight: 900; letter-spacing: -0.04em; color: #fff; background: #20232b !important; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.5); }
+  .card .shot { background: radial-gradient(circle at 35% 35%, #c9a6ff, #6a2bd9 70%) !important; border-radius: 50% !important; }
+  .card .count { position: absolute; left: 0.85em; bottom: 0.75em; font-weight: var(--fw-bold); }
+  .turret { bottom: calc(var(--b) + 31.55em); height: 12.5em; }
+  .hull { bottom: calc(var(--b) + 18.5em); height: 12.5em; }
+  .drone, .grenade { bottom: calc(var(--b) + 6.95em); height: 11em; width: 11.225em; }
+  .drone { right: calc(6em + 11.775em); }
+  .grenade { right: 6em; }
+
+  .prot { bottom: var(--b); height: 6.4em; display: flex; align-items: center; gap: 0.5em; padding: 0 3.6em 0 0.9em; }
+  .prot .cell { flex: 1; height: 5em; display: grid; place-items: center; color: var(--accent); }
+  .prot .cell::before, .prot .cell::after { content: ""; position: absolute; left: 30%; right: 30%; height: 0.2em; border-radius: 0.1em; background: var(--accent); box-shadow: 0 0 0.5em var(--accent); }
+  .prot .cell::before { top: 0; } .prot .cell::after { bottom: 0; }
+  .prot .cell .i { width: 2.1em; height: 2.1em; }
+  .prot .cell.red { color: var(--danger); }
+  .prot .arrow-up { position: absolute; right: 0.9em; top: 50%; transform: translateY(-50%); font-size: 1.6em; }
+
+  /* ---------- the supplies bar and the photo button ---------- */
+  .sup { left: 6em; right: 29.8em; bottom: var(--b); height: 6.4em; display: flex; align-items: center; gap: 0.6em; padding: 0 0.6em; }
+  .sup .cell { flex: 1; height: 5em; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35em; cursor: pointer; }
+  .sup .cell .i { width: 1.9em; height: 1.9em; }
+  .sup .cell b { font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+  .photo { left: 6em; bottom: calc(var(--b) + 6.95em); width: 15em; height: 3em; border-radius: var(--gl-radius) var(--gl-radius) var(--gl-radius-sm) var(--gl-radius-sm);
+    display: grid; place-items: center; cursor: pointer; color: var(--muted); }
+  .photo .i { width: 1.5em; height: 1.5em; }
+
+  /* the mockup bar: only the controls that matter here */
+  .mk-bar .mk-group:has(a[data-page]), .mk-bar .mk-group:has([data-set^="layout"]), .mk-bar .mk-group:has([data-set^="drag"]) { display: none; }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="ui game">
+
+  <header class="gp hdr">
+    <div class="sq"><span class="key">Z</span><svg class="i"><use href="#i-back"/></svg></div>
+    <div class="sq"><span class="key">T</span><svg class="i"><use href="#i-friends"/></svg></div>
+    <div class="rk"><svg class="i"><use href="#i-star"/></svg></div>
+    <div class="who">
+      <b>[TWIZY] safwan</b>
+      <div class="xp"><i></i></div>
+      <span class="xp-text"><span class="green">4 060 236</span> / 4 200 000</span>
+    </div>
+    <div class="title">GARAGE<small>&#9432;</small></div>
+    <div class="money">
+      <span><svg class="i" style="color:var(--ruby)"><use href="#i-ruby"/></svg><span style="color:var(--ruby)">4 915</span><svg class="i add"><use href="#i-plus"/></svg></span>
+      <span class="crystal"><svg class="i" style="color:var(--crystal)"><use href="#i-crystal"/></svg><span style="color:var(--crystal)">2 686 424</span><svg class="i add"><use href="#i-plus"/></svg></span>
+    </div>
+    <div class="sq" style="border-left:1px solid rgb(255 255 255 / 0.08)"><span class="key">F11</span><svg class="i"><use href="#i-fullscreen"/></svg></div>
+    <div class="sq" style="border-right:0"><svg class="i"><use href="#i-home"/></svg></div>
+  </header>
+
+  <section class="gp rc gs hov">
+    <div class="gs-top"><span class="gs-logo">GS</span><span class="gs-num">8 927</span></div>
+    <div class="gs-rows">
+      <div><span>Turret</span><b>+4 300<small>GS</small></b></div><div><span>Hull</span><b>+3 200<small>GS</small></b></div>
+      <div><span>Drones</span><b>+468<small>GS</small></b></div><div><span>Grenades</span><b>+134<small>GS</small></b></div>
+      <div><span>Protection</span><b>+825<small>GS</small></b></div>
+    </div>
+  </section>
+
+  <section class="gp rc card turret hov">
+    <span class="name">Turrets</span>
+    <img class="pic" src="https://s.eu.tankionline.com/571/164753/344/273/31254566614710/image.webp" alt="Turret">
+    <div class="icons">
+      <span><img src="../extension/old_pictures/605-115404-132-344.svg" alt="augment"></span>
+      <span class="badge">GT</span>
+      <span class="shot"></span>
+    </div>
+    <svg class="i arrow-up"><use href="#i-upgrade"/></svg>
+  </section>
+
+  <section class="gp rc card hull hov is-hover" title="Shown with the mouse over it">
+    <span class="name">Hulls</span>
+    <img class="pic" src="https://s.eu.tankionline.com/573/71447/126/57/27602130021260/image.webp" alt="Hull">
+    <div class="icons">
+      <span><img src="../extension/old_pictures/546-137515-231-276.svg" alt="augment"></span>
+      <span class="badge">DK</span>
+    </div>
+    <svg class="i arrow-up"><use href="#i-upgrade"/></svg>
+  </section>
+
+  <section class="gp card drone hov">
+    <span class="name">Drones</span>
+    <svg class="i glyph"><use href="#i-drone"/></svg>
+    <svg class="i arrow-up"><use href="#i-upgrade"/></svg>
+  </section>
+
+  <section class="gp card grenade hov">
+    <span class="name">Grenades</span>
+    <svg class="i glyph" style="color:#8fa64a"><use href="#i-bomb"/></svg>
+    <span class="count">&times; 311</span>
+    <svg class="i arrow-up"><use href="#i-upgrade"/></svg>
+  </section>
+
+  <section class="gp rc prot hov">
+    <span class="cell"><svg class="i"><use href="#i-bullets"/></svg></span>
+    <span class="cell" style="color:#9fe0ff"><svg class="i"><use href="#i-weasel"/></svg></span>
+    <span class="cell" style="color:#f5e400"><svg class="i"><use href="#i-rocket"/></svg></span>
+    <span class="cell red"><svg class="i"><use href="#i-percent"/></svg></span>
+    <svg class="i arrow-up"><use href="#i-upgrade"/></svg>
+  </section>
+
+  <div class="gp photo hov" title="Photo mode"><svg class="i"><use href="#i-camera"/></svg></div>
+
+  <section class="gp sup">
+    <div class="cell"><svg class="i" style="color:var(--gold)"><use href="#i-nuclear"/></svg><b>99</b></div>
+    <div class="cell"><svg class="i" style="color:#a6e22e"><use href="#i-wrench"/></svg><b>47 157</b></div>
+    <div class="cell"><svg class="i" style="color:#e8e8e8"><use href="#i-shield"/></svg><b>2 231</b></div>
+    <div class="cell"><svg class="i" style="color:var(--danger)"><use href="#i-damage"/></svg><b>1 397</b></div>
+    <div class="cell is-hover" title="Shown with the mouse over it"><svg class="i" style="color:#f5e400"><use href="#i-speed"/></svg><b>86 195</b></div>
+    <div class="cell"><svg class="i" style="color:#2fd16b"><use href="#i-mine"/></svg><b>120 124</b></div>
+  </section>
+</div>
+
+<script>
+  // The "Style" switch, added to the mockup bar that mockup.js builds (this page only)
+  document.addEventListener('DOMContentLoaded', () => {
+    const bar = document.querySelector('.mk-bar');
+    if (!bar) return;
+    const group = document.createElement('span');
+    group.className = 'mk-group';
+    group.innerHTML = '<span class="mk-label">Style</span>'
+      + '<button type="button" data-style="frosted" title="Soft fill, thin white edge">Frosted glass</button>'
+      + '<button type="button" data-style="holo" title="Gradient border in your Game colour, shine line on top">Holo gradient</button>';
+    bar.querySelector('.mk-title').after(group);
+    const show = () => { for (const b of group.querySelectorAll('button')) b.classList.toggle('on', b.dataset.style === document.documentElement.dataset.style); };
+    group.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-style]');
+      if (!b) return;
+      document.documentElement.dataset.style = b.dataset.style;
+      show();
+    });
+    show();
+  });
+</script>
+</body>
+</html>

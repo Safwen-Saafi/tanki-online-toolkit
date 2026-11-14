@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en" data-colour="blue">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Garage mockup - item</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="garage.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/"}}</script>
+<script>
+  window.MOCKUP = {
+    screen: 'item',
+    stage: {
+      1: { x: -1.21133, y: 0.514267, scale: 0.007079, camZ: 9, lookY: 1.2 }, // the website's own numbers
+      2: { x: 0, y: 0.514, scale: 0.0042, camZ: 9, lookY: 0.8 },
+      3: { x: 0, y: 0.514, scale: 0.0042, camZ: 9, lookY: 0.36 },
+    },
+  };
+</script>
+<script src="mockup.js"></script>
+<style>
+  /* ----- parts of this screen ----- */
+  .name { font-size: var(--fs-xl); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: 0.01em; line-height: 1.05; }
+  .name span { color: var(--muted); font-weight: var(--fw-medium); font-size: var(--fs-lg); margin-left: 6px; }
+  .desc-text { font-size: var(--fs-sm); line-height: 1.5; color: var(--muted); margin: 10px 0 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .more { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text); cursor: pointer; }
+  .more:hover { color: var(--accent); }
+  .box-title { display: flex; align-items: center; gap: 8px; font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: var(--tracking-caps); text-transform: uppercase; margin-bottom: 10px; }
+  .slots { display: flex; gap: 8px; }
+  .slots .slot { flex: 1; height: 64px; }
+  .slots .slot.locked { color: var(--faint); }
+  .pm { display: flex; align-items: center; gap: 12px; }
+  .pm .slot { width: 44px; height: 44px; color: #9fe0ff; font-size: 24px; }
+  .pm b { display: block; color: var(--danger); font-size: var(--fs-md); letter-spacing: 0.02em; }
+  .btns { display: flex; flex-direction: column; gap: 10px; }
+
+  #side { position: absolute; display: grid; gap: 12px; align-content: start; }
+  #side > * { min-width: 0; }
+  #desc { grid-area: desc; } #aug { grid-area: aug; } #pm { grid-area: pm; } #stats { grid-area: stats; } #btns { grid-area: btns; }
+
+  /* ----- layout 1: Showroom (tank left, one glass column on the right) ----- */
+  [data-layout="1"] #side { right: 32px; top: 124px; width: 392px; grid-template-areas: "desc" "aug" "pm" "stats" "btns"; }
+  [data-layout="1"] #strip { left: 24px; right: 440px; bottom: 50px; }
+  [data-layout="1"] #pm { padding: 10px 14px; }
+
+  /* ----- layout 2: Split (today's places, new look) ----- */
+  [data-layout="2"] #side { left: 40px; right: 40px; top: 124px; grid-template-columns: 340px 1fr 352px; grid-template-areas: "desc . stats" "aug . btns" "pm . btns"; }
+  [data-layout="2"] #pm { background: none; border: 0; backdrop-filter: none; padding: 4px 2px; }
+  [data-layout="2"] #strip { left: 24px; right: 24px; bottom: 50px; }
+
+  /* ----- layout 3: Dock (big tank in the middle, a dock of info over the cards) ----- */
+  [data-layout="3"] #side { left: 24px; right: 24px; bottom: 196px; grid-template-columns: 1.15fr 0.9fr 1.1fr 0.85fr; grid-template-rows: auto auto; grid-template-areas: "desc aug stats btns" "desc pm stats btns"; align-items: stretch; }
+  [data-layout="3"] #stats .stats { row-gap: 5px; }
+  [data-layout="3"] #stats .track { margin: 6px 0 8px; }
+  [data-layout="3"] #pm { padding: 8px 12px; }
+  [data-layout="3"] #btns .act { height: 56px; flex: 1; }
+  [data-layout="3"] #strip { left: 24px; right: 24px; bottom: 50px; }
+  [data-layout="3"] .desc-text { -webkit-line-clamp: 2; }
+  #strip { position: absolute; }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="ui">
+
+  <header class="topbar">
+    <div class="tb-btn" title="Back"><span class="key">Z</span><svg class="i"><use href="#i-back"/></svg></div>
+    <div class="tb-btn" title="Friends"><span class="key">T</span><svg class="i"><use href="#i-friends"/></svg></div>
+    <div class="rank"><svg class="i"><use href="#i-star"/></svg></div>
+    <div class="player">
+      <b>[TWIZY] safwan</b>
+      <div class="xp"><i></i></div>
+      <span class="xp-text"><span class="green">4 049 866</span> / 4 200 000</span>
+    </div>
+    <div class="title">GARAGE</div>
+    <div class="money">
+      <span class="pill"><svg class="i" style="color:var(--ruby)"><use href="#i-ruby"/></svg>4 615<span class="add"><svg class="i"><use href="#i-plus"/></svg></span></span>
+      <span class="pill"><svg class="i" style="color:var(--crystal)"><use href="#i-crystal"/></svg>2 681 990<span class="add"><svg class="i"><use href="#i-plus"/></svg></span></span>
+    </div>
+    <div class="tb-btn" title="Full screen"><span class="key">F11</span><svg class="i"><use href="#i-fullscreen"/></svg></div>
+    <div class="tb-btn" title="Lobby"><svg class="i"><use href="#i-home"/></svg></div>
+  </header>
+
+  <nav class="cats glass soft">
+    <span class="key">Q</span>
+    <a class="on">Turrets</a><a>Hulls</a><a>Grenades</a><a>Drones</a><a>Protection</a><a>Supplies</a><a data-page="paints.html">Paints</a>
+    <span class="key">E</span>
+  </nav>
+
+  <div id="side">
+    <section id="desc" class="glass pad">
+      <div class="name">Tesla<span>Mk6-11</span></div>
+      <p class="desc-text">Close range emitter. Attacks multiple enemies with chain lightning. The lightning jumps from one target to the next and loses power with every jump.</p>
+      <span class="more"><span class="key">G</span>Read more</span>
+    </section>
+
+    <section id="aug" class="glass pad">
+      <div class="box-title"><span class="key">F</span>Augments / Skins</div>
+      <div class="slots">
+        <span class="slot" title="Augment"><img src="../extension/old_pictures/605-115404-132-344.svg" alt="augment"></span>
+        <span class="slot" title="Skin XT"><span class="skin-xt">XT</span></span>
+        <span class="slot locked" title="Shot colour (locked)"><svg class="i"><use href="#i-lock"/></svg></span>
+      </div>
+    </section>
+
+    <section id="pm" class="glass pm">
+      <span class="slot"><svg class="i"><use href="#i-weasel"/></svg></span>
+      <div><span class="eyebrow">Protection module</span><b>WEASEL</b></div>
+    </section>
+
+    <section id="stats" class="glass pad">
+      <div class="lvl">MK6-11 <span class="sep">&rsaquo;</span> <span class="next">MK6-12</span></div>
+      <div class="track"><i style="width:92%"></i></div>
+      <div class="stats">
+        <span class="k">Damage</span><span class="v">386</span><span class="d">+1</span>
+        <span class="k">Impact force</span><span class="v">305</span><span class="d">+1</span>
+        <span class="k">Cooldown time</span><span class="v">1</span><span class="d"></span>
+        <span class="k">Turning speed</span><span class="v">167.3</span><span class="d">+0.7</span>
+        <span class="k">Critical hit damage</span><span class="v">1 119</span><span class="d">+2</span>
+      </div>
+    </section>
+
+    <section id="btns" class="btns">
+      <div class="act buy"><span class="key">ENTER</span><span class="lead"><svg class="i ico"><use href="#i-upgrade"/></svg>Upgrade</span><span class="price"><svg class="i"><use href="#i-crystal"/></svg>22 000</span></div>
+      <div class="act equipped"><span class="lead"><svg class="i ico"><use href="#i-equip"/></svg>Equipped</span></div>
+    </section>
+  </div>
+
+  <div id="strip" class="strip">
+    <div class="card owned"><span class="nm">Firebird <span>Mk7-5</span></span><img class="pic" src="https://s.eu.tankionline.com/0/114/134/163/27571212744112/image.webp" alt=""><svg class="i arrow-up br"><use href="#i-upgrade"/></svg></div>
+    <div class="card owned"><span class="nm">Freeze <span class="max">Max</span></span><img class="pic" src="https://s.eu.tankionline.com/575/156205/46/235/27673441764603/image.webp" alt=""></div>
+    <div class="card owned"><span class="nm">Isida <span>Mk1-0</span></span><img class="pic" src="https://s.eu.tankionline.com/605/12650/335/51/30242554322574/image.webp" alt=""><svg class="i arrow-up br"><use href="#i-upgrade"/></svg></div>
+    <div class="card active"><span class="nm">Tesla <span>Mk6-11</span></span><img class="pic" src="https://s.eu.tankionline.com/571/164753/344/273/31254566614710/image.webp" alt=""><svg class="i arrow-up br"><use href="#i-upgrade"/></svg></div>
+    <div class="card owned"><span class="nm">Hammer <span class="max">Max</span></span><img class="pic" src="https://s.eu.tankionline.com/611/147301/37/346/30471660553063/image.webp" alt=""></div>
+    <div class="card owned"><span class="nm">Twins <span>Mk5-0</span></span><img class="pic" src="https://s.eu.tankionline.com/575/72153/171/306/27656433310704/image.webp" alt=""><svg class="i arrow-up br"><use href="#i-upgrade"/></svg></div>
+    <div class="card owned"><span class="nm">Ricochet <span>Mk1-0</span></span><img class="pic" src="https://s.eu.tankionline.com/603/146215/116/130/30171443247472/image.webp" alt=""><svg class="i arrow-up br"><use href="#i-upgrade"/></svg></div>
+    <div class="card owned"><span class="nm">Vulcan <span class="max">Max</span></span><img class="pic" src="https://s.eu.tankionline.com/622/115017/367/224/31123203774154/image.webp" alt=""></div>
+    <div class="card owned"><span class="nm">Smoky <span>Mk5-5</span></span><img class="pic" src="https://s.eu.tankionline.com/566/114246/64/16/27323052543056/image.webp" alt=""><svg class="i arrow-up br"><use href="#i-upgrade"/></svg></div>
+    <div class="card"><span class="nm">Striker <span>Mk1-0</span></span><img class="pic" src="https://s.eu.tankionline.com/626/176502/177/71/31337521147306/image.webp" alt=""><span class="br price"><svg class="i"><use href="#i-crystal"/></svg>20 000</span></div>
+  </div>
+</div>
+</body>
+</html>

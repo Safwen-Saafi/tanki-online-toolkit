@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en" data-colour="blue">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Garage mockup - paints</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="garage.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/"}}</script>
+<script>
+  window.MOCKUP = {
+    screen: 'paints',
+    stage: {
+      1: { x: -1.21133, y: 0.514267, scale: 0.007079, camZ: 9, lookY: 1.2 }, // the website's own numbers
+      2: { x: 0, y: 0.514, scale: 0.0036, camZ: 9, lookY: 0.2 },
+      3: { x: 0, y: 0.514, scale: 0.0036, camZ: 9, lookY: 0.15 },
+    },
+  };
+</script>
+<script src="mockup.js"></script>
+<style>
+  .name { font-size: var(--fs-xl); font-weight: var(--fw-bold); text-transform: uppercase; line-height: 1.05; }
+  .rarity { color: var(--rarity-common); font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: 0.12em; text-transform: uppercase; }
+  .desc-text { font-size: var(--fs-sm); line-height: 1.5; color: var(--muted); margin: 10px 0 0; }
+
+  .filter { display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px 14px; border-radius: 22px; }
+  .filter .cap { font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: 0.1em; margin-right: 4px; }
+  .filter .cap span { color: var(--muted); margin-left: 6px; }
+  .filter .r { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; cursor: pointer; transition: background var(--speed) ease; }
+  .filter .r:hover { background: rgb(255 255 255 / 0.08); }
+  .filter .r.on { background: rgb(255 255 255 / 0.16); box-shadow: inset 0 0 0 2px var(--glass-border); }
+  .filter .menu { margin-left: auto; width: 34px; height: 30px; border-radius: 10px; display: grid; place-items: center; border: var(--border-w) solid var(--glass-border-soft); }
+
+  .paints { display: grid; gap: 10px; }
+  .paint { position: relative; border-radius: 14px; overflow: hidden; cursor: pointer; aspect-ratio: 152 / 112;
+    border: var(--border-w) solid var(--glass-border-soft); background: var(--glass-fill);
+    transition: transform var(--speed) var(--ease), border-color var(--speed) ease; }
+  .paint:hover { transform: translateY(-3px); border-color: var(--glass-border); }
+  .paint .sw { position: absolute; inset: 14% 12% 12%; border-radius: 9px;
+    background:
+      radial-gradient(120% 80% at 20% 15%, rgb(255 255 255 / 0.35), transparent 45%),
+      repeating-linear-gradient(115deg, rgb(0 0 0 / 0.10) 0 3px, transparent 3px 7px),
+      radial-gradient(60% 60% at 80% 85%, rgb(0 0 0 / 0.35), transparent 70%),
+      var(--c);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18), 0 6px 14px rgb(0 0 0 / 0.35); }
+  .paint .fav { position: absolute; top: 6px; right: 7px; font-size: 13px; color: rgb(255 255 255 / 0.35); }
+  .paint .rar { position: absolute; top: 0; left: 0; width: 18px; height: 18px; background: linear-gradient(135deg, var(--rarity-common) 50%, transparent 50%); opacity: 0.8; }
+  .paint.active { border-color: var(--text); box-shadow: 0 0 0 1px rgb(255 255 255 / 0.4), 0 0 22px var(--accent-glow); }
+  .paint.active::after { content: ""; position: absolute; left: 50%; bottom: 5px; width: 26px; height: 3px; margin-left: -13px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  #desc, #equip, #filter, #grid { position: absolute; }
+
+  /* ----- layout 1: Showroom (tank left, one glass column on the right) ----- */
+  [data-layout="1"] #desc { right: 32px; top: 124px; width: 400px; }
+  [data-layout="1"] #equip { right: 32px; top: 318px; width: 400px; }
+  [data-layout="1"] #filter { right: 32px; top: 396px; width: 400px; }
+  [data-layout="1"] #grid { right: 32px; top: 448px; width: 400px; bottom: 50px; overflow: hidden; grid-template-columns: repeat(3, 1fr); align-content: start;
+    mask-image: linear-gradient(#000 calc(100% - 60px), transparent); }
+
+  /* ----- layout 2: Split (today's places, new look) ----- */
+  [data-layout="2"] #desc { left: 40px; top: 124px; width: 380px; }
+  [data-layout="2"] #equip { right: 40px; top: 124px; width: 340px; }
+  [data-layout="2"] #filter { right: 24px; bottom: 338px; width: 560px; }
+  [data-layout="2"] #grid { left: 24px; right: 24px; bottom: 50px; grid-template-columns: repeat(9, 1fr); }
+  [data-layout="2"] .paint { aspect-ratio: 152 / 120; }
+
+  /* ----- layout 3: Dock (big tank in the middle, a dock of paints at the bottom) ----- */
+  [data-layout="3"] #desc { left: 32px; top: 124px; width: 360px; }
+  [data-layout="3"] #desc .desc-text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  [data-layout="3"] #equip { right: 32px; top: 124px; width: 300px; }
+  [data-layout="3"] #filter { left: 50%; transform: translateX(-50%); bottom: 276px; width: 560px; }
+  [data-layout="3"] #grid { left: 24px; right: 24px; bottom: 50px; grid-template-columns: repeat(9, 1fr); padding: 12px; border-radius: var(--radius-lg);
+    background: radial-gradient(100% 100% at 100% 100%, var(--glass-shine) 0%, transparent 100%), var(--glass-fill);
+    border: var(--border-w) solid var(--glass-border); backdrop-filter: blur(var(--glass-blur)); }
+  [data-layout="3"] .paint { aspect-ratio: 152 / 100; }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="ui">
+
+  <header class="topbar">
+    <div class="tb-btn" title="Back"><span class="key">Z</span><svg class="i"><use href="#i-back"/></svg></div>
+    <div class="tb-btn" title="Friends"><span class="key">T</span><svg class="i"><use href="#i-friends"/></svg></div>
+    <div class="rank"><svg class="i"><use href="#i-star"/></svg></div>
+    <div class="player">
+      <b>[TWIZY] safwan</b>
+      <div class="xp"><i></i></div>
+      <span class="xp-text"><span class="green">4 049 866</span> / 4 200 000</span>
+    </div>
+    <div class="title">GARAGE</div>
+    <div class="money">
+      <span class="pill"><svg class="i" style="color:var(--ruby)"><use href="#i-ruby"/></svg>4 615<span class="add"><svg class="i"><use href="#i-plus"/></svg></span></span>
+      <span class="pill"><svg class="i" style="color:var(--crystal)"><use href="#i-crystal"/></svg>2 681 990<span class="add"><svg class="i"><use href="#i-plus"/></svg></span></span>
+    </div>
+    <div class="tb-btn" title="Full screen"><span class="key">F11</span><svg class="i"><use href="#i-fullscreen"/></svg></div>
+    <div class="tb-btn" title="Lobby"><svg class="i"><use href="#i-home"/></svg></div>
+  </header>
+
+  <nav class="cats glass soft">
+    <span class="key">Q</span>
+    <a data-page="item.html">Turrets</a><a>Hulls</a><a>Grenades</a><a>Drones</a><a>Protection</a><a>Supplies</a><a class="on">Paints</a>
+    <span class="key">E</span>
+  </nav>
+
+  <section id="desc" class="glass pad">
+    <div class="name">Green</div>
+    <div class="rarity">Common</div>
+    <p class="desc-text">A tribute to the tradition of the classic tank, this simple colour, so beloved by designers all over the world, has become a standard paint for factory models. This legendary colour has true connoisseurs returning to it, having tried everything in the world.</p>
+  </section>
+
+  <section id="equip" class="act equipped"><span class="lead"><svg class="i ico"><use href="#i-equip"/></svg>Equipped</span></section>
+
+  <section id="filter" class="filter glass soft">
+    <span class="cap">COMMON<span>18/18</span></span>
+    <span class="r" title="All"><svg class="i"><use href="#i-dots"/></svg></span>
+    <span class="r on" style="color:var(--rarity-common)" title="Common"><svg class="i"><use href="#i-diamond"/></svg></span>
+    <span class="r" style="color:var(--rarity-uncommon)" title="Uncommon"><svg class="i"><use href="#i-diamond"/></svg></span>
+    <span class="r" style="color:var(--rarity-rare)" title="Rare"><svg class="i"><use href="#i-diamond"/></svg></span>
+    <span class="r" style="color:var(--rarity-epic)" title="Epic"><svg class="i"><use href="#i-diamond"/></svg></span>
+    <span class="r" style="color:var(--rarity-legendary)" title="Legendary"><svg class="i"><use href="#i-diamond"/></svg></span>
+    <span class="r" style="color:var(--rarity-exotic)" title="Exotic"><svg class="i"><use href="#i-diamond"/></svg></span>
+    <span class="r" style="color:var(--gold)" title="Favourites"><svg class="i"><use href="#i-star"/></svg></span>
+    <span class="menu"><svg class="i"><use href="#i-dots"/></svg></span>
+  </section>
+
+  <section id="grid" class="paints">
+    <div class="paint" style="--c:#3fbf2a"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#1d1f22"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#1f7ad6"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#e2452e"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#e8c51c"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#6b1414"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#c98a17"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#d61a1a"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#d9d9d9"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#2fb8c9"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#1c2f9c"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#0f5156"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#d51c8a"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint active" style="--c:#3b4a1c"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#8d8d8d"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#f07a12"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#6d22b8"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+    <div class="paint" style="--c:#f2ea1a"><span class="rar"></span><span class="sw"></span><svg class="i fav"><use href="#i-star"/></svg></div>
+  </section>
+</div>
+</body>
+</html>

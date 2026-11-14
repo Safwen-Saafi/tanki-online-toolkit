@@ -1,0 +1,115 @@
+/* Showroom theme for the garage restyle - the durable output of /prototype.
+   Every colour and size the mockups use lives here. When the restyle is built, this block becomes the
+   variables of the extension's garage stylesheet (extension/styles/), not a Tailwind @theme: the
+   extension has no build step for CSS.
+
+   Colours follow Game colour the way the game patch does it: the theme hue is swapped, lightness,
+   saturation and alpha are kept. --hue is the only thing a colour choice changes. Blue (the game's own,
+   and the website's) is about 205: #001926 is hsl(200 100% 7.5%), #395673 is hsl(210 34% 34%). */
+
+:root {
+  /* theme hue: blue 205 (game's own), pink 330, purple 275, crimson 345, teal 170, bronze 30 */
+  --hue: 205;
+
+  /* backdrop: the website's navy glow, from the bottom middle */
+  --bg-deep: hsl(var(--hue) 100% 7.5%);          /* #001926, edges and top */
+  --bg-glow: hsl(var(--hue) 34% 34%);             /* #395673, the light under the tank */
+  --bg-black: #000;
+
+  /* glass panels (the website's cards) */
+  --glass-fill: hsl(var(--hue) 100% 87% / 0.08);
+  --glass-shine: hsl(var(--hue) 100% 87% / 0.15); /* rgba(191,213,255,.15) on the website */
+  --glass-shine-strong: hsl(var(--hue) 100% 87% / 0.25);
+  --glass-border: rgb(255 255 255 / 0.25);        /* .125rem solid rgba(255,255,255,.25) */
+  --glass-border-soft: rgb(255 255 255 / 0.12);
+  --glass-blur: 14px;
+  --scrim: hsl(var(--hue) 100% 5% / 0.55);        /* behind text that sits on the 3D */
+
+  /* text */
+  --text: #ffffff;
+  --muted: hsl(var(--hue) 40% 85% / 0.72);
+  --faint: hsl(var(--hue) 30% 80% / 0.42);
+
+  /* accent and the game's meaning colours (these never follow Game colour) */
+  --accent: #76ff33;                              /* the website's green: active, equipped, upgrades */
+  --accent-glow: rgb(118 255 51 / 0.25);
+  --accent-ink: #0b1a05;
+  --buy: #00d4ff;                                 /* the game's cyan: buy and upgrade */
+  --buy-ink: #001926;
+  --buy-glow: rgb(0 212 255 / 0.35);
+  --danger: #fe6666;
+  --gold: #ffcc00;                                /* improvement arrows, MAX */
+  --ruby: #ff4d6d;
+  --crystal: #38d6ff;
+
+  /* paint rarities (the game's diamonds) */
+  --rarity-common: #c8d4ff;
+  --rarity-uncommon: #76ff33;
+  --rarity-rare: #22c8ff;
+  --rarity-epic: #b67cff;
+  --rarity-legendary: #ffcc00;
+  --rarity-exotic: #ff4040;
+
+  /* type: Rubik is both the game's and the website's font */
+  --font-sans: "Rubik", system-ui, sans-serif;
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 20px;
+  --fs-xl: 28px;
+  --fs-hero: 64px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-bold: 700;
+  --tracking-caps: 0.06em;
+
+  /* scale */
+  --radius-lg: 16px;                              /* cards and panels (1rem) */
+  --radius-md: 10px;
+  --radius-sm: 6px;
+  --border-w: 2px;                                /* .125rem */
+  --gap: 12px;
+  --pad: 16px;
+  --header-h: 64px;
+  --tabs-h: 48px;
+  --card-w: 150px;
+  --card-h: 118px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --speed: 0.3s;                                  /* the website's transition: .3s ease */
+}
+
+/* Game colour choices, for the mockups' colour switch */
+:root[data-colour="blue"] { --hue: 205; }
+:root[data-colour="pink"] { --hue: 330; }
+:root[data-colour="purple"] { --hue: 275; }
+:root[data-colour="crimson"] { --hue: 345; }
+:root[data-colour="teal"] { --hue: 170; }
+:root[data-colour="bronze"] { --hue: 30; }
+
+/* ---------- Game glass style (2026-11-14): the look the whole game will follow ----------
+   Glass with NO real blur: the 3D garage redraws every frame, and a blur behind a panel would be redone every
+   frame too. The glass is a tint over a soft shade, so text stays readable and it costs no fps. Two styles share
+   these values; <html data-style="frosted|holo"> picks one. Every tint follows --hue (the Game colour). */
+:root {
+  --gl-shade: hsl(var(--hue) 60% 5% / 0.38);            /* darkens what is behind a panel, in place of a blur */
+  --gl-fill: hsl(var(--hue) 70% 75% / 0.08);
+  --gl-fill-top: hsl(var(--hue) 70% 80% / 0.14);        /* a little lighter at the top: the glass catches the light */
+  --gl-fill-hover: hsl(var(--hue) 70% 80% / 0.2);
+  --gl-edge: rgb(255 255 255 / 0.22);
+  --gl-edge-hover: rgb(255 255 255 / 0.55);
+  --gl-inner-light: rgb(255 255 255 / 0.12);            /* the 1px light along the top inside edge */
+  --gl-drop: 0 10px 28px rgb(0 0 0 / 0.28);
+  --gl-cell: hsl(var(--hue) 70% 80% / 0.07);            /* small cells inside a panel (supplies, modules) */
+  --gl-cell-hover: hsl(var(--hue) 70% 85% / 0.16);
+  --gl-radius: 16px;
+  --gl-radius-sm: 10px;
+  --gl-border: 2px;
+
+  /* Holo gradient only: a border that fades from the Game colour to white to a neighbour colour, and a shine line */
+  --holo-a: hsl(var(--hue) 100% 68%);
+  --holo-b: #ffffff;
+  --holo-c: hsl(calc(var(--hue) - 45) 100% 72%);
+  --holo-border: linear-gradient(135deg, var(--holo-a) 0%, var(--holo-b) 45%, var(--holo-c) 100%);
+  --holo-shine: linear-gradient(90deg, transparent 8%, rgb(255 255 255 / 0.55) 50%, transparent 92%);
+  --holo-glow: 0 0 22px hsl(var(--hue) 100% 68% / 0.28);
+}
