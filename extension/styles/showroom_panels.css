@@ -1,0 +1,280 @@
+/* The showroom garage's main screen (build-plan 25b): the owner's layout, proven live on 2026-11-13 and 14, in the frosted glass
+   picked from the mockups on 2026-11-14. One column on the right, from top to bottom: GS (smaller, its rows in two columns), the
+   Turrets and Hulls cards, Drones and Grenades, protection; the supplies bar along the bottom left, ending before the column and
+   level with the protection panel, without the gold box; the photo button above the supplies bar. The tank stays free on the left.
+
+   Places are in the game's own unit (em: 14.4 px on a 988 px tall window), so they follow the window like the game does. The
+   column is GS 10.97em, a 0.55em gap, the cards 37.92em (the game's own card sizes), a 0.55em gap and protection 6.4em: 56.39em,
+   and with the 6.04em header 62.43em. So the free space above and below the column is each 50vh - 31.2em, which is where the
+   protection panel and the supplies bar end; the cards end 6.95em higher and the GS 45.42em higher.
+
+   The glass has no blur: the 3D garage redraws every frame, and a blur behind a panel would be redone every frame too. It is a tint
+   over a soft shade. Each tint is written as the game's blue and turned to the Game colour with --kasp-theme-hue and
+   --kasp-theme-strength (written by src/injector.ts, build-plan 22b; absent with the game's blue).
+
+   Every rule waits for item 25's switch (src/modules/showroom_floor.ts writes data-kasp-showroom-floor on <html> only while it is
+   on) and stays inside the garage's own box. No script: nothing runs while playing. */
+html[data-kasp-showroom-floor] {
+    --kasp-gl-shade: hsl(from hsl(205 60% 5% / 0.38) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-gl-fill: hsl(from hsl(205 70% 75% / 0.08) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-gl-fill-top: hsl(from hsl(205 70% 80% / 0.14) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-gl-fill-hover: hsl(from hsl(205 70% 80% / 0.2) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-gl-cell: hsl(from hsl(205 70% 80% / 0.07) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-gl-cell-hover: hsl(from hsl(205 70% 85% / 0.16) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-gl-edge: rgb(255 255 255 / 0.22);
+    --kasp-gl-edge-hover: rgb(255 255 255 / 0.55);
+    --kasp-gl-inner-light: rgb(255 255 255 / 0.12);
+}
+
+/* ---------- the places ---------- */
+
+/* Protection: the box of the four protection cells (it has no class of its own, so it is found by its cells; never the screen block,
+   the cards column or the GS), at the bottom of the column, level with the supplies bar. The cells share the width (each one is as
+   wide as the box and only shrinking keeps four in it), and the upgrade arrow has its own room at the right edge. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer div:has(> .MountedItemsStyle-resistanceContainer):not(.GarageMainScreenStyle-blockParameters):not(:has(.MountedItemsStyle-container)):not(:has(.TankParametersStyle-leftParamsContainer)) {
+    position: fixed !important;
+    right: 6em !important;
+    left: auto !important;
+    top: auto !important;
+    bottom: calc(50vh - 31.2em) !important;
+    width: 23em !important;
+    height: 6.4em !important;
+    margin: 0 !important;
+    z-index: 2 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.35em !important;
+    padding: 0 3.6em 0 0.9em !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer div:has(> .MountedItemsStyle-resistanceContainer) > .MountedItemsStyle-resistanceContainer {
+    margin: 0 !important;
+}
+
+/* the box round the upgrade arrow stays in place, so the arrow is placed from the panel itself */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer div:has(> .MountedItemsStyle-resistanceContainer) > :not(.MountedItemsStyle-resistanceContainer) {
+    position: static !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer div:has(> .MountedItemsStyle-resistanceContainer) .MountedItemsStyle-improvementArrow {
+    position: absolute !important;
+    right: 0.9em !important;
+    left: auto !important;
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    margin: 0 !important;
+}
+
+/* The cards: right above the protection panel, Turrets and Hulls first. The column itself is see-through, each card is its own glass. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MountedItemsStyle-container {
+    position: fixed !important;
+    right: 6em !important;
+    left: auto !important;
+    top: auto !important;
+    bottom: calc(50vh - 24.25em) !important;
+    width: 23em !important;
+    height: auto !important;
+    margin: 0 !important;
+    z-index: 2 !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MountedItemsStyle-commonBlockForTurretsHulls {
+    order: -1 !important;
+}
+
+/* GS: the top of the column, smaller: the number smaller and the five rows in two columns. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TankParametersStyle-leftParamsContainer {
+    position: fixed !important;
+    right: 6em !important;
+    left: auto !important;
+    top: auto !important;
+    bottom: calc(50vh + 14.22em) !important;
+    width: 23em !important;
+    height: auto !important;
+    margin: 0 !important;
+    z-index: 2 !important;
+    padding: 0.45em 0.9em 0.5em !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    column-gap: 1.2em !important;
+    row-gap: 0 !important;
+    align-content: start !important;
+    animation: kasp-showroom-from-right 200ms ease-out both !important;
+}
+
+/* The game slides its left blocks in from the left and its right blocks from the right. The GS is a left block that now stands
+   in the right column, so it gets the game's own right-side slide: 5vw from the right, fading in, 200 ms, ease-out. */
+@keyframes kasp-showroom-from-right {
+    from {
+        opacity: 0;
+        transform: translateX(5vw);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TankParametersStyle-leftParamsContainer > .TankParametersStyle-marginBlockGear {
+    grid-column: 1 / -1 !important;
+    height: auto !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TankParametersStyle-leftParamsContainer .GearScoreStyle-gs {
+    font-size: 2.4em !important;
+    line-height: 1.15 !important;
+    position: static !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TankParametersStyle-leftParamsContainer > .TankParametersStyle-parametersBlockGear {
+    height: 1.9em !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+}
+
+/* The supplies bar: the bottom left, ending 0.8em before the column, as tall as the protection panel. Its cells share the width.
+   The gold box is the last cell: the game draws its picture from a style class, so it can only be found by its place. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-blocksCell {
+    position: fixed !important;
+    left: 6em !important;
+    right: 29.8em !important;
+    top: auto !important;
+    bottom: calc(50vh - 31.2em) !important;
+    width: auto !important;
+    height: 6.4em !important;
+    margin: 0 !important;
+    z-index: 2 !important;
+    padding: 0 0.6em !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.6em !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-blocksCell > .SuppliesComponentStyle-cellAdd {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-blocksCell > .SuppliesComponentStyle-cellAdd:last-child {
+    display: none !important;
+}
+
+/* The game's own frame round the old supplies place stays empty, and its thin decor line (a white fade) is hidden. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-commonBlockSupplies,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-containersBlocks {
+    border-color: transparent !important;
+    background: none !important;
+    box-shadow: none !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-decorLine {
+    display: none !important;
+}
+
+/* The photo mode button: right above the supplies bar, on the left. (Higher up it would sit under the 3D tank's mouse area.) */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-screenShotButtonOpen {
+    position: fixed !important;
+    left: 6em !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: calc(50vh - 24.25em) !important;
+    margin: 0 !important;
+    z-index: 2 !important;
+    width: 15em !important;
+    height: 3em !important;
+    box-sizing: border-box !important;
+    background: linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%), var(--kasp-gl-shade) !important;
+    background-clip: padding-box !important;
+    border: 2px solid var(--kasp-gl-edge) !important;
+    border-radius: 1.1em 1.1em 0.7em 0.7em !important;
+    box-shadow: inset 0 1px 0 var(--kasp-gl-inner-light) !important;
+    transition: border-color 0.3s ease, background 0.3s ease !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-screenShotButtonOpen:hover {
+    border-color: var(--kasp-gl-edge-hover) !important;
+    background: linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%), var(--kasp-gl-shade) !important;
+    background-clip: padding-box !important;
+}
+
+/* the camera, in the game's pale icon blue (the game's own picture held the tab outline and the camera together) */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-screenShotButtonOpen::after {
+    content: "" !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 1.6em !important;
+    height: 1.6em !important;
+    transform: translate(-50%, -50%) !important;
+    background: #bfd5ff !important;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M4 7h4l2-3h4l2 3h4v13H4zM12 9.4a3.6 3.6 0 1 0 .001 0z'/%3E%3C/svg%3E") center / contain no-repeat !important;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M4 7h4l2-3h4l2 3h4v13H4zM12 9.4a3.6 3.6 0 1 0 .001 0z'/%3E%3C/svg%3E") center / contain no-repeat !important;
+    pointer-events: none !important;
+}
+
+/* No slide-in on the garage's boxes that hold the supplies bar or the protection cells: while such a box slides in, a fixed block
+   inside it is placed from the box, not from the screen, so it showed in its old place for a moment. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer *:has(.SuppliesComponentStyle-blocksCell),
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer *:has(.MountedItemsStyle-resistanceContainer) {
+    animation: none !important;
+    transition: none !important;
+}
+
+/* ---------- the frosted glass ---------- */
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TankParametersStyle-leftParamsContainer,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MountedItemsStyle-commonBlockDrone,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MountedItemsStyle-commonBlockGrenades,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MountedItemsStyle-commonBlockForTurretsHulls,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer div:has(> .MountedItemsStyle-resistanceContainer):not(.GarageMainScreenStyle-blockParameters):not(:has(.MountedItemsStyle-container)):not(:has(.TankParametersStyle-leftParamsContainer)),
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-blocksCell {
+    background: linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%), var(--kasp-gl-shade) !important;
+    background-clip: padding-box !important;
+    border: 2px solid var(--kasp-gl-edge) !important;
+    border-radius: 1.1em !important;
+    box-shadow: inset 0 1px 0 var(--kasp-gl-inner-light) !important; /* no drop shadow: next to each other they made a dark band */
+    box-sizing: border-box !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: border-color 0.3s ease, background 0.3s ease !important;
+}
+
+/* the mouse over a panel: a brighter edge and a lighter fill */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TankParametersStyle-leftParamsContainer:hover,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MountedItemsStyle-commonBlockDrone:hover,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MountedItemsStyle-commonBlockGrenades:hover,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MountedItemsStyle-commonBlockForTurretsHulls:hover,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer div:has(> .MountedItemsStyle-resistanceContainer):not(.GarageMainScreenStyle-blockParameters):not(:has(.MountedItemsStyle-container)):not(:has(.TankParametersStyle-leftParamsContainer)):hover {
+    border-color: var(--kasp-gl-edge-hover) !important;
+    background: linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%), var(--kasp-gl-shade) !important;
+    background-clip: padding-box !important;
+}
+
+/* the cards column itself is see-through, and the game's own blur on it goes */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MountedItemsStyle-container {
+    background: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* the supply cells: a soft tint, lighter with a thin edge under the mouse */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-blocksCell > .SuppliesComponentStyle-cellAdd {
+    background: var(--kasp-gl-cell) !important;
+    border-radius: 0.7em !important;
+    box-shadow: none !important;
+    transition: background 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-blocksCell > .SuppliesComponentStyle-cellAdd:hover {
+    background: var(--kasp-gl-cell-hover) !important;
+    box-shadow: inset 0 0 0 1px var(--kasp-gl-edge-hover) !important;
+}

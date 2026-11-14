@@ -54,7 +54,8 @@
         "styles/chat_translation.css",
         "styles/debug_line.css",
         "styles/shop_quick_buy.css",
-        "styles/showroom.css"
+        "styles/showroom.css",
+        "styles/showroom_panels.css"
       ],
       "run_at": "document_start"
     }
