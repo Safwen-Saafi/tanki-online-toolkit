@@ -6,6 +6,9 @@
 // put at the very back of the page (#root) when the page has loaded, and everything the screens draw stays on top. The garage's own
 // box lets it show through, live (it moves with the mouse there); every other screen's box paints a calm, still copy of it with
 // softer light, made once when the floor picture has loaded (styles/showroom.css). The floor is hidden in a battle. With the switch off none of the game's calls arrive, and this file does nothing.
+// On the Turrets and Hulls tabs (25g) the camera swings round to the tank's other side, so the tank stands on the right facing left,
+// and on Hulls it then closes in on the hull from the front and low down; each move eases in and out, and the screens opened from
+// those tabs (Augments, Skins, Shot colour) keep the pose.
 // Nothing watches the page: no observer, no interval. Work happens only inside the frames the game draws for a 3D tank; the one
 // mouse listener takes itself away on its first event after the garage stopped drawing, and comes back with the garage.
 (function () {
@@ -34,12 +37,26 @@
     const DRONE_RIGHT = 296;
     const DRONE_UP = 70;
     const DRONE_FRONT = 20;
-    // The garage's category bar has seven items, the Drones tab is the 4th; read by place, so any game language works.
+    // The garage's category bar has seven items: Turrets, Hulls, Grenades, Drones and so on; read by place, so any game language
+    // works. Only a bar of exactly seven decides: the screens opened from Turrets or Hulls have a shorter bar of their own.
     const MENU_ITEMS = '.GarageMenuComponentStyle-garageMenuContainer .MenuComponentStyle-mainMenuItem';
     const MENU_LENGTH = 7;
+    const TURRETS_PLACE = 0;
+    const HULLS_PLACE = 1;
     const DRONES_PLACE = 3;
     const ACTIVE_ITEM = /-activeMenu/;
     const TAB_READ_MS = 100;
+    // Only the main screen has this block.
+    const MAIN_SCREEN = '.MountedItemsStyle-containerBlockGarage';
+
+    // The owner's numbers from the live probe (2026-11-14). On Turrets and Hulls: the camera turned to the tank's other side, pushed
+    // the other way and a little further, so the tank stands on the right facing left. On Hulls, on top of that: turned more to the
+    // front, closer, the camera at 0.3 of its height above the tank and looking at a lower point. Each move takes SWING_MS.
+    const TURRET_POSE = { turn: (126.6 * Math.PI) / 180, side: -125, far: 1.12 };
+    const HULL_POSE = { turn: (112 * Math.PI) / 180, side: -110, far: 0.9, lift: 0.3, look: 70 };
+    const SWING_MS = 700;
+    // The most time one frame may move a swing, so a long gap between two frames never makes it jump.
+    const MAX_FRAME_MS = 50;
 
     // A live list, so the check reads the page again only after the page changed.
     const garageBoxes = document.getElementsByClassName('GarageCommonStyle-garageContainer');
@@ -298,6 +315,39 @@
     const cameraAnswer: KaspShowroomCamera = { fov: FOV, distance: DISTANCE, height: CAMERA_UP, look: LOOK_UP, angle: TURN, side: SIDE };
     let framed = false;
 
+    // How far each swing has gone (0 = the garage's usual pose, 1 = the whole move) and where it is going; set from the tabs.
+    const swing = { turret: 0, hull: 0 };
+    const goal = { turret: 0, hull: 0 };
+    let droneShown = false;
+    let tabReadAt = -Infinity;
+
+    // The main screen: no swing. The 7-tab bar: the turret pose on Turrets and Hulls, the hull close-up on Hulls, the drone on Drones.
+    // No 7-tab bar (a screen opened from Turrets or Hulls): both swings stay where they are.
+    function readTabs(): void {
+        try {
+            droneShown = false;
+            if (document.querySelector(MAIN_SCREEN) !== null) {
+                goal.turret = 0;
+                goal.hull = 0;
+                return;
+            }
+            const items = document.querySelectorAll(MENU_ITEMS);
+            if (items.length !== MENU_LENGTH) return;
+            let lit = -1;
+            for (let i = 0; i < items.length && lit < 0; i++) if (ACTIVE_ITEM.test(items[i].className)) lit = i;
+            goal.turret = lit === TURRETS_PLACE || lit === HULLS_PLACE ? 1 : 0;
+            goal.hull = lit === HULLS_PLACE ? 1 : 0;
+            droneShown = lit === DRONES_PLACE;
+        } catch {
+            droneShown = false;
+        }
+    }
+
+    const towards = (value: number, target: number, step: number): number =>
+        target > value ? Math.min(target, value + step) : Math.max(target, value - step);
+    // Ease in and out.
+    const smooth = (x: number): number => x * x * (3 - 2 * x);
+
     function camera(tankHeight: number): KaspShowroomCamera | null {
         if (garageBoxes.length === 0) {
             keepFloor();
@@ -305,17 +355,38 @@
         }
         const garageScreen = garageBoxes[0].parentElement;
         if (garageScreen !== null && !garageScreen.hasAttribute(GARAGE_MARK)) garageScreen.setAttribute(GARAGE_MARK, '');
-        lastFrame = performance.now();
+        const now = performance.now();
+        // Back in the garage after a pause (or the first frame): the tank takes the pose of the screen at once, with no swing.
+        const away = now - lastFrame > IDLE_MS;
+        if (away || now - tabReadAt >= TAB_READ_MS) {
+            tabReadAt = now;
+            readTabs();
+        }
+        if (away) {
+            swing.turret = goal.turret;
+            swing.hull = goal.hull;
+        } else {
+            const step = Math.min(now - lastFrame, MAX_FRAME_MS) / SWING_MS;
+            swing.turret = towards(swing.turret, goal.turret, step);
+            swing.hull = towards(swing.hull, goal.hull, step);
+        }
+        lastFrame = now;
         if (!listening) {
             addEventListener('mousemove', onMove, true);
             listening = true;
         }
         eased.x += (mouse.x - eased.x) * EASE;
         eased.y += (mouse.y - eased.y) * EASE;
+        const turret = smooth(swing.turret);
+        const hull = smooth(swing.hull);
+        const far = 1 + (TURRET_POSE.far - 1) * turret + (HULL_POSE.far - TURRET_POSE.far) * hull;
+        const lift = 1 + (HULL_POSE.lift - 1) * hull;
         const sideways = eased.x * MOUSE_RANGE;
-        cameraAnswer.distance = Math.hypot(DISTANCE, sideways);
-        cameraAnswer.angle = TURN + Math.atan2(sideways, DISTANCE);
-        cameraAnswer.height = (Number.isFinite(tankHeight) ? tankHeight : 0) + CAMERA_UP + eased.y * MOUSE_RANGE;
+        cameraAnswer.distance = Math.hypot(DISTANCE, sideways) * far;
+        cameraAnswer.angle = TURN + Math.atan2(sideways, DISTANCE) + (TURRET_POSE.turn - TURN) * turret + (HULL_POSE.turn - TURRET_POSE.turn) * hull;
+        cameraAnswer.height = (Number.isFinite(tankHeight) ? tankHeight : 0) + (CAMERA_UP + eased.y * MOUSE_RANGE) * far * lift;
+        cameraAnswer.side = SIDE + (TURRET_POSE.side - SIDE) * turret + (HULL_POSE.side - TURRET_POSE.side) * hull;
+        cameraAnswer.look = LOOK_UP + (HULL_POSE.look - LOOK_UP) * hull;
         framed = true;
         keepFloor();
         if (floor !== null && floor.canvas.style.display === 'none') floor.canvas.style.display = '';
@@ -329,24 +400,12 @@
         z: DRONE_UP - GAME_DRONE.z,
         shown: false,
     };
-    let tabReadAt = -Infinity;
 
-    function dronesTabOpen(): boolean {
-        try {
-            const items = document.querySelectorAll(MENU_ITEMS);
-            return items.length === MENU_LENGTH && ACTIVE_ITEM.test(items[DRONES_PLACE].className);
-        } catch {
-            return false;
-        }
-    }
-
+    // The Drones tab is read with the other tabs in camera(), which runs just before this in the same frame.
     function drone(): KaspShowroomDrone | null {
         if (!framed) return null;
         framed = false;
-        if (lastFrame - tabReadAt >= TAB_READ_MS) {
-            tabReadAt = lastFrame;
-            droneAnswer.shown = dronesTabOpen();
-        }
+        droneAnswer.shown = droneShown;
         return droneAnswer;
     }
 
