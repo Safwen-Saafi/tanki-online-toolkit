@@ -11,6 +11,7 @@
 // those tabs (Augments, Skins, Shot colour) keep the pose.
 // On the Grenades screen (25f1) the game keeps the tank shown (an injector edit) and the camera turns round the turret to the
 // grenade, read from the tank model the game passes in, so it finds a grenade on the right or the left side of any turret.
+// On the Protection tab (25f3) the camera goes round the tank's right side to its back, easing in and out like the other moves.
 // Nothing watches the page: no observer, no interval. Work happens only inside the frames the game draws for a 3D tank; the one
 // mouse listener takes itself away on its first event after the garage stopped drawing, and comes back with the garage.
 (function () {
@@ -45,7 +46,9 @@
     const MENU_LENGTH = 7;
     const TURRETS_PLACE = 0;
     const HULLS_PLACE = 1;
+    const GRENADES_PLACE = 2;
     const DRONES_PLACE = 3;
+    const PROTECTION_PLACE = 4;
     const ACTIVE_ITEM = /-activeMenu/;
     const TAB_READ_MS = 100;
     // Only the main screen has this block.
@@ -59,6 +62,10 @@
     const SWING_MS = 700;
     // The most time one frame may move a swing, so a long gap between two frames never makes it jump.
     const MAX_FRAME_MS = 50;
+    // On Protection (25f3, owner 2026-11-15): the camera from behind the tank. The main pose turned from front to back (its turn
+    // mirrored), so the camera goes round the tank's right side, which stays in view, and the tank keeps its place on the left of
+    // the screen, at the same distance and height. From the Turrets or Hulls pose it is half a turn either way, so it stays smooth.
+    const REAR_POSE = { turn: -TURN };
 
     // The Grenades screen (25f1, the owner's numbers from the live probe, 2026-11-15): the camera stands straight out from the
     // turret's middle through the grenade, GRENADE_FAR from it and GRENADE_UP above it, and the grenade sits in the middle of the
@@ -338,9 +345,11 @@
     let framed = false;
 
     // How far each swing has gone (0 = the garage's usual pose, 1 = the whole move) and where it is going; set from the tabs
-    // (turret, hull) and from the Grenades screen being in the page (grenade).
-    const swing = { turret: 0, hull: 0, grenade: 0 };
-    const goal = { turret: 0, hull: 0, grenade: 0 };
+    // (turret, hull, rear) and from the Grenades screen being in the page (grenade).
+    const swing = { turret: 0, hull: 0, rear: 0, grenade: 0 };
+    const goal = { turret: 0, hull: 0, rear: 0, grenade: 0 };
+    // Whether the last frame's camera was the whole grenade pose (none of the pose under it showing).
+    let grenadeWhole = false;
     let droneShown = false;
     let tabReadAt = -Infinity;
 
@@ -425,22 +434,27 @@
     // in the middle of a half-turn move and shook the camera (probe v1.2, 2026-11-15).
     let grenadeTurn: number | null = null;
 
-    // The main screen: no swing. The 7-tab bar: the turret pose on Turrets and Hulls, the hull close-up on Hulls, the drone on Drones.
-    // No 7-tab bar (a screen opened from Turrets or Hulls): both swings stay where they are.
+    // The main screen: no swing. The 7-tab bar: the turret pose on Turrets and Hulls, the hull close-up on Hulls, the rear on
+    // Protection, the drone on Drones. On Grenades the pose under the grenade move stays the one of the screen before, so the camera
+    // goes straight from there to the grenade (a pose moving at the same time pulled it aside and back). No 7-tab bar (a screen
+    // opened from Turrets or Hulls): every swing stays where it is.
     function readTabs(): void {
         try {
             droneShown = false;
             if (document.querySelector(MAIN_SCREEN) !== null) {
                 goal.turret = 0;
                 goal.hull = 0;
+                goal.rear = 0;
                 return;
             }
             const items = document.querySelectorAll(MENU_ITEMS);
             if (items.length !== MENU_LENGTH) return;
             let lit = -1;
             for (let i = 0; i < items.length && lit < 0; i++) if (ACTIVE_ITEM.test(items[i].className)) lit = i;
+            if (lit === GRENADES_PLACE) return;
             goal.turret = lit === TURRETS_PLACE || lit === HULLS_PLACE ? 1 : 0;
             goal.hull = lit === HULLS_PLACE ? 1 : 0;
+            goal.rear = lit === PROTECTION_PLACE ? 1 : 0;
             droneShown = lit === DRONES_PLACE;
         } catch {
             droneShown = false;
@@ -451,6 +465,9 @@
         target > value ? Math.min(target, value + step) : Math.max(target, value - step);
     // Ease in and out.
     const smooth = (x: number): number => x * x * (3 - 2 * x);
+    // The camera's turn for how far the turret, hull and rear moves have gone, without the mouse.
+    const poseTurn = (turret: number, hull: number, rear: number): number =>
+        TURN + (TURRET_POSE.turn - TURN) * turret + (HULL_POSE.turn - TURRET_POSE.turn) * hull + (REAR_POSE.turn - TURN) * rear;
 
     function camera(tankHeight: number, model?: unknown, parts?: KaspShowroomParts): KaspShowroomCamera | null {
         if (parts !== undefined && !grenadesMarked) {
@@ -471,14 +488,29 @@
             readTabs();
         }
         goal.grenade = parts !== undefined && (grenadePictures.length > 0 || grenadeCounts.length > 0) ? 1 : 0;
+        // Leaving the Grenades screen while the camera is all grenade pose: the pose under it does not show in this frame, so it takes
+        // the next screen's pose at once (the tab lights before the screen changes, so it is read now), and the grenade turn is put
+        // the shorter way round from it (a whole turn more or less: the same view). The camera then goes straight from the grenade
+        // to the next pose, never round the long way and never aside and back.
+        if (!away && grenadeWhole && goal.grenade === 0 && grenadeTurn !== null) {
+            tabReadAt = now;
+            readTabs();
+            swing.turret = goal.turret;
+            swing.hull = goal.hull;
+            swing.rear = goal.rear;
+            const next = poseTurn(goal.turret, goal.hull, goal.rear);
+            grenadeTurn += TAU * Math.round((next - grenadeTurn) / TAU);
+        }
         if (away) {
             swing.turret = goal.turret;
             swing.hull = goal.hull;
+            swing.rear = goal.rear;
             swing.grenade = goal.grenade;
         } else {
             const step = Math.min(now - lastFrame, MAX_FRAME_MS) / SWING_MS;
             swing.turret = towards(swing.turret, goal.turret, step);
             swing.hull = towards(swing.hull, goal.hull, step);
+            swing.rear = towards(swing.rear, goal.rear, step);
             swing.grenade = towards(swing.grenade, goal.grenade, step);
         }
         lastFrame = now;
@@ -490,11 +522,12 @@
         eased.y += (mouse.y - eased.y) * EASE;
         const turret = smooth(swing.turret);
         const hull = smooth(swing.hull);
+        const rear = smooth(swing.rear);
         const far = 1 + (TURRET_POSE.far - 1) * turret + (HULL_POSE.far - TURRET_POSE.far) * hull;
         const lift = 1 + (HULL_POSE.lift - 1) * hull;
         const sideways = eased.x * MOUSE_RANGE;
         cameraAnswer.distance = Math.hypot(DISTANCE, sideways) * far;
-        cameraAnswer.angle = TURN + Math.atan2(sideways, DISTANCE) + (TURRET_POSE.turn - TURN) * turret + (HULL_POSE.turn - TURRET_POSE.turn) * hull;
+        cameraAnswer.angle = poseTurn(turret, hull, rear) + Math.atan2(sideways, DISTANCE);
         cameraAnswer.height = (Number.isFinite(tankHeight) ? tankHeight : 0) + (CAMERA_UP + eased.y * MOUSE_RANGE) * far * lift;
         cameraAnswer.side = SIDE + (TURRET_POSE.side - SIDE) * turret + (HULL_POSE.side - TURRET_POSE.side) * hull;
         cameraAnswer.look = LOOK_UP + (HULL_POSE.look - LOOK_UP) * hull;
@@ -512,6 +545,7 @@
         } else if (swing.grenade === 0) {
             grenadeTurn = null;
         }
+        grenadeWhole = place !== null && swing.grenade === 1;
         framed = true;
         keepFloor();
         if (floor !== null && floor.canvas.style.display === 'none') floor.canvas.style.display = '';
