@@ -1358,6 +1358,11 @@
     //   grenade:  var l=t.pae_1;if(null==l)return te;var v,w=l,...;w.e24(b.i4e_1);var k=w.t35_1;k.h20_1=k.h20_1+15;  (the "fmnt" point)
     // The switch also sends the grenades category down the "show" branch, so the game's own state keeps the tank shown there; the
     // camera call also passes the tank model and the field names, so showroom.ts can turn the camera to the grenade.
+    // The Supplies screen (25f4) rides on that part, found the same way (if it is missing, Supplies keeps the game's look):
+    //   picture:  Sq(xOn,"GarageSuppliesPreviewComponentStyle",...)  and  xq(EOn).jap=function(t){...(null==_d&&new xOn,_d).d1oy()...
+    //   screen:   if(t.k1iw_1.v1ov_1.equals(py())){var u=Nq(EOn);...   (the still picture, for supplies only)
+    // The switch sends the supplies category down the "show" branch too, and the field names say so (supplies: true), so
+    // showroom.ts marks the page for styles/showroom_supplies.css.
     const SHOWROOM_CAMERA_RANGE = 1500;
     const SHOWROOM_SWITCH_RANGE = 5000;
     interface ShowroomGrenade {
@@ -1371,18 +1376,21 @@
         };
         const N = '[\\w$]+';
         const [x, y, z] = axes;
-        // Each search starts on fixed text, so it does not try every name in the 10 MB bundle.
-        const SHEET_NAME = '"GarageGrenadePreviewComponentStyle"';
-        const sheetAt = code.indexOf(SHEET_NAME);
-        const sheet = sheetAt < 0 || code.includes(SHEET_NAME, sheetAt + 1) ? null : new RegExp(`${N}\\((${N}),$`).exec(code.slice(Math.max(0, sheetAt - 80), sheetAt));
-        if (sheet === null) return skip('picture style');
-        const picture = exactlyOne(code, new RegExp(`\\((${N})\\)\\.${N}=function\\(t\\)\\{[^{}]{0,200}?\\(null==(${N})&&new ${asPattern(sheet[1])},\\2\\)`, 'g'));
-        if (picture === null) return skip('picture');
-        const screen = exactlyOne(code, new RegExp(`\\.equals\\((${N})\\(\\)\\)\\)\\{var ${N}=${N}\\(${asPattern(picture[1])}\\)`, 'g'));
-        const owner = screen === null ? null : new RegExp(`(${N}\\.${N}\\.${N})$`).exec(code.slice(Math.max(0, screen.index - 80), screen.index));
-        if (screen === null || owner === null) return skip('category');
-        const category = owner[1];
-        const getter = screen[1];
+        // The category a still picture belongs to: the garage screen draws the picture only when its category equals what the getter
+        // returns. Each search starts on fixed text, so it does not try every name in the 10 MB bundle.
+        const pictureCategory = (sheetName: string): { readonly index: number; readonly category: string; readonly getter: string } | null => {
+            const sheetAt = code.indexOf(sheetName);
+            const sheet = sheetAt < 0 || code.includes(sheetName, sheetAt + 1) ? null : new RegExp(`${N}\\((${N}),$`).exec(code.slice(Math.max(0, sheetAt - 80), sheetAt));
+            if (sheet === null) return null;
+            const picture = exactlyOne(code, new RegExp(`\\((${N})\\)\\.${N}=function\\(t\\)\\{[^{}]{0,200}?\\(null==(${N})&&new ${asPattern(sheet[1])},\\2\\)`, 'g'));
+            if (picture === null) return null;
+            const found = exactlyOne(code, new RegExp(`\\.equals\\((${N})\\(\\)\\)\\)\\{var ${N}=${N}\\(${asPattern(picture[1])}\\)`, 'g'));
+            const owner = found === null ? null : new RegExp(`(${N}\\.${N}\\.${N})$`).exec(code.slice(Math.max(0, found.index - 80), found.index));
+            return found === null || owner === null ? null : { index: found.index, category: owner[1], getter: found[1] };
+        };
+        const screen = pictureCategory('"GarageGrenadePreviewComponentStyle"');
+        if (screen === null) return skip('picture');
+        const { category, getter } = screen;
         const shows = exactlyOne(code, new RegExp(`switch\\(${asPattern(category).replace(/\./g, '\\.')}\\.(${N})\\)\\{((?:case \\d+:)+)!function\\((${N})\\)\\{if\\(!\\3\\.(${N})\\)\\{\\3\\.\\4=!0;var (${N})=new ${N}\\(${N}\\(\\)\\.${N}\\(\\)\\);${N}\\(\\)\\.${N}\\(\\)\\.${N}\\(new ${N}\\(\\5\\)\\)\\}\\}\\(${N}\\);break;default:${N}\\(${N}\\)\\}`, 'g'));
         if (shows === null || shows.index <= screen.index || shows.index - screen.index > SHOWROOM_SWITCH_RANGE) return skip('show switch');
         const firstCase = /case (\d+):/.exec(shows[2]);
@@ -1393,13 +1401,17 @@
         const grenade = exactlyOne(code, new RegExp(`var (${N})=t\\.(${N});if\\(null==\\1\\)return ${N};var ${N},(${N})=\\1,[\\s\\S]{0,400}?\\3\\.${N}\\(${N}\\.${N}\\);var (${N})=\\3\\.${asPattern(place)};\\4\\.${asPattern(z)}=\\4\\.${asPattern(z)}\\+15;`, 'g'));
         if (grenade === null) return skip('place');
         const switchHead = `switch(${category}.${shows[1]})`;
+        const supplies = pictureCategory('"GarageSuppliesPreviewComponentStyle"');
+        const withSupplies = supplies !== null && supplies.category === category && Math.abs(shows.index - supplies.index) <= SHOWROOM_SWITCH_RANGE;
+        if (!withSupplies) warn(`${LOG} could not find the garage supplies picture in this bundle, the Supplies screen keeps the game's look`);
+        const shown = `${category}.equals(${getter}())${withSupplies ? `||${category}.equals(${supplies.getter}())` : ''}`;
         return {
-            edits: [{ at: shows.index, length: switchHead.length, text: `switch(${category}.equals(${getter}())?${firstCase[1]}:${category}.${shows[1]})` }],
-            parts: { turret: turret[2], grenade: grenade[2], turn: turret[4], place, x, y, z },
+            edits: [{ at: shows.index, length: switchHead.length, text: `switch(${shown}?${firstCase[1]}:${category}.${shows[1]})` }],
+            parts: { turret: turret[2], grenade: grenade[2], turn: turret[4], place, x, y, z, supplies: withSupplies },
         };
     }
 
-    function patchShowroom(code: string): { readonly code: string; readonly grenades: boolean } | null {
+    function patchShowroom(code: string): { readonly code: string; readonly grenades: boolean; readonly supplies: boolean } | null {
         const skip = (what: string): null => {
             warn(`${LOG} could not find the garage ${what} in this bundle, the showroom garage is skipped`);
             return null;
@@ -1461,7 +1473,7 @@
             { at: light.index + light[0].indexOf('(100,100,100)'), length: '(100,100,100)'.length, text: '(255,255,255)' },
             { at: light.index + light[0].indexOf('(200,200,200)'), length: '(200,200,200)'.length, text: '(115,115,115)' },
         ]);
-        return { code: edited, grenades: grenade !== null };
+        return { code: edited, grenades: grenade !== null, supplies: grenade !== null && grenade.parts.supplies };
     }
 
     function showroomSwitchedOff(): boolean {
@@ -1545,6 +1557,7 @@
                 result = showroom.code;
                 hooked.push('showroom');
                 if (showroom.grenades) hooked.push('showroom-grenades');
+                if (showroom.supplies) hooked.push('showroom-supplies');
             }
         }
         // Last, so every other edit finds the game's code as it was.

@@ -294,6 +294,8 @@ interface KaspShowroomParts {
     readonly x: string;
     readonly y: string;
     readonly z: string;
+    // The injector also keeps the tank shown on the Supplies screen (25f4).
+    readonly supplies: boolean;
 }
 
 interface KaspShowroom {
