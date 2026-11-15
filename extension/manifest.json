@@ -59,7 +59,8 @@
         "styles/showroom_items.css",
         "styles/showroom_tabs.css",
         "styles/showroom_lists.css",
-        "styles/showroom_grenades.css"
+        "styles/showroom_grenades.css",
+        "styles/showroom_drones.css"
       ],
       "run_at": "document_start"
     }
