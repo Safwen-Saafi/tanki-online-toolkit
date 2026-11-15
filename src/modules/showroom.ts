@@ -64,10 +64,10 @@
     const SWING_MS = 700;
     // The most time one frame may move a swing, so a long gap between two frames never makes it jump.
     const MAX_FRAME_MS = 50;
-    // On Protection (25f3, owner 2026-11-15): the camera from behind the tank. The main pose turned from front to back (its turn
-    // mirrored), so the camera goes round the tank's right side, which stays in view, and the tank keeps its place on the left of
-    // the screen, at the same distance and height. From the Turrets or Hulls pose it is half a turn either way, so it stays smooth.
-    const REAR_POSE = { turn: -TURN };
+    // On Protection (25f3, owner 2026-11-15): the camera from behind the tank, going round the tank's right side, at the main
+    // pose's distance and height, so the tank keeps its place on the left of the screen. Straight behind is -90 degrees (the
+    // tank's front is +y); first the main pose mirrored (-53.4), then turned more to the rear (owner: it showed too much side).
+    const REAR_POSE = { turn: (-83 * Math.PI) / 180 };
     // On Supplies (25f4, owner 2026-11-15): the camera straight in front of the tank (the tank's front is +y, so a quarter turn),
     // at the main pose's distance, height and sideways push, so the tank stays left of the column on the right.
     const FRONT_POSE = { turn: Math.PI / 2 };

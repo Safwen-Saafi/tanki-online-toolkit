@@ -1,6 +1,6 @@
 /* The showroom garage's Protection screen (build-plan 25f3), the owner's ask of 2026-11-15 from a screenshot: the Drones screen's
-   look (showroom_drones.css). The camera looks at the tank from behind (showroom.ts). The protection's kind and description go;
-   one column on the right, 14em from the right edge and centred up and down: the name, then the level, stats and buttons (Equip
+   look (showroom_drones.css). The camera looks at the tank from behind (showroom.ts). The protection's name, kind and description go;
+   one column on the right, 14em from the right edge and centred up and down: the level, stats and buttons (Equip
    as a small square beside Upgrade), sliding in from the right. At the bottom left, where the game draws them, the four
    protection slots and Unequip all in the game's own look, sliding in from the left. No game blur; the item cards in the main
    screen's frosted glass.
@@ -42,25 +42,9 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer *:has(.GarageP
     transition: none !important;
 }
 
-/* 0. the protection's name (owner, 2026-11-15: only the name, above the level); its kind and description stay hidden */
+/* 0. the protection's name, kind and description all go (owner, 2026-11-15: no name above the stats) */
 html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .GarageProtectionsComponentStyle-aboutDefence {
-    order: 0 !important;
-    position: relative !important;
-    inset: auto !important;
-    width: auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    animation: kasp-showroom-from-right 200ms ease-out both !important;
-}
-
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .GarageProtectionsComponentStyle-aboutDefence > :not(:first-child) {
     display: none !important;
-}
-
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .GarageProtectionsComponentStyle-aboutDefence > :first-child {
-    margin: 0 !important;
 }
 
 /* 1. level, stats and buttons. No transform rule on a block that slides in: an !important transform beats the slide. */
@@ -74,7 +58,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBase
     animation: kasp-showroom-from-right 200ms ease-out both !important;
 }
 
-/* the protection block lets its name into the column, above the level (its slots box is fixed on its own, below) */
+/* the protection block opens up (its name is hidden above, its slots box is fixed on its own, below) */
 html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .GarageProtectionsComponentStyle-blockParametersProtection {
     display: contents !important;
 }

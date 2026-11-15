@@ -1,7 +1,7 @@
 /* The showroom garage's Supplies screen (build-plan 25f4), the owner's ask of 2026-11-15 from a screenshot: the Drones and
    Protection look (showroom_drones.css, showroom_protection.css). The game's still picture of the supply goes (the 3D tank stays
    shown there through the injector's edit, and the camera faces the tank's front, src/modules/showroom.ts). One column on the
-   right, 14em from the right edge and centred up and down: the supply's name (its description and Read more go), then the stats,
+   right, 14em from the right edge and centred up and down: the stats (the supply's name, description and Read more go),
    then the buy button across the column; the column slides in from the right as one block; no game blur, and the stats lose the game's
    frame; the item cards in the main screen's frosted glass.
 
@@ -55,30 +55,14 @@ html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-g
     transition: none !important;
 }
 
-/* the name block lets its two parts into the column (it has a fixed height of its own): the name first, the buy box last */
+/* the name block lets its buy box into the column (it has a fixed height of its own; the name inside it is hidden) */
 html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .TanksPartComponentStyle-descriptionContainer {
     display: contents !important;
 }
 
-/* 0. the name; the description and Read more after it go */
+/* 0. the name, the description and Read more all go (owner, 2026-11-15: no name above the stats) */
 html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .ItemDescriptionComponentStyle-descriptionBlockDevice {
-    order: 0 !important;
-    position: relative !important;
-    inset: auto !important;
-    width: auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    animation: none !important;
-}
-
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .ItemDescriptionComponentStyle-descriptionBlockDevice > :not(:first-child) {
     display: none !important;
-}
-
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .ItemDescriptionComponentStyle-descriptionBlockDevice > :first-child {
-    margin: 0 !important;
 }
 
 /* 1. the stats, without the game's blurred box and its frame */
