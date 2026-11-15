@@ -1,9 +1,10 @@
-// Isolated-world content script. Shows each augment's advantages and disadvantages on the garage's Augments tab: a
-// small "i" box on every augment tile that opens a spec box on hover. The augment data is what the Augments bot
-// publishes on GitHub Pages; only the file for the game's language is loaded, and it is cached for a few hours.
-// The file has six parts, in reading order: the data, the item and augment on screen, the spec box, the tile boxes, the
-// hidden "?" cards (on the Augments, Skins and Shot color tabs), the tick. It has two switches in the extension's settings tab:
-// the augment info (the "i" boxes and spec boxes, in the garage and on the Containers screen) and the hidden cards.
+// Isolated-world content script. Shows the selected augment's advantages and disadvantages in the left panel of the garage's
+// Augments tab (shown on a click, never on hover). The augment data is what the Augments bot publishes on GitHub Pages; only the
+// file for the game's language is loaded, and it is cached for a few hours.
+// The file's parts, in reading order: the data, the item and augment on screen, the spec, the tick, the hidden "?" cards (on the
+// Augments, Skins and Shot color tabs) and the left panel's spec, the Containers screen, the battle tab. It has three switches in
+// the extension's settings tab: the augment info (the left panel's spec and the Containers screen's matching), the hidden cards,
+// and the battle tab's augment info.
 (function () {
     'use strict';
 
@@ -313,15 +314,13 @@
         return augment === undefined ? null : { language: file.language, augment };
     }
 
-    // ---- 3. the spec box ----
+    // ---- 3. the spec ----
 
-    // Each augment tile on the Augments tab gets a small box in its corner; hovering it shows that augment's
-    // advantages and disadvantages in a box styled after the wiki's augment page (styles/augments.css).
+    // An augment's advantages and disadvantages, drawn after the wiki's augment page: in the garage's left panel for the selected
+    // augment (section 5b), and in the battle tab's box (section 7).
     const CARD_ROW_SELECTOR = '.SkinsAndAlterationsStyle-SkinsVerticalComponent';
     const CARD_TITLE_SELECTOR = '.SkinCellStyle-nameDevices';
-    const BOX_CLASS = 'kasp-spec-btn';
-    const TOOLTIP_ID = 'kasp-spec-tooltip';
-    const TOOLTIP_GAP = 16;
+    const BATTLE_BOX_GAP = 16;
     const HEADINGS = {
         EN: { advantages: 'Advantages', disadvantages: 'Disadvantages' },
         RU: { advantages: 'Преимущества', disadvantages: 'Недостатки' },
@@ -369,6 +368,12 @@
 
     function appendLine(list: HTMLElement, line: string): void {
         const item = element('li', 'kasp-spec-line');
+        fillLine(item, line);
+        list.append(item);
+    }
+
+    // One line of wiki text: its numbers marked, its status effect markers drawn as the effect's picture and name.
+    function fillLine(item: HTMLElement, line: string): void {
         // split() with three capture groups gives the text, the key, the name and the quoted name, over and over.
         const parts = line.split(MARKER_PATTERN);
         for (let index = 0; index < parts.length; index += 4) {
@@ -379,7 +384,6 @@
             item.append(icon('kasp-spec-effect', `effects/${key}.png`));
             if (name !== undefined && name !== '') item.append(element('span', 'kasp-spec-effect-name', name));
         }
-        list.append(item);
     }
 
     function buildColumn(kind: 'positive' | 'negative', heading: string, lines: readonly string[]): HTMLElement {
@@ -393,42 +397,15 @@
         return column;
     }
 
-    function getTooltip(): HTMLElement {
-        const existing = document.getElementById(TOOLTIP_ID);
-        if (existing !== null) return existing;
-        const tooltip = element('div', 'kasp-spec-tooltip');
-        tooltip.id = TOOLTIP_ID;
-        document.body.append(tooltip);
-        return tooltip;
-    }
-
-    function hideTooltip(): void {
-        const tooltip = document.getElementById(TOOLTIP_ID);
-        if (tooltip !== null) tooltip.style.display = 'none';
-    }
-
-    // Escape and Z also leave the screen in the game, so the box must not stay behind.
-    window.addEventListener(
-        'keydown',
-        (event) => {
-            if (event.code === 'Escape' || event.code === 'KeyZ') hideTooltip();
-        },
-        true,
-    );
-
     // Beside the mouse, on the side that keeps the whole box on screen.
     function placeNearMouse(box: HTMLElement, event: MouseEvent): void {
         const size = box.getBoundingClientRect();
-        let x = event.clientX + TOOLTIP_GAP;
-        let y = event.clientY + TOOLTIP_GAP;
-        if (x + size.width > window.innerWidth) x = event.clientX - size.width - TOOLTIP_GAP;
-        if (y + size.height > window.innerHeight) y = event.clientY - size.height - TOOLTIP_GAP;
+        let x = event.clientX + BATTLE_BOX_GAP;
+        let y = event.clientY + BATTLE_BOX_GAP;
+        if (x + size.width > window.innerWidth) x = event.clientX - size.width - BATTLE_BOX_GAP;
+        if (y + size.height > window.innerHeight) y = event.clientY - size.height - BATTLE_BOX_GAP;
         box.style.left = `${Math.max(0, x)}px`;
         box.style.top = `${Math.max(0, y)}px`;
-    }
-
-    function moveTooltip(event: MouseEvent): void {
-        placeNearMouse(getTooltip(), event);
     }
 
     // The corner ornaments and the container icon that go with the augment's rank.
@@ -444,7 +421,7 @@
         return decorations;
     }
 
-    // The battle tab's box is filled the same way; its own styles make it small (styles/battle_tab.css).
+    // The battle tab's box; its own styles make it small (styles/battle_tab.css).
     function fillSpecBox(box: HTMLElement, match: AugmentMatch): void {
         const { augment, language } = match;
         box.replaceChildren(...buildDecorations(augment.rarity), element('div', 'kasp-spec-name', augment.name));
@@ -466,41 +443,10 @@
         box.dataset['rarity'] = augment.rarity ?? '';
     }
 
-    function showTooltip(match: AugmentMatch, event: MouseEvent): void {
-        const tooltip = getTooltip();
-        fillSpecBox(tooltip, match);
-        tooltip.style.display = 'block';
-        moveTooltip(event);
-    }
+    // ---- 4. the tick ----
 
-    // ---- 4. the tile boxes and the tick ----
-
-    // The augment is looked up once per tile and name, when its box is placed, because the box's colour comes from the
-    // augment's rank. A tile that has its box, or was already found to have no entry, is skipped, so a pass over tiles
-    // that did not change does no lookups at all.
-    const NO_ENTRY_KEY = 'kaspNoEntry';
-
-    function createBox(card: HTMLElement, key: string, match: AugmentMatch): HTMLElement {
-        if (window.getComputedStyle(card).position === 'static') card.style.position = 'relative';
-        const box = element('div', BOX_CLASS, 'i');
-        box.dataset['key'] = key;
-        box.dataset['rarity'] = match.augment.rarity ?? '';
-        hasBoxes = true;
-        box.addEventListener('mouseenter', (event) => showTooltip(match, event));
-        box.addEventListener('mousemove', moveTooltip);
-        box.addEventListener('mouseleave', hideTooltip);
-        // The box sits on top of the tile, so a click on it must not select or equip the augment.
-        for (const type of ['click', 'mousedown']) {
-            box.addEventListener(type, (event) => {
-                event.stopPropagation();
-                event.preventDefault();
-            });
-        }
-        return box;
-    }
-
-    // An augment card with no entry in the data still gets its box, saying there is no information yet, so no tile is left bare. The
-    // card must be an augment's by the game's own category (a skin's card is not), and not Standard settings, the first card.
+    // An augment card with no entry in the data still gets its spec, saying there is no information yet. The card must be an
+    // augment's by the game's own category (a skin's card is not), and not Standard settings, the first card.
     function missingMatch(card: HTMLElement, name: string): AugmentMatch | null {
         const file = augmentsFile;
         const game = readGameCard(card);
@@ -511,42 +457,18 @@
         return { language: file.language, augment, missing: true };
     }
 
-    function syncBox(card: HTMLElement, item: string, name: string): void {
-        const key = `${item}|${name}`;
-        const existing = card.querySelector<HTMLElement>(`:scope > .${BOX_CLASS}`);
-        if (existing?.dataset['key'] === key || card.dataset[NO_ENTRY_KEY] === key) return;
-        existing?.remove();
-        const match = findAugment(item, name) ?? missingMatch(card, name);
-        if (match === null) {
-            // Only a lookup against loaded data and a readable card count as "no entry"; until then the tile is tried again.
-            if (augmentsFile !== null && readGameCard(card) !== null) card.dataset[NO_ENTRY_KEY] = key;
-            return;
-        }
-        card.append(createBox(card, key, match));
-    }
-
-    // True from the first box until they are all removed, so the check that runs on every page change costs nothing
-    // while no box exists (in a battle, for one).
-    let hasBoxes = false;
-
-    function removeBoxes(): void {
-        if (!hasBoxes) return;
-        hasBoxes = false;
-        document.querySelectorAll(`.${BOX_CLASS}`).forEach((box) => box.remove());
-        hideTooltip();
-    }
-
     // The tab the last pass saw. Switching tab takes every drawing back first: the game reuses the row's elements and the
     // left panel for the other tab's items, and a card or panel we drew would otherwise stay on the wrong item.
     let lastTab: string | null = null;
 
     function boxTick(): void {
-        // The garage's tab reads null on this screen, so the check below would take every box away.
+        // The garage's tab reads null on this screen, so the check below would take every drawing away.
         const containers = document.querySelector(REWARD_ROOT_SELECTOR);
         if (containers !== null) {
             removeHiddenMarks();
-            // The Containers screen only has spec boxes, which are augment info.
+            // The Containers screen only has augment info: which turret each tile's augment belongs to, and the clicked one's spec.
             if (infoOn) containerTick(containers);
+            else removeSideSpec();
             return;
         }
         rewardDownloadFailed = false;
@@ -557,37 +479,58 @@
         if (tab !== lastTab) {
             lastTab = tab;
             removeHiddenMarks();
+            removeSideSpec();
             switchedAt = Date.now();
             oldTabCards = row === null ? null : rowSignature(row);
         }
         if (row !== null && (tab === 'skins' || tab === 'shot-color')) {
-            // These two tabs only have hidden cards; the Augments tab's boxes still go when the tab changes.
+            // These two tabs only have hidden cards.
             if (hiddenOn) cosmeticTick(row, tab);
-            else removeBoxes();
+            removeSideSpec();
             return;
         }
         if (item === null || row === null || tab !== 'augments') {
-            removeBoxes();
             removeHiddenMarks();
+            removeSideSpec();
             return;
         }
         window.dispatchEvent(new CustomEvent(GAME_CARD_REQUEST));
-        if (infoOn) {
-            row.querySelectorAll(CARD_TITLE_SELECTOR).forEach((title) => {
-                const card = title.parentElement;
-                if (card === null) return;
-                const name = (title.textContent ?? '').trim();
-                syncBox(card, item, name);
-            });
-        }
-        // With the info on, a hidden card waits for the augment data, which gives its name and its box; with the info off,
-        // there is no data and no box, and the card is drawn from the game's own name and rank at once.
+        // With the info on, a hidden card waits for the augment data, which gives its name; with the info off, there is no data,
+        // and the card is drawn from the game's own name and rank at once.
         if (!hiddenOn || (infoOn && augmentsFile === null)) {
             removeHiddenMarks();
-            return;
+        } else {
+            hiddenTick(row, tab, item);
+            sideTick();
         }
-        hiddenTick(row, tab, item);
-        sideTick();
+        panelSpecTick(item, row);
+    }
+
+    // The selected augment's spec, in the left panel (the one place the garage shows it). Last, after the hidden augment's name, which
+    // it may sit around, so one pass is enough.
+    function panelSpecTick(item: string, row: Element): void {
+        if (infoOn) sideSpecTick(item, row);
+        else removeSideSpec();
+    }
+
+    // The left panel again, at once when the game changes it, before the browser draws the frame: waiting for the next frame's pass
+    // drew the old augment's list for a frame or two under the new name, which then slid up (the "flash" from a hidden augment to a
+    // visible one, measured with blueprint/reference/garage-flash-probe.js, 2026-11-15). Only on the Augments tab the last pass saw.
+    const PANEL_SELECTOR = '.GarageCommonStyle-subMenu > :first-child';
+
+    function panelChanged(records: readonly MutationRecord[]): boolean {
+        return records.some((record) => {
+            const target = record.target instanceof Element ? record.target : record.target.parentElement;
+            return target?.closest(PANEL_SELECTOR) != null;
+        });
+    }
+
+    function panelTick(): void {
+        const item = currentItem;
+        const row = document.querySelector(CARD_ROW_SELECTOR);
+        if (lastTab !== 'augments' || item === null || row === null || window.kaspGarageTab?.read() !== 'augments') return;
+        if (hiddenOn && !(infoOn && augmentsFile === null)) sideTick();
+        panelSpecTick(item, row);
     }
 
     // ---- 5. the hidden "?" cards ----
@@ -669,14 +612,15 @@
         }
     }
 
-    // True from the first drawing until they are all removed, like hasBoxes.
+    // True from the first drawing until they are all removed, so the check that runs on every page change costs nothing while
+    // nothing is drawn (in a battle, for one).
     let hasHiddenMarks = false;
 
     // Puts the card back as the game drew it: the "?" picture, none of our nodes, no marks. A picture the game has changed in
     // the meantime is left as the game has it.
     function undrawCard(card: HTMLElement): void {
         if (card.dataset[HIDDEN_KEY] === undefined) return;
-        card.querySelectorAll(`:scope > .${OWN_NODE_CLASS}, :scope > .${BOX_CLASS}`).forEach((node) => node.remove());
+        card.querySelectorAll(`:scope > .${OWN_NODE_CLASS}`).forEach((node) => node.remove());
         const picture = card.querySelector(`:scope > img:not(.${OWN_NODE_CLASS})`);
         const original = card.dataset[ORIGINAL_KEY];
         if (picture !== null && original !== undefined && picture.getAttribute('src') === card.dataset[PICTURE_KEY]) {
@@ -782,7 +726,6 @@
     // The Skins and Shot color tabs: a hidden card is drawn with its picture and name only. There is no wiki text for a skin or a
     // colour, so no spec box, and nothing here waits for the augment data.
     function cosmeticTick(row: Element, tab: KaspGarageTab): void {
-        removeBoxes();
         window.dispatchEvent(new CustomEvent(GAME_CARD_REQUEST));
         if (oldTabCards !== null) {
             if (rowSignature(row) === oldTabCards && Date.now() - switchedAt < SWAP_WAIT_MS) {
@@ -808,14 +751,14 @@
     // colour's panel switches that filter off, and the wrapper's own inline value is kept here to put it back.
     const WRAPPER_FILTER_KEY = 'kaspSideFilter';
     let clickedCard: HTMLElement | null = null;
-    // True from the first change to the sidebar until it is put back, like hasBoxes.
+    // True from the first change to the sidebar until it is put back, like hasHiddenMarks.
     let hasSide = false;
 
     document.addEventListener(
         'click',
         (event) => {
             const target = event.target;
-            if (!(target instanceof Element) || target.closest(`.${BOX_CLASS}`) !== null) return;
+            if (!(target instanceof Element)) return;
             const row = target.closest(CARD_ROW_SELECTOR);
             if (row === null) return;
             let card: Element = target;
@@ -888,7 +831,8 @@
             return;
         }
         const key = `${name}|${image}`;
-        if (panel.getAttribute(SIDE_ATTRIBUTE) === key && panel.nextElementSibling?.classList.contains(SIDE_NAME_CLASS) === true) return;
+        // The name may have our rank word between it and the picture (section 5b), so it is looked for beside the picture, not right after it.
+        if (panel.getAttribute(SIDE_ATTRIBUTE) === key && panel.parentElement?.querySelector(`:scope > .${SIDE_NAME_CLASS}`) != null) return;
         removeSide();
         hasSide = true;
         panel.setAttribute(SIDE_ATTRIBUTE, key);
@@ -911,6 +855,129 @@
         if (!hasHiddenMarks) return;
         hasHiddenMarks = false;
         document.querySelectorAll<HTMLElement>('[data-kasp-hidden]').forEach(undrawCard);
+    }
+
+    // ---- 5b. the left panel's spec (showroom garage, build-plan 25g) ----
+
+    // The garage shows an augment's spec in one place only: the Augments tab's left panel lists the selected (clicked) augment's
+    // advantages and disadvantages under its name, with its rank word above (styles/augments.css; the showroom garage also hides the
+    // game's own description, styles/showroom_lists.css). It is read from the panel's own name, so it follows the game's selection,
+    // and a hidden augment's name (the one drawn in section 5) too. Not drawn for Standard settings, which has no entry and no card to
+    // say "no information".
+    const SIDE_SPEC_CLASS = 'kasp-side-node';
+    const DESCRIPTION_BLOCK_SELECTOR = '.ItemDescriptionComponentStyle-descriptionBlockDevice';
+    const PANEL_NAME_SELECTOR = '.ItemDescriptionComponentStyle-nameItem';
+    const RARITY_WORDS: Readonly<Record<KaspLanguageCode, Readonly<Record<string, string | undefined>>>> = {
+        EN: { rare: 'Rare', epic: 'Epic', legendary: 'Legendary', exotic: 'Exotic' },
+        RU: { rare: 'Редкий', epic: 'Эпический', legendary: 'Легендарный', exotic: 'Экзотический' },
+    };
+
+    // "inside": both added at the end of the anchor (the garage's description block). "around": the rank word right before the anchor
+    // and the spec right after it (a hidden augment's name, the Containers screen's name box).
+    type SidePlace = 'inside' | 'around';
+
+    interface SideSpec {
+        readonly key: string;
+        readonly rarity: HTMLElement | null;
+        readonly box: HTMLElement;
+        readonly anchor: HTMLElement;
+        readonly place: SidePlace;
+    }
+
+    let sideSpec: SideSpec | null = null;
+
+    function removeSideSpec(): void {
+        if (sideSpec === null) return;
+        sideSpec.rarity?.remove();
+        sideSpec.box.remove();
+        sideSpec = null;
+    }
+
+    // The selected augment's entry, or the "no information yet" one when its card says it is an augment the wiki lacks.
+    function selectedMatch(item: string, row: Element, name: string): AugmentMatch | null {
+        const found = findAugment(item, name);
+        if (found !== null) return found;
+        for (const title of row.querySelectorAll(CARD_TITLE_SELECTOR)) {
+            const card = title.parentElement;
+            if (card !== null && (title.textContent ?? '').trim() === name) return missingMatch(card, name);
+        }
+        return null;
+    }
+
+    function sideLine(kind: 'positive' | 'negative', line: string): HTMLElement {
+        const item = element('li', 'kasp-side-line');
+        item.append(icon('kasp-side-sign', kind === 'positive' ? 'corners/advantages.svg' : 'corners/disadvantages.svg'));
+        fillLine(item, line);
+        return item;
+    }
+
+    function buildSideSpec(match: AugmentMatch): { readonly rarity: HTMLElement | null; readonly box: HTMLElement } {
+        const { augment, language } = match;
+        const box = element('div', `${SIDE_SPEC_CLASS} kasp-side-spec`);
+        if (match.missing === true) {
+            const note = element('div', 'kasp-side-note', MISSING_NOTE[language]);
+            note.append(icon('kasp-spec-note-icon', 'change-marker.webp'));
+            box.append(note);
+        } else {
+            const list = element('ul', 'kasp-side-lines');
+            for (const line of augment.advantages) list.append(sideLine('positive', line));
+            for (const line of augment.disadvantages) list.append(sideLine('negative', line));
+            box.append(list);
+        }
+        const rank = augment.rarity;
+        const word = rank === null ? undefined : RARITY_WORDS[language][rank];
+        let rarity: HTMLElement | null = null;
+        if (word !== undefined) {
+            rarity = element('div', `${SIDE_SPEC_CLASS} kasp-side-rarity`, word);
+            rarity.dataset['rarity'] = rank ?? '';
+        }
+        return { rarity, box };
+    }
+
+    function sideSpecPlaced(spec: SideSpec): boolean {
+        const { rarity, box, anchor } = spec;
+        if (spec.place === 'inside') return box.parentElement === anchor && (rarity === null || rarity.parentElement === anchor);
+        return box.previousElementSibling === anchor && (rarity === null || rarity.nextElementSibling === anchor);
+    }
+
+    // Built again only when the augment, the anchor or the place changed, or the game moved our nodes away.
+    function showSideSpec(key: string, match: AugmentMatch, anchor: HTMLElement, place: SidePlace): void {
+        if (sideSpec !== null && sideSpec.key === key && sideSpec.anchor === anchor && sideSpec.place === place && sideSpecPlaced(sideSpec)) return;
+        removeSideSpec();
+        const { rarity, box } = buildSideSpec(match);
+        if (place === 'inside') {
+            if (rarity !== null) anchor.append(rarity);
+            anchor.append(box);
+        } else {
+            if (rarity !== null) anchor.before(rarity);
+            anchor.after(box);
+        }
+        sideSpec = { key, rarity, box, anchor, place };
+    }
+
+    function sideSpecTick(item: string, row: Element): void {
+        // The game's own description block decides first: a visible augment has one, a hidden one does not. A hidden augment's panel is
+        // the game's "?" picture and our name beside it, and the spec goes around that name, inside the picture's wrapper (outside it,
+        // the panel's spaced-out column pushed the spec onto the button). Our hidden name can still be there for a moment after the game
+        // brought its block back, so it is never trusted over the block.
+        const host = document.querySelector<HTMLElement>(DESCRIPTION_BLOCK_SELECTOR);
+        const label = host === null ? document.querySelector<HTMLElement>(`.${SIDE_NAME_CLASS}`) : null;
+        const name = (host?.querySelector(PANEL_NAME_SELECTOR)?.textContent ?? label?.textContent ?? '').trim();
+        const anchor = host ?? label;
+        if (anchor === null || name === '') {
+            removeSideSpec();
+            return;
+        }
+        const place: SidePlace = host === null ? 'around' : 'inside';
+        // The same augment in the same place: nothing to look up (this runs on every change of the panel).
+        const key = `${item}|${name}|${augmentsFile?.language ?? ''}`;
+        if (sideSpec !== null && sideSpec.key === key && sideSpec.anchor === anchor && sideSpec.place === place && sideSpecPlaced(sideSpec)) return;
+        const match = selectedMatch(item, row, name);
+        if (match === null) {
+            removeSideSpec();
+            return;
+        }
+        showSideSpec(key, match, anchor, place);
     }
 
     // ---- 6. the Containers screen ----
@@ -1198,29 +1265,49 @@
         } finally {
             rewardWorking = false;
         }
-        // Nothing on the page changes when the answers are ready, so the boxes would wait for the timer's next pass.
+        // Nothing on the page changes when the answers are ready, so the tiles' answers would wait for the timer's next pass.
         boxTick();
     }
 
-    // Says there is no information, like a garage tile the wiki lacks: a tile with no wiki text, or one the rule is not sure of.
+    // The left panel of the Containers screen shows the clicked reward (its picture, the game's rank line, its name and description).
+    // Like the garage's panel, it gets the augment's rank word and spec after a click on a tile. Many tiles share one name (an
+    // Excelsior per turret), so the tile itself is remembered at the click, and its turret is the one worked out above. A click on the
+    // card's probability label lands on the card around the tile, so the tile is found from there too.
+    const REWARD_NAME_SELECTOR = '.ContainerInfoComponentStyle-rewardNameContainer';
+    let clickedReward: Element | null = null;
+
+    document.addEventListener(
+        'click',
+        (event) => {
+            const target = event.target;
+            if (!(target instanceof Element) || target.closest(REWARD_ROOT_SELECTOR) === null) return;
+            clickedReward = target.closest(REWARD_TILE_SELECTOR)
+                ?? target.closest(`:has(> ${REWARD_TILE_SELECTOR})`)?.querySelector(`:scope > ${REWARD_TILE_SELECTOR}`)
+                ?? null;
+        },
+        true,
+    );
+
+    // Says there is no information: a tile with no wiki text, or one the rule is not sure of.
     function noInformation(file: AugmentsFile, name: string, rank: string | undefined): AugmentMatch {
         const augment: Augment = { name, advantages: [], disadvantages: [], rarity: rank === undefined ? null : (FRAME_RANKS_BY_GAME[rank] ?? null) };
         return { language: file.language, augment, missing: true };
     }
 
-    // The card holding the tile is positioned and nothing on it clips, and its bottom left corner is free (the count is centred).
-    function syncRewardBox(card: HTMLElement, answer: string | undefined, name: string | undefined, rank: string | undefined): void {
-        const key = answer === undefined || name === undefined ? null : `${answer}|${name}`;
-        const existing = card.querySelector<HTMLElement>(`:scope > .${BOX_CLASS}`);
-        if ((existing?.dataset['key'] ?? null) === key) return;
-        if (existing !== null) {
-            existing.remove();
-            hideTooltip();
-        }
+    // Drawn only while the panel shows the clicked tile's name (the game may have moved on, by keyboard for one).
+    function rewardSpecTick(root: Element): void {
+        const tile = clickedReward !== null && root.contains(clickedReward) ? clickedReward : null;
+        const nameBox = root.querySelector<HTMLElement>(REWARD_NAME_SELECTOR);
+        const key = tile === null ? null : tilePicture(tile);
+        const name = key === null ? undefined : rewardNames.get(key);
+        const answer = key === null ? undefined : rewardAnswers.get(key);
         const file = augmentsFile;
-        if (key === null || answer === undefined || name === undefined || file === null) return;
-        const match = (answer === NOT_SURE ? null : findAugment(answer, name)) ?? noInformation(file, name, rank);
-        card.append(createBox(card, key, match));
+        if (nameBox === null || key === null || name === undefined || answer === undefined || file === null || (nameBox.textContent ?? '').trim() !== name) {
+            removeSideSpec();
+            return;
+        }
+        const match = (answer === NOT_SURE ? null : findAugment(answer, name)) ?? noInformation(file, name, rewardRanks.get(key));
+        showSideSpec(`${answer}|${name}|${match.language}|${match.missing === true}`, match, nameBox, 'around');
     }
 
     function containerTick(root: Element): void {
@@ -1248,11 +1335,8 @@
             const answer = address === null || address === undefined ? undefined : rewardAnswers.get(address);
             if (answer === undefined) tile.removeAttribute(REWARD_ANSWER_ATTRIBUTE);
             else if (tile.getAttribute(REWARD_ANSWER_ATTRIBUTE) !== answer) tile.setAttribute(REWARD_ANSWER_ATTRIBUTE, answer);
-            const card = tile.parentElement;
-            const name = address === null || address === undefined ? undefined : rewardNames.get(address);
-            const rank = address === null || address === undefined ? undefined : rewardRanks.get(address);
-            if (card !== null) syncRewardBox(card, answer, name, rank);
         });
+        rewardSpecTick(root);
     }
 
     // ---- 7. the augments in the battle tab (build-plan 18d) ----
@@ -1412,7 +1496,8 @@
     // in the next frame after the tiles appear. One pass per frame at most, since the page changes constantly. The timer
     // stays as a safety net for any state reached without a page change.
     let scheduled = false;
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver((records) => {
+        if (panelChanged(records)) panelTick();
         if (scheduled) return;
         scheduled = true;
         requestAnimationFrame(() => {
