@@ -763,6 +763,10 @@
             if (row === null) return;
             let card: Element = target;
             while (card.parentElement !== null && card.parentElement !== row) card = card.parentElement;
+            // A click on the list's empty space (between cards, its margins, which the showroom's sideways list stretches across the
+            // screen) picks nothing: the game keeps its selected card, so ours stays too (blueprint/reference/garage-reveal-probe.js,
+            // 2026-11-15: forgetting it there put the game's "?" back in the panel).
+            if (card.parentElement !== row) return;
             clickedCard = card instanceof HTMLElement && card.dataset[HIDDEN_KEY] !== undefined ? card : null;
         },
         true,
