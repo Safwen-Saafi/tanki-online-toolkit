@@ -1,0 +1,97 @@
+/* The showroom garage's item screens (build-plan 25g): the lists of Augments, Skins and Shot colour and their left panel. Proven live
+   with blueprint/reference/garage-lists-rotate.js v6 on 2026-11-14.
+   The three tabs share one list box (SkinsAndAlterationsStyle-SkinsVerticalComponent, a direct child of GarageCommonStyle-subMenu, the
+   left panel is its first sibling). The list shows 3 rows and scrolls sideways. It is NOT scrolled by code: any wheel handler of ours
+   lagged on the owner's machine (the game's 3D keeps the page busy), while the browser's own scroll is smooth. So the list stays a
+   plain vertical scroller, turned a quarter turn with each card turned back, and the browser scrolls it by itself.
+   --kasp-s is the card's side: 16em, smaller on a short window so 3 rows fit, and (where the browser can divide lengths) fitted to a
+   whole number of columns so the last column is never cut and both margins are 2.2em. The gap is 0.6em, so it never changes with the window.
+   The list ends where the sub-screen box ends, which is 14px before the tabs column (showroom_tabs.css). The Equip/Unequip button is the
+   panel's last child; it sits on the scroll bar's line, and the cards, the bar and the button are centred between the header and the
+   window bottom. The panel has no background or line, and no description (its "Read more" too); the name stays.
+   The numbers (22.5em, 4em, 6em, 4.2em, 14em) come from the live measurements: the absolute boxes are placed from the garage's own box,
+   which starts 4em above the sub-screen box.
+   Every rule waits for item 25's switch (data-kasp-showroom-floor, written by src/modules/showroom_floor.ts while it is on). No script
+   of its own; the advantages and disadvantages that src/modules/augments.ts adds to the panel are styled in augments.css. */
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu:has(> .SkinsAndAlterationsStyle-SkinsVerticalComponent) {
+    --kasp-s-high: calc((100vh - 14em) / 3);
+    --kasp-s: min(16em, var(--kasp-s-high));
+    container-type: inline-size !important;
+    width: 100% !important;
+}
+
+@supports (scale: calc(10px / 1px)) {
+    html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu:has(> .SkinsAndAlterationsStyle-SkinsVerticalComponent) {
+        --kasp-pitch: calc((100cqw - 26.3em) / max(1, round(nearest, (100cqw - 26.3em) / 16.6em, 1)));
+        --kasp-s: min(var(--kasp-s-high), max(12em, calc(var(--kasp-pitch) - 0.6em)));
+    }
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu > .SkinsAndAlterationsStyle-SkinsVerticalComponent {
+    position: absolute !important;
+    box-sizing: border-box !important;
+    top: calc(50% - 1.5 * var(--kasp-s) - 4em) !important;
+    left: 22.5em !important;
+    width: calc(6em + 3 * var(--kasp-s)) !important;
+    height: calc(100cqw - 22.5em) !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 2.2em 0 2.2em 2.2em !important;
+    transform-origin: 0 0 !important;
+    transform: rotate(-90deg) scaleX(-1) !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, var(--kasp-s)) !important;
+    grid-auto-rows: var(--kasp-s) !important;
+    grid-auto-flow: row !important;
+    gap: 0.6em !important;
+    align-content: start !important;
+    justify-content: start !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    /* the cards fade out at both ends of the list instead of being cut by a straight edge; the list is turned, so its own top and
+       bottom are the left and right on screen, and its 2.2em margins are the fading strips */
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 2.2em, #000 calc(100% - 2.2em), transparent 100%) !important;
+    mask-image: linear-gradient(to bottom, transparent 0, #000 2.2em, #000 calc(100% - 2.2em), transparent 100%) !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu > .SkinsAndAlterationsStyle-SkinsVerticalComponent > * {
+    width: var(--kasp-s) !important;
+    height: var(--kasp-s) !important;
+    transform: rotate(-90deg) scaleX(-1) !important;
+}
+
+/* the left panel: no background, no line; its last child (the Equip/Unequip button) on the scroll bar's line */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu:has(> .SkinsAndAlterationsStyle-SkinsVerticalComponent) > :first-child {
+    background: none !important;
+    border-right: none !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu:has(> .SkinsAndAlterationsStyle-SkinsVerticalComponent) > :first-child > :last-child {
+    position: absolute !important;
+    left: 2em !important;
+    top: calc(50% + 1.5 * var(--kasp-s) - 4.2em) !important;
+    width: 18.5em !important;
+}
+
+/* the description and its "Read more" (our own list is a later child of the same box, so it is not touched) */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu:has(> .SkinsAndAlterationsStyle-SkinsVerticalComponent) .ItemDescriptionComponentStyle-descriptionBlockDevice > :nth-child(2):not(.kasp-side-node) {
+    display: none !important;
+}
+
+/* The Containers screen's left panel in the same look (owner, 2026-11-14): no background, no line, no description (its "Read more"
+   too); the picture, the rank and the name stay, and the clicked augment's spec from augments.ts. */
+html[data-kasp-showroom-floor] .ContainerInfoComponentStyle-lootBoxDescriptionContainer {
+    background: none !important;
+    border-right: none !important;
+}
+
+html[data-kasp-showroom-floor] .ContainerInfoComponentStyle-rewardDescriptionBlock {
+    display: none !important;
+}
+
+/* its reward list fades out at both ends too, like the garage's lists */
+html[data-kasp-showroom-floor] .ContainerInfoComponentStyle-possibleRewardsContainer .ScrollBarStyle-itemsWrapper {
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 2.2em, #000 calc(100% - 2.2em), transparent 100%) !important;
+    mask-image: linear-gradient(to right, transparent 0, #000 2.2em, #000 calc(100% - 2.2em), transparent 100%) !important;
+}

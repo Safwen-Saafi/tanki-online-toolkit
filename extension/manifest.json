@@ -57,7 +57,8 @@
         "styles/showroom.css",
         "styles/showroom_panels.css",
         "styles/showroom_items.css",
-        "styles/showroom_tabs.css"
+        "styles/showroom_tabs.css",
+        "styles/showroom_lists.css"
       ],
       "run_at": "document_start"
     }
