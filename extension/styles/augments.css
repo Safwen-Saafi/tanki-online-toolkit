@@ -313,10 +313,12 @@
 .kasp-side-spec {
     box-sizing: border-box;
     width: 100%;
-    /* the room above the Equip/Unequip button (measured in the showroom garage, showroom_lists.css; --kasp-s is its card size): the button's top is 50% of the garage box (about half the window less 3em) plus 1.5 cards
-       less 4.2em, the panel's content starts about 6em down and holds about 18em of picture, rank and name, and 1em is kept clear;
+    /* the room above the Equip/Unequip button, 1em kept clear. In the showroom garage augments.ts measures it (fitSideSpec: the list's
+       top to the button's top) into --kasp-side-room on the list itself, which wins over the value below; the value below is the old
+       guess, kept for the game's own panel (--kasp-s is the showroom's card size, showroom_lists.css). The font size never shrinks:
        a longer list scrolls inside the box with the wheel, and shows no scroll bar (the owner's choice) */
-    max-height: max(8em, calc(50vh + 1.5 * var(--kasp-s, 16em) - 30.3em));
+    --kasp-side-room: calc(max(8em, calc(50vh + 1.5 * var(--kasp-s, 16em) - 30.3em)) + 1em);
+    max-height: max(0px, calc(var(--kasp-side-room) - 1em));
     margin-top: 0.7em;
     overflow-y: auto;
     scrollbar-width: none;

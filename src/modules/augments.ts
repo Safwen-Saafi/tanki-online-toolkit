@@ -955,7 +955,28 @@
         sideSpec = { key, rarity, box, anchor, place };
     }
 
+    // The list stops 1em above the Equip/Unequip button (styles/augments.css). In the showroom garage the button is placed by itself
+    // (styles/showroom_lists.css), so the list cannot push it down, and the room above it depends on the window, the picture and how
+    // many lines the name takes: a guess in CSS ran the list under the button on some windows. So it is measured on every pass, from the
+    // list's top to the button's top, and written only when it changed. The game's own panel and the Containers screen keep the CSS.
+    const SIDE_ROOM_PROPERTY = '--kasp-side-room';
+
+    function fitSideSpec(box: HTMLElement): void {
+        const button = box.closest(PANEL_SELECTOR)?.lastElementChild ?? null;
+        if (!(button instanceof HTMLElement) || button.contains(box) || getComputedStyle(button).position !== 'absolute') {
+            if (box.style.getPropertyValue(SIDE_ROOM_PROPERTY) !== '') box.style.removeProperty(SIDE_ROOM_PROPERTY);
+            return;
+        }
+        const room = `${Math.max(0, Math.floor(button.getBoundingClientRect().top - box.getBoundingClientRect().top))}px`;
+        if (box.style.getPropertyValue(SIDE_ROOM_PROPERTY) !== room) box.style.setProperty(SIDE_ROOM_PROPERTY, room);
+    }
+
     function sideSpecTick(item: string, row: Element): void {
+        placeSideSpec(item, row);
+        if (sideSpec !== null) fitSideSpec(sideSpec.box);
+    }
+
+    function placeSideSpec(item: string, row: Element): void {
         // The game's own description block decides first: a visible augment has one, a hidden one does not. A hidden augment's panel is
         // the game's "?" picture and our name beside it, and the spec goes around that name, inside the picture's wrapper (outside it,
         // the panel's spaced-out column pushed the spec onto the button). Our hidden name can still be there for a moment after the game
