@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "language": "EN",
-  "generatedAt": "2026-10-20T14:49:03Z",
+  "generatedAt": "2026-11-15T12:53:14Z",
   "items": {
     "firebird": {
       "Adrenaline": {
@@ -645,6 +645,22 @@
           "Lightning ball damage: -22.5%"
         ],
         "rarity": "legendary"
+      },
+      "Hadouken": {
+        "name": "Hadouken",
+        "advantages": [
+          "Lightning Ball Reload: -85%",
+          "Lightning ball damage: +35%",
+          "Splash damage impact force: +1000%:",
+          "Lightning ball speed: +300%"
+        ],
+        "disadvantages": [
+          "Radius of adding a tank to the chain (m): -90%",
+          "Radius of adding ball lightning to the chain (m): -90%",
+          "Radius of max. explosion damage: 3m",
+          "Radius of min. explosion damage: 6m"
+        ],
+        "rarity": "exotic"
       },
       "Camper": {
         "name": "Camper",
@@ -2527,6 +2543,20 @@
         "disadvantages": [
           "Additional combo damage: 0",
           "Reload time: +25%"
+        ],
+        "rarity": "exotic"
+      },
+      "Autocannon": {
+        "name": "Autocannon",
+        "advantages": [
+          "Magazine size: 5",
+          "Time between two shots: -80%",
+          "Recoil: -50%"
+        ],
+        "disadvantages": [
+          "Damage: -25%",
+          "Reload time: +100%",
+          "Impact force: -50%"
         ],
         "rarity": "exotic"
       },
