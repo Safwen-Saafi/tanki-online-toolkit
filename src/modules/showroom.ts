@@ -9,6 +9,8 @@
 // On the Turrets and Hulls tabs (25g) the camera swings round to the tank's other side, so the tank stands on the right facing left,
 // and on Hulls it then closes in on the hull from the front and low down; each move eases in and out, and the screens opened from
 // those tabs (Augments, Skins, Shot colour) keep the pose.
+// On the Grenades screen (25f1) the game keeps the tank shown (an injector edit) and the camera turns round the turret to the
+// grenade, read from the tank model the game passes in, so it finds a grenade on the right or the left side of any turret.
 // Nothing watches the page: no observer, no interval. Work happens only inside the frames the game draws for a 3D tank; the one
 // mouse listener takes itself away on its first event after the garage stopped drawing, and comes back with the garage.
 (function () {
@@ -57,6 +59,26 @@
     const SWING_MS = 700;
     // The most time one frame may move a swing, so a long gap between two frames never makes it jump.
     const MAX_FRAME_MS = 50;
+
+    // The Grenades screen (25f1, the owner's numbers from the live probe, 2026-11-15): the camera stands straight out from the
+    // turret's middle through the grenade, GRENADE_FAR from it and GRENADE_UP above it, and the grenade sits in the middle of the
+    // free space between the left column and the tabs column. The columns' fixed places, in the game's em, from the stylesheets:
+    // the left column ends at 6 + 22.5, the tabs column starts 1 + 4.6 from the right, both run from 7.3 under the top to 13 above
+    // the bottom. Measured boxes are never used: the item cards slide up as the screen opens, and aiming at them shook the camera.
+    const GRENADE_FAR = 800;
+    const GRENADE_UP = 250;
+    const FREE_LEFT_EM = 28.5;
+    const FREE_RIGHT_EM = 5.6;
+    const FREE_TOP_EM = 7.3;
+    const FREE_BOTTOM_EM = 13;
+    const TAU = 2 * Math.PI;
+    // Only the Grenades screen has these (its still picture, which the game draws for the grenades category only, and its count
+    // box); live lists, so reading their length every frame costs next to nothing. Not the lit tab: the tab, the screen and the
+    // tank change at slightly different moments.
+    const grenadePictures = document.getElementsByClassName('GarageGrenadePreviewComponentStyle-view');
+    const grenadeCounts = document.getElementsByClassName('TanksPartComponentStyle-amountItems');
+    // On <html> once the injector's grenade part is known to work: styles/showroom_grenades.css waits for it.
+    const GRENADES_MARK = 'data-kasp-showroom-grenades';
 
     // A live list, so the check reads the page again only after the page changed.
     const garageBoxes = document.getElementsByClassName('GarageCommonStyle-garageContainer');
@@ -315,11 +337,93 @@
     const cameraAnswer: KaspShowroomCamera = { fov: FOV, distance: DISTANCE, height: CAMERA_UP, look: LOOK_UP, angle: TURN, side: SIDE };
     let framed = false;
 
-    // How far each swing has gone (0 = the garage's usual pose, 1 = the whole move) and where it is going; set from the tabs.
-    const swing = { turret: 0, hull: 0 };
-    const goal = { turret: 0, hull: 0 };
+    // How far each swing has gone (0 = the garage's usual pose, 1 = the whole move) and where it is going; set from the tabs
+    // (turret, hull) and from the Grenades screen being in the page (grenade).
+    const swing = { turret: 0, hull: 0, grenade: 0 };
+    const goal = { turret: 0, hull: 0, grenade: 0 };
     let droneShown = false;
     let tabReadAt = -Infinity;
+
+    // ---- the Grenades screen's camera (25f1) ----
+
+    interface Point {
+        readonly x: number;
+        readonly y: number;
+        readonly z: number;
+    }
+
+    const field = (owner: unknown, name: string): unknown =>
+        typeof owner === 'object' && owner !== null ? (owner as Record<string, unknown>)[name] : undefined;
+
+    function point(value: unknown, parts: KaspShowroomParts): Point | null {
+        const x = field(value, parts.x);
+        const y = field(value, parts.y);
+        const z = field(value, parts.z);
+        return typeof x === 'number' && typeof y === 'number' && typeof z === 'number' ? { x, y, z } : null;
+    }
+
+    let grenadesMarked = false;
+    // The grenade's last place on each turret, for a frame where the game has taken the grenade off for a moment.
+    const lastGrenade = new WeakMap<object, Point>();
+
+    // Where the grenade is (game units, the tank's floor axes) and which way it sticks out from the turret's middle: the tank's
+    // place + the turret's place on the hull + the grenade's place on the turret (the game puts it at the turret model's "fmnt"
+    // point, 15 up), turned with the turret. Null with no grenade seen on this turret.
+    function grenadePlace(model: unknown, parts: KaspShowroomParts): { readonly at: Point; readonly outX: number; readonly outY: number } | null {
+        const turret = field(model, parts.turret);
+        if (typeof turret !== 'object' || turret === null) return null;
+        const mount = point(field(turret, parts.place), parts);
+        if (mount === null) return null;
+        let local = point(field(field(model, parts.grenade), parts.place), parts);
+        if (local !== null) lastGrenade.set(turret, local);
+        else local = lastGrenade.get(turret) ?? null;
+        if (local === null) return null;
+        const tank = point(field(model, parts.place), parts) ?? { x: 0, y: 0, z: 0 };
+        const turn = field(field(turret, parts.turn), parts.z);
+        const yaw = typeof turn === 'number' && Number.isFinite(turn) ? turn : 0;
+        const outX = local.x * Math.cos(yaw) - local.y * Math.sin(yaw);
+        const outY = local.x * Math.sin(yaw) + local.y * Math.cos(yaw);
+        return { at: { x: tank.x + mount.x + outX, y: tank.y + mount.y + outY, z: tank.z + mount.z + local.z }, outX, outY };
+    }
+
+    // The middle of the free space in pixels, read again only when the window size changes (the game's em follows it).
+    const free = { width: -1, height: -1, x: 0, y: 0 };
+    function freeMiddle(garageBox: Element): void {
+        if (free.width === innerWidth && free.height === innerHeight) return;
+        const em = Number.parseFloat(getComputedStyle(garageBox).fontSize) || 14;
+        free.width = innerWidth;
+        free.height = innerHeight;
+        free.x = (FREE_LEFT_EM * em + innerWidth - FREE_RIGHT_EM * em) / 2;
+        free.y = (FREE_TOP_EM * em + innerHeight - FREE_BOTTOM_EM * em) / 2;
+    }
+
+    // The grenade pose, with the mouse drift. The game's camera stands at (cos a, sin a) x distance + side x (-sin a, cos a), at the
+    // answer's height, and looks at side x (-sin a, cos a) at the tank's height + look: the look point can only move sideways, so
+    // the camera is pushed back by the grenade's distance along the view and the look tilted so the line of sight passes through it.
+    const grenadeAnswer = { angle: 0, distance: 0, height: 0, side: 0, look: 0 };
+    function aimAtGrenade(at: Point, outX: number, outY: number, tankHeight: number): void {
+        const angle = Math.atan2(outY, outX) + Math.atan2(eased.x * MOUSE_RANGE, DISTANCE);
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        const along = at.x * cos + at.y * sin;
+        const across = -at.x * sin + at.y * cos;
+        const up = GRENADE_UP + eased.y * MOUSE_RANGE * (GRENADE_FAR / DISTANCE);
+        const depth = Math.hypot(GRENADE_FAR, up);
+        const focal = innerHeight / 2 / Math.tan(FOV / 2);
+        const distance = Math.max(50, along + GRENADE_FAR);
+        const height = at.z + up;
+        const lookAtGrenade = at.z + ((free.y - innerHeight / 2) / focal) * depth;
+        grenadeAnswer.angle = angle;
+        grenadeAnswer.distance = distance;
+        grenadeAnswer.height = height;
+        grenadeAnswer.side = across - ((free.x - innerWidth / 2) / focal) * depth;
+        grenadeAnswer.look = height + ((lookAtGrenade - height) * distance) / GRENADE_FAR - tankHeight;
+    }
+
+    // The grenade pose's turn as one continuous number: the way round is picked once, when the move starts (the shorter one from
+    // where the camera is then), and then only follows the small changes. Picking the shorter way anew every frame flipped sides
+    // in the middle of a half-turn move and shook the camera (probe v1.2, 2026-11-15).
+    let grenadeTurn: number | null = null;
 
     // The main screen: no swing. The 7-tab bar: the turret pose on Turrets and Hulls, the hull close-up on Hulls, the drone on Drones.
     // No 7-tab bar (a screen opened from Turrets or Hulls): both swings stay where they are.
@@ -348,7 +452,11 @@
     // Ease in and out.
     const smooth = (x: number): number => x * x * (3 - 2 * x);
 
-    function camera(tankHeight: number): KaspShowroomCamera | null {
+    function camera(tankHeight: number, model?: unknown, parts?: KaspShowroomParts): KaspShowroomCamera | null {
+        if (parts !== undefined && !grenadesMarked) {
+            grenadesMarked = true;
+            document.documentElement.setAttribute(GRENADES_MARK, '');
+        }
         if (garageBoxes.length === 0) {
             keepFloor();
             return null;
@@ -362,13 +470,16 @@
             tabReadAt = now;
             readTabs();
         }
+        goal.grenade = parts !== undefined && (grenadePictures.length > 0 || grenadeCounts.length > 0) ? 1 : 0;
         if (away) {
             swing.turret = goal.turret;
             swing.hull = goal.hull;
+            swing.grenade = goal.grenade;
         } else {
             const step = Math.min(now - lastFrame, MAX_FRAME_MS) / SWING_MS;
             swing.turret = towards(swing.turret, goal.turret, step);
             swing.hull = towards(swing.hull, goal.hull, step);
+            swing.grenade = towards(swing.grenade, goal.grenade, step);
         }
         lastFrame = now;
         if (!listening) {
@@ -387,6 +498,20 @@
         cameraAnswer.height = (Number.isFinite(tankHeight) ? tankHeight : 0) + (CAMERA_UP + eased.y * MOUSE_RANGE) * far * lift;
         cameraAnswer.side = SIDE + (TURRET_POSE.side - SIDE) * turret + (HULL_POSE.side - TURRET_POSE.side) * hull;
         cameraAnswer.look = LOOK_UP + (HULL_POSE.look - LOOK_UP) * hull;
+        const place = swing.grenade > 0 && parts !== undefined ? grenadePlace(model, parts) : null;
+        if (place !== null) {
+            freeMiddle(garageBoxes[0]);
+            aimAtGrenade(place.at, place.outX, place.outY, Number.isFinite(tankHeight) ? tankHeight : 0);
+            grenadeTurn = grenadeAnswer.angle + TAU * Math.round(((grenadeTurn ?? cameraAnswer.angle) - grenadeAnswer.angle) / TAU);
+            const k = smooth(swing.grenade);
+            cameraAnswer.angle += (grenadeTurn - cameraAnswer.angle) * k;
+            cameraAnswer.distance += (grenadeAnswer.distance - cameraAnswer.distance) * k;
+            cameraAnswer.height += (grenadeAnswer.height - cameraAnswer.height) * k;
+            cameraAnswer.side += (grenadeAnswer.side - cameraAnswer.side) * k;
+            cameraAnswer.look += (grenadeAnswer.look - cameraAnswer.look) * k;
+        } else if (swing.grenade === 0) {
+            grenadeTurn = null;
+        }
         framed = true;
         keepFloor();
         if (floor !== null && floor.canvas.style.display === 'none') floor.canvas.style.display = '';

@@ -283,13 +283,27 @@ interface KaspShowroomDrone {
     shown: boolean;
 }
 
+// The game's field names the Grenades screen's camera needs (25f1), read from the bundle by the injector: the tank model's turret
+// and grenade parts, a part's turn and place, and the three axes of a place. Passed to camera() with the tank model itself, only
+// when the injector's grenade part went in.
+interface KaspShowroomParts {
+    readonly turret: string;
+    readonly grenade: string;
+    readonly turn: string;
+    readonly place: string;
+    readonly x: string;
+    readonly y: string;
+    readonly z: string;
+}
+
 interface KaspShowroom {
-    readonly camera: (tankHeight: number) => KaspShowroomCamera | null;
+    readonly camera: (tankHeight: number, model?: unknown, parts?: KaspShowroomParts) => KaspShowroomCamera | null;
     readonly drone: () => KaspShowroomDrone | null;
 }
 
 interface Window {
     __kaspShowroom?: KaspShowroom;
+    __kaspShowroomParts?: KaspShowroomParts;
     __kaspSendAction?: (className: string, obj: unknown) => void;
     __kaspSendKill?: (className: string, obj: unknown) => void;
     __kaspSendBattleTime?: (className: string, obj: unknown) => void;

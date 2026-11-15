@@ -1,0 +1,136 @@
+/* The showroom garage's Grenades screen (build-plan 25f1), proven live with the probe blueprint/reference/garage-grenades-probe.js
+   v1.3.1 on 2026-11-15. The game's still grenade picture goes (the 3D tank stays shown there through an injector edit, and the camera
+   turns to the grenade, src/modules/showroom.ts), and the screen takes the Turrets screen's left column (showroom_items.css): level
+   and stats, then Unequip as a small square and Upgrade side by side, then the buy box (a price button, or "Not available"), all
+   sliding in from the left, centred up and down between the header and the item cards; the name, description, Read more and the
+   count box are hidden (the item cards show the count); no game blur; the item cards in the main screen's frosted glass.
+
+   Keyed to the Grenades screen itself, never to the lit tab: only that screen draws the count box
+   (TanksPartComponentStyle-amountItems) and the still picture, so the look comes and goes exactly with the screen. (The tab, the
+   screen and the 3D tank change at slightly different moments; a look keyed to the tab showed the game's Grenades screen for a
+   moment on leaving.) Every rule also waits for item 25's switch (data-kasp-showroom-floor, src/modules/showroom_floor.ts) and
+   for the injector's grenade part (data-kasp-showroom-grenades, written by showroom.ts once the game's tank model reaches it): if a
+   game update stops that part, the Grenades screen keeps the game's own look, still picture included.
+   Borrowed from showroom_panels.css and showroom_items.css, always loaded with it: the --kasp-gl-* glass colours and the
+   kasp-showroom-from-left keyframes. No script: nothing runs while playing. */
+
+/* the still picture of the grenade, in the middle of the screen */
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .GarageGrenadePreviewComponentStyle-view {
+    display: none !important;
+}
+
+/* the column: fixed on the left, from 7.3em under the top to 13em above the bottom, its content centred */
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .TanksPartBaseComponentStyle-blockInsideContainerItem {
+    position: fixed !important;
+    left: 6em !important;
+    right: auto !important;
+    top: 7.3em !important;
+    bottom: 13em !important;
+    width: 22.5em !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 2 !important;
+    transform: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: safe center !important;
+    gap: 1em !important;
+}
+
+/* No slide-in on the boxes that hold the column: while such a box slides in, a fixed block inside it is placed from the box. */
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer *:has(.TanksPartComponentStyle-amountItems) {
+    animation: none !important;
+    transition: none !important;
+}
+
+/* the box round the description and the buy box lets them through (it has a fixed height of its own) */
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .TanksPartBaseComponentStyle-blockInsideContainerItem > .TanksPartComponentStyle-descriptionContainer {
+    display: contents !important;
+}
+
+/* the name, description and Read more, and the count box */
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .TanksPartComponentStyle-descriptionContainer > :not(.GarageSuppliesComponentStyle-containerButtons),
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .TanksPartComponentStyle-amountItems {
+    display: none !important;
+}
+
+/* 1. level, stats and buttons */
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .TanksPartComponentStyle-tankPartUpgrades {
+    order: 1 !important;
+    position: relative !important;
+    inset: auto !important;
+    width: auto !important;
+    margin: 0 !important;
+    z-index: auto !important;
+    animation: kasp-showroom-from-left 200ms ease-out both !important;
+}
+
+/* 2. the buy box under them. No transform rule here: an !important transform beats the slide (the slide ends at no move anyway). */
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .TanksPartComponentStyle-descriptionContainer > .GarageSuppliesComponentStyle-containerButtons {
+    order: 2 !important;
+    position: relative !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    animation: kasp-showroom-from-left 200ms ease-out both !important;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .GarageSuppliesComponentStyle-containerButtons > * {
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+/* the game's blur behind the blocks, and their own slide (the column's blocks have ours) */
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .GarageCommonStyle-animatedBlurredLeftBlock,
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .GarageCommonStyle-animatedBlurredRightBlock {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    animation: none !important;
+}
+
+/* Unequip (a small square, the button the game gives a top margin) and Upgrade (the rest) side by side */
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .TanksPartBaseComponentStyle-buttonsContainer {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    gap: 0.5em !important;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .TanksPartBaseComponentStyle-buttonsContainer > * {
+    margin: 0 !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: auto !important;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-amountItems) .TanksPartBaseComponentStyle-buttonsContainer > .TanksPartBaseComponentStyle-marginTop {
+    order: -1 !important;
+    flex: 0 0 6em !important;
+}
+
+/* The item cards along the bottom: the main screen's frosted glass, as on Turrets and Hulls (showroom_items.css). Only the fill
+   changes: the game marks the selected card with its box-shadow ring. */
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer:has(.TanksPartComponentStyle-amountItems) .garage-item {
+    background:
+        linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
+        linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%),
+        var(--kasp-gl-shade) !important;
+    border-radius: 1.1em !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: background 0.3s ease !important;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-grenades] .GarageCommonStyle-garageContainer:has(.TanksPartComponentStyle-amountItems) .garage-item:hover {
+    background:
+        linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
+        linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%),
+        var(--kasp-gl-shade) !important;
+}

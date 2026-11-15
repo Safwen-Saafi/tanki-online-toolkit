@@ -1349,8 +1349,57 @@
     // only while the garage is open, so that tank keeps the game's camera). The update edit moves the
     // drone and its mirror copy after the game placed them (the copy's height is turned over) and shows them only on the Drones tab;
     // the light edit makes the defaults full ambient light and a light at 0.45, which the scene applies once at strength 1.
+    // The Grenades screen (25f1) adds an optional part, all of it or none of it (the four edits above never wait for it):
+    //   picture:  Sq(bNn,"GarageGrenadePreviewComponentStyle",...)  and  xq(yNn).jap=function(t){...(null==ud&&new bNn,ud).d1oy()...
+    //   screen:   if(t.k1iw_1.v1ov_1.equals(fy())){var s=Nq(yNn);...   (the garage screen draws the still picture for grenades only)
+    //   switch:   switch(t.k1iw_1.v1ov_1.k3_1){case 0:case 1:case 8:case 7:case 2:!function(t){if(!t.z1ov_1){t.z1ov_1=!0;var n=new nE(
+    //             hNn().f1iy());E2t().aar().gaq(new iE(n))}}(t);break;default:FPn(t)}   (show the tank, or hide it: FPn)
+    //   turret:   var g=this.vah_1.rae_1,m=null==g?null:g.u35_1;null==m||(m.h20_1=o)   (in the camera function: the turret and its turn)
+    //   grenade:  var l=t.pae_1;if(null==l)return te;var v,w=l,...;w.e24(b.i4e_1);var k=w.t35_1;k.h20_1=k.h20_1+15;  (the "fmnt" point)
+    // The switch also sends the grenades category down the "show" branch, so the game's own state keeps the tank shown there; the
+    // camera call also passes the tank model and the field names, so showroom.ts can turn the camera to the grenade.
     const SHOWROOM_CAMERA_RANGE = 1500;
-    function patchShowroom(code: string): string | null {
+    const SHOWROOM_SWITCH_RANGE = 5000;
+    interface ShowroomGrenade {
+        readonly edits: Edit[];
+        readonly parts: KaspShowroomParts;
+    }
+    function findShowroomGrenade(code: string, model: string, place: string, axes: readonly [string, string, string], cameraBody: string): ShowroomGrenade | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the garage grenade ${what} in this bundle, the Grenades screen keeps the game's look`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const [x, y, z] = axes;
+        // Each search starts on fixed text, so it does not try every name in the 10 MB bundle.
+        const SHEET_NAME = '"GarageGrenadePreviewComponentStyle"';
+        const sheetAt = code.indexOf(SHEET_NAME);
+        const sheet = sheetAt < 0 || code.includes(SHEET_NAME, sheetAt + 1) ? null : new RegExp(`${N}\\((${N}),$`).exec(code.slice(Math.max(0, sheetAt - 80), sheetAt));
+        if (sheet === null) return skip('picture style');
+        const picture = exactlyOne(code, new RegExp(`\\((${N})\\)\\.${N}=function\\(t\\)\\{[^{}]{0,200}?\\(null==(${N})&&new ${asPattern(sheet[1])},\\2\\)`, 'g'));
+        if (picture === null) return skip('picture');
+        const screen = exactlyOne(code, new RegExp(`\\.equals\\((${N})\\(\\)\\)\\)\\{var ${N}=${N}\\(${asPattern(picture[1])}\\)`, 'g'));
+        const owner = screen === null ? null : new RegExp(`(${N}\\.${N}\\.${N})$`).exec(code.slice(Math.max(0, screen.index - 80), screen.index));
+        if (screen === null || owner === null) return skip('category');
+        const category = owner[1];
+        const getter = screen[1];
+        const shows = exactlyOne(code, new RegExp(`switch\\(${asPattern(category).replace(/\./g, '\\.')}\\.(${N})\\)\\{((?:case \\d+:)+)!function\\((${N})\\)\\{if\\(!\\3\\.(${N})\\)\\{\\3\\.\\4=!0;var (${N})=new ${N}\\(${N}\\(\\)\\.${N}\\(\\)\\);${N}\\(\\)\\.${N}\\(\\)\\.${N}\\(new ${N}\\(\\5\\)\\)\\}\\}\\(${N}\\);break;default:${N}\\(${N}\\)\\}`, 'g'));
+        if (shows === null || shows.index <= screen.index || shows.index - screen.index > SHOWROOM_SWITCH_RANGE) return skip('show switch');
+        const firstCase = /case (\d+):/.exec(shows[2]);
+        if (firstCase === null) return skip('show switch');
+        const turret = new RegExp(`var (${N})=this\\.${asPattern(model)}\\.(${N}),(${N})=null==\\1\\?null:\\1\\.(${N});null==\\3\\|\\|\\(\\3\\.${asPattern(z)}=${N}\\)`).exec(cameraBody);
+        if (turret === null) return skip('turret');
+        if (!code.includes('"fmnt"')) return skip('mount point');
+        const grenade = exactlyOne(code, new RegExp(`var (${N})=t\\.(${N});if\\(null==\\1\\)return ${N};var ${N},(${N})=\\1,[\\s\\S]{0,400}?\\3\\.${N}\\(${N}\\.${N}\\);var (${N})=\\3\\.${asPattern(place)};\\4\\.${asPattern(z)}=\\4\\.${asPattern(z)}\\+15;`, 'g'));
+        if (grenade === null) return skip('place');
+        const switchHead = `switch(${category}.${shows[1]})`;
+        return {
+            edits: [{ at: shows.index, length: switchHead.length, text: `switch(${category}.equals(${getter}())?${firstCase[1]}:${category}.${shows[1]})` }],
+            parts: { turret: turret[2], grenade: grenade[2], turn: turret[4], place, x, y, z },
+        };
+    }
+
+    function patchShowroom(code: string): { readonly code: string; readonly grenades: boolean } | null {
         const skip = (what: string): null => {
             warn(`${LOG} could not find the garage ${what} in this bundle, the showroom garage is skipped`);
             return null;
@@ -1393,11 +1442,15 @@
 
         const move = (part: string, sign: string): string =>
             `${part}&&(${part}.${dronePlace}.${xAxis}+=$kaspDrone.x,${part}.${dronePlace}.${yAxis}+=$kaspDrone.y,${part}.${dronePlace}.${zAxis}${sign}=$kaspDrone.z,${part}.${show}($kaspDrone.shown))`;
-        return applyEdits(code, [
+        const grenade = findShowroomGrenade(code, modelField, placeField, [xAxis, yAxis, zAxis], code.slice(bodyAt, bodyEnd));
+        // With the grenade part, the camera also gets the tank model and the field names (one object, made on the first frame).
+        const grenadeArguments = grenade === null ? '' : `,this.${modelField},window.__kaspShowroomParts||(window.__kaspShowroomParts=${JSON.stringify(grenade.parts)})`;
+        const edited = applyEdits(code, [
+            ...(grenade === null ? [] : grenade.edits),
             {
                 at: bodyAt,
                 length: 0,
-                text: `var $kaspCam=window.__kaspShowroom&&window.__kaspShowroom.camera(this.${modelField}.${placeField}.${heightAxis});$kaspCam&&(${angle}=$kaspCam.angle,${pan}=${pan}+$kaspCam.side);`,
+                text: `var $kaspCam=window.__kaspShowroom&&window.__kaspShowroom.camera(this.${modelField}.${placeField}.${heightAxis}${grenadeArguments});$kaspCam&&(${angle}=$kaspCam.angle,${pan}=${pan}+$kaspCam.side);`,
             },
             ...reads,
             {
@@ -1408,6 +1461,7 @@
             { at: light.index + light[0].indexOf('(100,100,100)'), length: '(100,100,100)'.length, text: '(255,255,255)' },
             { at: light.index + light[0].indexOf('(200,200,200)'), length: '(200,200,200)'.length, text: '(115,115,115)' },
         ]);
+        return { code: edited, grenades: grenade !== null };
     }
 
     function showroomSwitchedOff(): boolean {
@@ -1488,8 +1542,9 @@
         if (!showroomSwitchedOff()) {
             const showroom = patchShowroom(result);
             if (showroom !== null) {
-                result = showroom;
+                result = showroom.code;
                 hooked.push('showroom');
+                if (showroom.grenades) hooked.push('showroom-grenades');
             }
         }
         // Last, so every other edit finds the game's code as it was.
