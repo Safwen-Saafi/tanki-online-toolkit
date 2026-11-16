@@ -1,0 +1,341 @@
+/* The showroom garage's Paints screen (build-plan 25d1): the two things src/modules/showroom.ts adds to the garage's own box, shown
+   only while it marks <html data-kasp-showroom-paints> (the 7-tab bar's 7th tab is lit):
+   - the 360 icon, the only sign that the view can be turned by dragging (owner 2026-11-16: no frame, no words): the extension's
+     showroom/turn-360.svg used as a shape (showroom.ts writes its address in --kasp-showroom-turn-icon), coloured like the garage's
+     pale icon blue turned to the Game colour, under the tank in the middle of the drag area, dimmer while dragging;
+   - the round arrow button that turns the view back, in the main screen's frosted glass, at the drag area's bottom left.
+   The drag area is everything under the header and left of the paints column (25d2: 14em from the right edge, 27.5em wide, so
+   41.5em; showroom.ts holds the same numbers). Places are in the game's em: both live inside the garage's box, which carries it.
+   Neither slides, and nothing here blurs. The glass colours are showroom_panels.css's --kasp-gl-*.
+   The second part (25d2, further down) is the paints column itself. */
+#kasp-showroom-turn,
+#kasp-showroom-turn-back {
+    display: none;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-paints] .GarageCommonStyle-garageContainer #kasp-showroom-turn {
+    display: block;
+    position: fixed;
+    z-index: 2;
+    left: calc((100vw - 41.5em) / 2 - 2.3em);
+    top: calc(97vh - 4.3em);
+    width: 4.6em;
+    height: 3.26em;
+    pointer-events: none;
+    opacity: 0.85;
+    background: hsl(from #bfd5ff var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
+    -webkit-mask: var(--kasp-showroom-turn-icon) center / contain no-repeat;
+    mask: var(--kasp-showroom-turn-icon) center / contain no-repeat;
+    filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.6));
+    transition: opacity 0.2s ease;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-paints] .GarageCommonStyle-garageContainer #kasp-showroom-turn[data-dragging] {
+    opacity: 0.3;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-paints] .GarageCommonStyle-garageContainer #kasp-showroom-turn-back {
+    display: block;
+    position: fixed;
+    z-index: 2;
+    left: calc(1vw + 1em);
+    top: calc(97vh - 4em);
+    width: 3em;
+    height: 3em;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    cursor: pointer;
+    font-size: inherit;
+    background: linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%), var(--kasp-gl-shade);
+    background-clip: padding-box;
+    border: 2px solid var(--kasp-gl-edge);
+    border-radius: 0.9em;
+    box-shadow: inset 0 1px 0 var(--kasp-gl-inner-light);
+    transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-paints] .GarageCommonStyle-garageContainer #kasp-showroom-turn-back:hover {
+    border-color: var(--kasp-gl-edge-hover);
+    background: linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%), var(--kasp-gl-shade);
+    background-clip: padding-box;
+}
+
+/* the round arrow, in the garage's pale icon blue like the photo button's camera */
+html[data-kasp-showroom-floor][data-kasp-showroom-paints] .GarageCommonStyle-garageContainer #kasp-showroom-turn-back::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 1.5em;
+    height: 1.5em;
+    background: #bfd5ff;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12a8 8 0 1 0 2.4-5.7'/%3E%3Cpath d='M4 3v5h5'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12a8 8 0 1 0 2.4-5.7'/%3E%3Cpath d='M4 3v5h5'/%3E%3C/svg%3E") center / contain no-repeat;
+    pointer-events: none;
+}
+
+/* ---------- 25d2, the paints column (the layout probe v1.2, approved by the owner on 2026-11-16) ----------
+   The game's own Paints pieces moved into one glass column on the right, at the Drones and Supplies place: 14em from the right
+   edge, 7.3em from the top, 27.5em wide, 2em above the bottom (showroom.ts's drag area stops at its left edge: change both
+   together). Three glass blocks: (1) the paint's name and rarity with the game's Equip / Equipped / Buy button under them (no
+   description, owner); (2) the rarity filter; (3) the paint cards, 3 in a row, in a list that scrolls down (the browser's own
+   scrolling: the game's wheel code runs through React and cannot stop it). Keyed to the Paints screen itself
+   (PaintsCollectionComponentStyle-containerPaints), never to the lit tab. */
+
+/* the boxes that hold the column never slide or move: while a box slides, a fixed block inside it is placed from that box */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-containerPaints,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-commonBlockForDescriptionAndButton,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-blockPaints,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-commonBlockDescriptionCollection {
+    animation: none !important;
+    transition: none !important;
+}
+
+@keyframes kasp-showroom-paints-in {
+    from { opacity: 0; translate: 5vw 0; }
+    to { opacity: 1; translate: 0 0; }
+}
+
+/* 1. the name block, at the top of the column */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-descriptionBlockCollection {
+    position: fixed !important;
+    right: 14em !important;
+    left: auto !important;
+    top: 7.3em !important;
+    bottom: auto !important;
+    width: 27.5em !important;
+    height: 9.6em !important;
+    margin: 0 !important;
+    padding: 1.2em 1.4em !important;
+    border-radius: 1.1em !important;
+    background: linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat, linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%), var(--kasp-gl-shade) !important;
+    border: 2px solid var(--kasp-gl-edge) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    z-index: 2 !important;
+    animation: kasp-showroom-paints-in 200ms ease-out both !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-commonBlockDescriptionCollection {
+    background: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+}
+
+/* the description goes (owner) */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-fullDescriptionPaint {
+    display: none !important;
+}
+
+/* the game's big button (Equip, Equipped or Buy) in the name block's lower part, sliding in with it */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .TanksPartComponentStyle-tankPartUpgrades {
+    position: fixed !important;
+    right: calc(14em + 1.4em + 2px) !important;
+    left: auto !important;
+    top: calc(7.3em + 4.8em) !important;
+    bottom: auto !important;
+    width: calc(27.5em - 2.8em - 4px) !important;
+    height: 3.6em !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 3 !important;
+    transition: none !important;
+    animation: kasp-showroom-paints-in 200ms ease-out both !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .TanksPartComponentStyle-tankPartUpgrades > * {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    border-radius: 0.8em !important;
+}
+
+/* inside it: the icon and the word side by side in the middle */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .TanksPartComponentStyle-tankPartUpgrades .GarageCommonStyle-bigActionButton {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.6em !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .TanksPartComponentStyle-tankPartUpgrades .GarageCommonStyle-bigActionButton > * {
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .TanksPartComponentStyle-tankPartUpgrades .GarageCommonStyle-bigActionButton [class*="-backgroundImage"] {
+    width: 2.2em !important;
+    height: 2.2em !important;
+}
+
+/* 2. the rarity filter, a glass bar under the name block */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-commonBlockFOrInfoAndCaptionCategory {
+    position: fixed !important;
+    right: 14em !important;
+    left: auto !important;
+    top: calc(7.3em + 10.2em) !important;
+    bottom: auto !important;
+    width: 27.5em !important;
+    height: 3.2em !important;
+    margin: 0 !important;
+    padding: 0 0.4em 0 1em !important;
+    border-radius: 999px !important;
+    background: linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat, linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%), var(--kasp-gl-shade) !important;
+    border: 2px solid var(--kasp-gl-edge) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    z-index: 2 !important;
+    animation: kasp-showroom-paints-in 200ms ease-out both !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-captionPaint {
+    overflow: hidden !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0.3em !important;
+    min-width: 0 !important;
+}
+
+/* the rarity's name may shorten (with ...) on a narrow window; the count never does */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-captionPaint > .PaintsCollectionComponentStyle-colorH3 {
+    flex: none !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-captionPaint > h3 {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-commonBlockPaint {
+    margin: 0 0 0 auto !important;
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    gap: 0 !important;
+}
+
+/* the three dots (the game's compact view switch) go: the list here is always the full one (owner) */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-captionPaint > :not(h3):not(.PaintsCollectionComponentStyle-commonBlockPaint) {
+    display: none !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-commonBlockPaint > * {
+    width: 1.95em !important;
+    height: 1.95em !important;
+    min-width: 1.3em !important;
+    flex: 0 1 1.95em !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .PaintsCollectionComponentStyle-commonBlockPaint > * > img {
+    max-width: 100% !important;
+    max-height: 100% !important;
+}
+
+/* 3. the cards. The game's outer list box takes no box of its own (as a fixed box it started at the window's top and grew to all
+   its cards' height, over the name block and the filter); the inner box that holds the cards is the glass list itself, its height
+   worked out from the window. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .ListItemsComponentStyle-itemsListContainer {
+    display: contents !important;
+    animation: none !important;
+    transition: none !important;
+}
+
+/* the game's left and right arrows go */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .ListItemsComponentStyle-itemsListContainer > :not(.ListItemsComponentStyle-itemsContainer) {
+    display: none !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .ListItemsComponentStyle-itemsContainer {
+    position: fixed !important;
+    right: 14em !important;
+    left: auto !important;
+    top: calc(7.3em + 14em) !important;
+    bottom: auto !important;
+    width: 27.5em !important;
+    height: calc(100vh - 7.3em - 14em - 2em) !important;
+    max-height: calc(100vh - 7.3em - 14em - 2em) !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 1em 0.6em 1em 1em !important;
+    border-radius: 1.1em !important;
+    background: linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat, linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%), var(--kasp-gl-shade) !important;
+    border: 2px solid var(--kasp-gl-edge) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-sizing: border-box !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, min-content) !important;
+    grid-auto-rows: min-content !important;
+    justify-content: space-between !important;
+    align-content: start !important;
+    row-gap: 0.7em !important;
+    column-gap: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: rgb(255 255 255 / 0.45) transparent !important;
+    transform: none !important;
+    z-index: 2 !important;
+    animation: kasp-showroom-paints-in 200ms ease-out both !important;
+}
+
+/* the game's boxes of two cards let their cards into the grid */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .ListItemsComponentStyle-itemsContainer > * {
+    display: contents !important;
+}
+
+/* each card at the game's own layout, made smaller as a whole (its picture, star and marks keep their places), in glass */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .ListItemsComponentStyle-itemsContainer .garage-item {
+    zoom: 0.62 !important;
+    margin: 0 !important;
+    flex: none !important;
+    background: linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat, linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%), var(--kasp-gl-shade) !important;
+    border-radius: 1.1em !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: background 0.3s ease !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.PaintsCollectionComponentStyle-containerPaints) .ListItemsComponentStyle-itemsContainer .garage-item:hover {
+    background: linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat, linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%), var(--kasp-gl-shade) !important;
+}

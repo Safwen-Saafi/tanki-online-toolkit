@@ -95,7 +95,8 @@
 
     interface ChoiceOption {
         readonly value: string;
-        readonly label: string;
+        // One text for every language (the chat languages are named in their own language), or one per language.
+        readonly label: string | Record<KaspLanguageCode, string>;
         // A small picture before the label (a file of the extension), as the game's Language dropdown shows its flags.
         readonly picture?: string;
     }
@@ -150,7 +151,24 @@
             fallback,
             options: CHAT_LANGUAGES,
         })),
+        // The showroom garage's room (25d1), read by showroom.ts when the garage starts drawing again; its fallback is also written
+        // there (readLook). Change both together.
+        {
+            key: 'kasp_showroom_look',
+            after: 'kasp_showroom',
+            title: { EN: 'Garage background', RU: 'Фон гаража' },
+            fallback: 'studio',
+            options: [
+                { value: 'website', label: { EN: 'Website', RU: 'Как на сайте' } },
+                { value: 'studio', label: { EN: 'Studio', RU: 'Студия' } },
+                { value: 'showroom', label: { EN: 'Showroom', RU: 'Витрина' } },
+                { value: 'stage', label: { EN: 'Stage (moving light)', RU: 'Сцена (движущийся свет)' } },
+            ],
+        },
     ];
+
+    const optionLabel = (option: ChoiceOption, language: KaspLanguageCode): string =>
+        typeof option.label === 'string' ? option.label : option.label[language];
 
     // The game colour (build-plan 22), one circle each. The colour work is the injector's: it reads THEME_KEY when the game starts
     // and writes the colour into the game's code, so a new colour applies at the next start (the game restarts when the settings
@@ -364,7 +382,7 @@
         const items = new Map<string, HTMLElement>();
         const refresh = (): void => {
             const current = saved(entry);
-            shown.textContent = current.label;
+            shown.textContent = optionLabel(current, language);
             showPicture(shownPicture, current.picture);
             for (const [value, item] of items) item.setAttribute('aria-selected', String(value === current.value));
         };
@@ -394,7 +412,7 @@
             item.setAttribute('role', 'option');
             const picture = makePicture();
             showPicture(picture, option.picture);
-            item.append(picture, element('span', 'kasp-dropdown-text', option.label));
+            item.append(picture, element('span', 'kasp-dropdown-text', optionLabel(option, language)));
             onPress(item, () => {
                 // The fallback is saved as no key, so it stays the default if the default ever changes.
                 if (!(window.kaspSwitches?.setChoice(entry.key, option.value === entry.fallback ? null : option.value) ?? false)) return;
