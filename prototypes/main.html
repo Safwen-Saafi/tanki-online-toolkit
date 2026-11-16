@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en" data-colour="blue">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Garage mockup - main</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="garage.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/"}}</script>
+<script>
+  window.MOCKUP = {
+    screen: 'main',
+    stage: {
+      1: { x: -1.21133, y: 0.514267, scale: 0.007079, camZ: 9, lookY: 1.2 }, // the website's own numbers
+      2: { x: 0, y: 0.514, scale: 0.0046, camZ: 9, lookY: 0.95 },
+      3: { x: 0, y: 0.514, scale: 0.005, camZ: 9, lookY: 0.5 },
+    },
+  };
+</script>
+<script src="mockup.js"></script>
+<style>
+  /* ----- parts of this screen ----- */
+  .gs-logo { font-weight: 900; font-style: italic; font-size: 26px; color: var(--accent); letter-spacing: -0.04em; text-shadow: 0 0 14px var(--accent-glow); }
+  .gs-num { font-size: 52px; font-weight: var(--fw-bold); line-height: 1; font-variant-numeric: tabular-nums; }
+  .gs-rows { display: grid; grid-template-columns: 1fr auto; row-gap: 7px; margin-top: 12px; font-size: var(--fs-sm); }
+  .gs-rows span:nth-child(odd) { color: var(--muted); }
+  .gs-rows span:nth-child(even) { color: var(--accent); font-weight: var(--fw-medium); text-align: right; }
+  .gs-rows small { color: var(--faint); font-size: var(--fs-xs); margin-left: 3px; }
+
+  .mnt { position: relative; overflow: hidden; cursor: pointer; transition: transform var(--speed) var(--ease), border-color var(--speed) ease; }
+  .mnt:hover { transform: translateY(-3px); border-color: var(--text); }
+  .mnt .eyebrow { position: absolute; left: 14px; top: 11px; color: var(--text); font-weight: var(--fw-bold); }
+  .mnt img.pic { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -46%); width: 72%; height: 64%; object-fit: contain; filter: drop-shadow(0 8px 10px rgb(0 0 0 / 0.5)); }
+  .mnt .glyph { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); font-size: 54px; color: #9fbf62; }
+  .mnt .icons { position: absolute; left: 12px; bottom: 10px; display: flex; gap: 6px; }
+  .mnt .icons .slot { width: 34px; height: 34px; border-radius: 9px; font-size: 14px; }
+  .mnt .icons .slot img { width: 26px; height: 26px; }
+  .mnt .icons .skin-xt { width: 24px; height: 24px; font-size: 11px; border-radius: 5px; }
+  .mnt .br { position: absolute; right: 12px; bottom: 10px; }
+  .mnt .cnt { position: absolute; left: 14px; bottom: 12px; font-weight: var(--fw-bold); font-size: var(--fs-sm); }
+
+  .prot-row { display: flex; align-items: center; gap: 8px; }
+  .prot-row .slot { width: 48px; height: 48px; }
+
+  .sup { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 76px; padding: 8px 10px; border-radius: 12px; cursor: pointer;
+    border: var(--border-w) solid transparent; transition: border-color var(--speed) ease, background var(--speed) ease; }
+  .sup:hover { border-color: var(--glass-border-soft); background: var(--glass-fill); }
+  .sup .i { font-size: 24px; }
+  .sup b { font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+  .sup.empty b { color: var(--faint); }
+
+  /* ----- layout 1: Showroom (tank left, one glass column on the right) ----- */
+  [data-layout="1"] #mounted { right: 32px; top: 84px; width: 384px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  [data-layout="1"] #mounted .wide { grid-column: span 2; height: 150px; }
+  [data-layout="1"] #mounted .small { height: 124px; }
+  [data-layout="1"] #prot { right: 32px; top: 548px; width: 384px; }
+  [data-layout="1"] #gs { left: 32px; bottom: 150px; padding: 12px 22px 14px; } /* glass: it sits on the tank, like the website's small cards */
+  [data-layout="1"] #gs .row { justify-content: flex-start; gap: 18px; }
+  [data-layout="1"] #gs .gs-num { font-size: 48px; }
+  [data-layout="1"] #gs .gs-rows { grid-template-columns: repeat(5, auto); grid-auto-flow: column; grid-template-rows: auto auto; column-gap: 26px; justify-content: start; }
+  [data-layout="1"] #gs .gs-rows span:nth-child(even) { text-align: left; }
+  [data-layout="1"] #supplies { left: 32px; right: 432px; bottom: 56px; justify-content: space-between; }
+  [data-layout="1"] #photo { left: 40px; top: 84px; }
+  [data-layout="1"] #dock { opacity: 0; }
+
+  /* ----- layout 2: Split (today's places, new look) ----- */
+  [data-layout="2"] #gs { left: 40px; top: 84px; width: 320px; }
+  [data-layout="2"] #mounted { right: 40px; top: 84px; width: 340px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  [data-layout="2"] #mounted .wide { grid-column: span 2; height: 140px; }
+  [data-layout="2"] #mounted .small { height: 124px; }
+  [data-layout="2"] #prot { left: 40px; bottom: 170px; }
+  [data-layout="2"] #supplies { left: 50%; transform: translateX(-50%); bottom: 56px; width: min(940px, calc(100% - 80px)); justify-content: space-between; }
+  [data-layout="2"] #photo { left: 50%; transform: translateX(-50%); bottom: 160px; }
+  [data-layout="2"] #dock { opacity: 0; }
+
+  /* ----- layout 3: Dock (big tank in the middle, everything in one dock at the bottom) ----- */
+  [data-layout="3"] #dock { left: 24px; right: 24px; bottom: 50px; height: 196px; opacity: 1; }
+  [data-layout="3"] #gs { left: 48px; bottom: 74px; width: 230px; background: none; border: 0; backdrop-filter: none; padding: 0; }
+  [data-layout="3"] #gs .row { justify-content: flex-start; gap: 12px; }
+  [data-layout="3"] #gs .gs-num { font-size: 44px; }
+  [data-layout="3"] #gs .gs-rows { margin-top: 8px; row-gap: 4px; }
+  [data-layout="3"] #mounted { left: 300px; right: 300px; bottom: 66px; display: grid; grid-template-columns: 1.3fr 1.3fr 1fr 1fr; gap: 12px; }
+  [data-layout="3"] #mounted .mnt { height: 164px; }
+  [data-layout="3"] #prot { right: 48px; bottom: 154px; background: none; border: 0; backdrop-filter: none; padding: 0; }
+  [data-layout="3"] #prot .prot-row .slot { width: 44px; height: 44px; }
+  [data-layout="3"] #supplies { right: 24px; top: 84px; flex-direction: column; padding: 8px; gap: 2px; }
+  [data-layout="3"] #supplies .sup { flex-direction: row; min-width: 120px; justify-content: space-between; padding: 6px 10px; }
+  [data-layout="3"] #photo { right: 48px; bottom: 74px; }
+  #dock { position: absolute; pointer-events: none; transition: opacity 0.4s ease; }
+  #photo { position: absolute; }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="ui">
+
+  <header class="topbar">
+    <div class="tb-btn" title="Back"><span class="key">Z</span><svg class="i"><use href="#i-back"/></svg></div>
+    <div class="tb-btn" title="Friends"><span class="key">T</span><svg class="i"><use href="#i-friends"/></svg></div>
+    <div class="rank"><svg class="i"><use href="#i-star"/></svg></div>
+    <div class="player">
+      <b>[TWIZY] safwan</b>
+      <div class="xp"><i></i></div>
+      <span class="xp-text"><span class="green">4 049 866</span> / 4 200 000</span>
+    </div>
+    <div class="title">GARAGE</div>
+    <div class="money">
+      <span class="pill"><svg class="i" style="color:var(--ruby)"><use href="#i-ruby"/></svg>4 615<span class="add"><svg class="i"><use href="#i-plus"/></svg></span></span>
+      <span class="pill"><svg class="i" style="color:var(--crystal)"><use href="#i-crystal"/></svg>2 681 990<span class="add"><svg class="i"><use href="#i-plus"/></svg></span></span>
+    </div>
+    <div class="tb-btn" title="Full screen"><span class="key">F11</span><svg class="i"><use href="#i-fullscreen"/></svg></div>
+    <div class="tb-btn" title="Lobby"><svg class="i"><use href="#i-home"/></svg></div>
+  </header>
+
+  <div id="dock" class="glass"></div>
+
+  <section id="gs" class="place glass pad">
+    <div class="row between"><span class="gs-logo">GS</span><span class="gs-num">9 824</span></div>
+    <div class="gs-rows">
+      <span>Turret</span><span>+4 300<small>GS</small></span>
+      <span>Hull</span><span>+3 200<small>GS</small></span>
+      <span>Drones</span><span>+999<small>GS</small></span>
+      <span>Grenades</span><span>+500<small>GS</small></span>
+      <span>Protection</span><span>+825<small>GS</small></span>
+    </div>
+  </section>
+
+  <section id="mounted" class="place">
+    <div class="mnt glass wide" title="Turrets">
+      <span class="eyebrow">Turrets</span>
+      <img class="pic" src="https://s.eu.tankionline.com/571/164753/344/273/31254566614710/image.webp" alt="Tesla">
+      <div class="icons">
+        <span class="slot"><img src="../extension/old_pictures/605-115404-132-344.svg" alt="augment"></span>
+        <span class="slot"><span class="skin-xt">XT</span></span>
+        <span class="slot" style="color:var(--rarity-epic)"><svg class="i"><use href="#i-diamond"/></svg></span>
+      </div>
+      <svg class="i arrow-up br"><use href="#i-upgrade"/></svg>
+    </div>
+    <div class="mnt glass wide flip" title="Hulls">
+      <span class="eyebrow">Hulls</span>
+      <img class="pic" src="https://s.eu.tankionline.com/573/71447/126/57/27602130021260/image.webp" alt="Paladin">
+      <div class="icons">
+        <span class="slot"><img src="../extension/old_pictures/546-137515-231-276.svg" alt="augment"></span>
+        <span class="slot"><span class="skin-xt">XT</span></span>
+      </div>
+      <svg class="i arrow-up br"><use href="#i-upgrade"/></svg>
+    </div>
+    <div class="mnt glass small" title="Drones">
+      <span class="eyebrow">Drones</span>
+      <svg class="i glyph"><use href="#i-drone"/></svg>
+      <svg class="i arrow-up br"><use href="#i-upgrade"/></svg>
+    </div>
+    <div class="mnt glass small flip" title="Grenades">
+      <span class="eyebrow">Grenades</span>
+      <svg class="i glyph" style="color:#8fa64a"><use href="#i-bomb"/></svg>
+      <span class="cnt">&times; 42</span>
+      <svg class="i arrow-up br"><use href="#i-upgrade"/></svg>
+    </div>
+  </section>
+
+  <section id="prot" class="place glass pad">
+    <div class="eyebrow" style="margin-bottom:10px">Protection</div>
+    <div class="prot-row">
+      <span class="slot prot"><svg class="i"><use href="#i-bullets"/></svg></span>
+      <span class="slot prot" style="color:#9fe0ff"><svg class="i"><use href="#i-weasel"/></svg></span>
+      <span class="slot prot"><svg class="i"><use href="#i-rocket"/></svg></span>
+      <span class="slot prot red"><svg class="i"><use href="#i-percent"/></svg></span>
+      <svg class="i arrow-up" style="margin-left:auto"><use href="#i-upgrade"/></svg>
+    </div>
+  </section>
+
+  <section id="supplies" class="place glass row" style="padding:6px 10px;gap:4px">
+    <div class="sup" title="Nuclear energy"><svg class="i" style="color:var(--gold)"><use href="#i-nuclear"/></svg><b>99</b></div>
+    <div class="sup" title="Repair kit"><svg class="i" style="color:#a6e22e"><use href="#i-wrench"/></svg><b>47 214</b></div>
+    <div class="sup" title="Boosted armor"><svg class="i" style="color:#e8e8e8"><use href="#i-shield"/></svg><b>2 345</b></div>
+    <div class="sup" title="Boosted damage"><svg class="i" style="color:var(--danger)"><use href="#i-damage"/></svg><b>1 441</b></div>
+    <div class="sup" title="Speed boost"><svg class="i" style="color:#f5e400"><use href="#i-speed"/></svg><b>86 235</b></div>
+    <div class="sup" title="Mine"><svg class="i" style="color:#2fd16b"><use href="#i-mine"/></svg><b>120 124</b></div>
+    <div class="sup empty" title="Gold box"><svg class="i" style="color:var(--gold)"><use href="#i-goldbox"/></svg><b>0</b></div>
+  </section>
+
+  <div id="photo" class="place tb-btn" title="Photo mode"><svg class="i"><use href="#i-camera"/></svg></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,274 @@
+/* The showroom garage's Turrets and Hulls screens (build-plan 25c, reworked by 25g): the owner's design from a concept picture,
+   proven live with the probe blueprint/reference/garage-mirror-probe.js v1.6 on 2026-11-14. The tank stands on the right (the
+   camera's turret and hull poses, src/modules/showroom.ts); everything about the item is one column on the left, centred up and down
+   between the header and the item cards: the level, its bar and the stats, then equip and upgrade side by side, then the augment,
+   skin and shot colour icons each in its own glass tile, then the protection module (turrets) or overdrive (hulls). The top box
+   (the item's name, its description and Read more) and the "F AUGMENTS/SKINS" title are hidden: the name is on the item's card. The
+   game's blur behind the blocks goes, and the item cards (25c) get the main screen's frosted glass.
+
+   Only while the Turrets or Hulls tab of the garage's own bar is open: its 1st or 2nd tab is lit and a 7th tab follows it (read by
+   place, so any game language works). The screens opened from Turrets or Hulls (Augments, Skins, Shot colour) have a shorter bar of
+   their own, so none of this applies there; if the game ever reorders its tabs, this rule needs a change. The test is written once,
+   as the block every rule sits in (CSS nesting: each "&" stands for it).
+   Every rule also waits for item 25's switch (data-kasp-showroom-floor, set by src/injector.ts once its garage edits went in).
+   Borrowed from showroom_panels.css, always loaded with it: the --kasp-gl-* glass colours. No script: nothing runs while playing. */
+
+html[data-kasp-showroom-floor] {
+    --kasp-showroom-tile: hsl(from hsl(222 45% 16% / 0.78) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-showroom-tile-hover: hsl(from hsl(222 45% 26% / 0.86) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-showroom-tile-edge: rgb(255 255 255 / 0.14);
+    --kasp-showroom-tile-edge-hover: rgb(255 255 255 / 0.32);
+}
+
+/* Turrets or Hulls is open: the garage's own bar (the one with a 7th tab) has its 1st or 2nd tab lit */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"] ~ .MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)) {
+    /* the column: fixed on the left, from 7.3em under the top to 13em above the bottom, its content centred ("safe": a long stats list
+       starts at the top instead of running under the header) */
+    & .TanksPartBaseComponentStyle-tankPartContainer .TanksPartBaseComponentStyle-blockInsideContainerItem {
+        position: fixed !important;
+        left: 6em !important;
+        right: auto !important;
+        top: 7.3em !important;
+        bottom: 13em !important;
+        width: 22.5em !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 2 !important;
+        transform: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: safe center !important;
+        gap: 1em !important;
+    }
+
+    /* No slide-in on the boxes that hold the column: while such a box slides in, a fixed block inside it is placed from the box, not
+       from the screen, so it would show in another place for a moment. */
+    & *:has(.TanksPartBaseComponentStyle-blockInsideContainerItem) {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    /* the two boxes round the item's parts let them through, so the parts line up in the column in this order */
+    & .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-descriptionContainer,
+    & .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-descriptionContainer > .GarageCommonStyle-animatedBlurredLeftBlock {
+        display: contents !important;
+    }
+
+    /* the top box: the item's name, its description and Read more */
+    & .TanksPartBaseComponentStyle-tankPartContainer .ItemDescriptionComponentStyle-descriptionBlockDevice {
+        display: none !important;
+    }
+
+    /* 1. level, stats and buttons */
+    & .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-tankPartUpgrades {
+        order: 1 !important;
+        position: relative !important;
+        inset: auto !important;
+        width: auto !important;
+        margin: 0 !important;
+        z-index: auto !important;
+        animation: kasp-showroom-from-left 200ms ease-out both !important;
+    }
+
+    /* 2. the box holding the augment, skin and shot colour icons */
+    & .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock > :has(> .DeviceButtonComponentStyle-blockAlterations) {
+        order: 2 !important;
+    }
+
+    /* 3. the protection module or overdrive */
+    & .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-commonBlockDescriptionDevices {
+        order: 3 !important;
+        position: relative !important;
+        inset: auto !important;
+        width: auto !important;
+        margin: 0 !important;
+        z-index: auto !important;
+        animation: kasp-showroom-from-left 200ms ease-out both !important;
+    }
+
+    /* the game's blur behind the item screen's blocks (the thin dark background), and their own slide (the column has its own) */
+    & .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock,
+    & .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredRightBlock {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        animation: none !important;
+    }
+
+    /* equip (a small square) and upgrade (the rest) side by side; the equip button is the one the game gives a top margin */
+    & .TanksPartBaseComponentStyle-tankPartContainer .TanksPartBaseComponentStyle-buttonsContainer {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: stretch !important;
+        gap: 0.5em !important;
+    }
+
+    & .TanksPartBaseComponentStyle-tankPartContainer .TanksPartBaseComponentStyle-buttonsContainer > * {
+        margin: 0 !important;
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+
+    & .TanksPartBaseComponentStyle-tankPartContainer .TanksPartBaseComponentStyle-buttonsContainer > .TanksPartBaseComponentStyle-marginTop {
+        order: -1 !important;
+        flex: 0 0 6em !important;
+    }
+
+    /* the icons: no box round them (the game's block, its frame and lines all go) */
+    & .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock > :has(> .DeviceButtonComponentStyle-blockAlterations),
+    & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations {
+        position: relative !important;
+        inset: auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: none !important;
+        border: 0 !important;
+        border-image: none !important;
+        box-shadow: none !important;
+        outline: 0 !important;
+        animation: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    & .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock > :has(> .DeviceButtonComponentStyle-blockAlterations)::before,
+    & .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock > :has(> .DeviceButtonComponentStyle-blockAlterations)::after,
+    & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations::before,
+    & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations::after {
+        display: none !important;
+    }
+
+    /* The slide-in sits on the box round the icon row, which is there from the start, like the level block above it. The box has no
+       transform rule of its own: an !important transform beats an animation, so a "transform: none" here would stop the slide. */
+    & .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock > :has(> .DeviceButtonComponentStyle-blockAlterations) {
+        animation: kasp-showroom-from-left 200ms ease-out both !important;
+    }
+
+    & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations {
+        transform: none !important;
+    }
+
+    /* the "F AUGMENTS/SKINS" title row (the row with no picture) */
+    & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations:not(:has(img)) {
+        display: none !important;
+    }
+
+    /* the icon row: its tiles side by side; the boxes round the skin and shot colour tiles let them through */
+    & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations:has(img) {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 0.6em !important;
+    }
+
+    & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations:has(img) > :has(.SkinsIconComponentStyle-cellSkins),
+    & .TanksPartBaseComponentStyle-tankPartContainer .SkinsIconComponentStyle-cellSkins {
+        display: contents !important;
+    }
+
+    /* each tile: the augment's cell, and each cell of the skin group; the game's own click stays on it */
+    & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations:has(img) > :not(:has(.SkinsIconComponentStyle-cellSkins)):not(.SkinsIconComponentStyle-cellSkins),
+    & .TanksPartBaseComponentStyle-tankPartContainer .SkinsIconComponentStyle-cellSkins > * {
+        box-sizing: border-box !important;
+        width: 5em !important;
+        height: 5em !important;
+        min-width: 0 !important;
+        flex: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        position: relative !important;
+        inset: auto !important;
+        transform: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: visible !important;
+        background: var(--kasp-showroom-tile) !important;
+        border: 0 !important;
+        border-radius: 0.6em !important;
+        box-shadow: inset 0 0 0 1px var(--kasp-showroom-tile-edge) !important;
+        cursor: pointer !important;
+        transition: background 0.2s ease, box-shadow 0.2s ease !important;
+    }
+
+    & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations:has(img) > :not(:has(.SkinsIconComponentStyle-cellSkins)):not(.SkinsIconComponentStyle-cellSkins):hover,
+    & .TanksPartBaseComponentStyle-tankPartContainer .SkinsIconComponentStyle-cellSkins > :hover {
+        background: var(--kasp-showroom-tile-hover) !important;
+        box-shadow: inset 0 0 0 1px var(--kasp-showroom-tile-edge-hover) !important;
+    }
+
+    /* the picture in each tile */
+    & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations:has(img) img {
+        position: relative !important;
+        inset: auto !important;
+        transform: none !important;
+        margin: 0 !important;
+        flex: none !important;
+        width: 3.2em !important;
+        height: 3.2em !important;
+        max-width: none !important;
+        max-height: none !important;
+        object-fit: contain !important;
+    }
+
+    /* The item cards (tiles) along the bottom (25c): the main screen's frosted glass. Only the fill changes: the game marks the
+       selected card with a white ring and the others with a thin pale one, drawn as its box-shadow with no class of its own, so the
+       box-shadow stays the game's and the selected card still stands out. The light along the top edge is a 1px background layer. */
+    & .garage-item {
+        background:
+            linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
+            linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%),
+            var(--kasp-gl-shade) !important;
+        border-radius: 1.1em !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        transition: background 0.3s ease !important;
+    }
+
+    & .garage-item:hover {
+        background:
+            linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
+            linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%),
+            var(--kasp-gl-shade) !important;
+    }
+}
+
+/* the column's blocks slide in from the left: the game's own right-side slide (showroom_panels.css) turned round */
+@keyframes kasp-showroom-from-left {
+    from {
+        opacity: 0;
+        transform: translateX(-5vw);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* The card row's two scroll arrows (any garage screen): the game draws each one as a 44px box at an end of the row
+   (ListItemsComponentStyle-itemsListContainer), painted with a dark fade (a linear gradient of the theme's darkest colour). The boxes
+   have no readable class (only a generated ksc-NN one), so they are found by place: a -flexCenterAlignCenter box in the row that is
+   not inside a card. Found live with blueprint/reference/garage-fade-probe.js (owner, 2026-11-16). The fade goes; the arrow
+   picture is bigger, whiter and a little bolder (a thin white glow round its edge). The game still shows and hides each arrow
+   (its opacity) and its click stays. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .ListItemsComponentStyle-itemsListContainer .-flexCenterAlignCenter:not(.garage-item, .garage-item *) {
+    background: none !important;
+    box-shadow: none !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .ListItemsComponentStyle-itemsListContainer .-flexCenterAlignCenter:not(.garage-item, .garage-item *) > :is(img, svg) {
+    width: auto !important;
+    height: 3.8em !important;
+    opacity: 0.95 !important;
+    filter: brightness(1.5) saturate(0.4) drop-shadow(0 0 0.05em rgb(255 255 255 / 0.9)) drop-shadow(0 0 0.05em rgb(255 255 255 / 0.5)) !important;
+}

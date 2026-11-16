@@ -1,4 +1,4 @@
-/* The augment spec box and the small box on each augment tile. The frame colour follows the augment's rank
+/* The augment spec: the battle tab's box and the garage's left panel. The box's frame colour follows the augment's rank
    (the wiki's rank words); an unknown or missing rank keeps the neutral colour. The corner ornaments, the
    container icon, the plus and minus signs and the effect icons are the images in extension/icons/. */
 /* The colours are the wiki's own (its skin stylesheet): the rank colours of its rarity tables, the green of its
@@ -19,62 +19,29 @@
     --kasp-name-default: #bfd5ff;
 }
 
-.kasp-spec-btn,
 .kasp-spec-tooltip {
     --kasp-frame: var(--kasp-rank-neutral);
-}
-
-.kasp-spec-tooltip {
     --kasp-title: var(--kasp-name-default);
 }
 
-.kasp-spec-btn[data-rarity="rare"],
 .kasp-spec-tooltip[data-rarity="rare"] {
     --kasp-frame: var(--kasp-rank-rare);
     --kasp-title: var(--kasp-rank-rare);
 }
 
-.kasp-spec-btn[data-rarity="epic"],
 .kasp-spec-tooltip[data-rarity="epic"] {
     --kasp-frame: var(--kasp-rank-epic);
     --kasp-title: var(--kasp-rank-epic);
 }
 
-.kasp-spec-btn[data-rarity="legendary"],
 .kasp-spec-tooltip[data-rarity="legendary"] {
     --kasp-frame: var(--kasp-rank-legendary);
     --kasp-title: var(--kasp-rank-legendary);
 }
 
-.kasp-spec-btn[data-rarity="exotic"],
 .kasp-spec-tooltip[data-rarity="exotic"] {
     --kasp-frame: var(--kasp-rank-exotic);
     --kasp-title: var(--kasp-rank-exotic);
-}
-
-.kasp-spec-btn {
-    position: absolute;
-    left: 6px;
-    bottom: 6px;
-    z-index: 5;
-    box-sizing: border-box;
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--kasp-frame);
-    border-radius: 6px;
-    background: hsl(from rgba(8, 20, 36, 0.88) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
-    color: #fff;
-    font: 700 13px/1 sans-serif;
-    cursor: help;
-    user-select: none;
-}
-
-.kasp-spec-btn:hover {
-    background: var(--kasp-frame);
-    color: hsl(from #08121f var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l);
 }
 
 .kasp-spec-tooltip {
@@ -303,4 +270,129 @@
 
 .kasp-hidden-side-name:hover {
     text-overflow: clip;
+}
+
+/* The garage's left panel (augments.ts, section 5b): the selected augment's rank word above its name, and its advantages and
+   disadvantages below it, one list with a green plus or a red minus per line. The only place the garage shows an augment's spec. */
+/* in the game's description block the rank word is added last but shown first; beside a hidden augment's name it is placed in order */
+.ItemDescriptionComponentStyle-descriptionBlockDevice > .kasp-side-rarity {
+    order: -1;
+}
+
+/* the game dims the picture's wrapper for an item the player cannot see (invert 0.25), which would grey our text: the picture is greyed by its own filter */
+.GarageCommonStyle-garageContainer :has(> .kasp-side-spec) {
+    filter: none !important;
+}
+
+.kasp-side-rarity {
+    --kasp-side-colour: var(--kasp-rank-neutral);
+    margin: 0 0 0.2em;
+    color: var(--kasp-side-colour);
+    font-size: 0.9em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.kasp-side-rarity[data-rarity="rare"] {
+    --kasp-side-colour: var(--kasp-rank-rare);
+}
+
+.kasp-side-rarity[data-rarity="epic"] {
+    --kasp-side-colour: var(--kasp-rank-epic);
+}
+
+.kasp-side-rarity[data-rarity="legendary"] {
+    --kasp-side-colour: var(--kasp-rank-legendary);
+}
+
+.kasp-side-rarity[data-rarity="exotic"] {
+    --kasp-side-colour: var(--kasp-rank-exotic);
+}
+
+.kasp-side-spec {
+    box-sizing: border-box;
+    width: 100%;
+    /* the room above the Equip/Unequip button, 1em kept clear. In the showroom garage augments.ts measures it (fitSideSpec: the list's
+       top to the button's top) into --kasp-side-room on the list itself, which wins over the value below; the value below is the old
+       guess, kept for the game's own panel (--kasp-s is the showroom's card size, showroom_lists.css). The font size never shrinks:
+       a longer list scrolls inside the box with the wheel, and shows no scroll bar (the owner's choice) */
+    --kasp-side-room: calc(max(8em, calc(50vh + 1.5 * var(--kasp-s, 16em) - 30.3em)) + 1em);
+    max-height: max(0px, calc(var(--kasp-side-room) - 1em));
+    margin-top: 0.7em;
+    overflow-y: auto;
+    scrollbar-width: none;
+    color: #fff;
+    font-size: 1em;
+    line-height: 1.3;
+}
+
+.kasp-side-lines {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.kasp-side-line {
+    position: relative;
+    margin: 0;
+    padding: 0.38em 0.4em 0.38em 1.8em;
+    list-style: none;
+    border-bottom: 1px solid rgb(255 255 255 / 0.16);
+}
+
+.kasp-side-sign {
+    position: absolute;
+    top: 0.5em;
+    left: 0;
+    width: 1.1em;
+    height: 1.1em;
+}
+
+.kasp-side-line .kasp-spec-num {
+    border-bottom: 0;
+}
+
+.kasp-side-note {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.5em 0;
+}
+
+/* The Containers screen's left panel (augments.ts, rewardSpecTick): the same rank word and spec around the game's name box. The game's
+   own rank line ("Exotic item") says the same as our rank word, so it is hidden while ours shows. The panel has no button under the
+   name, so the spec takes the room down to the window's bottom less about 2em (its top is about 31em down on the owner's screen). */
+.ContainerInfoComponentStyle-lootBoxDescriptionContainer:has(> .kasp-side-rarity) > .ContainerInfoComponentStyle-rewardCategoryName {
+    display: none !important;
+}
+
+/* The panel centres its children, which shrank our nodes to their text and moved them about: they take the panel's whole width,
+   their text starting where the game's name starts (its box is 1.5em in from the panel's edge and its text about 1.1em further,
+   measured 2026-11-14). */
+.ContainerInfoComponentStyle-lootBoxDescriptionContainer > .kasp-side-rarity,
+.ContainerInfoComponentStyle-lootBoxDescriptionContainer > .kasp-side-spec {
+    align-self: stretch;
+    box-sizing: border-box;
+    width: auto;
+    margin-left: 2.6em;
+    margin-right: 2.6em;
+    text-align: start;
+}
+
+/* the game's rank line, now hidden, held the gap under the picture: ours keeps the garage's gap between the picture and the text (2em) */
+.ContainerInfoComponentStyle-lootBoxDescriptionContainer > .kasp-side-rarity {
+    margin-top: 2em;
+}
+
+.ContainerInfoComponentStyle-lootBoxDescriptionContainer > .kasp-side-spec {
+    max-height: max(8em, calc(100vh - 33em));
+}
+
+/* Going from a hidden augment to a visible one, the game puts its own description block back beside our hidden name and its spec, and
+   ours stayed there for two or three frames until the next pass of augments.ts took them away: the new name showed under the old list
+   and slid up (seen with blueprint/reference/garage-flash-probe.js, 2026-11-15). The moment the game's block is back, ours are hidden,
+   before the frame is drawn. */
+.GarageCommonStyle-garageContainer :has(> .ItemDescriptionComponentStyle-descriptionBlockDevice) > :is(.kasp-hidden-side-name, .kasp-side-node) {
+    display: none !important;
 }

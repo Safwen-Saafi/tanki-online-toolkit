@@ -1,0 +1,139 @@
+/* The showroom garage's Supplies screen (build-plan 25f4), the owner's ask of 2026-11-15 from a screenshot: the Drones and
+   Protection look (showroom_drones.css, showroom_protection.css). The game's still picture of the supply goes (the 3D tank stays
+   shown there through the injector's edit, and the camera faces the tank's front, src/modules/showroom.ts). One column on the
+   right, 14em from the right edge and centred up and down: the stats (the supply's name, description and Read more go),
+   then the buy button across the column; the column slides in from the right as one block; no game blur, and the stats lose the game's
+   frame; the item cards in the main screen's frosted glass.
+
+   The game's Supplies screen (read from main.c0914da5.js): TanksPartBaseComponentStyle-blockInsideContainerItem holds the name block
+   (TanksPartComponentStyle-descriptionContainer with GarageCommonStyle-animatedBlurredLeftBlock on the same box) and the stats box
+   (TanksPartComponentStyle-tankPartUpgrades with GarageCommonStyle-animatedBlurredRightBlock, a thin border and round corners of its
+   own) round GarageSuppliesComponentStyle-blockStats (the STATS title, then one row per stat). The name block holds
+   ItemDescriptionComponentStyle-descriptionBlockDevice (the name first, then the description box with Read more) and, for a supply
+   the player can buy, GarageSuppliesComponentStyle-containerButtons with the buy button.
+   Keyed to the Supplies screen itself: only it draws blockStats. Every rule also waits for item 25's switch
+   (data-kasp-showroom-floor, set by src/injector.ts once its garage edits went in) and for the injector's supplies part (data-kasp-showroom-supplies,
+   written by showroom.ts once the game's tank model reaches it): if a game update stops that part, the Supplies screen keeps the
+   game's own look, still picture included.
+   Borrowed from showroom_panels.css, always loaded with it: the --kasp-gl-* glass colours. No script: nothing runs while playing. */
+
+/* the still picture of the supply, in the middle of the screen */
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .GarageSuppliesPreviewComponentStyle-view {
+    display: none !important;
+}
+
+/* the column: fixed on the right like the Drones one, from 7.3em under the top to 13em above the bottom, its content centred. It
+   slides in from the right as one block when the screen opens, and its parts never slide on their own: the game keeps the name
+   and stats boxes when another supply is clicked but adds the buy box anew after one that cannot be bought (Nuclear energy), so
+   a slide on each part played on the button alone (owner, 2026-11-15). The slide moves with translate, which the column's
+   transform: none (against any game transform) does not stop. */
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .TanksPartBaseComponentStyle-blockInsideContainerItem {
+    position: fixed !important;
+    right: 14em !important;
+    left: auto !important;
+    top: 7.3em !important;
+    bottom: 13em !important;
+    width: 22.5em !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 2 !important;
+    transform: none !important;
+    animation: kasp-supplies-in 200ms ease-out both !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: safe center !important;
+    gap: 1em !important;
+}
+
+/* No slide-in on the boxes that hold the column: while such a box slides in, a fixed block inside it is placed from the box. */
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer *:has(.GarageSuppliesComponentStyle-blockStats) {
+    animation: none !important;
+    transition: none !important;
+}
+
+/* the name block lets its buy box into the column (it has a fixed height of its own; the name inside it is hidden) */
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .TanksPartComponentStyle-descriptionContainer {
+    display: contents !important;
+}
+
+/* 0. the name, the description and Read more all go (owner, 2026-11-15: no name above the stats) */
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .ItemDescriptionComponentStyle-descriptionBlockDevice {
+    display: none !important;
+}
+
+/* 1. the stats, without the game's blurred box and its frame */
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .TanksPartComponentStyle-tankPartUpgrades {
+    order: 1 !important;
+    position: relative !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: auto !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    animation: none !important;
+}
+
+/* 2. the buy button under the stats, across the column */
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .GarageSuppliesComponentStyle-containerButtons {
+    order: 2 !important;
+    position: relative !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    animation: none !important;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .GarageSuppliesComponentStyle-containerButtons > * {
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+/* the game's blur behind the blocks, and their own slide (the column's blocks have ours) */
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .GarageCommonStyle-animatedBlurredLeftBlock,
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .GarageCommonStyle-animatedBlurredRightBlock {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* The item cards along the bottom: the main screen's frosted glass, as on the other item screens. Only the fill changes: the game
+   marks the selected card with its box-shadow ring. */
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer:has(.GarageSuppliesComponentStyle-blockStats) .garage-item {
+    background:
+        linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
+        linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%),
+        var(--kasp-gl-shade) !important;
+    border-radius: 1.1em !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: background 0.3s ease !important;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer:has(.GarageSuppliesComponentStyle-blockStats) .garage-item:hover {
+    background:
+        linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
+        linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%),
+        var(--kasp-gl-shade) !important;
+}
+
+/* the column's slide in, the game's right-side slide (showroom_panels.css) made with translate */
+@keyframes kasp-supplies-in {
+    from {
+        opacity: 0;
+        translate: 5vw 0;
+    }
+    to {
+        opacity: 1;
+        translate: none;
+    }
+}

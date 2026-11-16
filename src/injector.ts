@@ -18,6 +18,7 @@
 // The chat translation hook posts each player's battle chat message (window.__kaspChat, kasp:chat) for chat_translation.ts.
 // The game colour part paints the game's blue look in the colour saved under kasp_theme, by rewriting the colours in the game's
 // code once before it runs; a new colour applies at the next start.
+// The showroom part edits the garage's 3D code at start so it calls window.__kaspShowroom (src/modules/showroom.ts) every frame.
 (function () {
     'use strict';
 
@@ -1333,6 +1334,167 @@
         ]);
     }
 
+    // ---- the showroom garage (build-plan 25, see blueprint/context/garage-restyle-research.md) ----
+    // Four edits, all or none, so the garage's 3D looks and moves like the official skins preview page; the work itself is in
+    // src/modules/showroom.ts (window.__kaspShowroom). Every name is read from this bundle by its shape, as in this build:
+    //   settings: "TankPreviewSettings(cameraHeight="+this.aah_1+", distanceToTank="+this.bah_1+", lookAtZOffset="+this.cah_1+...
+    //   camera:   Gr(ph).gai=function(t,n,i,r,e,u,s,o){var _=-r/i*Math.sin(n),h=r/i*Math.cos(n),a=-e/i,c=1/i/s,f=this.sah_1.bah_1*c,...
+    //             this.qah_1.h38(_,h,this.vah_1.t35_1.h20_1+this.sah_1.cah_1+a)   (the scene, once per frame: angle n, sideways pan r,
+    //             photo mode turn u, null outside photo mode)
+    //   drone:    Gr(S_).nac=function(t){var n=Ie(),i=x_().uab_1.f20_1,...,s=10*Math.sin(u);t&&(s*=-1,e*=-1),this.t35_1.f20_1=this.mac_1.f20_1+i,...
+    //   update:   Gr(Q_).n36=function(t){var n=this.nae_1;null==n||n.nac(!1);var i=this.oae_1;null==i||i.nac(!0),this.faf_1.n36(t)}
+    //   shown:    Gr(ph).fai=function(t){var n=this.vah_1.nae_1;null==n||n.p3k(t)}
+    //   light:    function lh(t,n,i,r){var e,u;if(t=t===Wr?xu(100,100,100):t,n=n===Wr?xu(200,200,200):n,...  (TankPreviewLightSettings)
+    // The camera edit asks showroom.ts for the lens, distance, heights, angle and pan and reads them in place of the four settings for
+    // that frame only: the settings are never written, since the main lobby's own 3D tank uses this same code (showroom.ts answers
+    // only while the garage is open, so that tank keeps the game's camera). The update edit moves the
+    // drone and its mirror copy after the game placed them (the copy's height is turned over) and shows them only on the Drones tab;
+    // the light edit makes the defaults full ambient light and a light at 0.45, which the scene applies once at strength 1.
+    // The Grenades screen (25f1) adds an optional part, all of it or none of it (the four edits above never wait for it):
+    //   picture:  Sq(bNn,"GarageGrenadePreviewComponentStyle",...)  and  xq(yNn).jap=function(t){...(null==ud&&new bNn,ud).d1oy()...
+    //   screen:   if(t.k1iw_1.v1ov_1.equals(fy())){var s=Nq(yNn);...   (the garage screen draws the still picture for grenades only)
+    //   switch:   switch(t.k1iw_1.v1ov_1.k3_1){case 0:case 1:case 8:case 7:case 2:!function(t){if(!t.z1ov_1){t.z1ov_1=!0;var n=new nE(
+    //             hNn().f1iy());E2t().aar().gaq(new iE(n))}}(t);break;default:FPn(t)}   (show the tank, or hide it: FPn)
+    //   turret:   var g=this.vah_1.rae_1,m=null==g?null:g.u35_1;null==m||(m.h20_1=o)   (in the camera function: the turret and its turn)
+    //   grenade:  var l=t.pae_1;if(null==l)return te;var v,w=l,...;w.e24(b.i4e_1);var k=w.t35_1;k.h20_1=k.h20_1+15;  (the "fmnt" point)
+    // The switch also sends the grenades category down the "show" branch, so the game's own state keeps the tank shown there; the
+    // camera call also passes the tank model and the field names, so showroom.ts can turn the camera to the grenade.
+    // The Supplies screen (25f4) rides on that part, found the same way (if it is missing, Supplies keeps the game's look):
+    //   picture:  Sq(xOn,"GarageSuppliesPreviewComponentStyle",...)  and  xq(EOn).jap=function(t){...(null==_d&&new xOn,_d).d1oy()...
+    //   screen:   if(t.k1iw_1.v1ov_1.equals(py())){var u=Nq(EOn);...   (the still picture, for supplies only)
+    // The switch sends the supplies category down the "show" branch too, and the field names say so (supplies: true), so
+    // showroom.ts marks the page for styles/showroom_supplies.css.
+    const SHOWROOM_CAMERA_RANGE = 1500;
+    const SHOWROOM_SWITCH_RANGE = 5000;
+    interface ShowroomGrenade {
+        readonly edits: Edit[];
+        readonly parts: KaspShowroomParts;
+    }
+    function findShowroomGrenade(code: string, model: string, place: string, axes: readonly [string, string, string], cameraBody: string): ShowroomGrenade | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the garage grenade ${what} in this bundle, the Grenades screen keeps the game's look`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const [x, y, z] = axes;
+        // The category a still picture belongs to: the garage screen draws the picture only when its category equals what the getter
+        // returns. Each search starts on fixed text, so it does not try every name in the 10 MB bundle.
+        const pictureCategory = (sheetName: string): { readonly index: number; readonly category: string; readonly getter: string } | null => {
+            const sheetAt = code.indexOf(sheetName);
+            const sheet = sheetAt < 0 || code.includes(sheetName, sheetAt + 1) ? null : new RegExp(`${N}\\((${N}),$`).exec(code.slice(Math.max(0, sheetAt - 80), sheetAt));
+            if (sheet === null) return null;
+            const picture = exactlyOne(code, new RegExp(`\\((${N})\\)\\.${N}=function\\(t\\)\\{[^{}]{0,200}?\\(null==(${N})&&new ${asPattern(sheet[1])},\\2\\)`, 'g'));
+            if (picture === null) return null;
+            const found = exactlyOne(code, new RegExp(`\\.equals\\((${N})\\(\\)\\)\\)\\{var ${N}=${N}\\(${asPattern(picture[1])}\\)`, 'g'));
+            const owner = found === null ? null : new RegExp(`(${N}\\.${N}\\.${N})$`).exec(code.slice(Math.max(0, found.index - 80), found.index));
+            return found === null || owner === null ? null : { index: found.index, category: owner[1], getter: found[1] };
+        };
+        const screen = pictureCategory('"GarageGrenadePreviewComponentStyle"');
+        if (screen === null) return skip('picture');
+        const { category, getter } = screen;
+        const shows = exactlyOne(code, new RegExp(`switch\\(${asPattern(category).replace(/\./g, '\\.')}\\.(${N})\\)\\{((?:case \\d+:)+)!function\\((${N})\\)\\{if\\(!\\3\\.(${N})\\)\\{\\3\\.\\4=!0;var (${N})=new ${N}\\(${N}\\(\\)\\.${N}\\(\\)\\);${N}\\(\\)\\.${N}\\(\\)\\.${N}\\(new ${N}\\(\\5\\)\\)\\}\\}\\(${N}\\);break;default:${N}\\(${N}\\)\\}`, 'g'));
+        if (shows === null || shows.index <= screen.index || shows.index - screen.index > SHOWROOM_SWITCH_RANGE) return skip('show switch');
+        const firstCase = /case (\d+):/.exec(shows[2]);
+        if (firstCase === null) return skip('show switch');
+        const turret = new RegExp(`var (${N})=this\\.${asPattern(model)}\\.(${N}),(${N})=null==\\1\\?null:\\1\\.(${N});null==\\3\\|\\|\\(\\3\\.${asPattern(z)}=${N}\\)`).exec(cameraBody);
+        if (turret === null) return skip('turret');
+        if (!code.includes('"fmnt"')) return skip('mount point');
+        const grenade = exactlyOne(code, new RegExp(`var (${N})=t\\.(${N});if\\(null==\\1\\)return ${N};var ${N},(${N})=\\1,[\\s\\S]{0,400}?\\3\\.${N}\\(${N}\\.${N}\\);var (${N})=\\3\\.${asPattern(place)};\\4\\.${asPattern(z)}=\\4\\.${asPattern(z)}\\+15;`, 'g'));
+        if (grenade === null) return skip('place');
+        const switchHead = `switch(${category}.${shows[1]})`;
+        const supplies = pictureCategory('"GarageSuppliesPreviewComponentStyle"');
+        const withSupplies = supplies !== null && supplies.category === category && Math.abs(shows.index - supplies.index) <= SHOWROOM_SWITCH_RANGE;
+        if (!withSupplies) warn(`${LOG} could not find the garage supplies picture in this bundle, the Supplies screen keeps the game's look`);
+        const shown = `${category}.equals(${getter}())${withSupplies ? `||${category}.equals(${supplies.getter}())` : ''}`;
+        return {
+            edits: [{ at: shows.index, length: switchHead.length, text: `switch(${shown}?${firstCase[1]}:${category}.${shows[1]})` }],
+            parts: { turret: turret[2], grenade: grenade[2], turn: turret[4], place, x, y, z, supplies: withSupplies },
+        };
+    }
+
+    function patchShowroom(code: string): { readonly code: string; readonly grenades: boolean; readonly supplies: boolean } | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the garage ${what} in this bundle, the showroom garage is skipped`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const settings = exactlyOne(code, new RegExp(`"TankPreviewSettings\\(cameraHeight="\\+this\\.(${N})\\+", distanceToTank="\\+this\\.(${N})\\+", lookAtZOffset="\\+this\\.(${N})\\+", lookAtXOffset="\\+this\\.${N}\\+", cameraFov="\\+this\\.(${N})\\+"`, 'g'));
+        if (settings === null) return skip('camera settings');
+        const [, heightField, distanceField, lookField, fovField] = settings;
+        const camera = exactlyOne(code, new RegExp(`=function\\((${N}),(${N}),(${N}),(${N}),${N},(${N}),${N},${N}\\)\\{var ${N}=-\\4/\\3\\*Math\\.sin\\(\\2\\),${N}=\\4/\\3\\*Math\\.cos\\(\\2\\),[^;]{0,80}?=this\\.(${N})\\.${asPattern(distanceField)}\\*`, 'g'));
+        if (camera === null) return skip('camera function');
+        // The sixth argument is the tank's turn in the game's photo mode, null outside it.
+        const [, , angle, , pan, photoTurn, settingsField] = camera;
+        const tank = new RegExp(`this\\.(${N})\\.(${N})\\.(${N})\\+this\\.${asPattern(settingsField)}\\.${asPattern(lookField)}\\+`).exec(code.slice(camera.index, camera.index + SHOWROOM_CAMERA_RANGE));
+        if (tank === null) return skip('tank place');
+        const [, modelField, placeField, heightAxis] = tank;
+        const drone = exactlyOne(code, new RegExp(`\\.(${N})=function\\((${N})\\)\\{var (${N})=${N}\\(\\),(${N})=${N}\\(\\)\\.${N}\\.(${N}),(${N})=${N}\\(\\)\\.${N}\\.(${N}),(${N})=${N}\\(\\)\\.${N}\\.(${N}),(${N})=\\3/1e3,(${N})=10\\*Math\\.sin\\(\\10\\);\\2&&\\(\\11\\*=-1,\\8\\*=-1\\),this\\.(${N})\\.\\5=this\\.(${N})\\.\\5\\+\\4,`, 'g'));
+        if (drone === null) return skip('drone');
+        const [, place, , , , xAxis, , yAxis, , zAxis, , , dronePlace] = drone;
+        const update = exactlyOne(code, new RegExp(`\\.(${N})=function\\((${N})\\)\\{var (${N})=this\\.(${N});null==\\3\\|\\|\\3\\.${asPattern(place)}\\(!1\\);var (${N})=this\\.(${N});null==\\5\\|\\|\\5\\.${asPattern(place)}\\(!0\\),this\\.${N}\\.${N}\\(\\2\\)\\}`, 'g'));
+        if (update === null) return skip('model update');
+        const [, updateName, , droneVar, droneField, mirrorVar] = update;
+        // The camera function ends by calling the model's update; the four settings it reads are swapped only up to there.
+        const bodyAt = camera.index + camera[0].indexOf('{') + 1;
+        const bodyEnd = code.indexOf(`this.${modelField}.${updateName}(${camera[1]})}`, bodyAt);
+        if (bodyEnd < 0 || bodyEnd - bodyAt > SHOWROOM_CAMERA_RANGE) return skip('camera function end');
+        const reads: Edit[] = [];
+        for (const [field, key] of [[distanceField, 'distance'], [heightField, 'height'], [lookField, 'look'], [fovField, 'fov']]) {
+            const read = `this.${settingsField}.${field}`;
+            const found = [...code.slice(bodyAt, bodyEnd).matchAll(new RegExp(`${asPattern(read).replace(/\./g, '\\.')}(?![\\w$])`, 'g'))];
+            if (found.length === 0) return skip(`camera ${key}`);
+            for (const one of found) reads.push({ at: bodyAt + (one.index ?? 0), length: read.length, text: `($kaspCam?$kaspCam.${key}:${read})` });
+        }
+        const shows = exactlyOne(code, new RegExp(`=function\\((${N})\\)\\{var (${N})=this\\.${asPattern(modelField)}\\.${asPattern(droneField)};null==\\2\\|\\|\\2\\.(${N})\\(\\1\\)\\}`, 'g'));
+        if (shows === null) return skip('drone switch');
+        const show = shows[3];
+        const lightText = exactlyOne(code, /"TankPreviewLightSettings\(ambientColor="/g);
+        const lightClass = lightText === null ? null : /[\w$]+\(([\w$]+)\)\.toString=function\(\)\{return$/.exec(code.slice(lightText.index - 60, lightText.index));
+        if (lightClass === null) return skip('light settings');
+        const light = exactlyOne(code, new RegExp(`function ${asPattern(lightClass[1])}\\((${N}),(${N}),${N},${N}\\)\\{var ${N},${N};if\\(\\1=\\1===(${N})\\?(${N})\\(100,100,100\\):\\1,\\2=\\2===\\3\\?\\4\\(200,200,200\\):\\2,`, 'g'));
+        if (light === null) return skip('light colours');
+
+        const move = (part: string, sign: string): string =>
+            `${part}&&(${part}.${dronePlace}.${xAxis}+=$kaspDrone.x,${part}.${dronePlace}.${yAxis}+=$kaspDrone.y,${part}.${dronePlace}.${zAxis}${sign}=$kaspDrone.z,${part}.${show}($kaspDrone.shown))`;
+        const grenade = findShowroomGrenade(code, modelField, placeField, [xAxis, yAxis, zAxis], code.slice(bodyAt, bodyEnd));
+        // With the grenade part, the camera also gets the tank model and the field names (one object, made on the first frame).
+        const grenadeArguments = grenade === null ? '' : `,this.${modelField},window.__kaspShowroomParts||(window.__kaspShowroomParts=${JSON.stringify(grenade.parts)})`;
+        const edited = applyEdits(code, [
+            ...(grenade === null ? [] : grenade.edits),
+            {
+                at: bodyAt,
+                length: 0,
+                text: `var $kaspCam=window.__kaspShowroom&&window.__kaspShowroom.camera(this.${modelField}.${placeField}.${heightAxis},null!=${photoTurn}${grenadeArguments});$kaspCam&&(${angle}=$kaspCam.angle,${pan}=${pan}+$kaspCam.side);`,
+            },
+            ...reads,
+            {
+                at: update.index + update[0].length - 1,
+                length: 0,
+                text: `;var $kaspDrone=window.__kaspShowroom&&window.__kaspShowroom.drone();$kaspDrone&&(${move(droneVar, '+')},${move(mirrorVar, '-')})`,
+            },
+            { at: light.index + light[0].indexOf('(100,100,100)'), length: '(100,100,100)'.length, text: '(255,255,255)' },
+            { at: light.index + light[0].indexOf('(200,200,200)'), length: '(200,200,200)'.length, text: '(115,115,115)' },
+        ]);
+        return { code: edited, grenades: grenade !== null, supplies: grenade !== null && grenade.parts.supplies };
+    }
+
+    function showroomSwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_showroom') === '0';
+        } catch {
+            return false;
+        }
+    }
+
+    // Every showroom stylesheet waits for this mark on <html>, put there only once the garage edits went into the bundle: a game
+    // build they miss keeps the game's whole garage, never our panels round the game's own camera. Then showroom.ts makes its floor
+    // at once, so the calm copy is ready before the game draws its first screen.
+    const SHOWROOM_ON_ATTRIBUTE = 'data-kasp-showroom-floor';
+    function showroomOn(): void {
+        document.documentElement.setAttribute(SHOWROOM_ON_ATTRIBUTE, '');
+        window.__kaspShowroom?.start();
+    }
+
     // The bundle with every hook that could be added, and the labels of those hooks.
     function patchBundle(code: string): { readonly code: string; readonly hooked: string[] } {
         let result = code;
@@ -1400,6 +1562,15 @@
                 hooked.push('shop-quick-buy');
             }
         }
+        if (!showroomSwitchedOff()) {
+            const showroom = patchShowroom(result);
+            if (showroom !== null) {
+                result = showroom.code;
+                hooked.push('showroom');
+                if (showroom.grenades) hooked.push('showroom-grenades');
+                if (showroom.supplies) hooked.push('showroom-supplies');
+            }
+        }
         // Last, so every other edit finds the game's code as it was.
         if (theme !== null) {
             const coloured = patchColours(result, theme);
@@ -1433,6 +1604,7 @@
             if (rankPictures.length === 0) warn(`${LOG} could not find the rank pictures in this bundle, translated chat lines show no rank`);
             const patched = patchBundle(original);
             script.textContent = patched.code;
+            if (patched.hooked.includes('showroom')) showroomOn();
             if (patched.hooked.length > 0) log(`${LOG} hooks added to the game: ${patched.hooked.join(', ')}`);
         } catch (e: unknown) {
             warn(`${LOG} could not fetch the game bundle, starting it without the hook:`, e instanceof Error ? e.message : e);
