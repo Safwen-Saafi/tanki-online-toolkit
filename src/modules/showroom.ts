@@ -904,7 +904,7 @@
     const poseTurn = (turret: number, hull: number, rear: number, front: number): number =>
         TURN + (TURRET_POSE.turn - TURN) * turret + (HULL_POSE.turn - TURRET_POSE.turn) * hull + (REAR_POSE.turn - TURN) * rear + (FRONT_POSE.turn - TURN) * front;
 
-    function camera(tankHeight: number, model?: unknown, parts?: KaspShowroomParts): KaspShowroomCamera | null {
+    function camera(tankHeight: number, photo: boolean, model?: unknown, parts?: KaspShowroomParts): KaspShowroomCamera | null {
         if (parts !== undefined && !grenadesMarked) {
             grenadesMarked = true;
             document.documentElement.setAttribute(GRENADES_MARK, '');
@@ -929,8 +929,7 @@
             tabReadAt = now;
             readTabs();
         }
-        goal.grenade = parts !== undefined && (grenadePictures.length > 0 || grenadeCounts.length > 0) ? 1 : 0;
-        // Leaving the Grenades screen while the camera is all grenade pose: the pose under it does not show in this frame, so it takes
+        goal.grenade = parts !== undefined && (grenadePictures.length > 0 || grenadeCounts.length > 0) ? 1 : 0;        // Leaving the Grenades screen while the camera is all grenade pose: the pose under it does not show in this frame, so it takes
         // the next screen's pose at once (the tab lights before the screen changes, so it is read now), and the grenade turn is put
         // the shorter way round from it (a whole turn more or less: the same view). The camera then goes straight from the grenade
         // to the next pose, never round the long way and never aside and back.
@@ -1005,6 +1004,8 @@
         if (!onPaints && Math.abs(viewTurn.shown) < 1e-4) viewTurn.shown = 0;
         cameraAnswer.angle -= viewTurn.shown;
         if (onPaints) keepPaintsParts(garageBoxes[0]);
+        // Photo mode: no sideways push, so the tank stands in the middle of the screen as in the game's own photo mode.
+        if (photo) cameraAnswer.side = 0;
         framed = true;
         // The floor's camera from this very answer, so the tank, the floor and its light move together in every move.
         floorView = ROOM.fromGame(cameraAnswer, Number.isFinite(tankHeight) ? tankHeight : 0, MAIN_POSE);

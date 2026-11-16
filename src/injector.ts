@@ -1339,7 +1339,8 @@
     // src/modules/showroom.ts (window.__kaspShowroom). Every name is read from this bundle by its shape, as in this build:
     //   settings: "TankPreviewSettings(cameraHeight="+this.aah_1+", distanceToTank="+this.bah_1+", lookAtZOffset="+this.cah_1+...
     //   camera:   Gr(ph).gai=function(t,n,i,r,e,u,s,o){var _=-r/i*Math.sin(n),h=r/i*Math.cos(n),a=-e/i,c=1/i/s,f=this.sah_1.bah_1*c,...
-    //             this.qah_1.h38(_,h,this.vah_1.t35_1.h20_1+this.sah_1.cah_1+a)   (the scene, once per frame: angle n, sideways pan r)
+    //             this.qah_1.h38(_,h,this.vah_1.t35_1.h20_1+this.sah_1.cah_1+a)   (the scene, once per frame: angle n, sideways pan r,
+    //             photo mode turn u, null outside photo mode)
     //   drone:    Gr(S_).nac=function(t){var n=Ie(),i=x_().uab_1.f20_1,...,s=10*Math.sin(u);t&&(s*=-1,e*=-1),this.t35_1.f20_1=this.mac_1.f20_1+i,...
     //   update:   Gr(Q_).n36=function(t){var n=this.nae_1;null==n||n.nac(!1);var i=this.oae_1;null==i||i.nac(!0),this.faf_1.n36(t)}
     //   shown:    Gr(ph).fai=function(t){var n=this.vah_1.nae_1;null==n||n.p3k(t)}
@@ -1420,9 +1421,10 @@
         const settings = exactlyOne(code, new RegExp(`"TankPreviewSettings\\(cameraHeight="\\+this\\.(${N})\\+", distanceToTank="\\+this\\.(${N})\\+", lookAtZOffset="\\+this\\.(${N})\\+", lookAtXOffset="\\+this\\.${N}\\+", cameraFov="\\+this\\.(${N})\\+"`, 'g'));
         if (settings === null) return skip('camera settings');
         const [, heightField, distanceField, lookField, fovField] = settings;
-        const camera = exactlyOne(code, new RegExp(`=function\\((${N}),(${N}),(${N}),(${N}),${N},${N},${N},${N}\\)\\{var ${N}=-\\4/\\3\\*Math\\.sin\\(\\2\\),${N}=\\4/\\3\\*Math\\.cos\\(\\2\\),[^;]{0,80}?=this\\.(${N})\\.${asPattern(distanceField)}\\*`, 'g'));
+        const camera = exactlyOne(code, new RegExp(`=function\\((${N}),(${N}),(${N}),(${N}),${N},(${N}),${N},${N}\\)\\{var ${N}=-\\4/\\3\\*Math\\.sin\\(\\2\\),${N}=\\4/\\3\\*Math\\.cos\\(\\2\\),[^;]{0,80}?=this\\.(${N})\\.${asPattern(distanceField)}\\*`, 'g'));
         if (camera === null) return skip('camera function');
-        const [, , angle, , pan, settingsField] = camera;
+        // The sixth argument is the tank's turn in the game's photo mode, null outside it.
+        const [, , angle, , pan, photoTurn, settingsField] = camera;
         const tank = new RegExp(`this\\.(${N})\\.(${N})\\.(${N})\\+this\\.${asPattern(settingsField)}\\.${asPattern(lookField)}\\+`).exec(code.slice(camera.index, camera.index + SHOWROOM_CAMERA_RANGE));
         if (tank === null) return skip('tank place');
         const [, modelField, placeField, heightAxis] = tank;
@@ -1462,7 +1464,7 @@
             {
                 at: bodyAt,
                 length: 0,
-                text: `var $kaspCam=window.__kaspShowroom&&window.__kaspShowroom.camera(this.${modelField}.${placeField}.${heightAxis}${grenadeArguments});$kaspCam&&(${angle}=$kaspCam.angle,${pan}=${pan}+$kaspCam.side);`,
+                text: `var $kaspCam=window.__kaspShowroom&&window.__kaspShowroom.camera(this.${modelField}.${placeField}.${heightAxis},null!=${photoTurn}${grenadeArguments});$kaspCam&&(${angle}=$kaspCam.angle,${pan}=${pan}+$kaspCam.side);`,
             },
             ...reads,
             {
