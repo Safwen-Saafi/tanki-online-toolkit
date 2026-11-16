@@ -30,6 +30,7 @@
         "js/modules/messages.js",
         "js/modules/battle.js",
         "js/modules/showroom_floor.js",
+        "js/modules/showroom_glide.js",
         "js/modules/garage_cards.js",
         "js/modules/battle_tab.js",
         "js/modules/old_pictures.js",
