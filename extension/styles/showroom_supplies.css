@@ -12,7 +12,7 @@
    ItemDescriptionComponentStyle-descriptionBlockDevice (the name first, then the description box with Read more) and, for a supply
    the player can buy, GarageSuppliesComponentStyle-containerButtons with the buy button.
    Keyed to the Supplies screen itself: only it draws blockStats. Every rule also waits for item 25's switch
-   (data-kasp-showroom-floor, src/modules/showroom_floor.ts) and for the injector's supplies part (data-kasp-showroom-supplies,
+   (data-kasp-showroom-floor, set by src/injector.ts once its garage edits went in) and for the injector's supplies part (data-kasp-showroom-supplies,
    written by showroom.ts once the game's tank model reaches it): if a game update stops that part, the Supplies screen keeps the
    game's own look, still picture included.
    Borrowed from showroom_panels.css, always loaded with it: the --kasp-gl-* glass colours. No script: nothing runs while playing. */

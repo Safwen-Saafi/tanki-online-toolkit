@@ -1486,6 +1486,15 @@
         }
     }
 
+    // Every showroom stylesheet waits for this mark on <html>, put there only once the garage edits went into the bundle: a game
+    // build they miss keeps the game's whole garage, never our panels round the game's own camera. Then showroom.ts makes its floor
+    // at once, so the calm copy is ready before the game draws its first screen.
+    const SHOWROOM_ON_ATTRIBUTE = 'data-kasp-showroom-floor';
+    function showroomOn(): void {
+        document.documentElement.setAttribute(SHOWROOM_ON_ATTRIBUTE, '');
+        window.__kaspShowroom?.start();
+    }
+
     // The bundle with every hook that could be added, and the labels of those hooks.
     function patchBundle(code: string): { readonly code: string; readonly hooked: string[] } {
         let result = code;
@@ -1595,6 +1604,7 @@
             if (rankPictures.length === 0) warn(`${LOG} could not find the rank pictures in this bundle, translated chat lines show no rank`);
             const patched = patchBundle(original);
             script.textContent = patched.code;
+            if (patched.hooked.includes('showroom')) showroomOn();
             if (patched.hooked.length > 0) log(`${LOG} hooks added to the game: ${patched.hooked.join(', ')}`);
         } catch (e: unknown) {
             warn(`${LOG} could not fetch the game bundle, starting it without the hook:`, e instanceof Error ? e.message : e);

@@ -8,7 +8,7 @@
    Keyed to the Grenades screen itself, never to the lit tab: only that screen draws the count box
    (TanksPartComponentStyle-amountItems) and the still picture, so the look comes and goes exactly with the screen. (The tab, the
    screen and the 3D tank change at slightly different moments; a look keyed to the tab showed the game's Grenades screen for a
-   moment on leaving.) Every rule also waits for item 25's switch (data-kasp-showroom-floor, src/modules/showroom_floor.ts) and
+   moment on leaving.) Every rule also waits for item 25's switch (data-kasp-showroom-floor, set by src/injector.ts once its garage edits went in) and
    for the injector's grenade part (data-kasp-showroom-grenades, written by showroom.ts once the game's tank model reaches it): if a
    game update stops that part, the Grenades screen keeps the game's own look, still picture included.
    Borrowed from showroom_panels.css and showroom_items.css, always loaded with it: the --kasp-gl-* glass colours and the

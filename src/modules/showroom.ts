@@ -130,7 +130,10 @@
     // A live list, so the check reads the page again only after the page changed.
     const garageBoxes = document.getElementsByClassName('GarageCommonStyle-garageContainer');
 
-    const FLOOR_ATTRIBUTE = 'data-kasp-showroom-floor';
+    // The floor picture's address (src/modules/showroom_floor.ts), and the mark the injector puts on <html> once its garage edits
+    // went in (the stylesheets wait for it too): without it there is no floor, so a game build the edits miss keeps the game's garage.
+    const PICTURE_ATTRIBUTE = 'data-kasp-showroom-picture';
+    const SHOWROOM_ON_ATTRIBUTE = 'data-kasp-showroom-floor';
     const FLOOR_ADDRESS = /^chrome-extension:\/\/[a-p]{32}\/showroom\/floor\.png$/;
     const FLOOR_ID = 'kasp-showroom-floor';
     const PAGE_ROOT_ID = 'root';
@@ -596,7 +599,7 @@
     }
 
     function makeFloor(): Floor | null {
-        const address = document.documentElement.getAttribute(FLOOR_ATTRIBUTE);
+        const address = document.documentElement.getAttribute(PICTURE_ATTRIBUTE);
         if (address === null || !FLOOR_ADDRESS.test(address)) {
             floorFails('the picture address is missing or not the extension\'s');
             return null;
@@ -676,7 +679,7 @@
 
     // live: called from a garage frame.
     function keepFloor(live: boolean): void {
-        if (floorFailed) return;
+        if (floorFailed || !document.documentElement.hasAttribute(SHOWROOM_ON_ATTRIBUTE)) return;
         try {
             if (floor === null) floor = makeFloor();
             if (floor === null) return;
@@ -848,7 +851,7 @@
     // the garage's own box, so they go with the garage; styles/showroom_paints.css places them and shows them only on Paints.
     function keepPaintsParts(box: Element): void {
         if (turnBackButton === null) {
-            const floorAddress = document.documentElement.getAttribute(FLOOR_ATTRIBUTE);
+            const floorAddress = document.documentElement.getAttribute(PICTURE_ATTRIBUTE);
             if (floorAddress !== null && FLOOR_ADDRESS.test(floorAddress)) {
                 turnIcon = document.createElement('div');
                 turnIcon.id = TURN_ICON_ID;
@@ -1031,8 +1034,9 @@
         return droneAnswer;
     }
 
-    window.__kaspShowroom = { camera, drone };
-    // The floor is the background from the first screen on, before any 3D tank is drawn.
+    // The floor is the background from the first screen on, before any 3D tank is drawn: made when the injector's edits went in
+    // (start), and put in the page when it has loaded (or by the first 3D frame).
+    window.__kaspShowroom = { start: () => keepFloor(false), camera, drone };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => keepFloor(false), { once: true });
     else keepFloor(false);
 })();

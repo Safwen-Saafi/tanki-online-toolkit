@@ -10,7 +10,7 @@
    (position absolute, at least 31.25em wide), which holds the slots (-containerEquipmentCannon > -blockParameterEquip > one
    -equipmentResistance per slot, its own cross inside it) and, beside them, a box holding -unequip (the cross, then the words).
    Keyed to the Protection screen itself: only it draws blockParametersProtection.
-   Every rule also waits for item 25's switch (data-kasp-showroom-floor, src/modules/showroom_floor.ts).
+   Every rule also waits for item 25's switch (data-kasp-showroom-floor, set by src/injector.ts once its garage edits went in).
    Borrowed from showroom_panels.css, always loaded with it: the --kasp-gl-* glass colours and the kasp-showroom-from-right
    keyframes. No script: nothing runs while playing. */
 

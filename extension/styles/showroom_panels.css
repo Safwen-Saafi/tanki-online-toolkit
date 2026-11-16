@@ -12,8 +12,8 @@
    over a soft shade. Each tint is written as the game's blue and turned to the Game colour with --kasp-theme-hue and
    --kasp-theme-strength (written by src/injector.ts, build-plan 22b; absent with the game's blue).
 
-   Every rule waits for item 25's switch (src/modules/showroom_floor.ts writes data-kasp-showroom-floor on <html> only while it is
-   on) and stays inside the garage's own box. No script: nothing runs while playing. */
+   Every rule waits for item 25's switch (src/injector.ts puts data-kasp-showroom-floor on <html> only once its garage edits went
+   in) and stays inside the garage's own box. No script: nothing runs while playing. */
 html[data-kasp-showroom-floor] {
     --kasp-gl-shade: hsl(from hsl(205 60% 5% / 0.38) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
     --kasp-gl-fill: hsl(from hsl(205 70% 75% / 0.08) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);

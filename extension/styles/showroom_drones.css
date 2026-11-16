@@ -10,7 +10,7 @@
    with GarageCommonStyle-animatedBlurredLeftBlock on the same box): Drones and Supplies. Only Drones also has the buttons box
    (TanksPartBaseComponentStyle-buttonsContainer, drawn by the item screens' shared upgrade code that Supplies does not use), so the
    two together mean Drones.
-   Every rule also waits for item 25's switch (data-kasp-showroom-floor, src/modules/showroom_floor.ts).
+   Every rule also waits for item 25's switch (data-kasp-showroom-floor, set by src/injector.ts once its garage edits went in).
    Borrowed from showroom_panels.css, always loaded with it: the --kasp-gl-* glass colours and the kasp-showroom-from-right
    keyframes. No script: nothing runs while playing. */
 

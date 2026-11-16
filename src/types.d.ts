@@ -299,6 +299,8 @@ interface KaspShowroomParts {
 }
 
 interface KaspShowroom {
+    // Called by the injector once its garage edits went in: makes the floor and its calm copy.
+    readonly start: () => void;
     readonly camera: (tankHeight: number, photo: boolean, model?: unknown, parts?: KaspShowroomParts) => KaspShowroomCamera | null;
     readonly drone: () => KaspShowroomDrone | null;
 }

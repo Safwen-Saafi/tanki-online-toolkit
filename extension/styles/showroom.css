@@ -3,7 +3,7 @@
    calm, still copy of the floor instead (--kasp-showroom-calm, made once at page load), and the garage's box, which showroom.ts
    marks, is see-through so the live floor shows. Everything a screen draws stays on top. Only boxes whose class is exactly
    -container: the start screen's box (which also carries its picture) and the loading screens keep their own backgrounds.
-   Only while the switch is on (src/modules/showroom_floor.ts writes the attribute). */
+   Only while the switch is on and the injector's garage edits went in (src/injector.ts sets the attribute). */
 html[data-kasp-showroom-floor] #app-root > div[class="-container"] {
     background: var(--kasp-showroom-calm, none) center / cover no-repeat !important;
 }

@@ -11,7 +11,7 @@
    window bottom. The panel has no background or line, and no description (its "Read more" too); the name stays.
    The numbers (22.5em, 4em, 6em, 4.2em, 14em) come from the live measurements: the absolute boxes are placed from the garage's own box,
    which starts 4em above the sub-screen box.
-   Every rule waits for item 25's switch (data-kasp-showroom-floor, written by src/modules/showroom_floor.ts while it is on). No script
+   Every rule waits for item 25's switch (data-kasp-showroom-floor, set by src/injector.ts once its garage edits went in). No script
    of its own; the advantages and disadvantages that src/modules/augments.ts adds to the panel are styled in augments.css. */
 
 html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu:has(> .SkinsAndAlterationsStyle-SkinsVerticalComponent) {
