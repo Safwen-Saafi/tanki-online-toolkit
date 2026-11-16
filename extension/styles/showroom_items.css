@@ -250,3 +250,21 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuCompo
         transform: none;
     }
 }
+
+/* The card row's two scroll arrows (any garage screen): the game draws each one as a 44px box at an end of the row
+   (ListItemsComponentStyle-itemsListContainer), painted with a dark fade (a linear gradient of the theme's darkest colour). The boxes
+   have no readable class (only a generated ksc-NN one), so they are found by place: a -flexCenterAlignCenter box in the row that is
+   not inside a card. Found live with blueprint/reference/garage-fade-probe.js (owner, 2026-11-16). The fade goes; the arrow
+   picture is bigger, whiter and a little bolder (a thin white glow round its edge). The game still shows and hides each arrow
+   (its opacity) and its click stays. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .ListItemsComponentStyle-itemsListContainer .-flexCenterAlignCenter:not(.garage-item, .garage-item *) {
+    background: none !important;
+    box-shadow: none !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .ListItemsComponentStyle-itemsListContainer .-flexCenterAlignCenter:not(.garage-item, .garage-item *) > :is(img, svg) {
+    width: auto !important;
+    height: 3.8em !important;
+    opacity: 0.95 !important;
+    filter: brightness(1.5) saturate(0.4) drop-shadow(0 0 0.05em rgb(255 255 255 / 0.9)) drop-shadow(0 0 0.05em rgb(255 255 255 / 0.5)) !important;
+}

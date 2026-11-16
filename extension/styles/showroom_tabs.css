@@ -1,7 +1,7 @@
 /* The showroom garage's tabs (build-plan 25g): the owner's design from a concept picture, proven live with the probe
    blueprint/reference/garage-mirror-probe.js v1.6 on 2026-11-14. The garage's tab bar (Turrets, Hulls, Grenades, Drones, Protection,
    Supplies, Paints) becomes a full-height glass column on the right, from under the header to above the item cards, its tabs as our
-   own icons by place (any game language) and the game's Q and E marks as an up and a down arrow at its ends. The screens opened from
+   own icons by place (any game language) and the game's Q and E keys as plain letters at its ends (owner, 2026-11-16; they were arrows before). The screens opened from
    Turrets or Hulls (Augments, Skins, Shot colour) have a shorter bar of their own: it becomes the same column with its own icons,
    and the screen's content ends before it. The bar's own line and its two side arrows are hidden.
 
@@ -113,9 +113,11 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
     display: none !important;
 }
 
-/* the up and down arrows: the game's Q and E marks, emptied (their own click stays) */
+/* the up and down keys: the game's own Q and E marks, their letters shown in the icons' colour (their own click stays) */
 :is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem)) {
-    display: block !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     position: relative !important;
     flex: none !important;
     box-sizing: border-box !important;
@@ -124,23 +126,32 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
-    text-indent: 300% !important;
+    text-indent: 0 !important;
     white-space: nowrap !important;
-    color: transparent !important;
+    color: var(--kasp-showroom-tab-icon) !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
     background: transparent !important;
     border: 0 !important;
     border-radius: 0.7em !important;
     box-shadow: none !important;
     cursor: pointer !important;
-    transition: background 0.2s ease, opacity 0.2s ease !important;
+    transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease !important;
 }
 
+/* the letter (the game may hold it in an inner box with a look of its own): bigger, in the column's colour, no box round it */
 :is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem)) * {
-    color: transparent !important;
+    font-size: 1.35em !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    color: inherit !important;
+    background: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
 }
 
-:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem::before,
-:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem))::before {
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem::before {
     content: "" !important;
     position: absolute !important;
     inset: 0.85em !important;
@@ -155,18 +166,17 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
     transition: background 0.2s ease !important;
 }
 
-:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem))::before {
-    inset: 0.45em 1.2em !important;
-}
-
 :is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem:hover,
 :is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem)):hover {
     background: rgb(255 255 255 / 0.07) !important;
 }
 
-:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem:hover::before,
-:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem)):hover::before {
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-mainMenuItem:hover::before {
     background: #fff !important;
+}
+
+:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :not(:has(.MenuComponentStyle-mainMenuItem)):hover {
+    color: #fff !important;
 }
 
 /* the lit tab: a green square with a green icon */
@@ -179,15 +189,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
     background: var(--kasp-showroom-tab-lit-icon) !important;
 }
 
-/* the arrows' chevrons; dim when there is no tab further that way */
-:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :first-child:not(:has(.MenuComponentStyle-mainMenuItem)) {
-    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 15.5l7-7 7 7' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
-:is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) > :last-child:not(:has(.MenuComponentStyle-mainMenuItem)) {
-    --kasp-showroom-tab-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 8.5l7 7 7-7' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
+/* a key dims when there is no tab further that way */
 :is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity):has(.MenuComponentStyle-mainMenuItem:nth-child(1 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) > :first-child:not(:has(.MenuComponentStyle-mainMenuItem)),
 :is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity):has(.MenuComponentStyle-mainMenuItem:nth-last-child(1 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) > :last-child:not(:has(.MenuComponentStyle-mainMenuItem)) {
     opacity: 0.3 !important;

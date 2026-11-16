@@ -116,19 +116,26 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TankParameter
     }
 }
 
+/* The top row (GS logo and number) keeps its height (4.04em, so the panel stays 10.97em tall), with 0.45em more room at the top:
+   with the panel's own 0.45em that puts the digits 0.9em under the edge, the same as the rows' gap at the sides. */
 html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TankParametersStyle-leftParamsContainer > .TankParametersStyle-marginBlockGear {
     grid-column: 1 / -1 !important;
-    height: auto !important;
+    box-sizing: border-box !important;
+    height: 4.04em !important;
+    padding: 0.45em 0 0 !important;
     margin: 0 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
 }
 
+/* the number's box trimmed to the digits themselves (no room above or below them), so the gap is what the padding says */
 html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TankParametersStyle-leftParamsContainer .GearScoreStyle-gs {
     font-size: 2.4em !important;
     line-height: 1.15 !important;
     position: static !important;
+    align-self: flex-start !important;
+    text-box: trim-both cap alphabetic !important;
 }
 
 html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TankParametersStyle-leftParamsContainer > .TankParametersStyle-parametersBlockGear {
