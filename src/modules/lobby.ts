@@ -522,6 +522,52 @@
         // the wet floor by the door (26g5, the probe's "Wet floor"); null = dry. amount = how wet, depth = how far in, puddles = how much
         // is standing water, shine = how strongly they mirror, rings = rings in the puddles while it rains
         readonly wet: { readonly amount: number; readonly depth: number; readonly puddles: number; readonly shine: number; readonly rings: number } | null;
+        // the plain fog (26h1, the probe's "Fog" group); null = none. density = how thick, start = how far from the eye it begins,
+        // height = how low it lies (it thins upward over this), move = how fast it drifts, color = its colour before the outside's light
+        readonly fog: { readonly density: number; readonly start: number; readonly height: number; readonly move: number; readonly color: string } | null;
+        // the hot sun (the probe's "Hot sun" group; 26h uses only its dust: the foggy night has glare 0 and warmth 0); null = off.
+        // glare = the sun's glow added, warmth = how much warmer the light, motes = the specks of dust floating in the hangar
+        readonly heat: { readonly glare: number; readonly warmth: number; readonly motes: number } | null;
+        // the foggy day's floor fog (26h, the probe's "Floor fog"); null = none. amount, height = its thickness, depth = how far in from
+        // the door, speed, lumps, out = how far onto the street, bright
+        readonly floorFog: {
+            readonly amount: number;
+            readonly height: number;
+            readonly depth: number;
+            readonly speed: number;
+            readonly lumps: number;
+            readonly out: number;
+            readonly bright: number;
+        } | null;
+        // the fog banks out on the street (26h, the probe's "Fog banks"; the owner's foggy day has them on at amount 0); null = none
+        readonly banks: { readonly amount: number; readonly size: number; readonly speed: number; readonly gaps: number; readonly high: number; readonly start: number } | null;
+        // the door's light beam (26h, the probe's "Door light beam"), only by day; null = none. down / side = the light's angles in
+        // degrees, left / right / top = the door opening, soft = its edge, pool = the lit patch on the floor, dust = the streaks
+        readonly beam: {
+            readonly amount: number;
+            readonly down: number;
+            readonly side: number;
+            readonly left: number;
+            readonly right: number;
+            readonly top: number;
+            readonly soft: number;
+            readonly pool: number;
+            readonly dust: number;
+            readonly color: string;
+        } | null;
+        // the foggy night's searchlight (26h, the probe's "Searchlight"), only when it is dark; null = none
+        readonly search: {
+            readonly across: number;
+            readonly dist: number;
+            readonly lean: number;
+            readonly swing: number;
+            readonly speed: number;
+            readonly width: number;
+            readonly bright: number;
+            readonly color: string;
+        } | null;
+        // the ring lamps' light cones in the fog (26h, the probe's "Lamp cones"), only when it is dark; null = none
+        readonly cones: { readonly amount: number; readonly angle: number; readonly reach: number; readonly dust: number; readonly color: string } | null;
     }
     interface ShootNumbers {
         readonly every: number;
@@ -586,6 +632,13 @@
         flashShadow: null,
         drips: null,
         wet: null,
+        fog: null,
+        heat: null,
+        floorFog: null,
+        banks: null,
+        beam: null,
+        search: null,
+        cones: null,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
@@ -662,6 +715,45 @@
         // the night's wider, shinier wet floor
         wet: { amount: 1, depth: 660, puddles: 0.55, shine: 1.6, rings: 1.25 },
     };
+    // The owner's final "day foggy" (probe v1.56 DAY_FOGGY, report of 2026-11-20 09:43): the very sunny look (its key light, lamp speed,
+    // door blend and road, written out here; the sunny look itself is 26i) with the heat off, the moving low fog, clean walls and every
+    // sunbeam part hidden; the floor fog, the door beam and the fog banks (on at the owner's 0, so they draw nothing).
+    const DAY_FOGGY: LobbyLook = {
+        ...DAY_NORMAL,
+        light: { ...DAY_NORMAL.light, keySide: -44, keyHeight: 31, keyStrength: 1.95, keyColour: '#ffe9cf', lampSpeed: 0.38 },
+        door: 3,
+        cleanWall: 1,
+        road: { amount: 0.55, reach: 1175, line: 0, x0: -930, x1: 670, feather: 160, out: 45, bright: 1.05, tone: 0, fade: 0, inside: 1 },
+        hidden: ['light0', 'light1', 'light2', 'transp1', 'transp2'],
+        clouds: null,
+        leaves: null,
+        city: 0,
+        fog: { density: 1.6, start: 1550, height: 100, move: 3, color: '#c3cad3' },
+        floorFog: { amount: 0.9, height: 95, depth: 900, speed: 2, lumps: 1, out: 1375, bright: 1 },
+        banks: { amount: 0, size: 2450, speed: 1, gaps: 0.9, high: 250, start: 600 },
+        beam: { amount: 1, down: 5, side: 12, left: -1000, right: 1000, top: 300, soft: 10, pool: 0.5, dust: 0.6, color: '#fff1d6' },
+    };
+    // The owner's final "night foggy" (probe v1.60 NIGHT_FOGGY, report of 2026-11-20 10:35): the foggy day at 23:00 with its own
+    // thicker, almost still fog, the walls not cleaned, transp2 kept, the street lamps, the red light and the night sounds. The night
+    // lights are the probe's own (as the day normal's), not the clear night's later report. Its searchlight, lamp cones and floating dust.
+    const NIGHT_FOGGY: LobbyLook = {
+        ...DAY_FOGGY,
+        time: { hour: 23, strength: 1, inside: 0.7, sunSide: 0 },
+        cleanWall: 0,
+        hidden: ['light0', 'light1', 'light2', 'transp1'],
+        // the owner's fog panel report of 2026-11-21 21:44 (fog, street lamps, searchlight, cones, dust)
+        fog: { density: 1, start: 0, height: 100, move: 0.05, color: '#c3cad3' },
+        streetLamps: { count: 6, start: 1575, gap: 900, left: -1250, right: 1050, height: 430, size: 1, halo: 1, bright: 1, color: '#ffd06b' },
+        red: { across: -500, dist: 4000, height: 400, size: 1, halo: 1.8, bright: 1, blink: 1.6 },
+        nightSounds: { ambience: 100, dogs: 60, every: 30, far: 0.6 },
+        // the hot sun at glare 0 and warmth 0: only its 800 specks of dust
+        heat: { glare: 0, warmth: 0, motes: 800 },
+        floorFog: null,
+        banks: null,
+        beam: null,
+        search: { across: -950, dist: 3700, lean: 25, swing: 24, speed: 2, width: 1.05, bright: 0.45, color: '#dfe9ff' },
+        cones: { amount: 0.3, angle: 28, reach: 0.85, dust: 1, color: '#fef3e1' },
+    };
     // The data of every look in the shared list (lobby_looks.ts): the build fails if a listed look has none. The saved choice
     // (kasp_lobby_look) is used when it is in the list; otherwise the list's first look.
     const LOOKS: Readonly<Record<KaspLobbyLookName, LobbyLook>> = {
@@ -669,6 +761,8 @@
         'night-normal': NIGHT_NORMAL,
         'day-rainy': DAY_RAINY,
         'night-rainy': NIGHT_RAINY,
+        'day-foggy': DAY_FOGGY,
+        'night-foggy': NIGHT_FOGGY,
     };
     const lookName: KaspLobbyLookName = (() => {
         let saved: string | null = null;
@@ -839,6 +933,8 @@
             u: best.u,
             far: best.far,
             z: [town.minZ, room.maxZ + 2500],
+            roomMin: [room.minX + 120, room.minY + 120, room.minZ + 80],
+            roomMax: [room.maxX - 120, room.maxY - 120, room.maxZ - 150],
         };
     }
 
@@ -1958,6 +2054,15 @@
         let inn = mix1(st.inn, s * L.time.inside);
         let hor = mix1(st.hor, s);
         let zen = mix1(st.zen, s);
+        // the hot sun (26h; its colour and glow are 0 on the foggy night, only its dust shows): the light warmer
+        const H = L.heat;
+        if (H !== null) {
+            const w = H.warmth;
+            const warm = [1, 1 - 0.05 * w, 1 - 0.16 * w];
+            hor = hor.map((x, i) => x * warm[i]);
+            zen = zen.map((x, i) => x * lerp(1, warm[i], 0.6));
+            inn = inn.map((x, i) => x * lerp(1, warm[i], 0.5));
+        }
         // the overcast: the whole outside (town, sky, road) darker, the inside darker and a little cooler
         const O = L.overcast;
         if (O !== null) {
@@ -1978,7 +2083,7 @@
         const mixN = (k: keyof RoadNumbers): number => lerp(rd[k], rn[k], night);
         const roadAmount = rd.amount * (1 - night) + rn.amount * night;
         const graded = [inn, hor, zen].some((c) => c.some((x) => Math.abs(x - 1) > 0.002));
-        const glow = st.glow * s;
+        const glow = st.glow * s + (H !== null ? 0.9 * H.glare : 0);
         const nowMs = performance.now();
         // the lightning (26g4): where the doorway is seen from the camera (for the next bolt), then the strike timer and the flash
         {
@@ -1988,7 +2093,8 @@
         }
         const flash = stormNow(nowMs);
         const Sm = L.storm;
-        const atmosOn = O !== null || glow > 0.01 || st.stars * s > 0.01 || flash > 0.003;
+        const Fg = L.fog;
+        const atmosOn = O !== null || glow > 0.01 || st.stars * s > 0.01 || flash > 0.003 || Fg !== null;
         const door = Math.max(0.02, L.door);
         ensureStandard();
         ensureSky();
@@ -2059,16 +2165,19 @@
                     ? { list: std.lamps, power: night * L.night.lamps * fk, reach: 420 * L.night.reach, glow: night * L.night.glow, color: fromHex(L.night.color) }
                     : null,
             nightx:
-                night > 0.01 && (L.streetLamps !== null || L.red !== null)
+                night > 0.01 && (L.streetLamps !== null || L.search !== null || L.cones !== null || L.red !== null)
                     ? (() => {
                           const t = performance.now() / 1000;
                           const Lm = L.streetLamps;
                           const Rd = L.red;
+                          const Sl = L.search;
+                          const Cn = L.cones;
+                          const at = (sOut: number, side: number, z: number): number[] => [box.o[0] * sOut + box.l[0] * side, box.o[1] * sOut + box.l[1] * side, z];
                           const blink = Rd !== null ? Math.pow(Math.max(0, Math.sin((t / Math.max(0.2, Rd.blink)) * Math.PI * 2)), 0.6) : 0;
                           return {
-                              fog: 0,
-                              fogStart: 0,
-                              fogCol: [0, 0, 0],
+                              fog: Fg !== null ? Fg.density : 0,
+                              fogStart: Fg !== null ? Fg.start : 0,
+                              fogCol: Fg !== null ? lightOf(fromHex(Fg.color), 0.12) : [0, 0, 0],
                               lamps:
                                   Lm !== null
                                       ? {
@@ -2097,6 +2206,29 @@
                                             halo: Rd.halo,
                                             bright: Rd.bright * night * blink,
                                         }
+                                      : null,
+                              // the searchlight leans across the street (sideways), swinging toward and away from the hangar
+                              search:
+                                  Sl !== null
+                                      ? (() => {
+                                            const swing = ((Sl.swing * Math.PI) / 180) * Math.sin(t * Sl.speed * 0.6);
+                                            const lean = (Sl.lean * Math.PI) / 180;
+                                            const dirH = [
+                                                box.l[0] * Math.cos(swing) - box.o[0] * Math.sin(swing),
+                                                box.l[1] * Math.cos(swing) - box.o[1] * Math.sin(swing),
+                                            ];
+                                            return {
+                                                amount: Sl.bright * night,
+                                                width: Sl.width,
+                                                origin: at(box.wall + Sl.dist, Sl.across, box.groundZ),
+                                                dir: [dirH[0] * Math.sin(lean), dirH[1] * Math.sin(lean), Math.cos(lean)],
+                                                color: fromHex(Sl.color),
+                                            };
+                                        })()
+                                      : null,
+                              cones:
+                                  Cn !== null && std !== null && std.lamps.length > 0
+                                      ? { amount: Cn.amount * night, lamps: std.lamps, angle: Cn.angle, reach: 420 * Cn.reach, dust: Cn.dust, color: fromHex(Cn.color) }
                                       : null,
                           };
                       })()
@@ -2190,7 +2322,11 @@
                       glow,
                       sunDir: sunDirection(hour, box, L.time.sunSide),
                       sunCol: st.sun,
-                      fog: 0, fogStart: 0, fogHeight: 1, fogMove: 0, fogCol: [0, 0, 0],
+                      fog: Fg !== null ? Fg.density : 0,
+                      fogStart: Fg !== null ? Fg.start : 0,
+                      fogHeight: Fg !== null ? Fg.height : 1,
+                      fogMove: Fg !== null ? Fg.move : 0,
+                      fogCol: Fg !== null ? lightOf(fromHex(Fg.color), 0.12) : [0, 0, 0],
                       cover: 0, spark: 0, coverCol: [0, 0, 0], coverThick: 1,
                       groundZ: box.groundZ,
                       skyZ: box.skyZ,
@@ -2260,6 +2396,54 @@
                           color: lightOf(fromHex(R.color), 0.3),
                       }
                     : null,
+            // the foggy day's extras (26h): floor fog, fog banks, the door's light beam (one pass after the fog); also on at night for
+            // the searchlight and the lamps' cones, which it draws
+            fogx:
+                L.floorFog !== null || L.banks !== null || L.beam !== null || (night > 0.01 && (L.search !== null || L.cones !== null))
+                    ? (() => {
+                          const Fl = L.floorFog;
+                          const Bk = L.banks;
+                          const Bm = L.beam;
+                          const fc = fromHex(Fg !== null ? Fg.color : '#c3cad3');
+                          const dn = Bm !== null ? (Bm.down * Math.PI) / 180 : 0;
+                          const sd = Bm !== null ? (Bm.side * Math.PI) / 180 : 0;
+                          const o = box.o;
+                          const l = box.l;
+                          const beamDir = [
+                              (-o[0] * Math.cos(sd) + l[0] * Math.sin(sd)) * Math.cos(dn),
+                              (-o[1] * Math.cos(sd) + l[1] * Math.sin(sd)) * Math.cos(dn),
+                              -Math.sin(dn),
+                          ];
+                          const day = 1 - night;
+                          return {
+                              floor: Fl !== null ? Fl.amount : 0,
+                              floorH: Fl !== null ? Fl.height : 0,
+                              floorDepth: Fl !== null ? Fl.depth : 0,
+                              floorSpeed: Fl !== null ? Fl.speed : 0,
+                              floorLumps: Fl !== null ? Fl.lumps : 0,
+                              floorOut: Fl !== null ? Fl.out : 0,
+                              floorIn: fc.map((x, i) => x * inn[i] * (Fl !== null ? Fl.bright : 1)),
+                              floorOutCol: lightOf(fc, 0.12).map((x) => x * (Fl !== null ? Fl.bright : 1)),
+                              banks: Bk !== null ? Bk.amount : 0,
+                              bankSize: Math.max(50, Bk !== null ? Bk.size : 0),
+                              bankSpeed: Bk !== null ? Bk.speed : 0,
+                              bankGaps: Bk !== null ? Bk.gaps : 0,
+                              bankHigh: Bk !== null ? Bk.high : 0,
+                              bankStart: Bk !== null ? Bk.start : 0,
+                              bankCol: lightOf(fc, 0.12),
+                              far: Math.min(box.far, box.wall + 9000),
+                              beam: Bm !== null && day > 0.01 ? Bm.amount : 0,
+                              pool: Bm !== null && day > 0.01 ? Bm.pool : 0,
+                              dust: Bm !== null ? Bm.dust : 0,
+                              soft: Math.max(1, Bm !== null ? Bm.soft : 0),
+                              beamCol: fromHex(Bm !== null ? Bm.color : '#fff1d6').map((x, i) => x * day * Math.min(1.3, outLight[i])),
+                              beamDir,
+                              door: Bm !== null ? [Bm.left, Bm.right, Bm.top] : [0, 0, 0],
+                          };
+                      })()
+                    : null,
+            // the dust floating in the hangar's light (26h, the hot sun's motes)
+            motes: H !== null ? { n: Math.max(0, Math.round(H.motes)), bright: 1, color: [1, 0.86, 0.6].map((x, i) => x * inn[i]) } : null,
         };
     }
 

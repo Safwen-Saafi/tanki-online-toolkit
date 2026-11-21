@@ -12,6 +12,8 @@ const KASP_LOBBY_LOOKS = [
     { value: 'night-normal', label: { EN: 'Night', RU: 'Ночь' }, sunlit: false },
     { value: 'day-rainy', label: { EN: 'Day, rainy', RU: 'День, дождь' }, sunlit: false },
     { value: 'night-rainy', label: { EN: 'Night, rainy', RU: 'Ночь, дождь' }, sunlit: false },
+    { value: 'day-foggy', label: { EN: 'Day, foggy', RU: 'День, туман' }, sunlit: false },
+    { value: 'night-foggy', label: { EN: 'Night, foggy', RU: 'Ночь, туман' }, sunlit: false },
 ] as const;
 type KaspLobbyLookName = (typeof KASP_LOBBY_LOOKS)[number]['value'];
 window.__kaspLobbyLooks = KASP_LOBBY_LOOKS;

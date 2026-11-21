@@ -461,6 +461,9 @@ interface KaspLobbyBox {
     // the town's far edge along o, and the rain's height range (the town's bottom to 2500 above the room's top) (26g2)
     readonly far: number;
     readonly z: readonly [number, number];
+    // the hangar's room, a little inside its walls, floor and roof (26h: the door beam's top, the floating dust)
+    readonly roomMin: readonly [number, number, number];
+    readonly roomMax: readonly [number, number, number];
 }
 
 // Stages 3 and 4 (26g2): the rain. drops = streaks drawn, dens = the share of them shown, drift = the wind added up over time,
@@ -557,6 +560,10 @@ interface KaspLobbyPassFrame {
     readonly wet: KaspLobbyWet | null;
     // Stage 4 (26g5): the drips from the door's top edge; null = none.
     readonly drips: KaspLobbyDrips | null;
+    // Stage 2a (26h): the foggy looks' extras (also on for the searchlight and the cones at night); null = none.
+    readonly fogx: KaspLobbyFogExtras | null;
+    // Stage 4 (26h): the dust floating in the hangar's light, n specks; null = none.
+    readonly motes: { readonly n: number; readonly bright: number; readonly color: readonly number[] } | null;
 }
 
 // amount = how wet, depth = how far in from the door, puddles = how much is standing water, shine = how strongly they mirror,
@@ -607,6 +614,43 @@ interface KaspLobbyStreetLights {
         readonly postCol: readonly number[];
     } | null;
     readonly red: { readonly pos: readonly number[]; readonly size: number; readonly halo: number; readonly bright: number } | null;
+    // the foggy night's searchlight and the ring lamps' cones (26h), drawn by stage 2a; amount already x the night amount
+    readonly search: { readonly amount: number; readonly width: number; readonly origin: readonly number[]; readonly dir: readonly number[]; readonly color: readonly number[] } | null;
+    readonly cones: {
+        readonly amount: number;
+        readonly lamps: ReadonlyArray<readonly number[]>;
+        readonly angle: number;
+        readonly reach: number;
+        readonly dust: number;
+        readonly color: readonly number[];
+    } | null;
+}
+
+// Stage 2a (26h): the foggy day's floor fog, the fog banks and the door's light beam (with its lit patch on the floor); 0 = that part off.
+interface KaspLobbyFogExtras {
+    readonly floor: number;
+    readonly floorH: number;
+    readonly floorDepth: number;
+    readonly floorSpeed: number;
+    readonly floorLumps: number;
+    readonly floorOut: number;
+    readonly floorIn: readonly number[];
+    readonly floorOutCol: readonly number[];
+    readonly banks: number;
+    readonly bankSize: number;
+    readonly bankSpeed: number;
+    readonly bankGaps: number;
+    readonly bankHigh: number;
+    readonly bankStart: number;
+    readonly bankCol: readonly number[];
+    readonly far: number;
+    readonly beam: number;
+    readonly pool: number;
+    readonly dust: number;
+    readonly soft: number;
+    readonly beamCol: readonly number[];
+    readonly beamDir: readonly number[];
+    readonly door: readonly number[];
 }
 
 interface KaspLobbyNightExtras {

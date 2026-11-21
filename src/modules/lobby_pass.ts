@@ -65,16 +65,19 @@ void main(){
   if(uSpark>0.&&c>.25){vec2 cl=floor(x.p.xy/22.);uint kk=uint(int(cl.x)+70000)*73856093u^uint(int(cl.y)+70000)*19349663u;
    float tw=pow(max(0.,sin(uTime*(1.2+rnd(kk+1u)*3.)+rnd(kk+2u)*6.28)),10.);
    acc.rgb+=vec3(1.,.98,.92)*step(.965,rnd(kk))*tw*uSpark*c*(1.-smoothstep(2000.,7000.,x.dist));}}
+ // fogF = how much fog covers this pixel; the stars below shine only through what it leaves (owner 2026-11-21: on the foggy night the
+ // stars, added after the fog, made the upper sky look clear)
+ float fogF=0.;
  if(uFog>0.&&x.k>.001){
   float hz=sky?.25:exp(-max(x.p.z-uGroundZ,0.)/max(uFogHeight,1.));
   float mv=noise3(vec3(x.p.xy*.0005+vec2(uTime*uFogMove*.03,0.),x.p.z*.0008+uTime*uFogMove*.01));
   float f=sky?min(1.,uFog*.85):1.-exp(-max(x.dist-uFogStart,0.)*uFog*.00045*mix(.35,1.,hz)*mix(.55,1.45,mv));
-  f*=x.k;
+  f*=x.k;fogF=f;
   acc=vec4(uFogCol*f,f)+acc*(1.-f);}
  // the sun's glare is seen by the camera over the whole picture (a lens glow), so it does not stop at the doorway; the sun's disc only in the sky
  float s=max(dot(x.dir,uSunDir),0.);
  acc.rgb+=uSunCol*uGlow*((sky?pow(s,900.)*2.5:0.)+(pow(s,60.)*.35+pow(s,8.)*.12)*mix(.55,1.,x.k));
- if(uStars>0.&&sky)acc.rgb+=vec3(.9,.95,1.)*uStars*starAt(x.dir,uTime);
+ if(uStars>0.&&sky)acc.rgb+=vec3(.9,.95,1.)*uStars*starAt(x.dir,uTime)*(1.-fogF);
  // the overcast sky: grey cloud over the blue sky (a flat cloud layer seen from below, drifting; lighter toward the horizon)
  if(uCloud>0.&&sky){
   vec2 q=x.dir.xy/(max(x.dir.z,0.)+.32)*.9+vec2(uTime*uCloudSpeed*.02,0.);
@@ -581,6 +584,189 @@ void main(){float a;
  if(vKind==0)a=vA*(1.-smoothstep(.3,1.,abs(vQ.x)))*mix(.3,1.,vQ.y);
  else{float r=length(vQ);a=vA*(smoothstep(.55,.82,r)*(1.-smoothstep(.86,1.,r))*.8+exp(-r*r*30.)*.35);}
  if(a<.002)discard;o=vec4(uColor*a,a);}`;
+    // the foggy looks' extras (26h): mode 0 = the door beam's lit patch (multiplies), mode 1 = the floor fog, the fog banks, the light
+    // shaft through the door, the night's searchlight and the ring lamps' cones (laid over); the probe's own text
+    const FOGX_FS = `#version 300 es
+${DEPTH_GLSL}
+uniform mat4 uVP;uniform vec2 uLat;uniform vec3 uRoomMax;uniform float uTime,uFloorZ,uGroundZ,uFar;uniform int uMode;
+uniform float uFlAmt,uFlH,uFlDepth,uFlSpeed,uFlLump,uFlOutR;uniform vec3 uFlIn,uFlOutC;
+uniform float uBkAmt,uBkSize,uBkSpeed,uBkGap,uBkHigh,uBkStart;uniform vec3 uBkCol;
+uniform float uBmAmt,uBmPool,uBmDust,uBmSoft;uniform vec3 uBmCol,uBmDir,uDoor;
+uniform float uSkyZ,uSkyNear,uSkyLow;
+uniform float uSlAmt,uSlW;uniform vec3 uSlO,uSlD,uSlCol;
+uniform float uCnAmt,uCnTan,uCnReach,uCnDust;uniform vec3 uCnCol;uniform vec3 uCnLamp[8];uniform int uCnN;
+out vec4 o;
+float ign(){return fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));}
+// how much of the door's light reaches q: 1 inside the shaft, soft at its edges, weaker the further it has come in
+float shaft(vec3 q,out float ray){
+ ray=1.;float s=dot(q.xy,uOut);if(s>uWall)return 0.;
+ vec3 bk=-uBmDir;float bo=dot(bk.xy,uOut);if(bo<.02)return 0.;
+ float t=(uWall-s)/bo;vec3 d=q+bk*t;float l=dot(d.xy,uLat);
+ // rays: where the light came through the door (across its width, a little up and down) decides a streak, so the streaks run along the light
+ ray=noise3(vec3(l/70.,d.z/420.,uTime*.06))*.7+noise3(vec3(l/23.,d.z/160.,uTime*.1+4.))*.3;
+ return smoothstep(uDoor.x,uDoor.x+uBmSoft,l)*(1.-smoothstep(uDoor.y-uBmSoft,uDoor.y,l))
+  *(1.-smoothstep(uDoor.z-uBmSoft,uDoor.z,d.z))*step(uFloorZ-60.,d.z)*exp(-t/1800.);}
+// 0 when something drawn in the picture (the tank, the platform) stands between p and the door along the light
+float unshaded(vec3 p){vec3 q=p+vec3(0.,0.,3.);float st=18.;
+ for(int i=0;i<24;i++){q-=uBmDir*st;st*=1.12;
+  if(dot(q.xy,uOut)>uWall)return 1.;
+  vec4 c=uVP*vec4(q,1.);if(c.w<=1.)return 1.;vec3 ss=c.xyz/c.w;if(abs(ss.x)>1.||abs(ss.y)>1.)return 1.;
+  float sd=texelFetch(uDepth,ivec2(clamp((ss.xy*.5+.5)*uViewport,vec2(0.),uViewport-1.)),0).r;
+  if(ss.z*.5+.5>sd){vec4 w=uInv*vec4(ss.xy,sd*2.-1.,1.);float gap=distance(uCam,q)-distance(uCam,w.xyz/w.w);if(gap>4.&&gap<140.)return 0.;}}
+ return 1.;}
+void main(){
+ Px x=look();vec3 nr=cross(dFdx(x.p),dFdy(x.p));
+ if(uMode==0){
+  if(x.d>=.99999||dot(x.p.xy,uOut)>uWall)discard;
+  float ln=length(nr);vec3 n=ln>0.?nr/ln:vec3(0.,0.,1.);if(dot(n,uCam-x.p)<0.)n=-n;
+  float ray;float face=max(dot(n,-uBmDir),0.),sh=shaft(x.p,ray)*face*mix(1.,.55+.9*ray,uBmDust*.6);
+  if(sh<.003)discard;
+  sh*=unshaded(x.p);if(sh<.003)discard;
+  o=vec4(uBmCol*sh*uBmPool,1.);return;}
+ float L=x.d>=.99999?1e7:x.dist;vec3 c=uCam,dv=x.dir;float j=ign();
+ float s0=dot(c.xy,uOut),ds=dot(dv.xy,uOut);
+ float tau=0.;vec3 col=vec3(0.);
+ if(uFlAmt>0.){
+  float top=uFloorZ+uFlH*3.,t0=-1.,t1=min(L,6000.);
+  if(c.z<top)t0=0.;else if(dv.z<-1e-4)t0=(top-c.z)/dv.z;
+  if(dv.z>1e-4&&c.z<top)t1=min(t1,(top-c.z)/dv.z);
+  if(t0>=0.&&t1>t0){float dt=(t1-t0)/10.;
+   for(int i=0;i<10;i++){vec3 q=c+dv*(t0+(float(i)+j)*dt);float s=dot(q.xy,uOut);
+    float front=uWall-uFlDepth*(.5+noise3(vec3(dot(q.xy,uLat)/650.,uTime*uFlSpeed*.025,1.)));
+    float m=smoothstep(front-200.,front+300.,s)*(1.-smoothstep(uWall+uFlOutR*.35,uWall+uFlOutR+1.,s));
+    if(m<.001)continue;
+    vec3 nq=vec3((q.xy+uOut*uTime*uFlSpeed*22.)/170.,q.z/70.+uTime*uFlSpeed*.05);
+    float n=noise3(nq)*.65+noise3(nq*2.3+5.)*.35;
+    float a=exp(-max(q.z-uFloorZ,0.)/max(uFlH,1.))*m*mix(1.,smoothstep(.25,.8,n)*1.8,uFlLump)*dt*.006*uFlAmt;
+    tau+=a;col+=a*mix(uFlIn,uFlOutC,smoothstep(uWall-400.,uWall+300.,s));}}}
+ if(uBkAmt>0.&&ds>1e-3){
+  float tA=max(0.,(uWall+max(uBkStart,40.)-s0)/ds),tB=min(L,(uFar-s0)/ds);
+  if(tB>tA){float dt=(tB-tA)/14.;
+   for(int i=0;i<14;i++){vec3 q=c+dv*(tA+(float(i)+j)*dt);
+    vec3 nq=vec3((q.xy+uLat*uTime*uBkSpeed*45.)/uBkSize,q.z/(uBkSize*.5)+uTime*uBkSpeed*.012);
+    float n=noise3(nq)*.7+noise3(nq*2.1+3.)*.3;
+    float a=exp(-max(q.z-uGroundZ,0.)/max(uBkHigh,1.))*mix(1.,smoothstep(.4,.68,n)*2.6,uBkGap)*dt*.0003*uBkAmt;
+    tau+=a;col+=a*uBkCol;}}}
+ vec3 add=vec3(0.);
+ // v1.59 the searchlight: a beam from far out in the town, leaning and swinging slowly, seen where it passes in front of what the pixel
+ // shows (the sky counts as endless); brightest near its foot, softer and wider higher up
+ if(uSlAmt>0.){
+  bool sky=x.d>=.99999||x.p.z>uSkyZ||(dot(x.p.xy,uOut)>uSkyNear-60.&&x.p.z>uSkyLow);
+  float Lb=sky?1e7:L;
+  vec3 w0=c-uSlO;float b=dot(dv,uSlD),d1=dot(dv,w0),e1=dot(uSlD,w0),den=max(1.-b*b,1e-4);
+  float t=(b*e1-d1)/den,u=(e1-b*d1)/den;
+  if(t>0.&&t<Lb&&u>0.){
+   float dist=length(c+dv*t-(uSlO+uSlD*u)),w=uSlW*(45.+u*.055);
+   float k=exp(-dist*dist/(w*w)*1.6)*smoothstep(0.,400.,u)*(1.-smoothstep(9000.,16000.,u))*(70./(45.+u*.02));
+   float n=noise3(vec3(u/500.-uTime*.15,dist/90.,uTime*.05));
+   add+=uSlCol*k*mix(.75,1.25,n)*uSlAmt*.55;}}
+ // v1.59 the hangar lamps' cones: each lamp shines down, and the fog inside lights up in a cone under it (with slow swirls)
+ if(uCnAmt>0.&&uCnN>0&&s0<uWall){
+  float tE=min(L,4000.);if(ds>1e-4)tE=min(tE,(uWall-s0)/ds);
+  float dt=tE/16.,sum=0.;
+  for(int i=0;i<16;i++){vec3 q=c+dv*((float(i)+j)*dt);if(q.z<uFloorZ)continue;
+   float lit=0.;
+   for(int k=0;k<8;k++){if(k>=uCnN)break;vec3 v=q-uCnLamp[k];float down=-v.z;if(down<5.)continue;
+    float r=length(v.xy),edge=down*uCnTan+12.;
+    lit+=(1.-smoothstep(edge*.65,edge,r))/(1.+down*down/(uCnReach*uCnReach))*smoothstep(5.,40.,down);}
+   if(lit<.001)continue;
+   float n=noise3(vec3((q.xy+uLat*uTime*8.)/90.,q.z/90.+uTime*.04));
+   sum+=lit*mix(1.,.4+1.2*n,uCnDust)*dt;}
+  add+=uCnCol*sum*.0011*uCnAmt;}
+ if(uBmAmt>0.&&s0<uWall){
+  float tE=min(L,5000.);if(ds>1e-4)tE=min(tE,(uWall-s0)/ds);
+  float dt=tE/14.,sum=0.;
+  for(int i=0;i<14;i++){vec3 q=c+dv*((float(i)+j)*dt);if(q.z>uRoomMax.z||q.z<uFloorZ)continue;
+   float ray;float sh=shaft(q,ray);if(sh<.001)continue;
+   float n=noise3(vec3((q.xy-uLat*uTime*12.)/120.,q.z/120.+uTime*.03));
+   sum+=sh*mix(1.,smoothstep(.3,.75,ray)*1.6+.1,uBmDust)*mix(1.,.6+.8*n,uBmDust*.5)*dt;}
+  add=uBmCol*sum*.00012*uBmAmt;}
+ float f=1.-exp(-tau);vec3 fc=tau>0.?col/tau:vec3(0.);
+ if(f<.002&&dot(add,vec3(1.))<.002)discard;
+ o=vec4(fc*f+add*(1.-f),f);}`;
+    // falling and floating specks: mode 0 = snow outside, mode 1 = the dust floating in the hangar's light (26h), mode 2 = snow blown
+    // inside; the probe's own text
+    const FLAKE_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec3 uCam;uniform vec2 uViewport;uniform float uTime,uSpeed,uSize,uWind,uSway,uBright,uDrift,uGust;uniform int uMode;
+uniform int uLampN;uniform float uLampStart,uLampGap,uLampZ,uLampR,uLampGlow;uniform vec2 uLampSides;
+uniform vec2 uOut,uLat;uniform vec4 uRange;uniform vec2 uZ;uniform vec3 uRoomMin,uRoomMax;
+out vec2 vQ;out float vA;out float vRot;out float vShape;out float vWarm;
+${HASH_GLSL}
+void main(){
+ vWarm=0.;
+ uint id=uint(gl_InstanceID)*7u+101u;
+ float a=rnd(id),b=rnd(id+1u),c=rnd(id+2u),d=rnd(id+3u),e=rnd(id+4u),g=rnd(id+5u);
+ vec3 pos;float size,alpha,flk=0.,rot=0.;
+ if(uMode!=1){
+  // v1.50 snow made more real: mostly small flakes and a few big clumps (the big ones fall a little faster and swing wider); each flake
+  // circles as it falls (a spiral, its own speed and width); gusts come and go for all flakes together; a flake tumbles as it falls,
+  // so it flickers as its flat side turns to the light; its outline is ragged, not a perfect dot; flakes near the eye are bigger and
+  // softer (out of focus)
+  float big=pow(e,3.);
+  float v=uSpeed*mix(.75,1.25,c)*mix(.9,1.3,big);
+  float gust=1.+uGust*1.5;
+  float ph=e*6.2832+uTime*mix(.5,1.4,g),sw=uSway*mix(20.,60.,d)*mix(1.,1.6,big)*gust;
+  vec2 spiral=vec2(sin(ph),cos(ph))*sw;
+  if(uMode==0){
+   float span=max(uRange.w-uRange.z,1.),height=max(uZ.y-uZ.x,1.);
+   float s=uRange.x+30.+max(uRange.y-uRange.x-30.,1.)*pow(a,1.35);
+   float u=uRange.z+span*fract(b+uDrift/span);
+   float phase=fract(d+v*uTime/height);
+   pos=vec3(uOut*(s+spiral.y*.5)+uLat*(u+spiral.x),uZ.y-phase*height);
+   alpha=smoothstep(0.,.05,phase)*(1.-smoothstep(.95,1.,phase));
+   // v1.74 near a street lamp a flake is lit by it (warm, brighter): the lamps stand where the street lamps are drawn
+   if(uLampN>0){float w=0.;
+    for(int i=0;i<24;i++){if(i>=uLampN)break;
+     float sd=(i%2==0)?uLampSides.x:uLampSides.y,sAt=uLampStart+float(i/2)*uLampGap+(i%2==1?uLampGap*.5:0.);
+     vec3 d=pos-vec3(uOut*sAt+uLat*sd,uLampZ);w+=exp(-dot(d,d)/(uLampR*uLampR))*(d.z<0.?1.:.6);}
+    vWarm=min(3.,w*uLampGlow);}
+  }else{
+   // inside: spread through the hangar's room like the dust in the light, falling slowly (sheltered), drifting with the wind,
+   // fading in at the roof, out at the floor and at the room's sides (so a flake that wraps round never pops)
+   vec3 ext=max(uRoomMax-uRoomMin,vec3(1.));
+   float phase=fract(d+v*.6*uTime/ext.z);
+   vec2 xy=fract(vec2(a,b)+uLat*uDrift*.5/ext.xy);
+   pos=vec3(uRoomMin.xy+ext.xy*xy+vec2(spiral.x,spiral.y*.5),uRoomMax.z-phase*ext.z);
+   alpha=smoothstep(0.,.08,phase)*(1.-smoothstep(.92,1.,phase))
+    *smoothstep(0.,.06,xy.x)*(1.-smoothstep(.94,1.,xy.x))*smoothstep(0.,.06,xy.y)*(1.-smoothstep(.94,1.,xy.y));
+  }
+  size=uSize*mix(3.5,10.,e*e)*mix(1.,1.4,big);
+  float tumble=abs(sin(uTime*mix(1.5,4.,c)+g*6.2832));
+  alpha*=uBright*mix(.55,1.,g)*mix(.5,1.,tumble);
+  rot=a*6.2832+uTime*mix(-1.5,1.5,b);flk=1.;
+ }else{
+  pos=uRoomMin+(uRoomMax-uRoomMin)*vec3(a,b,c)+vec3(sin(uTime*.13*mix(.5,1.5,d)+e*6.28),cos(uTime*.11*mix(.5,1.5,e)+g*6.28),sin(uTime*.09+d*6.28))*60.;
+  size=uSize*mix(1.2,3.,e);
+  alpha=uBright*mix(.15,.6,g)*(.5+.5*sin(uTime*mix(.5,2.,a)+d*6.28));
+ }
+ vec3 toCam=uCam-pos;float dist=length(toCam);
+ vec4 ch=uVP*vec4(pos,1.);
+ vRot=rot;vShape=0.;
+ if(ch.w<1.){gl_Position=vec4(2.,2.,2.,1.);vQ=vec2(0.);vA=0.;return;}
+ if(flk>.5){float near=1.-smoothstep(150.,700.,dist);size*=1.+.6*near;alpha*=1.-.35*near;vShape=1.+near;}
+ vec3 side=cross(vec3(0.,0.,1.),toCam);side=length(side)<.001?vec3(1.,0.,0.):normalize(side);vec3 up=normalize(cross(toCam,side));
+ vec4 cs=uVP*vec4(pos+side,1.);float ppu=length((cs.xy/cs.w-ch.xy/ch.w)*uViewport*.5);
+ float cover=min(1.,size*ppu/1.5);size=max(size,1.5/max(ppu,.0001));
+ vec2 q=vec2(float(gl_VertexID&1)*2.-1.,float(gl_VertexID>>1)*2.-1.);
+ gl_Position=uVP*vec4(pos+(side*q.x+up*q.y)*size,1.);vQ=q;
+ vA=alpha*cover*smoothstep(60.,250.,dist);
+}`;
+    const FLAKE_FS = `#version 300 es
+precision highp float;
+in vec2 vQ;in float vA;in float vRot;in float vShape;in float vWarm;uniform vec3 uColor,uLampCol;uniform float uAlphaMul;out vec4 o;
+void main(){
+ float a;
+ if(vShape<.5){a=vA*(1.-smoothstep(.25,1.,length(vQ)));}
+ else{
+  // a snowflake: a ragged, slowly turning outline with a brighter core; out of focus (near the eye) = rounder and softer
+  float blur=vShape-1.;
+  vec2 q=mat2(cos(vRot),sin(vRot),-sin(vRot),cos(vRot))*vQ;
+  float r=length(q),an=atan(q.y,q.x);
+  float edge=mix(.8+.1*sin(an*6.)+.07*sin(an*3.+1.7),.92,blur);
+  a=vA*min(1.,(1.-smoothstep(mix(.3,.05,blur)*edge,edge,r))*.8+.35*exp(-r*r*mix(14.,5.,blur)));
+ }
+ a*=1.+vWarm*.6;if(a<.003)discard;o=vec4((uColor+uLampCol*vWarm)*a,min(1.,a*uAlphaMul));}`;
     interface Model {
         readonly objects: ModelObject[];
         readonly materials: Record<string, Material>;
@@ -1236,6 +1422,16 @@ void main(){float a;
         const dripProg = program(DRIP_VS, DRIP_FS, [
             'uVP', 'uCam', 'uViewport', 'uTime', 'uG', 'uTop', 'uGround', 'uAt', 'uWidth', 'uBright', 'uWind', 'uSplash', 'uOut', 'uLat', 'uSpan', 'uColor',
         ]);
+        const fogxProg = program(FULL_VS, FOGX_FS, [
+            ...DEPTH_U, 'uVP', 'uLat', 'uRoomMax', 'uTime', 'uFloorZ', 'uGroundZ', 'uFar', 'uMode', 'uFlAmt', 'uFlH', 'uFlDepth', 'uFlSpeed', 'uFlLump',
+            'uFlOutR', 'uFlIn', 'uFlOutC', 'uBkAmt', 'uBkSize', 'uBkSpeed', 'uBkGap', 'uBkHigh', 'uBkStart', 'uBkCol', 'uBmAmt', 'uBmPool', 'uBmDust',
+            'uBmSoft', 'uBmCol', 'uBmDir', 'uDoor', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uSlAmt', 'uSlW', 'uSlO', 'uSlD', 'uSlCol', 'uCnAmt', 'uCnTan',
+            'uCnReach', 'uCnDust', 'uCnCol', 'uCnLamp', 'uCnN',
+        ]);
+        const flakeProg = program(FLAKE_VS, FLAKE_FS, [
+            'uDrift', 'uGust', 'uLampN', 'uLampStart', 'uLampGap', 'uLampZ', 'uLampR', 'uLampGlow', 'uLampSides', 'uLampCol', 'uVP', 'uCam', 'uViewport',
+            'uTime', 'uSpeed', 'uSize', 'uWind', 'uSway', 'uBright', 'uMode', 'uOut', 'uLat', 'uRange', 'uZ', 'uRoomMin', 'uRoomMax', 'uColor', 'uAlphaMul',
+        ]);
         const splashProg = program(FULL_VS, SPLASH_FS, ['uDepth', 'uInv', 'uCam', 'uViewport', 'uTime', 'uRate', 'uBright', 'uWall', 'uOut', 'uColor']);
         const PIECE_ATTRIBS: ReadonlyArray<readonly [number, string]> = [[0, 'aP'], [1, 'aT']];
         const meshProg = program(MESH_VS, MESH_FS, ['uVP', 'uOff', 'uTex', 'uMode', 'uBright', 'uAmt', 'uAlpha', 'uXr', 'uXs', 'uXt'], PIECE_ATTRIBS);
@@ -1867,6 +2063,78 @@ void main(){float a;
                     gl.uniform1f(uni(atmos, 'uCoverThick'), A.coverThick);
                     gl.drawArrays(gl.TRIANGLES, 0, 3);
                 }
+                // 2a. the foggy looks' extras (26h): the beam's lit patch (multiplies, like light), then the floor fog, the fog banks, the
+                // light shaft, the searchlight and the lamps' cones (laid over)
+                if (depthOk && f.fogx) {
+                    const X = f.fogx;
+                    gl.useProgram(fogxProg.p);
+                    depthUniforms(fogxProg, f, W, H);
+                    gl.uniformMatrix4fv(uni(fogxProg, 'uVP'), false, f.vp);
+                    gl.uniform2f(uni(fogxProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                    gl.uniform3fv(uni(fogxProg, 'uRoomMax'), f.box.roomMax);
+                    gl.uniform1f(uni(fogxProg, 'uTime'), f.time);
+                    gl.uniform1f(uni(fogxProg, 'uFloorZ'), f.box.floorZ);
+                    gl.uniform1f(uni(fogxProg, 'uGroundZ'), f.box.groundZ);
+                    gl.uniform1f(uni(fogxProg, 'uFar'), X.far);
+                    gl.uniform1f(uni(fogxProg, 'uFlAmt'), X.floor);
+                    gl.uniform1f(uni(fogxProg, 'uFlH'), X.floorH);
+                    gl.uniform1f(uni(fogxProg, 'uFlDepth'), X.floorDepth);
+                    gl.uniform1f(uni(fogxProg, 'uFlSpeed'), X.floorSpeed);
+                    gl.uniform1f(uni(fogxProg, 'uFlLump'), X.floorLumps);
+                    gl.uniform1f(uni(fogxProg, 'uFlOutR'), X.floorOut);
+                    gl.uniform3fv(uni(fogxProg, 'uFlIn'), X.floorIn);
+                    gl.uniform3fv(uni(fogxProg, 'uFlOutC'), X.floorOutCol);
+                    gl.uniform1f(uni(fogxProg, 'uBkAmt'), X.banks);
+                    gl.uniform1f(uni(fogxProg, 'uBkSize'), X.bankSize);
+                    gl.uniform1f(uni(fogxProg, 'uBkSpeed'), X.bankSpeed);
+                    gl.uniform1f(uni(fogxProg, 'uBkGap'), X.bankGaps);
+                    gl.uniform1f(uni(fogxProg, 'uBkHigh'), X.bankHigh);
+                    gl.uniform1f(uni(fogxProg, 'uBkStart'), X.bankStart);
+                    gl.uniform3fv(uni(fogxProg, 'uBkCol'), X.bankCol);
+                    gl.uniform1f(uni(fogxProg, 'uBmAmt'), X.beam);
+                    gl.uniform1f(uni(fogxProg, 'uBmPool'), X.pool);
+                    gl.uniform1f(uni(fogxProg, 'uBmDust'), X.dust);
+                    gl.uniform1f(uni(fogxProg, 'uBmSoft'), X.soft);
+                    gl.uniform3fv(uni(fogxProg, 'uBmCol'), X.beamCol);
+                    gl.uniform3fv(uni(fogxProg, 'uBmDir'), X.beamDir);
+                    gl.uniform3fv(uni(fogxProg, 'uDoor'), X.door);
+                    gl.uniform1f(uni(fogxProg, 'uSkyZ'), f.box.skyZ);
+                    gl.uniform1f(uni(fogxProg, 'uSkyNear'), f.box.skyNear);
+                    gl.uniform1f(uni(fogxProg, 'uSkyLow'), f.box.skyLow);
+                    const NX = f.nightx;
+                    const Sl = NX !== null ? NX.search : null;
+                    const Cn = NX !== null ? NX.cones : null;
+                    gl.uniform1f(uni(fogxProg, 'uSlAmt'), Sl !== null ? Sl.amount : 0);
+                    if (Sl !== null) {
+                        gl.uniform1f(uni(fogxProg, 'uSlW'), Sl.width);
+                        gl.uniform3fv(uni(fogxProg, 'uSlO'), Sl.origin);
+                        gl.uniform3fv(uni(fogxProg, 'uSlD'), Sl.dir);
+                        gl.uniform3fv(uni(fogxProg, 'uSlCol'), Sl.color);
+                    }
+                    gl.uniform1f(uni(fogxProg, 'uCnAmt'), Cn !== null ? Cn.amount : 0);
+                    if (Cn !== null) {
+                        const n = Math.min(8, Cn.lamps.length);
+                        lampArray.fill(0);
+                        for (let i = 0; i < n; i++) for (let a = 0; a < 3; a++) lampArray[i * 3 + a] = Cn.lamps[i][a] + f.offset[a];
+                        gl.uniform3fv(uni(fogxProg, 'uCnLamp'), lampArray);
+                        gl.uniform1i(uni(fogxProg, 'uCnN'), n);
+                        gl.uniform1f(uni(fogxProg, 'uCnTan'), Math.tan((Cn.angle * Math.PI) / 180));
+                        gl.uniform1f(uni(fogxProg, 'uCnReach'), Cn.reach);
+                        gl.uniform1f(uni(fogxProg, 'uCnDust'), Cn.dust);
+                        gl.uniform3fv(uni(fogxProg, 'uCnCol'), Cn.color);
+                    } else gl.uniform1i(uni(fogxProg, 'uCnN'), 0);
+                    if (X.pool > 0.001) {
+                        gl.uniform1i(uni(fogxProg, 'uMode'), 0);
+                        gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE, gl.ZERO, gl.ONE);
+                        gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    }
+                    if (X.floor > 0 || X.banks > 0 || X.beam > 0 || Sl !== null || Cn !== null) {
+                        gl.uniform1i(uni(fogxProg, 'uMode'), 1);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                        gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    }
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                }
                 // 2a2. the night's street lamps and red warning light: posts, then the glows (added), hidden behind buildings
                 if (f.nightx && (f.nightx.lamps || f.nightx.red) && st.draw === null) {
                     const NX = f.nightx;
@@ -2197,6 +2465,35 @@ void main(){float a;
                     gl.polygonOffset(-1, -4);
                     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Dp.n);
                     gl.disable(gl.POLYGON_OFFSET_FILL);
+                }
+                // (the icicles, the snow and the snow blown inside come with their looks) the dust floating in the hangar's light (26h, the
+                // probe's flakes mode 1: no fall, no wind, no lamps, see-through x 0.25, the reach of 5000)
+                if (f.motes && f.motes.n > 0) {
+                    const Mt = f.motes;
+                    gl.useProgram(flakeProg.p);
+                    gl.uniformMatrix4fv(uni(flakeProg, 'uVP'), false, f.vp);
+                    gl.uniform3fv(uni(flakeProg, 'uCam'), f.cam);
+                    gl.uniform2f(uni(flakeProg, 'uViewport'), W, H);
+                    gl.uniform1f(uni(flakeProg, 'uTime'), f.time);
+                    gl.uniform1f(uni(flakeProg, 'uSpeed'), 0);
+                    gl.uniform1f(uni(flakeProg, 'uSize'), 1);
+                    gl.uniform1f(uni(flakeProg, 'uWind'), 0);
+                    gl.uniform1f(uni(flakeProg, 'uDrift'), 0);
+                    gl.uniform1f(uni(flakeProg, 'uGust'), 0);
+                    gl.uniform1i(uni(flakeProg, 'uLampN'), 0);
+                    gl.uniform3fv(uni(flakeProg, 'uLampCol'), [0, 0, 0]);
+                    gl.uniform1f(uni(flakeProg, 'uSway'), 0);
+                    gl.uniform1f(uni(flakeProg, 'uBright'), Mt.bright);
+                    gl.uniform1i(uni(flakeProg, 'uMode'), 1);
+                    gl.uniform2f(uni(flakeProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                    gl.uniform2f(uni(flakeProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                    gl.uniform4f(uni(flakeProg, 'uRange'), f.box.wall, Math.min(f.box.far, f.box.wall + 5000), f.box.u[0], f.box.u[1]);
+                    gl.uniform2f(uni(flakeProg, 'uZ'), f.box.z[0], f.box.z[1]);
+                    gl.uniform3fv(uni(flakeProg, 'uRoomMin'), f.box.roomMin);
+                    gl.uniform3fv(uni(flakeProg, 'uRoomMax'), f.box.roomMax);
+                    gl.uniform3fv(uni(flakeProg, 'uColor'), Mt.color);
+                    gl.uniform1f(uni(flakeProg, 'uAlphaMul'), 0.25);
+                    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Mt.n);
                 }
                 gl.disable(gl.DEPTH_TEST);
             } finally {
