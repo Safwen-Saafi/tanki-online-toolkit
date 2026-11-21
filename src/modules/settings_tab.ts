@@ -175,20 +175,44 @@
                 { value: 'stage', label: { EN: 'Stage (moving light)', RU: 'Сцена (движущийся свет)' } },
             ],
         },
-        // The lobby's look (build-plan 26f), read by lobby.ts and hangar_files.ts when the game starts; only the owner's final looks,
-        // each added by its own part (the values are 26e's list, also written in those two files). Change them together.
+        // The lobby's look (build-plan 26f), read by lobby.ts and hangar_files.ts when the game starts: the one list of lobby_looks.ts,
+        // read from the page when the panel is drawn (pageLobbyLooks); without it the row is left out.
         {
             key: 'kasp_lobby_look',
             after: 'kasp_lobby',
             title: { EN: 'Lobby look', RU: 'Вид лобби' },
-            fallback: 'day-normal',
+            get fallback(): string {
+                return pageLobbyLooks()[0]?.value ?? '';
+            },
             atStart: true,
-            options: [
-                { value: 'day-normal', label: { EN: 'Day', RU: 'День' } },
-                { value: 'night-normal', label: { EN: 'Night', RU: 'Ночь' } },
-            ],
+            get options(): readonly ChoiceOption[] {
+                return pageLobbyLooks();
+            },
         },
     ];
+
+    // The lobby looks from the page (lobby_looks.ts writes them on <html> as data-kasp-lobby-looks); an empty list if they are not there
+    // or not in the expected shape.
+    function pageLobbyLooks(): readonly ChoiceOption[] {
+        try {
+            const raw: unknown = JSON.parse(document.documentElement.getAttribute('data-kasp-lobby-looks') ?? '[]');
+            if (!Array.isArray(raw)) return [];
+            const out: ChoiceOption[] = [];
+            for (const item of raw) {
+                if (typeof item !== 'object' || item === null) continue;
+                const value: unknown = Reflect.get(item, 'value');
+                const label: unknown = Reflect.get(item, 'label');
+                if (typeof value !== 'string' || typeof label !== 'object' || label === null) continue;
+                const en: unknown = Reflect.get(label, 'EN');
+                const ru: unknown = Reflect.get(label, 'RU');
+                if (typeof en !== 'string' || typeof ru !== 'string') continue;
+                out.push({ value, label: { EN: en, RU: ru } });
+            }
+            return out;
+        } catch {
+            return [];
+        }
+    }
 
     const optionLabel = (option: ChoiceOption, language: KaspLanguageCode): string =>
         typeof option.label === 'string' ? option.label : option.label[language];
@@ -664,7 +688,7 @@
                 }
                 form.appendChild(row);
                 for (const choiceEntry of CHOICES) {
-                    if (choiceEntry.after !== entry.key) continue;
+                    if (choiceEntry.after !== entry.key || choiceEntry.options.length === 0) continue;
                     const choice = makeChoice(choiceEntry, language, refreshNotice);
                     choices.push([choiceEntry, choice]);
                     section.appendChild(choice.node);

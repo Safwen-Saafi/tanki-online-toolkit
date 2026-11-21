@@ -1530,6 +1530,8 @@
         const shadowsFlag = one(R`this\.${asPattern(sharpness)}=t,this\.(${N})=n,this\.${N}=i,this\.${N}=r,this\.${N}=e,this\.${N}=u,this\.${N}=s,this\.${N}=o\}`);
         if (shadowsFlag === null) return skip('shadows switch');
         const shadowsOn = shadowsFlag[1];
+        // the shadows switch: on only where the graphics card can (optional; without it the look keeps the game's own switch)
+        const shadowsSet = one(R`\.(${N})=function\(t\)\{var n=t&&${N}\(\)\.${N}\(\);this\.${asPattern(state)}=this\.${asPattern(state)}\.${N}\(${N},n\)\}`);
         const shadowText = one(R`${N}\((${N})\)\.toString=function\(\)\{return"ShadowSettings\(shadowTextureSize="\+this\.(${N})\+", shadowFullDistance="\+this\.(${N})\+", shadowFadeDistance="\+this\.(${N})\+", shadowStrength="\+this\.(${N})\+", shadowDepthBias="\+this\.(${N})\+", blurSize="\+this\.(${N})\+", normalBias="\+this\.(${N})\+", viewBias="\+this\.(${N})\+", slopeBias="\+this\.(${N})\+"\)"\}`);
         if (shadowText === null) return skip('shadow settings');
         const [, shadowClass, ...shadowFields] = shadowText;
@@ -1545,7 +1547,7 @@
             world, renderer,
             lighting, ambient, key, keyColour, keyStrength,
             colourSet, red, green, blue, alpha,
-            state, shadowsOn, sharpness, setSharpness,
+            state, shadowsOn, sharpness, setSharpness, ...(shadowsSet !== null ? { setShadows: shadowsSet[1] } : {}),
             shadow: shadowPlace[1], shadowCopy: shadowCopyCode[1], shadowFields,
         };
         const at = update.index + update[0].indexOf('{') + 1;
@@ -1587,10 +1589,14 @@
         const root = one(R`var (${N})=new ${N};\1\.(${N})="\/",this\.(${N})=\1,this\.${N}=new ${N}\(this\.${N}\),this\.${N}=new ${N},this\.(${N})=new ${N},this\.${N}=null`);
         if (root === null) return skip('scene root');
         const [, , nodeName, sceneRoot, worldCamera] = root;
-        const node = one(R`\.call\(this\),this\.${p(nodeName)}="",this\.(${N})=!0,this\.${N}=1,[^}]{0,300}?this\.(${N})=new ${N}\}`);
+        const node = one(R`\.call\(this\),this\.${p(nodeName)}="",this\.(${N})=!0,this\.(${N})=1,[^}]{0,300}?this\.(${N})=new ${N}\}`);
         if (node === null) return skip('scene node');
-        const [, shown, children] = node;
+        const [, shown, alphaField, children] = node;
         const show = one(R`\.(${N})=function\(t\)\{this\.${p(shown)}=t\}`);
+        // A node's see-through amount and its setter (26g1, the weaker sunbeams of the rainy looks); without them the sunbeams are
+        // only shown or hidden.
+        const alphaSet = one(R`\.(${N})=function\(t\)\{this\.${p(alphaField)}=t\}`);
+        if (alphaSet === null) warn(`${LOG} could not find the lobby node see-through setter in this bundle, the sunbeams are only shown or hidden`);
         const list = agreed(R`var n=this\.${p(children)},i=0,r=n\.(${N})\(\);if\(i<r\)do\{var e=i;i=i\+1\|0,n\.(${N})\(e\)\.`);
         if (show === null || list === null) return skip('node show switch or children');
         const getters = one(R`${N}\("cameraComponent"\)\}function (${N})\(t\)\{var n=t\.${p(names.platform)};if\(null!=n\)return n;${N}\("platformMesh"\)\}`);
@@ -1613,6 +1619,7 @@
             worldCamera,
             nodeName,
             setShown: show[1],
+            ...(alphaSet === null ? {} : { alpha: { field: alphaField, set: alphaSet[1] } }),
             children,
             size: list[1],
             at: list[2],

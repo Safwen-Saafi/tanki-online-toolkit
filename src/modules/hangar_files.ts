@@ -15,12 +15,9 @@
 (function () {
     'use strict';
 
-    // The lobby looks (kasp_lobby_look, chosen in the settings tab from 26f; no key is day-normal). The two sunlit looks keep the
-    // game's own floor, with the sunlight painted in it; every other look has the cleaned floor (the owner tuned them on it: the
-    // kaspFloor line of his final reports, 2026-11-19 and 20).
-    const LOOKS: readonly string[] = ['day-normal', 'day-sunny', 'day-foggy', 'day-rainy', 'day-snowy', 'night-normal', 'night-foggy', 'night-rainy', 'night-snowy', 'halloween', 'christmas'];
-    const DEFAULT_LOOK = 'day-normal';
-    const SUNLIT_LOOKS: readonly string[] = ['day-normal', 'day-sunny'];
+    // The lobby look (kasp_lobby_look, from the shared list in lobby_looks.ts; no key or an unknown one is the list's first look):
+    // a `sunlit` look keeps the game's own floor, with the sunlight painted in it; every other look has the cleaned floor (the owner
+    // tuned them on it: the kaspFloor line of his final reports, 2026-11-19 and 20).
     // The Birthday banners on the shared wall picture (4096 x 4096 pixels): each a pennant, x0 to x1 across, hanging from y0, its
     // sides ending at y1 and its point at y2. Measured on birthday16-gar1.webp; brighter by GAIN, as the Birthday hangar is lit darker.
     const BANNERS: ReadonlyArray<readonly [number, number, number, number, number]> = [
@@ -48,8 +45,10 @@
     };
     if (read('kasp_lobby') === '0' || typeof window.fetch !== 'function') return;
     const banners = read('kasp_lobbybanners') === '1';
-    const look = read('kasp_lobby_look') ?? DEFAULT_LOOK;
-    const cleanFloor = LOOKS.includes(look) && !SUNLIT_LOOKS.includes(look);
+    const savedLook = read('kasp_lobby_look');
+    const lookEntry = window.__kaspLobbyLooks?.find((l) => l.value === savedLook) ?? window.__kaspLobbyLooks?.[0];
+    // without the list (its file did not run) the game's own floor, as the day
+    const cleanFloor = lookEntry !== undefined && !lookEntry.sunlit;
 
     const originalFetch = window.fetch;
     // The hangar's folder on the game's server, once its meta.info was seen.

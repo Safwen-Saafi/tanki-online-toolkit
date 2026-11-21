@@ -120,7 +120,7 @@ void main(){
   float r=distance(gl_FragCoord.xy,px)/max(2.,uViewport.y*45./c.w);
   acc+=uCol*vis*(exp(-r*r*3.)*1.2+exp(-r*1.6)*.22);}
  o=vec4(acc*uGlow,0.);}`;
-    const MIX_VS =`#version 300 es
+    const MIX_VS = `#version 300 es
 precision highp float;
 in vec3 aP;in vec2 aT;uniform mat4 uVP;uniform vec3 uOff;out vec3 vW;
 void main(){vW=aP+uOff;gl_Position=uVP*vec4(vW,1.);}`;
@@ -378,6 +378,209 @@ void main(){
  c*=uLight*lit;
  a*=1.-.4*smoothstep(4000.,9000.,vDist);
  o=vec4(c*a,a);}`;
+
+    // 26g2: the rain (the probe's STREAK_VS / STREAK_FS / SPLASH_FS, as text). One drop = one thin streak (4 corners), all made on the
+    // graphics card from the drop's number, in a box over the street outside the door (never in the hangar), hidden by the game's
+    // depth. The splashes: a whole-screen pass that reads the game's depth; every flat bit of ground outside gets short rings now and
+    // then (80-unit cells), like drops landing.
+    const STREAK_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec3 uCam;uniform vec2 uViewport;
+uniform float uTime,uSpeed,uLen,uWind,uWidth,uBright,uDrift,uDens,uCount;
+uniform vec2 uOut,uLat;uniform vec4 uRange;uniform vec2 uZ;
+out vec2 vQ;out float vA;
+${HASH_GLSL}
+void main(){
+ uint id=uint(gl_InstanceID)*5u+11u;
+ float a=rnd(id),b=rnd(id+1u),c=rnd(id+2u),d=rnd(id+3u),e=rnd(id+4u);
+ float v=uSpeed*mix(.8,1.2,c);
+ float w=uWind*v*.35;
+ float span=max(uRange.w-uRange.z,1.),height=max(uZ.y-uZ.x,1.);
+ float s=uRange.x+30.+max(uRange.y-uRange.x-30.,1.)*pow(a,1.35);
+ // uDrift = the wind added up over time (wind x time while the wind does not change), so a gust's changing wind never makes the drops jump
+ float u=uRange.z+span*fract(b+v*.35*uDrift/span);
+ float phase=fract(d+v*uTime/height);
+ vec3 head=vec3(uOut*s+uLat*u,uZ.y-phase*height);
+ vec3 axis=normalize(vec3(uLat*w,-v));
+ vec3 tail=head-axis*v*.022*uLen;
+ vec3 toCam=uCam-head;float dist=length(toCam);
+ vec3 side=cross(axis,toCam);side=length(side)<.001?vec3(uLat,0.):normalize(side);
+ vec4 ch=uVP*vec4(head,1.),cs=uVP*vec4(head+side,1.);
+ if(ch.w<1.||cs.w<1.){gl_Position=vec4(2.,2.,2.,1.);vQ=vec2(0.);vA=0.;return;}
+ float ppu=length((cs.xy/cs.w-ch.xy/ch.w)*uViewport*.5);
+ float wide=uWidth*mix(.9,1.6,e);
+ float cover=min(1.,wide*ppu/.75);
+ wide=max(wide,.75/max(ppu,.0001));
+ float sgn=float(gl_VertexID&1)*2.-1.,along=float(gl_VertexID>>1);
+ gl_Position=uVP*vec4(mix(head,tail,along)+side*sgn*wide,1.);
+ vQ=vec2(sgn,along);
+ vA=uBright*(.22+.28*e)*cover*smoothstep(0.,.06,phase)*(1.-smoothstep(.94,1.,phase))*smoothstep(120.,500.,dist)*(1.-smoothstep(9000.,14000.,dist));
+ // gusts (v1.51): only the first uDens part of the drops shows; the others fade in as a gust gets heavier
+ if(uDens<.9999)vA*=1.-smoothstep(uDens-.03,uDens,(float(gl_InstanceID)+.5)/max(uCount,1.));
+}`;
+    const STREAK_FS = `#version 300 es
+precision highp float;
+in vec2 vQ;in float vA;uniform vec3 uColor;out vec4 o;
+void main(){
+ float a=vA*(1.-smoothstep(.35,1.,abs(vQ.x)))*smoothstep(0.,.08,vQ.y)*(1.-.6*vQ.y);
+ if(a<.002)discard;
+ o=vec4(uColor*a,a);
+}`;
+    const SPLASH_FS = `#version 300 es
+precision highp float;precision highp int;
+uniform highp sampler2D uDepth;uniform mat4 uInv;uniform vec3 uCam;uniform vec2 uViewport;
+uniform float uTime,uRate,uBright,uWall;uniform vec2 uOut;uniform vec3 uColor;
+out vec4 o;
+${HASH_GLSL}
+void main(){
+ float d=texelFetch(uDepth,ivec2(gl_FragCoord.xy),0).r;
+ vec4 wp=uInv*vec4(gl_FragCoord.xy/uViewport*2.-1.,d*2.-1.,1.);
+ vec3 p=wp.xyz/wp.w;
+ vec3 n=cross(dFdx(p),dFdy(p));
+ if(d>=.99999)discard;
+ if(dot(p.xy,uOut)<uWall+20.)discard;
+ float dist=distance(p,uCam);if(dist>7000.)discard;
+ float flat_=abs(n.z)/max(length(n),.00001);if(flat_<.75)discard;
+ vec2 cell=floor(p.xy/80.);
+ uint key=uint(int(cell.x)+40000)*73856093u^uint(int(cell.y)+40000)*19349663u;
+ float period=.3+rnd(key)*.45;
+ float age=fract(uTime/period+rnd(key+1u))*period;
+ if(age>.16||rnd(key+2u)>uRate)discard;
+ vec2 c=(cell+.2+.6*vec2(rnd(key+3u),rnd(key+4u)))*80.;
+ float r=length(p.xy-c)/(4.+age*170.);
+ if(r>1.)discard;
+ float ring=smoothstep(.55,.8,r)*(1.-smoothstep(.85,1.,r));
+ float dot_=exp(-r*r*40.)*(1.-smoothstep(0.,.05,age));
+ float a=(ring*.6+dot_*.5)*smoothstep(0.,.01,age)*(1.-smoothstep(.06,.16,age))*flat_*uBright*(1.-smoothstep(3500.,7000.,dist));
+ o=vec4(uColor*a,a);
+}`;
+    // 26g4a: the lightning bolt (the probe's BOLT_VS / BOLT_FS, as text): the grey sky mesh drawn again, each pixel looking up the bolt
+    // picture by its direction across the door and its height, added while the flash lasts.
+    const BOLT_VS = `#version 300 es
+precision highp float;
+in vec3 aP;in vec2 aT;uniform mat4 uVP;uniform vec3 uOff;out vec3 vW;
+void main(){vW=aP+uOff;gl_Position=uVP*vec4(vW,1.);}`;
+    const BOLT_FS = `#version 300 es
+precision highp float;
+in vec3 vW;uniform sampler2D uBoltTex;uniform vec3 uCam;uniform vec2 uOut,uLat;uniform float uBolt,uFlash,uTop;out vec4 o;
+void main(){vec3 d=normalize(vW-uCam);float az=atan(dot(d.xy,uLat),dot(d.xy,uOut)),el=asin(clamp(d.z,-1.,1.));
+ vec2 q=vec2(az/1.2+.5,.5-el/(2.*uTop));if(q.x<=0.||q.x>=1.||q.y<=0.||q.y>=1.)discard;
+ float b=texture(uBoltTex,q).r,g=textureLod(uBoltTex,q,5.).r;
+ o=vec4(vec3(.86,.9,1.)*(b*1.7+g*1.6)*uBolt*pow(clamp(uFlash,0.,1.),.5),0.);}`;
+    // 26g5: the wet floor by the door (the probe's WET_FS, as text): a whole-screen pass over the copied depth: the flat floor from a
+    // ragged reach inside to the door, and the street outside fading out far away, darker, with puddles that mirror the picture drawn
+    // so far (walked along the mirrored ray), lit in a flash, small rings in the puddles while it rains.
+    const WET_FS = `#version 300 es
+${DEPTH_GLSL}
+uniform sampler2D uCol;uniform mat4 uVP;uniform vec2 uLat;uniform vec3 uLim,uSky,uFlashCol;
+uniform float uAmt,uDepthW,uPud,uShine,uFloorZ,uFlash,uTime,uHasCol,uRings;out vec4 o;
+void main(){
+ Px x=look();if(x.d>=.99999)discard;
+ float s=dot(x.p.xy,uOut);
+ // inside: from the ragged reach to the door; outside (the street, out in the rain): wet all over, fading out far away, so there is no line
+ // where the hangar's floor ends
+ if(s<uWall-uDepthW*1.6-200.||s>uWall+2600.)discard;
+ if(x.p.z>uFloorZ+6.||x.p.z<uFloorZ-300.)discard;
+ vec3 n=cross(dFdx(x.p),dFdy(x.p));if(abs(n.z)/max(length(n),1e-5)<.9)discard;
+ float l=dot(x.p.xy,uLat);
+ float side=smoothstep(uLim.x,uLim.x+uLim.z,l)*(1.-smoothstep(uLim.y-uLim.z,uLim.y,l));
+ side=mix(side,1.,smoothstep(uWall,uWall+300.,s));
+ float nz=noise3(vec3(x.p.xy/260.,1.))*.6+noise3(vec3(x.p.xy/70.,5.))*.4;
+ float reach=uWall-uDepthW*(.55+.9*nz);
+ float w=smoothstep(reach-60.,reach+160.,s)*side*uAmt*(1.-smoothstep(uWall+1400.,uWall+2600.,s));
+ if(w<.003)discard;
+ float pn=noise3(vec3(x.p.xy/150.,9.))*.7+noise3(vec3(x.p.xy/45.,2.))*.3;
+ float pud=smoothstep(.52,.66,pn)*uPud*smoothstep(reach,reach+300.,s);
+ float F=.04+.96*pow(1.-abs(x.dir.z),5.);
+ vec3 rd=vec3(x.dir.xy,-x.dir.z);
+ rd.xy+=(vec2(noise3(vec3(x.p.xy/16.,uTime*1.3)),noise3(vec3(x.p.xy/16.+7.,uTime*1.3)))-.5)*mix(.06,.02,pud);
+ rd=normalize(rd);
+ vec3 rc=uSky;
+ if(uHasCol>.5){
+  vec3 q=x.p+vec3(0.,0.,1.);float stepL=25.;
+  for(int i=0;i<40;i++){
+   q+=rd*stepL;stepL*=1.09;
+   vec4 c=uVP*vec4(q,1.);if(c.w<=1.)break;
+   vec3 ss=c.xyz/c.w;if(abs(ss.x)>1.||abs(ss.y)>1.)break;
+   vec2 uv=ss.xy*.5+.5;
+   float sd=texelFetch(uDepth,ivec2(uv*uViewport),0).r;
+   if(ss.z*.5+.5>sd){
+    vec4 wp=uInv*vec4(ss.xy,sd*2.-1.,1.);
+    float gap=distance(uCam,q)-distance(uCam,wp.xyz/wp.w);
+    if(gap<stepL*1.5+40.){
+     float edge=1.-smoothstep(.8,1.,max(abs(ss.x),abs(ss.y)));
+     rc=mix(uSky,texture(uCol,uv).rgb,edge);}
+    break;}
+  }
+ }
+ rc+=uFlashCol*uFlash*1.2;
+ float ring=0.;
+ if(uRings>0.&&pud>.05){
+  vec2 cell=floor(x.p.xy/55.);
+  uint key=uint(int(cell.x)+40000)*73856093u^uint(int(cell.y)+40000)*19349663u;
+  float period=.5+rnd(key)*.9,age=fract(uTime/period+rnd(key+1u))*period;
+  if(age<.5&&rnd(key+2u)<.45*uRings){
+   vec2 c=(cell+.2+.6*vec2(rnd(key+3u),rnd(key+4u)))*55.;
+   float r=length(x.p.xy-c)/(2.+age*60.);
+   ring=smoothstep(.6,.85,r)*(1.-smoothstep(.9,1.,r))*(1.-age/.5)*pud;}
+ }
+ // damp concrete mirrors a little at a low look; standing water mirrors a lot more (at least a quarter, more at a low look)
+ float refl=w*uShine*mix(F*.6,.25+.75*F,pud);
+ float dark=w*(.3+.25*pud);
+ o=vec4(rc*refl+uSky*ring*.5*w,dark);
+}`;
+    // 26g5: the door drips (the probe's DRIP_VS / DRIP_FS, as text): each drop lets go from a spot on the door's top edge now and then,
+    // falls faster and faster (a streak that gets longer as it speeds up), and makes a small ring on the floor where it lands.
+    const DRIP_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec3 uCam;uniform vec2 uViewport;
+uniform float uTime,uG,uTop,uGround,uAt,uWidth,uBright,uWind,uSplash;
+uniform vec2 uOut,uLat,uSpan;
+out vec2 vQ;out float vA;flat out int vKind;
+${HASH_GLSL}
+void main(){
+ uint id=uint(gl_InstanceID)*6u+501u;
+ float a=rnd(id),b=rnd(id+1u),c=rnd(id+2u),e=rnd(id+4u);
+ float h=max(uTop-uGround,10.),T=sqrt(2.*h/uG);
+ float period=T*mix(1.15,3.2,b);
+ float age=fract(uTime/period+c)*period;
+ float u=mix(uSpan.x,uSpan.y,a);
+ float sgn=float(gl_VertexID&1)*2.-1.,along=float(gl_VertexID>>1);
+ vQ=vec2(0.);vA=0.;vKind=0;gl_Position=vec4(2.,2.,2.,1.);
+ float push=uWind*35.;
+ if(age<T){
+  float z=uTop-.5*uG*age*age,vel=uG*age;
+  float drift=push*(age/T)*(age/T);
+  vec3 head=vec3(uOut*uAt+uLat*(u+drift),z);
+  vec3 tail=head+vec3(0.,0.,max(6.,vel*.04));
+  vec3 toCam=uCam-head;float dist=length(toCam);
+  vec3 side=cross(vec3(0.,0.,1.),toCam);side=length(side)<.001?vec3(uLat,0.):normalize(side);
+  vec4 ch=uVP*vec4(head,1.),cs=uVP*vec4(head+side,1.);
+  if(ch.w<1.||cs.w<1.)return;
+  float ppu=length((cs.xy/cs.w-ch.xy/ch.w)*uViewport*.5);
+  float wide=uWidth*mix(1.4,2.4,e);
+  float cover=min(1.,wide*ppu/.75);wide=max(wide,.75/max(ppu,.0001));
+  gl_Position=uVP*vec4(mix(head,tail,along)+side*sgn*wide,1.);
+  vQ=vec2(sgn,1.-along);
+  vA=uBright*mix(.35,.6,e)*cover*smoothstep(0.,.08,age/T)*smoothstep(80.,300.,dist);
+  return;
+ }
+ float k=(age-T)/.22;
+ if(uSplash<=0.||k>=1.)return;
+ vec2 q=vec2(sgn,along*2.-1.);
+ float r=mix(3.,26.,sqrt(k))*uSplash;
+ vec3 ctr=vec3(uOut*uAt+uLat*(u+push),uGround+1.5);
+ gl_Position=uVP*vec4(ctr+(vec3(uOut,0.)*q.x+vec3(uLat,0.)*q.y)*r,1.);
+ vQ=q;vKind=1;
+ vA=uBright*.7*uSplash*(1.-k)*smoothstep(80.,300.,distance(uCam,ctr));
+}`;
+    const DRIP_FS = `#version 300 es
+precision highp float;
+in vec2 vQ;in float vA;flat in int vKind;uniform vec3 uColor;out vec4 o;
+void main(){float a;
+ if(vKind==0)a=vA*(1.-smoothstep(.3,1.,abs(vQ.x)))*mix(.3,1.,vQ.y);
+ else{float r=length(vQ);a=vA*(smoothstep(.55,.82,r)*(1.-smoothstep(.86,1.,r))*.8+exp(-r*r*30.)*.35);}
+ if(a<.002)discard;o=vec4(uColor*a,a);}`;
     interface Model {
         readonly objects: ModelObject[];
         readonly materials: Record<string, Material>;
@@ -727,6 +930,126 @@ void main(){
         return out;
     }
 
+    // ---- the overcast's pictures (26g1), the probe's makeLensPictures and skyGrey ----
+    // The four lamp lenses under the round rail are painted into the wall picture (one spot of the 4096 x 4096 sheet, x 760-1300,
+    // y 3795-3895): a factor picture, white everywhere and dark on that spot, multiplied over the wall like the night pictures
+    // (1024 x 1024). Made once and saved like every made hangar picture (owner 2026-11-21: "for all of the hangar lobby textures,
+    // without exception"; hangar_files.ts's store), lossless (PNG), so the saved one is the made one.
+    async function lensPictures(asset: KaspLobbyAsset): Promise<ReadonlyMap<string, ImageBitmap>> {
+        const room = asset.batches.find((b) => b.name === 'room0');
+        if (room === undefined) return new Map();
+        const Z = 1024;
+        const make = async (): Promise<Blob | null> => {
+            const c = new OffscreenCanvas(Z, Z);
+            const g = c.getContext('2d');
+            if (g === null) return null;
+            g.fillStyle = '#fff';
+            g.fillRect(0, 0, Z, Z);
+            g.filter = 'blur(1.5px)';
+            g.fillStyle = '#161616';
+            g.fillRect(760 / 4 - 2, 3795 / 4 - 2, (1300 - 760) / 4 + 4, (3895 - 3795) / 4 + 4);
+            return c.convertToBlob({ type: 'image/png' });
+        };
+        const store = window.__kaspHangarPictures;
+        const blob = store === undefined ? await make() : await store.saved(`lens-${room.pic}-760-3795-1300-3895.png`, make);
+        if (blob === null) return new Map();
+        return new Map([[room.pic, await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' })]]);
+    }
+
+    // Turns the blue sky of the hangar's sky picture into a cloudy grey one (the skyline, hills and trees stay).
+    interface SkyGrey {
+        readonly amount: number;
+        readonly contrast: number;
+        readonly tint: readonly number[];
+    }
+    function skyGrey(d: Uint8ClampedArray, W: number, H: number, o: SkyGrey): void {
+        const N = W * H;
+        const ss = (a: number, b: number, x: number): number => {
+            const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+            return t * t * (3 - 2 * t);
+        };
+        const m0 = new Float32Array(N);
+        const lum = new Float32Array(N);
+        for (let i = 0; i < N; i++) {
+            const r = d[i * 4];
+            const g = d[i * 4 + 1];
+            const b = d[i * 4 + 2];
+            lum[i] = (0.3 * r + 0.59 * g + 0.11 * b) / 255;
+            m0[i] = ss(0.04, 0.28, (b - r) / 255) * (1 - ss(0, 0.06, (g - b) / 255));
+        }
+        const blur = (src: Float32Array, rad: number): Float32Array => {
+            const tmp = new Float32Array(N);
+            const out = new Float32Array(N);
+            const w = 2 * rad + 1;
+            for (let y = 0; y < H; y++) {
+                let s = 0;
+                const row = y * W;
+                for (let x = -rad; x <= rad; x++) s += src[row + Math.min(W - 1, Math.max(0, x))];
+                for (let x = 0; x < W; x++) {
+                    tmp[row + x] = s / w;
+                    s += src[row + Math.min(W - 1, x + rad + 1)] - src[row + Math.max(0, x - rad)];
+                }
+            }
+            for (let x = 0; x < W; x++) {
+                let s = 0;
+                for (let y = -rad; y <= rad; y++) s += tmp[Math.min(H - 1, Math.max(0, y)) * W + x];
+                for (let y = 0; y < H; y++) {
+                    out[y * W + x] = s / w;
+                    s += tmp[Math.min(H - 1, y + rad + 1) * W + x] - tmp[Math.max(0, y - rad) * W + x];
+                }
+            }
+            return out;
+        };
+        const bl = blur(blur(m0, 12), 12);
+        const k = 0.3 + o.contrast * 1.1;
+        for (let i = 0; i < N; i++) {
+            const r = d[i * 4];
+            const g = d[i * 4 + 1];
+            const b = d[i * 4 + 2];
+            const y = Math.floor(i / W) / H;
+            const warm = ss(0, 0.05, (r - b) / 255);
+            const cloud = ss(0.45, 0.7, lum[i]) * (1 - warm) * ss(0.25, 0.5, bl[i]);
+            const M = Math.max(m0[i], cloud) * o.amount;
+            if (M < 0.002) continue;
+            let f = ss(0.15, 0.95, Math.min(1, Math.max(0, (lum[i] - 0.22) / 0.7)));
+            f = 0.5 + (f - 0.5) * k;
+            const hz = ss(0.15, 0.72, y);
+            const sc = 0.62 + 0.62 * f + 0.18 * hz;
+            d[i * 4] = r + (Math.min(255, o.tint[0] * 255 * sc) - r) * M;
+            d[i * 4 + 1] = g + (Math.min(255, o.tint[1] * 255 * sc) - g) * M;
+            d[i * 4 + 2] = b + (Math.min(255, o.tint[2] * 255 * sc) - b) * M;
+        }
+    }
+
+    // The game's sky mesh (Sky0) read from its hangar model with its picture greyed, made once and saved (hangar_files.ts's store;
+    // the name holds the numbers, so other numbers make a new one).
+    async function loadSky(folder: string, o: SkyGrey): Promise<KaspLobbyAsset> {
+        const model = await sharedModel(folder + '/object.3ds');
+        const batches = batchesOf(model, ['Sky0'], (pic) => folder + '/' + pic);
+        if (batches.length === 0) throw new Error('no sky');
+        const pics = await pictures(batches);
+        const pic = batches[0].pic;
+        const orig = pics.get(pic);
+        if (orig === undefined) throw new Error('no sky picture');
+        const make = async (): Promise<Blob | null> => {
+            const c = new OffscreenCanvas(orig.width, orig.height);
+            const g = c.getContext('2d', { willReadFrequently: true });
+            if (g === null) return null;
+            g.drawImage(orig, 0, 0);
+            const img = g.getImageData(0, 0, orig.width, orig.height);
+            skyGrey(img.data, orig.width, orig.height, o);
+            g.putImageData(img, 0, 0);
+            await new Promise((r) => setTimeout(r, 0));
+            return c.convertToBlob({ type: 'image/png' });
+        };
+        const store = window.__kaspHangarPictures;
+        const name = `sky-grey-${pic}-${o.amount}-${o.contrast}-${o.tint.map((x) => x.toFixed(4)).join('-')}.png`;
+        const blob = store === undefined ? await make() : await store.saved(name, make);
+        if (blob === null) throw new Error('sky not made');
+        const grey = await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+        return { key: 'standard-sky', batches, pics: new Map([[pic, grey]]) };
+    }
+
     // The lamps under the ring: the faces of room0 that show the lamp lens (one spot of the 4096 x 4096 wall picture), grouped; a
     // point just under each lens, where the light starts.
     function findLamps(model: Model): number[][] {
@@ -805,6 +1128,8 @@ void main(){
         readonly pic: string;
         // the night factor picture, uploaded the first time the piece is drawn at night
         ntex: WebGLTexture | null;
+        // the lens factor picture (26g1), uploaded the first time the lenses are made dark
+        ltex: WebGLTexture | null;
     }
     interface GroundMap {
         readonly tex: WebGLTexture;
@@ -900,8 +1225,21 @@ void main(){
         ]);
         const cloudxProg = program(FULL_VS, CLOUDX_FS, [...DEPTH_U, 'uTime', 'uAmt', 'uCover', 'uSize', 'uSpeed', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uCol', 'uShade', 'uPic', 'uHasPic']);
         const leafProg = program(LEAF_VS, LEAF_FS, ['uVP', 'uCam', 'uP', 'uA', 'uB', 'uSize', 'uGround', 'uFloor', 'uWall', 'uOut', 'uMode', 'uLight', 'uSun']);
+        const streakProg = program(STREAK_VS, STREAK_FS, [
+            'uVP', 'uCam', 'uViewport', 'uTime', 'uSpeed', 'uLen', 'uWind', 'uWidth', 'uBright', 'uOut', 'uLat', 'uRange', 'uZ', 'uColor', 'uDrift',
+            'uDens', 'uCount',
+        ]);
+        const wetProg = program(FULL_VS, WET_FS, [
+            ...DEPTH_U, 'uCol', 'uVP', 'uLat', 'uLim', 'uSky', 'uFlashCol', 'uAmt', 'uDepthW', 'uPud', 'uShine', 'uFloorZ', 'uFlash', 'uTime', 'uHasCol',
+            'uRings',
+        ]);
+        const dripProg = program(DRIP_VS, DRIP_FS, [
+            'uVP', 'uCam', 'uViewport', 'uTime', 'uG', 'uTop', 'uGround', 'uAt', 'uWidth', 'uBright', 'uWind', 'uSplash', 'uOut', 'uLat', 'uSpan', 'uColor',
+        ]);
+        const splashProg = program(FULL_VS, SPLASH_FS, ['uDepth', 'uInv', 'uCam', 'uViewport', 'uTime', 'uRate', 'uBright', 'uWall', 'uOut', 'uColor']);
         const PIECE_ATTRIBS: ReadonlyArray<readonly [number, string]> = [[0, 'aP'], [1, 'aT']];
         const meshProg = program(MESH_VS, MESH_FS, ['uVP', 'uOff', 'uTex', 'uMode', 'uBright', 'uAmt', 'uAlpha', 'uXr', 'uXs', 'uXt'], PIECE_ATTRIBS);
+        const boltProg = program(BOLT_VS, BOLT_FS, ['uVP', 'uOff', 'uBoltTex', 'uCam', 'uOut', 'uLat', 'uBolt', 'uFlash', 'uTop'], PIECE_ATTRIBS);
         const mixProg = program(MIX_VS, MIX_FS, ['uVP', 'uOff', 'uMap', 'uOut', 'uLat', 'uWall', 'uDepth', 'uAmt', 'uBox', 'uTint', 'uTintIn', 'uTone', 'uLim', 'uOutR', 'uFade', 'uInside'], PIECE_ATTRIBS);
         const aP = 0;
         const aT = 1;
@@ -928,6 +1266,9 @@ void main(){
         const groundMaps = new Map<string, GroundMap>();
         let sheet: WebGLVertexArrayObject | null = null;
         let depthTex: WebGLTexture | null = null;
+        // the lightning bolt's picture as a texture (26g4a): a new one each strike, the last one deleted
+        let boltTex: WebGLTexture | null = null;
+        let boltPic: ImageBitmap | null = null;
         let depthFbo: WebGLFramebuffer | null = null;
         let dW = 0;
         let dH = 0;
@@ -1078,16 +1419,16 @@ void main(){
                 gl.enableVertexAttribArray(aT);
                 gl.vertexAttribPointer(aT, 2, gl.FLOAT, false, 0, 0);
                 pieceBufs.push(pb, tb);
-                list.push({ vao: v, count: b.pos.length / 3, tex: uploadPicture(bmp), mode: b.mode, name: b.name, pic: b.pic, ntex: null });
+                list.push({ vao: v, count: b.pos.length / 3, tex: uploadPicture(bmp), mode: b.mode, name: b.name, pic: b.pic, ntex: null, ltex: null });
             }
             gl.bindVertexArray(vao);
             pieceCache.set(asset.key, list);
             return list;
         }
 
-        // Draws the loaded pieces; only = 'solid' (modes 0 and 1) or 'sun' (every piece with a night picture, as the night
-        // multiply); alpha fades the pieces in (1 = fully there).
-        function drawPieces(f: KaspLobbyPassFrame, asset: KaspLobbyAsset, only: 'solid' | 'clear' | 'sun', bright: number, amt: number, alpha: number): void {
+        // Draws the loaded pieces; only = 'solid' (modes 0 and 1), 'sun' (every piece with a night picture, as the night multiply) or
+        // 'lens' (every piece with a lens picture, the same multiply); alpha fades the pieces in (1 = fully there).
+        function drawPieces(f: KaspLobbyPassFrame, asset: KaspLobbyAsset, only: 'solid' | 'clear' | 'sun' | 'lens', bright: number, amt: number, alpha: number): void {
             const list = piecesOf(asset);
             gl.useProgram(meshProg.p);
             gl.uniformMatrix4fv(uni(meshProg, 'uVP'), false, f.vp);
@@ -1112,8 +1453,16 @@ void main(){
                         p.ntex = uploadPicture(n);
                     }
                 }
-                gl.uniform1i(uni(meshProg, 'uMode'), only === 'sun' ? 3 : p.mode);
-                gl.bindTexture(gl.TEXTURE_2D, only === 'sun' && p.ntex !== null ? p.ntex : p.tex);
+                if (only === 'lens') {
+                    if (p.mode === 2) continue;
+                    if (p.ltex === null) {
+                        const n = asset.lensPics?.get(p.pic);
+                        if (n === undefined) continue;
+                        p.ltex = uploadPicture(n);
+                    }
+                }
+                gl.uniform1i(uni(meshProg, 'uMode'), only === 'sun' || only === 'lens' ? 3 : p.mode);
+                gl.bindTexture(gl.TEXTURE_2D, only === 'sun' && p.ntex !== null ? p.ntex : only === 'lens' && p.ltex !== null ? p.ltex : p.tex);
                 gl.bindVertexArray(p.vao);
                 gl.drawArrays(gl.TRIANGLES, 0, p.count);
             }
@@ -1292,7 +1641,8 @@ void main(){
                 gl.viewport(0, 0, W, H);
                 const A = f.atmos;
                 // (0a to 0c: the seasonal outside, the night, the grey sky; with their looks)
-                const needDepth = !!(f.ncx || f.ndx || f.grade || A || f.lamps);
+                const R = f.rain;
+                const needDepth = !!(f.ncx || f.ndx || f.grade || A || f.lamps || (R && R.splash > 0) || f.wet);
                 const depthOk = needDepth && st.draw === null && !depthBroken && copyDepth(W, H);
                 gl.colorMask(true, true, true, false);
                 gl.depthMask(false);
@@ -1317,6 +1667,33 @@ void main(){
                     drawPieces(f, f.desun.asset, 'sun', 1, f.desun.amount, 1);
                     gl.disable(gl.POLYGON_OFFSET_FILL);
                     gl.disable(gl.DEPTH_TEST);
+                }
+                // 0b2. the four ring lamp lenses made dark (the wall picture's lens spot multiplied down; 26g1, the overcast)
+                if (f.lensOff && st.draw === null) {
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(false);
+                    gl.enable(gl.POLYGON_OFFSET_FILL);
+                    gl.polygonOffset(-1, -3);
+                    gl.blendFuncSeparate(gl.ZERO, gl.SRC_COLOR, gl.ZERO, gl.ONE);
+                    drawPieces(f, f.lensOff.asset, 'lens', 1, f.lensOff.amount, 1);
+                    gl.disable(gl.POLYGON_OFFSET_FILL);
+                    gl.disable(gl.DEPTH_TEST);
+                }
+                // 0c. the grey cloudy sky (26g1): the game's own sky mesh drawn again with the greyed picture over the blue one; the town in
+                // front keeps winning by the game's depth, and nothing is written to it
+                if (f.sky && st.draw === null) {
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(false);
+                    gl.colorMask(true, true, true, false);
+                    gl.enable(gl.POLYGON_OFFSET_FILL);
+                    gl.polygonOffset(-1, -4);
+                    gl.disable(gl.BLEND);
+                    drawPieces(f, f.sky.asset, 'solid', 1, 0, 1);
+                    gl.disable(gl.POLYGON_OFFSET_FILL);
+                    gl.disable(gl.DEPTH_TEST);
+                    gl.enable(gl.BLEND);
                 }
                 // 1. the time of day / heat colour: multiply the game's picture
                 if (depthOk && f.grade) {
@@ -1422,7 +1799,39 @@ void main(){
                         gl.drawArrays(gl.TRIANGLES, 0, 3);
                     }
                 }
-                // (1d, 1e: the wet floor, the drift; with their looks)
+                // 1d. the wet floor by the door (26g5): darker, puddles mirroring the picture drawn so far (copied first), bright in a flash
+                if (depthOk && f.wet) {
+                    const Wt = f.wet;
+                    const hasCol = st.draw === null && copyColour(W, H);
+                    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, st.draw);
+                    gl.viewport(0, 0, W, H);
+                    gl.useProgram(wetProg.p);
+                    depthUniforms(wetProg, f, W, H);
+                    gl.activeTexture(gl.TEXTURE0 + PANO);
+                    gl.bindTexture(gl.TEXTURE_2D, hasCol ? colTex : null);
+                    gl.bindSampler(PANO, null);
+                    gl.uniform1i(uni(wetProg, 'uCol'), PANO);
+                    gl.activeTexture(gl.TEXTURE0 + UNIT);
+                    gl.bindTexture(gl.TEXTURE_2D, depthTex);
+                    gl.uniformMatrix4fv(uni(wetProg, 'uVP'), false, f.vp);
+                    gl.uniform2f(uni(wetProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                    gl.uniform3fv(uni(wetProg, 'uLim'), Wt.lim);
+                    gl.uniform3fv(uni(wetProg, 'uSky'), Wt.sky);
+                    gl.uniform3fv(uni(wetProg, 'uFlashCol'), [0.78, 0.84, 1]);
+                    gl.uniform1f(uni(wetProg, 'uAmt'), Wt.amount);
+                    gl.uniform1f(uni(wetProg, 'uDepthW'), Wt.depth);
+                    gl.uniform1f(uni(wetProg, 'uPud'), Wt.puddles);
+                    gl.uniform1f(uni(wetProg, 'uShine'), Wt.shine);
+                    gl.uniform1f(uni(wetProg, 'uFloorZ'), Wt.floorZ);
+                    gl.uniform1f(uni(wetProg, 'uFlash'), Wt.flash);
+                    gl.uniform1f(uni(wetProg, 'uTime'), f.time);
+                    gl.uniform1f(uni(wetProg, 'uHasCol'), hasCol ? 1 : 0);
+                    gl.uniform1f(uni(wetProg, 'uRings'), Wt.rings);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.bindVertexArray(vao);
+                    gl.drawArrays(gl.TRIANGLES, 0, 3);
+                }
+                // (1e: the drift; with its look)
                 gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                 // 2. snow lying on the ground, fog, sun glow, stars (laid over)
                 if (depthOk && A) {
@@ -1682,7 +2091,114 @@ void main(){
                     }
                     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                 }
-                // (2a to 4: the extras, the bolt, the splashes, the falling things; with their looks)
+                // 2b. the lightning bolt (26g4a): the grey sky mesh drawn again with the bolt added; the roof and the town in front hide
+                // it by the game's depth
+                if (A && A.flash > 0.003 && A.bolt > 0 && f.boltSky && st.draw === null) {
+                    const B = f.boltSky;
+                    if (B.pic !== boltPic) {
+                        if (boltTex !== null) gl.deleteTexture(boltTex);
+                        if (boltPic !== null) picTex.delete(boltPic);
+                        boltTex = uploadPicture(B.pic);
+                        boltPic = B.pic;
+                    }
+                    gl.useProgram(boltProg.p);
+                    gl.uniformMatrix4fv(uni(boltProg, 'uVP'), false, f.vp);
+                    gl.uniform3fv(uni(boltProg, 'uOff'), f.offset);
+                    gl.uniform3fv(uni(boltProg, 'uCam'), f.cam);
+                    gl.uniform2f(uni(boltProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                    gl.uniform2f(uni(boltProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                    gl.uniform1f(uni(boltProg, 'uBolt'), A.bolt);
+                    gl.uniform1f(uni(boltProg, 'uFlash'), A.flash);
+                    gl.uniform1f(uni(boltProg, 'uTop'), B.top);
+                    gl.activeTexture(gl.TEXTURE0 + PANO);
+                    gl.bindTexture(gl.TEXTURE_2D, boltTex);
+                    gl.bindSampler(PANO, null);
+                    gl.uniform1i(uni(boltProg, 'uBoltTex'), PANO);
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(false);
+                    gl.enable(gl.POLYGON_OFFSET_FILL);
+                    gl.polygonOffset(-1, -4);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                    for (const p of piecesOf(B.asset)) {
+                        if (p.mode === 2) continue;
+                        gl.bindVertexArray(p.vao);
+                        gl.drawArrays(gl.TRIANGLES, 0, p.count);
+                    }
+                    gl.disable(gl.POLYGON_OFFSET_FILL);
+                    gl.disable(gl.DEPTH_TEST);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.bindVertexArray(vao);
+                    gl.activeTexture(gl.TEXTURE0 + UNIT);
+                }
+                // 3. rain splashes on the street (26g2)
+                if (depthOk && R && R.splash > 0) {
+                    gl.useProgram(splashProg.p);
+                    gl.uniform1i(uni(splashProg, 'uDepth'), UNIT);
+                    gl.uniformMatrix4fv(uni(splashProg, 'uInv'), false, inv);
+                    gl.uniform3fv(uni(splashProg, 'uCam'), f.cam);
+                    gl.uniform2f(uni(splashProg, 'uViewport'), W, H);
+                    gl.uniform1f(uni(splashProg, 'uTime'), f.time);
+                    gl.uniform1f(uni(splashProg, 'uRate'), R.splash);
+                    gl.uniform1f(uni(splashProg, 'uBright'), R.bright);
+                    gl.uniform1f(uni(splashProg, 'uWall'), f.box.wall);
+                    gl.uniform2f(uni(splashProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                    gl.uniform3fv(uni(splashProg, 'uColor'), R.color);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.drawArrays(gl.TRIANGLES, 0, 3);
+                }
+                // 4. falling things, hidden by the game's depth: the rain's streaks (26g2), then the door drips (26g5)
+                gl.enable(gl.DEPTH_TEST);
+                gl.depthFunc(gl.LEQUAL);
+                gl.depthMask(false);
+                gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                gl.bindVertexArray(vao);
+                if (R && R.drops > 0) {
+                    gl.useProgram(streakProg.p);
+                    gl.uniformMatrix4fv(uni(streakProg, 'uVP'), false, f.vp);
+                    gl.uniform3fv(uni(streakProg, 'uCam'), f.cam);
+                    gl.uniform2f(uni(streakProg, 'uViewport'), W, H);
+                    gl.uniform1f(uni(streakProg, 'uTime'), f.time);
+                    gl.uniform1f(uni(streakProg, 'uSpeed'), 5500 * R.speed);
+                    gl.uniform1f(uni(streakProg, 'uLen'), R.length);
+                    gl.uniform1f(uni(streakProg, 'uWind'), R.wind);
+                    gl.uniform1f(uni(streakProg, 'uWidth'), 1.2 * R.width);
+                    gl.uniform1f(uni(streakProg, 'uBright'), R.bright);
+                    gl.uniform2f(uni(streakProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                    gl.uniform2f(uni(streakProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                    gl.uniform4f(uni(streakProg, 'uRange'), f.box.wall, R.reachEnd, f.box.u[0], f.box.u[1]);
+                    gl.uniform2f(uni(streakProg, 'uZ'), f.box.z[0], f.box.z[1]);
+                    gl.uniform3fv(uni(streakProg, 'uColor'), R.color);
+                    gl.uniform1f(uni(streakProg, 'uDrift'), R.drift);
+                    gl.uniform1f(uni(streakProg, 'uDens'), R.dens);
+                    gl.uniform1f(uni(streakProg, 'uCount'), R.drops);
+                    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, R.drops);
+                }
+                if (f.drips && f.drips.n > 0) {
+                    const Dp = f.drips;
+                    gl.useProgram(dripProg.p);
+                    gl.uniformMatrix4fv(uni(dripProg, 'uVP'), false, f.vp);
+                    gl.uniform3fv(uni(dripProg, 'uCam'), f.cam);
+                    gl.uniform2f(uni(dripProg, 'uViewport'), W, H);
+                    gl.uniform1f(uni(dripProg, 'uTime'), f.time);
+                    gl.uniform1f(uni(dripProg, 'uG'), Dp.g);
+                    gl.uniform1f(uni(dripProg, 'uTop'), Dp.top);
+                    gl.uniform1f(uni(dripProg, 'uGround'), Dp.ground);
+                    gl.uniform1f(uni(dripProg, 'uAt'), Dp.at);
+                    gl.uniform1f(uni(dripProg, 'uWidth'), Dp.width);
+                    gl.uniform1f(uni(dripProg, 'uBright'), Dp.bright);
+                    gl.uniform1f(uni(dripProg, 'uWind'), Dp.wind);
+                    gl.uniform1f(uni(dripProg, 'uSplash'), Dp.splash);
+                    gl.uniform2f(uni(dripProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                    gl.uniform2f(uni(dripProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                    gl.uniform2f(uni(dripProg, 'uSpan'), Dp.span[0], Dp.span[1]);
+                    gl.uniform3fv(uni(dripProg, 'uColor'), Dp.color);
+                    gl.enable(gl.POLYGON_OFFSET_FILL);
+                    gl.polygonOffset(-1, -4);
+                    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Dp.n);
+                    gl.disable(gl.POLYGON_OFFSET_FILL);
+                }
+                gl.disable(gl.DEPTH_TEST);
             } finally {
                 restore(st);
             }
@@ -1699,6 +2215,7 @@ void main(){
             for (const list of pieceCache.values()) for (const p of list) gl.deleteVertexArray(p.vao);
             if (sheet !== null) gl.deleteVertexArray(sheet);
             for (const b of pieceBufs) gl.deleteBuffer(b);
+            // (the bolt's texture is in picTex too)
             for (const t of picTex.values()) gl.deleteTexture(t);
             for (const m of groundMaps.values()) gl.deleteTexture(m.tex);
         }
@@ -1716,5 +2233,5 @@ void main(){
         return { key: 'halloween-lamps', batches, pics: await pictures(batches) };
     }
 
-    window.__kaspLobbyPass = { make, loadStandard, nightPictures, loadFixtures };
+    window.__kaspLobbyPass = { make, loadStandard, nightPictures, loadFixtures, lensPictures, loadSky };
 })();

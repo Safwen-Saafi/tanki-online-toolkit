@@ -344,6 +344,8 @@ interface KaspLobbyNames {
     readonly shadowsOn: string;
     readonly sharpness: string;
     readonly setSharpness: string;
+    // The renderer's shadows switch (on only where the graphics card can); optional: without it the game's own switch is left as it is.
+    readonly setShadows?: string;
     // The renderer's shadow settings, the copy-with-changes method and its nine fields in the copy's order.
     readonly shadow: string;
     readonly shadowCopy: string;
@@ -366,6 +368,8 @@ interface KaspLobbyPassNames {
     readonly worldCamera: string;
     readonly nodeName: string;
     readonly setShown: string;
+    // A node's see-through amount (1 = solid) and its setter (26g1); missing when not found, then parts are only shown or hidden.
+    readonly alpha?: { readonly field: string; readonly set: string };
     readonly children: string;
     readonly size: string;
     readonly at: string;
@@ -429,6 +433,8 @@ interface KaspLobbyAsset {
     readonly fwd?: number;
     // The night factor pictures by picture name (26f2), once made.
     readonly nightPics?: ReadonlyMap<string, ImageBitmap>;
+    // The lens factor pictures by picture name (26g1), once made.
+    readonly lensPics?: ReadonlyMap<string, ImageBitmap>;
 }
 
 // The game's own hangar: its room and floor, and the road's flat ground just outside the door.
@@ -452,6 +458,25 @@ interface KaspLobbyBox {
     readonly floorZ: number;
     // the town's reach sideways (along l), for the leaves (26f3)
     readonly u: readonly [number, number];
+    // the town's far edge along o, and the rain's height range (the town's bottom to 2500 above the room's top) (26g2)
+    readonly far: number;
+    readonly z: readonly [number, number];
+}
+
+// Stages 3 and 4 (26g2): the rain. drops = streaks drawn, dens = the share of them shown, drift = the wind added up over time,
+// reachEnd = how far out along o the rain falls, color = the rain lit like the outside.
+interface KaspLobbyRain {
+    readonly drops: number;
+    readonly dens: number;
+    readonly drift: number;
+    readonly speed: number;
+    readonly length: number;
+    readonly wind: number;
+    readonly width: number;
+    readonly bright: number;
+    readonly reachEnd: number;
+    readonly splash: number;
+    readonly color: readonly number[];
 }
 
 // Stage 1a: the hangar floor drawn again with the outside's ground mirrored in through the door line.
@@ -509,6 +534,13 @@ interface KaspLobbyPassFrame {
     readonly floorMix: KaspLobbyFloorMix | null;
     // Stage 0b (26f2): the hangar's walls and floor multiplied by their night factor pictures.
     readonly desun: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
+    // Stage 0b2 (26g1): the ring lamp lenses made dark by their lens factor picture (the overcast).
+    readonly lensOff: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
+    // Stage 0c (26g1): the game's sky mesh drawn again with its greyed picture (the overcast).
+    readonly sky: { readonly asset: KaspLobbyAsset } | null;
+    // Stage 2b (26g4a): the grey sky mesh drawn again with the lightning bolt added, while a flash lasts; pic = the bolt picture
+    // (columns = directions across the door, +-0.6 rad), top = the angle up that its top row stands for.
+    readonly boltSky: { readonly asset: KaspLobbyAsset; readonly pic: ImageBitmap; readonly top: number } | null;
     // Stage 1b (26f4c): the Halloween hangar's lit lamp heads over the ring lamps, then their light cones (added).
     readonly fixtures: { readonly asset: KaspLobbyAsset; readonly alpha: number; readonly cones: number } | null;
     // Stage 1c (26f2): the ring lamps' light.
@@ -519,6 +551,42 @@ interface KaspLobbyPassFrame {
     readonly ncx: KaspLobbyNightExtras | null;
     // Stage 2a3a (26f3): the normal day's extras, the white clouds over the sky and the leaves in the street; null at night.
     readonly ndx: KaspLobbyDayExtras | null;
+    // Stages 3 and 4 (26g2): the rain splashes on the street, then the falling streaks; null = no rain.
+    readonly rain: KaspLobbyRain | null;
+    // Stage 1d (26g5): the wet floor by the door and the street; null = dry.
+    readonly wet: KaspLobbyWet | null;
+    // Stage 4 (26g5): the drips from the door's top edge; null = none.
+    readonly drips: KaspLobbyDrips | null;
+}
+
+// amount = how wet, depth = how far in from the door, puddles = how much is standing water, shine = how strongly they mirror,
+// rings = rings in the puddles (0 without rain), floorZ = the floor's top, lim = across the door (left, right, edge softness),
+// sky = the colour a mirrored ray that leaves the screen gets, flash = the lightning's flash now.
+interface KaspLobbyWet {
+    readonly amount: number;
+    readonly depth: number;
+    readonly puddles: number;
+    readonly shine: number;
+    readonly rings: number;
+    readonly floorZ: number;
+    readonly lim: readonly number[];
+    readonly sky: readonly number[];
+    readonly flash: number;
+}
+
+// n drops along the door's top edge (top) at `at` along o, across span; g = gravity; ground = the floor's top; splash = the rings.
+interface KaspLobbyDrips {
+    readonly n: number;
+    readonly top: number;
+    readonly at: number;
+    readonly span: readonly number[];
+    readonly g: number;
+    readonly width: number;
+    readonly bright: number;
+    readonly splash: number;
+    readonly wind: number;
+    readonly ground: number;
+    readonly color: readonly number[];
 }
 
 interface KaspLobbyStreetLights {
@@ -600,6 +668,9 @@ interface KaspLobbyPassApi {
     readonly nightPictures: (asset: KaspLobbyAsset) => Promise<ReadonlyMap<string, ImageBitmap>>;
     // The Halloween hangar's lamp heads round the ring lamps' spots and their light cones (26f4c), from the extension's hangars/ folder.
     readonly loadFixtures: (base: string, lamps: ReadonlyArray<readonly number[]>) => Promise<KaspLobbyAsset>;
+    // The overcast (26g1): the ring lamp lenses' factor picture, and the game's sky mesh with its picture greyed (saved once made).
+    readonly lensPictures: (asset: KaspLobbyAsset) => Promise<ReadonlyMap<string, ImageBitmap>>;
+    readonly loadSky: (folder: string, grey: { readonly amount: number; readonly contrast: number; readonly tint: readonly number[] }) => Promise<KaspLobbyAsset>;
 }
 
 // MAIN world, defined by src/modules/hangar_files.ts (26e): its two floor steps, used by lobby_pass.ts for the night floor (26f2).
@@ -630,6 +701,8 @@ interface KaspLobby {
 interface Window {
     __kaspLobby?: KaspLobby;
     __kaspLobbyPass?: KaspLobbyPassApi;
+    // The one lobby look list (lobby_looks.ts), in the page's world only; missing if that file did not run.
+    __kaspLobbyLooks?: typeof KASP_LOBBY_LOOKS;
     __kaspHangarPictures?: KaspHangarPictures;
     __kaspShowroom?: KaspShowroom;
     __kaspShowroomParts?: KaspShowroomParts;

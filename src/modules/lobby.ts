@@ -16,25 +16,6 @@
     const DEG = Math.PI / 180;
     // The owner's camera "final1" (2026-11-16): near and up / aim in the game's units, orbit and turn in degrees, left and lens in %.
     const POSE = { near: 130, orbit: 26, left: 24, up: 20, aim: -40, turn: 32, lens: 66 } as const;
-    // The owner's final "day normal" preset (probe v1.68, report of 2026-11-20 14:13), the game-side groups only.
-    const LOOK = {
-        keySide: -105,
-        keyHeight: 40,
-        keyStrength: 1.95,
-        keyColour: '#ffe9cf',
-        fillColour: '#9fb4d6',
-        fillStrength: 0.7,
-        shadowSize: 2048,
-        shadowReach: 0.55,
-        shadowStrength: 0.75,
-        shadowBlur: 0.4,
-        sharpness: 16,
-        lampSpeed: 0.52,
-        breathing: 1.5,
-        follow: 40,
-        sweepAmount: 5,
-        sweepSpeed: 0.25,
-    } as const;
     const MOUSE_EASE = 0.05;
     // The pass draws only right after a lobby frame (26f1): a game picture this long after the last one is not the lobby's.
     const LOBBY_TICK_MS = 250;
@@ -190,27 +171,31 @@
     }
 
     // Once per scene: the platform turned to face the camera plus the owner's turn (the player's drag turns it from there), and the
-    // renderer's shadow and sharpness (the full settings).
+    // renderer's shadow and sharpness (the full settings). The shadows are switched on as the probe does (its applyShadow), even when
+    // the player has them off in the game (owner, 2026-11-21: the looks always run at full settings); the game's own switch keeps
+    // them off where the graphics card cannot. Without the switch's name the game's own setting is kept.
     function firstWrites(s: Scene, n: KaspLobbyNames): void {
         bag(bag(s.system, n.platform), n.rotation)[n.z] = Math.atan2(-s.want.faceX, s.want.faceY) + POSE.turn * DEG;
         const r = s.rendererRecord;
-        if (r.shadowsOn) {
+        if (n.setShadows !== undefined && !r.shadowsOn) invoke(s.renderer, n.setShadows, [true]);
+        const shadowsNow = bag(s.renderer, n.state)[n.shadowsOn] === true;
+        if (shadowsNow) {
             const o = r.shadow;
             s.renderer[n.shadow] = invoke(r.shadowObject, n.shadowCopy, [
-                LOOK.shadowSize,
-                o[1] * LOOK.shadowReach,
-                o[2] * LOOK.shadowReach,
-                LOOK.shadowStrength,
+                look.light.shadowSize,
+                o[1] * look.light.shadowReach,
+                o[2] * look.light.shadowReach,
+                look.light.shadowStrength,
                 o[4],
-                o[5] * LOOK.shadowBlur,
+                o[5] * look.light.shadowBlur,
                 o[6],
                 o[7],
                 o[8],
             ]);
         }
         // Raised to the owner's 16 whatever the game's own (his call, 2026-11-21).
-        setSharpness(s, n, LOOK.sharpness);
-        state.shadows = r.shadowsOn ? LOOK.shadowStrength : 'the game\'s own (off)';
+        setSharpness(s, n, look.light.sharpness);
+        state.shadows = shadowsNow ? look.light.shadowStrength : 'off (the graphics card cannot)';
         state.sharpness = num(bag(s.renderer, n.state), n.sharpness);
     }
 
@@ -225,8 +210,8 @@
         mouse.eased.y += (mouse.y - mouse.eased.y) * MOUSE_EASE;
         // The game puts the camera at our point plus its own breathing, so ours adds the part of the breathing it does not have.
         const wobble = readVector(bag(s.system, n.wobble), n);
-        const more = LOOK.breathing - 1;
-        const follow = LOOK.follow;
+        const more = look.light.breathing - 1;
+        const follow = look.light.follow;
         writeVector(bag(s.system, n.cam), n, {
             x: w.c.x + w.rightX * mouse.eased.x * follow + more * wobble.x,
             y: w.c.y + w.rightY * mouse.eased.x * follow + more * wobble.y,
@@ -238,17 +223,47 @@
         // degrees round from the camera's side and keyHeight degrees up, swinging slowly; the game copies the system's light direction
         // into its key light every frame.
         if (!writeTimeLights(s, n)) {
-            const side = LOOK.keySide + Math.sin(sweepTime * LOOK.sweepSpeed) * LOOK.sweepAmount;
+            const side = look.light.keySide + Math.sin(sweepTime * look.light.sweepSpeed) * look.light.sweepAmount;
             const az = w.phi + side * DEG;
-            const el = LOOK.keyHeight * DEG;
+            const el = look.light.keyHeight * DEG;
             writeVector(bag(s.system, n.lightDir), n, { x: -Math.cos(az) * Math.cos(el), y: -Math.sin(az) * Math.cos(el), z: -Math.sin(el) });
             const lighting = bag(s.renderer, n.lighting);
             const key = bag(lighting, n.key);
-            writeColour(bag(key, n.keyColour), n, fromHex(LOOK.keyColour));
-            key[n.keyStrength] = LOOK.keyStrength;
-            writeColour(bag(lighting, n.ambient), n, [...fromHex(LOOK.fillColour).map((part) => part * LOOK.fillStrength), 1]);
+            writeColour(bag(key, n.keyColour), n, fromHex(look.light.keyColour));
+            key[n.keyStrength] = look.light.keyStrength;
+            writeColour(bag(lighting, n.ambient), n, [...fromHex(look.light.fillColour).map((part) => part * look.light.fillStrength), 1]);
         }
-        s.system[n.lampSpeed] = LOOK.lampSpeed;
+        flashLight(s, n);
+        s.system[n.lampSpeed] = look.light.lampSpeed;
+    }
+
+    // The lightning shadow (26g4c, the probe's flashLight): while a flash lasts (its pulses held longer), the game's key light swings
+    // to come low through the doorway, a little to one side, stronger and cold, so the tank's real shadow jumps across the floor. It is
+    // laid over the light written just before it in the same tick, so the normal light comes back by itself when the flash ends.
+    function flashLight(s: Scene, n: KaspLobbyNames): void {
+        const K = look.flashShadow;
+        const Sm = look.storm;
+        const box = passScene?.box;
+        if (K === null || Sm === null || box === undefined || STORM.pulses.length === 0) return;
+        const dt = (performance.now() - STORM.t0) / 1000;
+        const hold = Math.max(0.2, K.hold);
+        let fl = 0;
+        for (const q of STORM.pulses) if (dt >= q.t) fl += q.a * Math.exp(-(dt - q.t) / (q.tau * hold));
+        fl = Math.min(1.4, fl) * Sm.flash;
+        if (!(fl > 0.002)) return;
+        const a = Math.atan2(box.o[1], box.o[0]) + STORM.side * DEG;
+        const el = K.low * DEG;
+        const to = [-Math.cos(a) * Math.cos(el), -Math.sin(a) * Math.cos(el), -Math.sin(el)];
+        const dirBag = bag(s.system, n.lightDir);
+        const d = readVector(dirBag, n);
+        const w = Math.min(1, fl * 3);
+        const v = [lerp(d.x, to[0], w), lerp(d.y, to[1], w), lerp(d.z, to[2], w)];
+        const len = Math.hypot(v[0], v[1], v[2]) || 1;
+        writeVector(dirBag, n, { x: v[0] / len, y: v[1] / len, z: v[2] / len });
+        const key = bag(bag(s.renderer, n.lighting), n.key);
+        const colour = bag(key, n.keyColour);
+        writeColour(colour, n, lerp3(readColour(colour, n), [0.78, 0.84, 1], w));
+        key[n.keyStrength] = num(key, n.keyStrength) + K.power * 2.5 * Math.min(1.2, fl);
     }
 
     // Everything back to the recorded values; each line on its own, so one that fails does not keep the others.
@@ -275,6 +290,9 @@
             },
             () => {
                 s.renderer[n.shadow] = s.rendererRecord.shadowObject;
+            },
+            () => {
+                if (n.setShadows !== undefined && !s.rendererRecord.shadowsOn) invoke(s.renderer, n.setShadows, [false]);
             },
             () => setSharpness(s, n, s.rendererRecord.sharpness),
             () => restoreDrone(s, n),
@@ -312,6 +330,10 @@
             lastFrame = now;
             const dt = Math.min(0.05, gap / 1000);
             sweepTime += dt;
+            if (now - partsCheckAt > 1000) {
+                partsCheckAt = now;
+                checkParts(scene, n);
+            }
             writeLook(scene, n);
             flyDrone(scene, n, now, dt);
         } catch {
@@ -354,15 +376,52 @@
         readonly keyDown: number;
         readonly color: string;
     }
+    // The game-side light and sway (the probe's key, fill, shadow, aniso, lamps, breath, follow and sweep groups). With the picture
+    // pass the key and fill come from the hour table; these key and fill numbers are then only the light without it.
+    interface LightNumbers {
+        readonly keySide: number;
+        readonly keyHeight: number;
+        readonly keyStrength: number;
+        readonly keyColour: string;
+        readonly fillColour: string;
+        readonly fillStrength: number;
+        readonly shadowSize: number;
+        readonly shadowReach: number;
+        readonly shadowStrength: number;
+        readonly shadowBlur: number;
+        readonly sharpness: number;
+        readonly lampSpeed: number;
+        readonly breathing: number;
+        readonly follow: number;
+        readonly sweepAmount: number;
+        readonly sweepSpeed: number;
+    }
     interface LobbyLook {
+        readonly light: LightNumbers;
         readonly time: { readonly hour: number; readonly strength: number; readonly inside: number; readonly sunSide: number };
         readonly door: number;
-        readonly night: NightLights;
+        // the night lights; null = the probe's night group off (then it is never dark: no night lamps, no night road, no night key
+        // light, whatever the hour)
+        readonly night: NightLights | null;
         // the probe's "clean walls" (the painted sunlight taken out by day too); 0 = off
         readonly cleanWall: number;
         readonly road: RoadNumbers;
         readonly roadN: RoadNumbers;
         readonly hidden: readonly string[];
+        // the overcast (26g1, the probe's "Rainy sky" group); null = off. sky = how grey the sky picture turns, contrast = its cloud
+        // contrast, layer = the drifting cloud layer, speed = its drift, tint = the cloud colour, out = how lit the outside stays,
+        // beams = how much of the sunbeams is left, dark = how lit the inside stays, lamps = how lit the ring lamp lenses stay
+        readonly overcast: {
+            readonly sky: number;
+            readonly contrast: number;
+            readonly layer: number;
+            readonly speed: number;
+            readonly tint: string;
+            readonly out: number;
+            readonly beams: number;
+            readonly dark: number;
+            readonly lamps: number;
+        } | null;
         // the normal day's extras (26f3), only by day; null = off
         readonly clouds: { readonly amount: number; readonly cover: number; readonly size: number; readonly speed: number } | null;
         readonly leaves: LeafNumbers | null;
@@ -408,6 +467,61 @@
             readonly color: string;
         } | null;
         readonly moths: { readonly count: number; readonly size: number; readonly speed: number } | null;
+        // the falling rain (26g2, the probe's "Rain" group); null = no rain. drops = how many streaks, speed = how fast they fall,
+        // length = streak length, wind = how slanted, width, bright, reach = how far out from the door it rains, splash = how many
+        // rings on the street, volume = the hiss in %, color = the rain's colour before the outside's light
+        readonly rain: {
+            readonly drops: number;
+            readonly speed: number;
+            readonly length: number;
+            readonly wind: number;
+            readonly width: number;
+            readonly bright: number;
+            readonly reach: number;
+            readonly splash: number;
+            readonly volume: number;
+            readonly color: string;
+        } | null;
+        // the rain's gusts (26g3, the probe's "Gusts" group), only with rain; null = steady rain. every = seconds between gusts (give
+        // or take 40 %), heavier = how many more drops at a gust's top, slant = the extra wind, louder = how much louder the rain sounds
+        readonly gusts: { readonly every: number; readonly heavier: number; readonly slant: number; readonly louder: number } | null;
+        // rain on the roof (26g3): the recording's loudness in %, only with rain (0 = off)
+        readonly roof: number;
+        // thunder and lightning (26g4, the probe's "Thunder and lightning" group); null = none. every = seconds between strikes (give
+        // or take `random` of it), flash = how bright the flashes, bolt = how bright the bolt in the sky, volume = the thunder in %,
+        // delay = seconds from the flash to the thunder (26g4b)
+        readonly storm: {
+            readonly every: number;
+            readonly random: number;
+            readonly flash: number;
+            readonly bolt: number;
+            readonly volume: number;
+            readonly delay: number;
+        } | null;
+        // the hangar's lamps flickering when a near thunder starts (26g4b, the probe's "Lamp flicker"); null = none. dark = how deep
+        // the dips, length = how long the stutter (seconds), chance = how likely after the loud thunder (less after the others)
+        readonly flicker: { readonly dark: number; readonly length: number; readonly chance: number } | null;
+        // the lightning shadow (26g4c, the probe's "Lightning shadow"); null = none. While a flash lasts (its pulses held `hold` times
+        // longer) the game's own key light swings to come low (`low` degrees up) through the doorway, a new side each strike (up to
+        // `spread` degrees), colder and stronger (+ power x 2.5 x the flash), so the tank's real shadow jumps across the floor
+        readonly flashShadow: { readonly power: number; readonly low: number; readonly spread: number; readonly hold: number } | null;
+        // the drips from the door's top edge (26g5, the probe's "Door drips"), only with rain; null = none. count drops along the edge
+        // at height `top`, `out` past the wall line, from `left` to `right` across; speed = how fast they fall, size, bright, splash =
+        // the rings where they land
+        readonly drips: {
+            readonly count: number;
+            readonly top: number;
+            readonly out: number;
+            readonly left: number;
+            readonly right: number;
+            readonly speed: number;
+            readonly bright: number;
+            readonly size: number;
+            readonly splash: number;
+        } | null;
+        // the wet floor by the door (26g5, the probe's "Wet floor"); null = dry. amount = how wet, depth = how far in, puddles = how much
+        // is standing water, shine = how strongly they mirror, rings = rings in the puddles while it rains
+        readonly wet: { readonly amount: number; readonly depth: number; readonly puddles: number; readonly shine: number; readonly rings: number } | null;
     }
     interface ShootNumbers {
         readonly every: number;
@@ -426,6 +540,25 @@
         readonly gusts: number;
     }
     const DAY_NORMAL: LobbyLook = {
+        // the owner's final "day normal" (probe v1.68, report of 2026-11-20 14:13); the night normal keeps it
+        light: {
+            keySide: -105,
+            keyHeight: 40,
+            keyStrength: 1.95,
+            keyColour: '#ffe9cf',
+            fillColour: '#9fb4d6',
+            fillStrength: 0.7,
+            shadowSize: 2048,
+            shadowReach: 0.55,
+            shadowStrength: 0.75,
+            shadowBlur: 0.4,
+            sharpness: 16,
+            lampSpeed: 0.52,
+            breathing: 1.5,
+            follow: 40,
+            sweepAmount: 5,
+            sweepSpeed: 0.25,
+        },
         time: { hour: 13, strength: 1, inside: 0.7, sunSide: 0 },
         door: 1,
         night: { lamps: 0.35, reach: 0.85, glow: 0, sunOff: 1, fixtures: 1, keyDown: 1, color: '#fff3e0' },
@@ -433,6 +566,7 @@
         road: { amount: 0.55, reach: 1175, line: 0, x0: -860, x1: 700, feather: 160, out: 45, bright: 1, tone: 0, fade: 0, inside: 1 },
         roadN: { amount: 1.5, reach: 1650, line: 700, x0: -1110, x1: 780, feather: 360, out: 0, bright: 1.15, tone: 0.1, fade: 1500, inside: 1 },
         hidden: ['transp1'],
+        overcast: null,
         clouds: { amount: 0.9, cover: 0.6, size: 1, speed: 1 },
         leaves: { count: 44, dist: 2150, inside: 0, size: 4, wind: 2.9, gusts: 0.95 },
         city: 70,
@@ -444,6 +578,14 @@
         pools: null,
         flies: null,
         moths: null,
+        rain: null,
+        gusts: null,
+        roof: 0,
+        storm: null,
+        flicker: null,
+        flashShadow: null,
+        drips: null,
+        wet: null,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
@@ -464,19 +606,84 @@
         flies: { count: 120, dist: 3100, height: 305, size: 1.2, bright: 3.25, speed: 2.2, color: '#d4ff6a' },
         moths: { count: 3, size: 1.1, speed: 0.25 },
     };
-    // The looks built so far (the settings tab's list and hangar_files.ts use the same values); any other value is the day.
-    const LOOKS: Readonly<Record<string, LobbyLook>> = { 'day-normal': DAY_NORMAL, 'night-normal': NIGHT_NORMAL };
-    const lookName: string = (() => {
+    // The owner's final "day rainy" (probe v1.52 DAY_RAINY, report of 2026-11-19 21:33; its base look of 2026-11-18 20:59), every group
+    // it has on (the others are off in it): noon, the grey sky, the darker inside and outside, clean walls, the rain (26g2), its gusts
+    // and roof (26g3), the lightning, thunder, flicker and lightning shadow (26g4), the drips and the wet floor (26g5).
+    const DAY_RAINY: LobbyLook = {
+        ...DAY_NORMAL,
+        light: {
+            keySide: -132,
+            keyHeight: 42,
+            keyStrength: 2,
+            keyColour: '#ffe9cf',
+            fillColour: '#9fb4d6',
+            fillStrength: 0.5,
+            shadowSize: 2048,
+            shadowReach: 0.35,
+            shadowStrength: 0.65,
+            shadowBlur: 0.3,
+            sharpness: 16,
+            lampSpeed: 1,
+            breathing: 0.65,
+            follow: 80,
+            sweepAmount: 0,
+            sweepSpeed: 1.3,
+        },
+        time: { hour: 12, strength: 1, inside: 1, sunSide: 1 },
+        door: 0.1,
+        // the probe's night group is off on the rainy day
+        night: null,
+        cleanWall: 1,
+        road: { amount: 3, reach: 1575, line: 640, x0: -1030, x1: 810, feather: 400, out: 1000, bright: 0.9, tone: 0, fade: 3000, inside: 1 },
+        // every sunbeam part hidden (owner, 2026-11-21: "remove all of the god rays from the day and night rainy"; the probe kept
+        // transp2 at the overcast's 0.15 by day), and the ring lamps' halo
+        hidden: ['light0', 'light1', 'light2', 'transp1', 'transp2'],
+        overcast: { sky: 0.95, contrast: 1, layer: 1, speed: 0.7, tint: '#838991', out: 0.45, beams: 0.15, dark: 0.55, lamps: 0 },
+        clouds: null,
+        leaves: null,
+        city: 0,
+        // the owner's rain numbers and gusts (the same in the night rainy)
+        rain: { drops: 14500, speed: 1.05, length: 1.1, wind: 0.35, width: 1.4, bright: 1.25, reach: 4700, splash: 1, volume: 100, color: '#cfd8e2' },
+        gusts: { every: 14, heavier: 0.8, slant: 0.7, louder: 0.6 },
+        roof: 80,
+        storm: { every: 20, random: 0.3, flash: 1.35, bolt: 1, volume: 80, delay: 1.8 },
+        flicker: { dark: 0.65, length: 1.3, chance: 1 },
+        flashShadow: { power: 1.5, low: 16, spread: 30, hold: 2.5 },
+        drips: { count: 90, top: 1330, out: 25, left: -1000, right: 780, speed: 1, bright: 1.9, size: 1.8, splash: 1.8 },
+        wet: { amount: 1, depth: 470, puddles: 0.6, shine: 1, rings: 1 },
+    };
+    // The owner's final "night rainy" (probe v1.71 NIGHT_RAINY, report of 2026-11-20 15:57): the rainy day at 23:00 with the night
+    // lamps, the night road and a wider, shinier wet floor.
+    const NIGHT_RAINY: LobbyLook = {
+        ...DAY_RAINY,
+        time: { hour: 23, strength: 1, inside: 0, sunSide: -1 },
+        night: { lamps: 1.4, reach: 0.8, glow: 0, sunOff: 1, fixtures: 0.4, keyDown: 1, color: '#fff3e0' },
+        roadN: { amount: 1.5, reach: 1650, line: 700, x0: -1110, x1: 780, feather: 360, out: 0, bright: 1.15, tone: 0.1, fade: 1500, inside: 1 },
+        // the night's wider, shinier wet floor
+        wet: { amount: 1, depth: 660, puddles: 0.55, shine: 1.6, rings: 1.25 },
+    };
+    // The data of every look in the shared list (lobby_looks.ts): the build fails if a listed look has none. The saved choice
+    // (kasp_lobby_look) is used when it is in the list; otherwise the list's first look.
+    const LOOKS: Readonly<Record<KaspLobbyLookName, LobbyLook>> = {
+        'day-normal': DAY_NORMAL,
+        'night-normal': NIGHT_NORMAL,
+        'day-rainy': DAY_RAINY,
+        'night-rainy': NIGHT_RAINY,
+    };
+    const lookName: KaspLobbyLookName = (() => {
+        let saved: string | null = null;
         try {
-            const v = localStorage.getItem('kasp_lobby_look') ?? '';
-            return LOOKS[v] !== undefined ? v : 'day-normal';
+            saved = localStorage.getItem('kasp_lobby_look');
         } catch {
-            return 'day-normal';
+            // no saved choice
         }
+        const list = window.__kaspLobbyLooks;
+        // without the list (its file did not run) the day, the game's own first look
+        return (list?.find((l) => l.value === saved) ?? list?.[0])?.value ?? 'day-normal';
     })();
     const look: LobbyLook = LOOKS[lookName];
     // How dark it is at the look's hour (0 by day, 1 at night): the hangar's painted sunbeams left, turned round.
-    const nightAmount = (): number => Math.max(0, Math.min(1, 1 - timeState(look.time.hour).beams));
+    const nightAmount = (): number => (look.night === null ? 0 : Math.max(0, Math.min(1, 1 - timeState(look.time.hour).beams)));
 
     // The time of day: a colour table by hour, read between its rows (the probe's DAY_TABLE). inn = the hangar's colour, hor / zen =
     // the outside's colour at the horizon / looking up (all multiply the game's daytime picture), key / keyS = the sun (or moon) light
@@ -620,7 +827,19 @@
             { side: '-y', o: [0, -1] as const, l: [1, 0] as const, wall: -room.minY, far: -town.minY, near: -sky.maxY, u: [town.minX, town.maxX] as const },
         ];
         const best = sides.reduce((a, c) => (c.far - c.wall > a.far - a.wall ? c : a));
-        return { o: best.o, l: best.l, wall: best.wall, groundZ: room.minZ, skyZ: town.maxZ, skyNear: best.near, skyLow: room.maxZ, floorZ: floor ? floor.maxZ : 0, u: best.u };
+        return {
+            o: best.o,
+            l: best.l,
+            wall: best.wall,
+            groundZ: room.minZ,
+            skyZ: town.maxZ,
+            skyNear: best.near,
+            skyLow: room.maxZ,
+            floorZ: floor ? floor.maxZ : 0,
+            u: best.u,
+            far: best.far,
+            z: [town.minZ, room.maxZ + 2500],
+        };
     }
 
     interface PassScene {
@@ -628,11 +847,35 @@
         readonly box: KaspLobbyBox;
         readonly offset: [number, number, number];
         readonly hidden: readonly Part[];
+        // the sunbeams faded by the overcast (26g1), with their own see-through amount to give back
+        readonly faded: ReadonlyArray<{ readonly part: Part; readonly was: number }>;
     }
     let passScene: PassScene | null = null;
     let passBroken = false;
     let passFrames = 0;
     let lobbyTickAt = 0;
+    let partsCheckAt = 0;
+    // Once a second while the lobby is drawn: the pass starts on the lobby's first frame, sometimes before the game has put all of the
+    // hangar's parts in its scene, so a part added later (a sunbeam, the lamps' halo) would never be hidden or faded. If the parts
+    // changed, the pass starts again (it first gives back what it hid); otherwise every part the look hides is hidden again, in case
+    // the game showed it again.
+    function checkParts(s: Scene, n: KaspLobbyNames): void {
+        const p = n.pass;
+        const ps = passScene;
+        if (p === undefined || ps === null || passBroken) return;
+        try {
+            const now = readParts(s, n, p);
+            const known = new Set(ps.parts.map((q) => q.node));
+            const same = now.length === ps.parts.length && now.every((q) => known.has(q.node));
+            if (!same) {
+                startPass(s, n);
+                return;
+            }
+            for (const part of ps.hidden) invoke(part.node, p.setShown, [false]);
+        } catch {
+            // the parts stay as they are
+        }
+    }
     let gpu: KaspLobbyGpu | null = null;
     let gpuGl: WebGL2RenderingContext | null = null;
     // The renderer object whose frame call is wrapped, the game's own call, and whether it was the object's own property.
@@ -653,13 +896,36 @@
                 const at = readVector(bag(room.node, p.position), n);
                 offset = [at.x, at.y, at.z];
             }
-            const hidden = parts.filter((q) => look.hidden.includes(q.name));
+            const beams = sunbeams(parts, p);
+            const hidden = [...parts.filter((q) => look.hidden.includes(q.name)), ...beams.hide];
+            passScene = { parts, box: streetBox(parts, n, p), offset, hidden, faded: beams.faded };
             for (const part of hidden) invoke(part.node, p.setShown, [false]);
-            passScene = { parts, box: streetBox(parts, n, p), offset, hidden };
+            for (const { part } of beams.faded) invoke(part.node, p.alpha?.set ?? '', [beams.want]);
             wrapFrame(s.renderer, p);
         } catch {
             stopPass();
         }
+    }
+
+    // The sunbeams (the probe's applyBeams): the light rays and the see-through parts but the lamp halo (transp1, hidden by every
+    // look) at the look's hour times the overcast's share. Below 0.03 they are hidden; otherwise faded by their see-through amount
+    // (or, without its setter, hidden below 0.3); a part already as wanted, or hidden by the look, is left alone.
+    const isSunbeam = (name: string): boolean => /^light/i.test(name) || (/^transp/i.test(name) && !/^transp1$/i.test(name));
+    function sunbeams(parts: readonly Part[], p: KaspLobbyPassNames): { want: number; hide: Part[]; faded: Array<{ part: Part; was: number }> } {
+        const want = timeState(look.time.hour).beams * (look.overcast?.beams ?? 1);
+        const hide: Part[] = [];
+        const faded: Array<{ part: Part; was: number }> = [];
+        for (const part of parts) {
+            if (!isSunbeam(part.name) || look.hidden.includes(part.name)) continue;
+            if (want < 0.03 || (p.alpha === undefined && want < 0.3)) {
+                hide.push(part);
+                continue;
+            }
+            if (p.alpha === undefined) continue;
+            const was = num(part.node, p.alpha.field);
+            if (Math.abs(was - want) >= 0.01) faded.push({ part, was });
+        }
+        return { want, hide, faded };
     }
 
     function wrapFrame(renderer: Bag, p: KaspLobbyPassNames): void {
@@ -697,6 +963,13 @@
                 // that part stays as it is
             }
         }
+        for (const { part, was } of ps.faded) {
+            try {
+                invoke(part.node, p.alpha?.set ?? '', [was]);
+            } catch {
+                // that part stays as it is
+            }
+        }
     }
     // The pass off for the rest of the page's life: the game's frame call and the hidden parts put back.
     function stopPass(): void {
@@ -720,7 +993,7 @@
     function nightAssetOf(std: KaspLobbyStandard): KaspLobbyAsset | null {
         if (nightAsset !== null) return nightAsset;
         const api = window.__kaspLobbyPass;
-        const wanted = look.cleanWall > 0 || (nightAmount() > 0.01 && look.night.sunOff > 0);
+        const wanted = look.cleanWall > 0 || (look.night !== null && nightAmount() > 0.01 && look.night.sunOff > 0);
         if (!wanted || api === undefined || nightState !== 'none') return null;
         nightState = 'making';
         const started = performance.now();
@@ -737,12 +1010,54 @@
         return null;
     }
 
-    // The game's own hangar model read once, as soon as hangar_files.ts has seen its folder.
+    // The overcast's pictures (26g1), only for a look with the overcast: the ring lamp lenses' factor picture (made after the hangar
+    // model, at each start) and the game's sky mesh with its picture greyed (made once and saved).
+    let lensAsset: KaspLobbyAsset | null = null;
+    let lensState: 'none' | 'making' | 'failed' = 'none';
+    function lensAssetOf(std: KaspLobbyStandard): KaspLobbyAsset | null {
+        if (lensAsset !== null) return lensAsset;
+        const O = look.overcast;
+        const api = window.__kaspLobbyPass;
+        if (O === null || O.lamps >= 1 || api === undefined || lensState !== 'none') return null;
+        lensState = 'making';
+        api.lensPictures(std.std).then(
+            (made) => {
+                lensAsset = { ...std.std, lensPics: made };
+            },
+            () => {
+                lensState = 'failed';
+            },
+        );
+        return null;
+    }
+    let skyAsset: KaspLobbyAsset | null = null;
+    let skyState: 'none' | 'making' | 'failed' = 'none';
+    let skyMs = 0;
+    function ensureSky(): void {
+        const O = look.overcast;
+        if (O === null || O.sky <= 0 || skyAsset !== null || skyState !== 'none') return;
+        const folder = document.documentElement.getAttribute('data-kasp-hangar-folder');
+        const api = window.__kaspLobbyPass;
+        if (folder === null || !/^https:\/\/[^/]*tankionline\.com\//.test(folder) || api === undefined) return;
+        skyState = 'making';
+        const started = performance.now();
+        api.loadSky(folder, { amount: O.sky, contrast: O.contrast, tint: fromHex(O.tint) }).then(
+            (got) => {
+                skyAsset = got;
+                skyMs = Math.round(performance.now() - started);
+            },
+            () => {
+                skyState = 'failed';
+            },
+        );
+    }
+
+    // The game's own hangar model read once, as soon as hangar_files.ts has seen its folder (loadEarly), or at the first lobby frame.
     // The Halloween lamps (26f4c), read once from the extension's hangars/ folder after the hangar model (for the lamp spots).
     let fixtures: KaspLobbyAsset | null = null;
     let fixturesState: 'none' | 'loading' | 'failed' = 'none';
     function ensureFixtures(std: KaspLobbyStandard): void {
-        if (fixtures !== null || fixturesState !== 'none' || look.night.fixtures <= 0) return;
+        if (fixtures !== null || fixturesState !== 'none' || look.night === null || look.night.fixtures <= 0) return;
         const base = document.documentElement.getAttribute('data-kasp-hangar-base');
         const api = window.__kaspLobbyPass;
         if (base === null || api === undefined) return;
@@ -770,11 +1085,31 @@
                 standardState = 'none';
                 // the night pictures at once (from the saved store after the first start), not at the next lobby frame
                 nightAssetOf(got);
+                lensAssetOf(got);
+                if (nightAmount() > 0.01) ensureFixtures(got);
             },
             () => {
                 standardState = 'failed';
             },
         );
+    }
+
+    // Everything the look draws with starts loading as soon as hangar_files.ts has seen the hangar's folder, while the game is still
+    // loading, not at the lobby's first frame: the hangar model (then the night pictures, the lens picture and the Halloween lamps
+    // when the look uses them) and the grey sky. Most of it is read from the saved store, so the look is usually whole from its first
+    // frame. With the lobby switched off hangar_files.ts sets no folder, so nothing is loaded.
+    function loadEarly(): void {
+        ensureStandard();
+        ensureSky();
+    }
+    if (document.documentElement.hasAttribute('data-kasp-hangar-folder')) loadEarly();
+    else {
+        const seen = new MutationObserver(() => {
+            if (!document.documentElement.hasAttribute('data-kasp-hangar-folder')) return;
+            seen.disconnect();
+            loadEarly();
+        });
+        seen.observe(document.documentElement, { attributes: true, attributeFilter: ['data-kasp-hangar-folder'] });
     }
 
     // The game's key and fill light from the hour table (the sun or the moon); true when written. Without the pass's names the light
@@ -790,13 +1125,14 @@
         let dir = [-(d[0] / flat) * Math.cos(el), -(d[1] / flat) * Math.cos(el), -Math.sin(el)];
         let key = st.key;
         // at night the lamps over the tank are the light: the key light turns to come straight down in the lamp colour
-        const down = Math.max(0, Math.min(1, 1 - st.beams)) * L.night.keyDown;
-        if (down > 0) {
+        const N = L.night;
+        const down = N === null ? 0 : Math.max(0, Math.min(1, 1 - st.beams)) * N.keyDown;
+        if (N !== null && down > 0) {
             const g = s.record.lightDir;
             dir = [lerp(dir[0], g.x, down), lerp(dir[1], g.y, down), lerp(dir[2], g.z, down)];
             const len = Math.hypot(dir[0], dir[1], dir[2]) || 1;
             dir = dir.map((v) => v / len);
-            key = lerp3(st.key, fromHex(L.night.color), down);
+            key = lerp3(st.key, fromHex(N.color), down);
         }
         writeVector(bag(s.system, n.lightDir), n, { x: dir[0], y: dir[1], z: dir[2] });
         const lighting = bag(s.renderer, n.lighting);
@@ -1040,12 +1376,237 @@
         return { n: LEAVES.list.length, P, A, B };
     }
 
+    // ---- the rain's gusts (26g3), the probe's gustNow ----
+    // One gust at a time: it rises (1.5 to 3 s), holds (1.5 to 5 s) and falls (2.5 to 5 s), up to a peak of 0.6 to 1; the first one
+    // 3 s after the rain starts, the next about `every` seconds after the last one ends (give or take 40 %). A little unrest all the
+    // time, so the rain is never perfectly even. level = 0 calm to 1 at the top of a strong gust. drift = the rain's sideways travel
+    // added up frame by frame from the wind of that moment, so the drops never jump when the wind changes; last = the frame it was
+    // last added up at (0 = not running). It runs only while the lobby's frames are drawn.
+    const GUST: {
+        g: { readonly t0: number; readonly rise: number; readonly hold: number; readonly fall: number; readonly peak: number } | null;
+        next: number;
+        level: number;
+        drift: number;
+        last: number;
+        soundAt: number;
+    } = { g: null, next: 0, level: 0, drift: 0, last: 0, soundAt: 0 };
+    const ease = (t: number): number => {
+        const x = Math.max(0, Math.min(1, t));
+        return x * x * (3 - 2 * x);
+    };
+    function gustNow(now: number): number {
+        const K = look.gusts;
+        if (K === null || look.rain === null) {
+            GUST.g = null;
+            GUST.next = 0;
+            GUST.level = 0;
+            return 0;
+        }
+        if (GUST.next === 0) GUST.next = now + 3000;
+        if (GUST.g === null && now >= GUST.next) {
+            GUST.g = {
+                t0: now,
+                rise: 1.5 + Math.random() * 1.5,
+                hold: 1.5 + Math.random() * 3.5,
+                fall: 2.5 + Math.random() * 2.5,
+                peak: 0.6 + 0.4 * Math.random(),
+            };
+        }
+        let v = 0;
+        if (GUST.g !== null) {
+            const g = GUST.g;
+            const t = (now - g.t0) / 1000;
+            if (t < g.rise) v = ease(t / g.rise);
+            else if (t < g.rise + g.hold) v = 1;
+            else if (t < g.rise + g.hold + g.fall) v = 1 - ease((t - g.rise - g.hold) / g.fall);
+            else {
+                GUST.g = null;
+                GUST.next = now + K.every * 1000 * (0.6 + 0.8 * Math.random());
+            }
+            v *= g.peak;
+        }
+        v += 0.08 * Math.sin(now * 0.0011) * Math.sin(now * 0.00037 + 1.3);
+        GUST.level = Math.max(0, Math.min(1, v));
+        return GUST.level;
+    }
+
+    // ---- thunder and lightning (26g4), the probe's STORM, strike and makeBolt ----
+    // A strike every `every` seconds (give or take `random` of it; the first 4 s after the stormy lobby shows): 2 to 4 flash pulses
+    // (the first the strongest, each dying away fast) and a new bolt picture. door = where the doorway is seen from the camera
+    // (across, in radians), so the bolt is put where the sky is seen; bolt = the last bolt picture (null until one is made); strikes =
+    // how many so far. strike() is the one place a strike starts. It runs only while the lobby's frames are drawn.
+    const STORM: {
+        next: number;
+        t0: number;
+        pulses: Array<{ readonly t: number; readonly a: number; readonly tau: number }>;
+        door: number;
+        bolt: ImageBitmap | null;
+        strikes: number;
+        // the last thunder recording played (26g4b), so they take turns
+        seq: number;
+        // the side the lightning shadow comes from, degrees, new every strike (26g4c)
+        side: number;
+    } = { next: 0, t0: 0, pulses: [], door: 0, bolt: null, strikes: 0, seq: -1, side: 0 };
+    // The bolt: a jagged line with branches and a glow, in a picture whose columns are directions across the door (+-0.6 rad) and
+    // rows heights; one bolt (two 30 % of the time), the first straight towards the doorway, the others a little to the side.
+    function makeBolt(): OffscreenCanvas {
+        const W = 512;
+        const H = 512;
+        const c = new OffscreenCanvas(W, H);
+        const g = c.getContext('2d');
+        if (g === null) throw new Error('bolt canvas');
+        g.fillStyle = '#000';
+        g.fillRect(0, 0, W, H);
+        const seg = (x0: number, y0: number, x1: number, y1: number, disp: number, out: number[][], depth: number): void => {
+            if (depth === 0 || disp < 1.5) {
+                out.push([x1, y1]);
+                return;
+            }
+            const mx = (x0 + x1) / 2 + (Math.random() - 0.5) * disp;
+            const my = (y0 + y1) / 2 + (Math.random() - 0.5) * disp * 0.4;
+            seg(x0, y0, mx, my, disp / 2, out, depth - 1);
+            seg(mx, my, x1, y1, disp / 2, out, depth - 1);
+        };
+        const draw = (pts: number[][], w: number, a: number): void => {
+            g.beginPath();
+            g.moveTo(pts[0][0], pts[0][1]);
+            for (const q of pts.slice(1)) g.lineTo(q[0], q[1]);
+            g.lineWidth = w;
+            g.strokeStyle = 'rgba(255,255,255,' + a + ')';
+            g.stroke();
+        };
+        g.lineJoin = 'round';
+        g.lineCap = 'round';
+        const nb = Math.random() < 0.3 ? 2 : 1;
+        for (let n = 0; n < nb; n++) {
+            const az = STORM.door + (n === 0 ? (Math.random() - 0.5) * 0.1 : (Math.random() < 0.5 ? -1 : 1) * (0.08 + 0.06 * Math.random()));
+            const x0 = W * Math.min(0.94, Math.max(0.06, az / 1.2 + 0.5));
+            const main: number[][] = [[x0, 0]];
+            seg(x0, 0, x0 + (Math.random() - 0.5) * 60, H, 70, main, 7);
+            g.shadowColor = '#fff';
+            g.shadowBlur = 16;
+            draw(main, n === 0 ? 4.5 : 3, 1);
+            g.shadowBlur = 0;
+            draw(main, 10, 0.14);
+            const nBranch = n === 0 ? 2 : 1;
+            for (let k = 0; k < nBranch; k++) {
+                const i = Math.floor(main.length * (0.15 + 0.45 * Math.random()));
+                const b: number[][] = [main[i]];
+                const dx = (Math.random() < 0.5 ? -1 : 1) * (20 + 40 * Math.random());
+                seg(main[i][0], main[i][1], main[i][0] + dx, main[i][1] + 50 + 70 * Math.random(), 25, b, 5);
+                g.shadowBlur = 10;
+                g.shadowColor = '#fff';
+                draw(b, 1.8, 0.8);
+                g.shadowBlur = 0;
+                draw(b, 6, 0.1);
+            }
+        }
+        return c;
+    }
+    // One strike: the flash pulses and a new bolt picture (a picture that cannot be made leaves only the bolt out).
+    function strike(): void {
+        const n = 2 + Math.floor(Math.random() * 3);
+        const pulses: Array<{ t: number; a: number; tau: number }> = [];
+        let t = 0;
+        for (let i = 0; i < n; i++) {
+            pulses.push({ t, a: i === 0 ? 1 : 0.35 + 0.55 * Math.random(), tau: 0.05 + 0.06 * Math.random() });
+            t += 0.06 + 0.16 * Math.random();
+        }
+        STORM.t0 = performance.now();
+        STORM.pulses = pulses;
+        STORM.strikes++;
+        STORM.side = (Math.random() * 2 - 1) * (look.flashShadow?.spread ?? 0);
+        try {
+            createImageBitmap(makeBolt()).then(
+                (bmp) => {
+                    STORM.bolt?.close();
+                    STORM.bolt = bmp;
+                },
+                () => {},
+            );
+        } catch {
+            // no bolt this time
+        }
+        // the thunder (26g4b): the next recording in turn, the nearer the sooner after the flash
+        const K = look.storm;
+        if (K === null) return;
+        STORM.seq = (STORM.seq + 1) % THUNDERS.length;
+        const idx = STORM.seq;
+        const delay = Math.max(0.2, K.delay * THUNDERS[idx].delayK * (0.8 + 0.4 * Math.random()));
+        window.setTimeout(() => {
+            playThunder(idx);
+            maybeFlicker(THUNDERS[idx].level);
+        }, delay * 1000);
+    }
+    // The lamp flicker (26g4b, the probe's FLICK, startFlicker, flickerNow, maybeFlicker): a list of [time, brightness] steps played
+    // from t0, dips and partial recoveries, then back up to 1 over half a second. null = no flicker.
+    const FLICK: { t0: number; steps: Array<readonly [number, number]> | null; end: number } = { t0: 0, steps: null, end: 0 };
+    function startFlicker(lvl: number): void {
+        const K = look.flicker;
+        if (K === null) return;
+        const steps: Array<readonly [number, number]> = [];
+        let t = 0;
+        const end = K.length * (0.75 + 0.5 * Math.random());
+        while (t < end) {
+            steps.push([t, 1 - K.dark * (0.55 + 0.45 * Math.random()) * lvl]);
+            t += 0.03 + 0.11 * Math.random();
+            steps.push([t, 0.75 + 0.25 * Math.random()]);
+            t += 0.03 + 0.16 * Math.random();
+        }
+        steps.push([t, 1 - K.dark * 0.35 * lvl]);
+        FLICK.t0 = performance.now();
+        FLICK.steps = steps;
+        FLICK.end = t;
+    }
+    // how bright the hangar's inside is now (1 = as it is)
+    function flickerNow(now: number): number {
+        const steps = FLICK.steps;
+        if (steps === null) return 1;
+        const t = (now - FLICK.t0) / 1000;
+        const last = steps[steps.length - 1][1];
+        if (t >= FLICK.end + 0.5) {
+            FLICK.steps = null;
+            return 1;
+        }
+        if (t >= FLICK.end) return lerp(last, 1, (t - FLICK.end) / 0.5);
+        let v = 1;
+        for (const [at, x] of steps) {
+            if (at <= t) v = x;
+            else break;
+        }
+        return v;
+    }
+    // a thunder just started: the nearer it is (its recording's level), the likelier the lamps flicker
+    function maybeFlicker(lvl: number): void {
+        const K = look.flicker;
+        if (K === null || K.dark <= 0) return;
+        if (Math.random() < K.chance * Math.max(0, Math.min(1, (lvl - 0.4) / 0.6))) startFlicker(lvl);
+    }
+    // The strike timer and how bright the flash is now (0 = none, at most 1.4 x the look's flash).
+    function stormNow(now: number): number {
+        const K = look.storm;
+        if (K === null) {
+            STORM.next = 0;
+            return 0;
+        }
+        if (STORM.next === 0) STORM.next = now + 4000;
+        if (now >= STORM.next) {
+            strike();
+            STORM.next = now + K.every * 1000 * (1 + (Math.random() * 2 - 1) * K.random);
+        }
+        let flash = 0;
+        const dt = (now - STORM.t0) / 1000;
+        for (const q of STORM.pulses) if (dt >= q.t) flash += q.a * Math.exp(-(dt - q.t) / q.tau);
+        return Math.min(1.4, flash) * K.flash;
+    }
+
     // ---- the lobby's sounds: the calm city by day (26f3), the night ambience and the far dog at night (26f4d), from the probe ----
     // Only while the lobby is drawn. Each loop recording is cut into a seamless loop (its last 1.5 s faded into its start, equal power)
     // and played at its target loudness (divided by the file's own loudness) times the look's %, by day or at night. The far dog: one
     // of the two bark groups in its recording, muffled by distance, to one side, a slightly different dog each time, through an outdoor
-    // echo, about every `every` seconds (give or take 20 %; the first 3 to 7 s after the night sounds start). Browsers start no sound
-    // before a click or a key on the page, so everything waits for the first one. Any failure leaves that sound silent.
+    // echo, about every `every` seconds (give or take 20 %; the first 3 to 7 s after the night sounds start). The rain's hiss (26g2) is
+    // made in the page, no file. Browsers start no sound before a click or a key on the page, so everything waits for the first one.
+    // Any failure leaves that sound silent.
     interface SoundLoop {
         readonly file: string;
         readonly target: number;
@@ -1058,6 +1619,9 @@
             target: 0.015,
             level: () => (look.nightSounds === null ? 0 : look.nightSounds.ambience / 100) * nightAmount(),
         },
+        // rain on the roof (26g3): a real recording of rain drumming on a roof heard from inside (credit in RAIN-ROOF-CREDITS.txt);
+        // its gain is set with the rain's sounds (rainGains), louder with the gusts
+        roof: { file: 'rain-roof.webm', target: 0.14, level: () => (look.rain === null ? 0 : look.roof / 100) },
     };
     // the barks in the recording: [start, end] in seconds (two bark groups, each with its short tail)
     const DOG = { file: 'night-dog-far.mp3', barks: [[0.6, 3.0], [4.3, 6.6]] as ReadonlyArray<readonly [number, number]> };
@@ -1067,10 +1631,75 @@
         loops: Map<string, { readonly gain: GainNode; readonly norm: number }>;
         dog: { readonly buf: AudioBuffer; readonly norm: number } | null;
         dogBus: GainNode | null;
+        rain: GainNode | null;
         next: number;
         barks: number;
-    } = { ctx: null, state: 'none', loops: new Map(), dog: null, dogBus: null, next: 0, barks: 0 };
-    const wantedLoops = (): string[] => Object.keys(SOUND_LOOPS).filter((k) => (k === 'city' ? look.city > 0 : look.nightSounds !== null));
+    } = { ctx: null, state: 'none', loops: new Map(), dog: null, dogBus: null, rain: null, next: 0, barks: 0 };
+    // The rain's hiss (the probe's rainSound, its numbers): 4 seconds of pink-ish noise per channel (its own seed, so the same every
+    // time) with about 180 short ticks a second like drops, its last 0.1 s faded into its start (a seamless loop), brought to one
+    // loudness, then a high-pass at 200 Hz and a low-pass at 4500 Hz, as if heard from inside the hangar. Its gain starts at 0.
+    function rainHiss(ctx: AudioContext): GainNode {
+        const rate = ctx.sampleRate;
+        const secs = 4;
+        const n = Math.round(rate * secs);
+        const lap = Math.round(rate * 0.1);
+        const buffer = ctx.createBuffer(2, n, rate);
+        for (let ch = 0; ch < 2; ch++) {
+            let seed = 0x2545f491 + ch * 7919;
+            const rnd = (): number => {
+                seed ^= seed << 13;
+                seed ^= seed >>> 17;
+                seed ^= seed << 5;
+                return (seed >>> 0) / 4294967296;
+            };
+            const raw = new Float32Array(n + lap);
+            let b0 = 0;
+            let b1 = 0;
+            let b2 = 0;
+            for (let i = 0; i < raw.length; i++) {
+                const w = rnd() * 2 - 1;
+                b0 = 0.99765 * b0 + w * 0.099046;
+                b1 = 0.963 * b1 + w * 0.2965164;
+                b2 = 0.57 * b2 + w * 1.0526913;
+                raw[i] = b0 + b1 + b2 + w * 0.1848;
+            }
+            for (let k = 0; k < secs * 180; k++) {
+                const at = Math.floor(rnd() * raw.length);
+                const amp = 0.6 + 3 * rnd() ** 3;
+                const len = Math.round(rate * (0.002 + 0.005 * rnd()));
+                for (let j = 0; j < len && at + j < raw.length; j++) raw[at + j] += (rnd() * 2 - 1) * amp * Math.exp(-j / (len / 4));
+            }
+            const out = buffer.getChannelData(ch);
+            for (let i = 0; i < n; i++) out[i] = raw[i];
+            for (let i = 0; i < lap; i++) {
+                const t = i / lap;
+                out[i] = raw[n + i] * Math.cos((t * Math.PI) / 2) + raw[i] * Math.sin((t * Math.PI) / 2);
+            }
+            let sum = 0;
+            for (let i = 0; i < n; i++) sum += out[i] * out[i];
+            const scale = 0.12 / Math.sqrt(sum / n || 1);
+            for (let i = 0; i < n; i++) out[i] *= scale;
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.loop = true;
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 200;
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 4500;
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        src.connect(hp);
+        hp.connect(lp);
+        lp.connect(gain);
+        gain.connect(ctx.destination);
+        src.start();
+        return gain;
+    }
+    const wantedLoops = (): string[] =>
+        Object.keys(SOUND_LOOPS).filter((k) => (k === 'city' ? look.city > 0 : k === 'roof' ? look.rain !== null && look.roof > 0 : look.nightSounds !== null));
     function loadBuffer(ctx: AudioContext, base: string, file: string): Promise<AudioBuffer> {
         return fetch(base + file)
             .then((r) => {
@@ -1080,11 +1709,19 @@
             .then((data) => ctx.decodeAudioData(data));
     }
     function loadSounds(ctx: AudioContext): void {
+        if (look.rain !== null && look.rain.volume > 0) {
+            try {
+                sound.rain = rainHiss(ctx);
+            } catch {
+                sound.rain = null;
+            }
+        }
         const base = document.documentElement.getAttribute('data-kasp-hangar-base');
         if (base === null) {
             sound.state = 'failed';
             return;
         }
+        if (look.storm !== null && look.storm.volume > 0) loadThunder(ctx, base);
         sound.state = 'loading';
         const loops = wantedLoops().map((key) =>
             loadBuffer(ctx, base, SOUND_LOOPS[key].file).then((buf) => {
@@ -1159,6 +1796,65 @@
             },
         );
     }
+    // The thunder (26g4b, the probe's THUNDERS): three real recordings (credits in THUNDER-CREDITS.txt), played in turn, soft and far,
+    // medium, loud and near. start / dur = the part played (seconds), level = how loud against the others, delayK = how long after the
+    // flash (x the look's delay), fade = the fade out at its end. Each is decoded once; its loudness from its peak in that part. A file
+    // that cannot be loaded leaves the thunder silent (the lightning and the flicker go on).
+    const THUNDERS: ReadonlyArray<{ readonly file: string; readonly start: number; readonly dur: number; readonly level: number; readonly delayK: number; readonly fade: number }> = [
+        { file: 'thunder-soft.ogg', start: 0.8, dur: 8, level: 0.5, delayK: 1.8, fade: 2 },
+        { file: 'thunder-medium.ogg', start: 10, dur: 14, level: 0.8, delayK: 1, fade: 3 },
+        { file: 'thunder-loud.ogg', start: 3.2, dur: 14, level: 1, delayK: 0.55, fade: 3 },
+    ];
+    const thunder: { state: 'none' | 'loading' | 'ready' | 'failed'; bufs: Array<{ readonly buf: AudioBuffer; readonly norm: number }>; played: number } = {
+        state: 'none',
+        bufs: [],
+        played: 0,
+    };
+    function loadThunder(ctx: AudioContext, base: string): void {
+        thunder.state = 'loading';
+        Promise.all(
+            THUNDERS.map((t) =>
+                loadBuffer(ctx, base, t.file).then((buf) => {
+                    const d = buf.getChannelData(0);
+                    const r0 = Math.floor(t.start * buf.sampleRate);
+                    const r1 = Math.min(d.length, Math.floor((t.start + t.dur) * buf.sampleRate));
+                    let pk = 0;
+                    for (let i = r0; i < r1; i++) pk = Math.max(pk, Math.abs(d[i]));
+                    return { buf, norm: 0.9 / (pk || 1) };
+                }),
+            ),
+        ).then(
+            (bufs) => {
+                thunder.bufs = bufs;
+                thunder.state = 'ready';
+            },
+            () => {
+                thunder.state = 'failed';
+            },
+        );
+    }
+    // One thunder (the probe's thunderSample): its part at the look's % x its level x its loudness, held, then faded out; only while
+    // the lobby is drawn.
+    function playThunder(idx: number): void {
+        const ctx = sound.ctx;
+        const K = look.storm;
+        const T = THUNDERS[idx];
+        const B = thunder.bufs[idx];
+        if (ctx === null || K === null || B === undefined || !soundWanted()) return;
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        const src = ctx.createBufferSource();
+        src.buffer = B.buf;
+        const gain = ctx.createGain();
+        const now = ctx.currentTime;
+        const v = (K.volume / 100) * T.level * B.norm;
+        gain.gain.setValueAtTime(v, now);
+        gain.gain.setValueAtTime(v, now + T.dur - T.fade);
+        gain.gain.linearRampToValueAtTime(0.0001, now + T.dur);
+        src.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(now, T.start, T.dur);
+        thunder.played++;
+    }
     // one bark: a part of the recording, faded in and out, muffled by distance, to one side
     function playBark(side: number): void {
         const ctx = sound.ctx;
@@ -1190,10 +1886,24 @@
         src.start(t0, a, dur);
         sound.barks++;
     }
+    // Whether the lobby's sounds should play: the lobby is drawn and nothing stopped it.
+    const soundWanted = (): boolean => !broken && !passBroken && passScene !== null && performance.now() - lobbyTickAt < 1000;
+    // The rain's sounds, louder with the gust of this moment (26g3; the probe's applyRainSound and applyRoof): the hiss at its % x 0.6,
+    // the roof at its % x the recording's loudness, both eased over 0.4 s. Also sent
+    // from the frame every 120 ms while gusts blow, so they swell smoothly with each gust.
+    function rainGains(want: boolean): void {
+        const ctx = sound.ctx;
+        if (ctx === null) return;
+        const R = look.rain;
+        const swell = 1 + (look.gusts !== null ? look.gusts.louder * GUST.level : 0);
+        if (sound.rain !== null) sound.rain.gain.setTargetAtTime(want && R !== null ? (R.volume / 100) * 0.6 * swell : 0, ctx.currentTime, 0.4);
+        const roof = sound.loops.get('roof');
+        if (roof !== undefined) roof.gain.gain.setTargetAtTime(want ? SOUND_LOOPS.roof.level() * roof.norm * swell : 0, ctx.currentTime, 0.4);
+    }
     // Every half second: each loop fades to its level while the lobby is drawn and nothing stopped it, else to silence; the far dog.
     function applySounds(): void {
         const ctx = sound.ctx;
-        const want = !broken && !passBroken && passScene !== null && performance.now() - lobbyTickAt < 1000;
+        const want = soundWanted();
         if (want && ctx === null && sound.state === 'none' && unlocked) {
             try {
                 const made = new AudioContext();
@@ -1206,7 +1916,10 @@
         }
         if (ctx === null) return;
         if (want && ctx.state === 'suspended') ctx.resume().catch(() => {});
-        for (const [key, lp] of sound.loops) lp.gain.gain.setTargetAtTime(want ? SOUND_LOOPS[key].level() * lp.norm : 0, ctx.currentTime, 0.8);
+        for (const [key, lp] of sound.loops) {
+            if (key !== 'roof') lp.gain.gain.setTargetAtTime(want ? SOUND_LOOPS[key].level() * lp.norm : 0, ctx.currentTime, 0.8);
+        }
+        rainGains(want);
         const F = look.nightSounds;
         const now = performance.now();
         if (!want || F === null || !(F.dogs > 0) || sound.state !== 'ready' || nightAmount() <= 0.02) {
@@ -1222,7 +1935,7 @@
         sound.next = now + F.every * 1000 * (0.8 + 0.4 * Math.random());
     }
     let unlocked = false;
-    if (wantedLoops().length > 0) {
+    if (wantedLoops().length > 0 || (look.rain !== null && look.rain.volume > 0)) {
         const unlock = (): void => {
             unlocked = true;
             window.removeEventListener('pointerdown', unlock, true);
@@ -1242,9 +1955,20 @@
         const hour = L.time.hour;
         const st = timeState(hour);
         const s = L.time.strength;
-        const inn = mix1(st.inn, s * L.time.inside);
-        const hor = mix1(st.hor, s);
-        const zen = mix1(st.zen, s);
+        let inn = mix1(st.inn, s * L.time.inside);
+        let hor = mix1(st.hor, s);
+        let zen = mix1(st.zen, s);
+        // the overcast: the whole outside (town, sky, road) darker, the inside darker and a little cooler
+        const O = L.overcast;
+        if (O !== null) {
+            const cool = [0.94, 0.97, 1.04];
+            hor = hor.map((x) => x * O.out);
+            zen = zen.map((x) => x * O.out);
+            inn = inn.map((x, i) => x * O.dark * cool[i]);
+        }
+        // the lamp flicker (26g4b): the hangar's inside dims and stutters (the tank too), and the night lamps' light with it
+        const fk = L.flicker !== null ? flickerNow(performance.now()) : 1;
+        if (fk < 1) inn = inn.map((x) => x * fk);
         const night = nightAmount();
         const outLight = [0, 1, 2].map((i) => (hor[i] * 2 + zen[i]) / 3); // how lit the outside is, for colours drawn over it
         const lightOf = (c: readonly number[], m: number): number[] => c.map((x, i) => x * Math.max(m, outLight[i]));
@@ -1255,15 +1979,42 @@
         const roadAmount = rd.amount * (1 - night) + rn.amount * night;
         const graded = [inn, hor, zen].some((c) => c.some((x) => Math.abs(x - 1) > 0.002));
         const glow = st.glow * s;
-        const atmosOn = glow > 0.01 || st.stars * s > 0.01;
+        const nowMs = performance.now();
+        // the lightning (26g4): where the doorway is seen from the camera (for the next bolt), then the strike timer and the flash
+        {
+            const dx = box.o[0] * box.wall - box.l[0] * 50 - pos.x;
+            const dy = box.o[1] * box.wall - box.l[1] * 50 - pos.y;
+            STORM.door = Math.atan2(dx * box.l[0] + dy * box.l[1], dx * box.o[0] + dy * box.o[1]);
+        }
+        const flash = stormNow(nowMs);
+        const Sm = L.storm;
+        const atmosOn = O !== null || glow > 0.01 || st.stars * s > 0.01 || flash > 0.003;
         const door = Math.max(0.02, L.door);
         ensureStandard();
+        ensureSky();
         const std = standard;
         const nightAsset = std === null ? null : nightAssetOf(std);
+        const lenses = std === null ? null : lensAssetOf(std);
+        const time = (nowMs % 3600000) / 1000;
+        const R = L.rain;
+        // the gusts (26g3): the wind of this moment (the extra slant with the wind's own sign), the sideways travel added up from it
+        // (from wind x time at the first frame, each frame's time capped at 0.1 s so a pause never makes the drops jump)
+        const K = R !== null ? L.gusts : null;
+        const gust = gustNow(nowMs);
+        const windNow = R === null ? 0 : R.wind + (K !== null ? K.slant * gust * (R.wind < 0 ? -1 : 1) : 0);
+        if (R !== null && K !== null) {
+            if (GUST.last === 0) GUST.drift = R.wind * time;
+            else GUST.drift += windNow * Math.min(0.1, Math.max(0, (nowMs - GUST.last) / 1000));
+            GUST.last = nowMs;
+            if (nowMs - GUST.soundAt > 120) {
+                GUST.soundAt = nowMs;
+                rainGains(soundWanted());
+            }
+        } else GUST.last = 0;
         return {
             vp,
             cam: [pos.x, pos.y, pos.z],
-            time: (performance.now() % 3600000) / 1000,
+            time,
             box,
             doorIn: 900 * door,
             doorOut: 350 * door,
@@ -1286,19 +2037,26 @@
                     : null,
             grade: graded ? { inn, hor, zen } : null,
             desun:
-                ((night > 0.01 && L.night.sunOff > 0) || L.cleanWall > 0) && nightAsset !== null
-                    ? { asset: nightAsset, amount: Math.max(night * L.night.sunOff, L.cleanWall) }
+                ((L.night !== null && night > 0.01 && L.night.sunOff > 0) || L.cleanWall > 0) && nightAsset !== null
+                    ? { asset: nightAsset, amount: Math.max(night * (L.night?.sunOff ?? 0), L.cleanWall) }
+                    : null,
+            lensOff: O !== null && O.lamps < 1 && lenses !== null ? { asset: lenses, amount: 1 - O.lamps } : null,
+            sky: O !== null && O.sky > 0 && skyAsset !== null ? { asset: skyAsset } : null,
+            // the bolt in the grey sky while the flash lasts (26g4)
+            boltSky:
+                Sm !== null && Sm.bolt > 0 && flash > 0.003 && skyAsset !== null && STORM.bolt !== null
+                    ? { asset: skyAsset, pic: STORM.bolt, top: 0.2 }
                     : null,
             fixtures:
-                night > 0.01 && L.night.fixtures > 0 && std !== null
-                    ? (() => {
+                L.night !== null && night > 0.01 && L.night.fixtures > 0 && std !== null
+                    ? ((NL) => {
                           ensureFixtures(std);
-                          return fixtures === null ? null : { asset: fixtures, alpha: Math.min(1, night * L.night.fixtures), cones: night * L.night.fixtures };
-                      })()
+                          return fixtures === null ? null : { asset: fixtures, alpha: Math.min(1, night * NL.fixtures), cones: night * NL.fixtures };
+                      })(L.night)
                     : null,
             lamps:
-                night > 0.01 && std !== null && std.lamps.length > 0 && L.night.lamps > 0
-                    ? { list: std.lamps, power: night * L.night.lamps, reach: 420 * L.night.reach, glow: night * L.night.glow, color: fromHex(L.night.color) }
+                L.night !== null && night > 0.01 && std !== null && std.lamps.length > 0 && L.night.lamps > 0
+                    ? { list: std.lamps, power: night * L.night.lamps * fk, reach: 420 * L.night.reach, glow: night * L.night.glow, color: fromHex(L.night.color) }
                     : null,
             nightx:
                 night > 0.01 && (L.streetLamps !== null || L.red !== null)
@@ -1343,14 +2101,16 @@
                           };
                       })()
                     : null,
+            // the clear night's extras: only with one of them, as the probe (the rainy night has none, so it draws no stars on the
+            // painted sky behind the town); the stars on that painted sky sit under the overcast's cloud layer like the real sky's
             ncx:
-                night > 0.01 && (L.windows !== null || L.shoot !== null || L.pools !== null || L.flies !== null || L.moths !== null || st.stars * s > 0.01)
+                night > 0.01 && (L.windows !== null || L.shoot !== null || (L.pools !== null && L.streetLamps !== null) || L.flies !== null || L.moths !== null)
                     ? (() => {
                           const met = L.shoot === null ? null : meteorStep(performance.now(), box, [pos.x, pos.y, pos.z], L.shoot);
                           return {
                               hor,
                               zen,
-                              stars: st.stars * s * STAR_BOOST,
+                              stars: st.stars * s * STAR_BOOST * (O !== null ? Math.max(0, 1 - O.layer) : 1),
                               windows:
                                   L.windows !== null && L.windows.amount > 0
                                       ? { ...L.windows, amount: L.windows.amount * night }
@@ -1378,7 +2138,7 @@
                                             size: L.moths.size,
                                             speed: L.moths.speed,
                                             alpha: night,
-                                            color: fromHex(L.night.color).map((x) => x * 0.9),
+                                            color: fromHex(L.night?.color ?? '#ffffff').map((x) => x * 0.9),
                                         }
                                       : null,
                               pools:
@@ -1434,10 +2194,72 @@
                       cover: 0, spark: 0, coverCol: [0, 0, 0], coverThick: 1,
                       groundZ: box.groundZ,
                       skyZ: box.skyZ,
-                      flash: 0, bolt: 0, flashCol: [1, 1, 1],
-                      cloud: 0, cloudK: 0, cloudSpeed: 0, cloudCol: [0.5, 0.5, 0.5],
+                      // the lightning's flash (26g4), cold blue-white
+                      flash,
+                      bolt: Sm !== null ? Sm.bolt : 0,
+                      flashCol: [0.78, 0.84, 1],
+                      // the overcast's drifting cloud layer over the sky
+                      cloud: O !== null ? O.layer : 0,
+                      cloudK: O !== null ? O.contrast : 0,
+                      cloudSpeed: O !== null ? O.speed : 0,
+                      // the probe's cloud colour, also lit by the hour's sky colour (owner, 2026-11-21: the upper sky stayed grey on
+                      // the rainy night, as in the probe; 1 at noon, so the rainy day is the probe's)
+                      cloudCol:
+                          O !== null
+                              ? fromHex(O.tint).map((x, i) => x * Math.min(1.2, O.out + 0.15) * lerp(1, st.zen[i], s))
+                              : [0.5, 0.5, 0.5],
                   }
                 : null,
+            // the wet floor by the door (26g5): its sky colour for mirrored rays that leave the screen, lit like the outside
+            wet:
+                L.wet !== null && L.wet.amount > 0
+                    ? {
+                          amount: L.wet.amount,
+                          depth: L.wet.depth,
+                          puddles: L.wet.puddles,
+                          shine: L.wet.shine,
+                          rings: R !== null ? L.wet.rings : 0,
+                          floorZ: box.floorZ,
+                          lim: [(L.drips?.left ?? -1000) - 60, (L.drips?.right ?? 780) + 60, Math.max(1, mixN('feather'))],
+                          sky: (O !== null ? fromHex(O.tint) : [0.72, 0.8, 0.9]).map((x, i) => x * Math.max(0.15, outLight[i]) * 1.15),
+                          flash,
+                      }
+                    : null,
+            // the door drips (26g5): from the door's top edge, falling faster and faster, a ring where each lands; in the rain's colour
+            drips:
+                L.drips !== null && L.drips.count > 0 && R !== null
+                    ? {
+                          n: Math.round(L.drips.count),
+                          top: L.drips.top,
+                          at: box.wall + L.drips.out,
+                          span: [L.drips.left, L.drips.right],
+                          g: 980 * L.drips.speed * L.drips.speed,
+                          width: L.drips.size,
+                          bright: L.drips.bright,
+                          splash: L.drips.splash,
+                          wind: windNow,
+                          ground: box.floorZ,
+                          color: lightOf(fromHex(R.color), 0.3),
+                      }
+                    : null,
+            // the rain (26g2): with gusts (26g3) more drops are drawn and only the first `dens` part of them shows (the rest fade in
+            // at the top of a gust); without them every drop shows and the sideways travel is wind x time
+            rain:
+                R !== null
+                    ? {
+                          drops: Math.max(0, Math.round(R.drops * (K !== null ? 1 + K.heavier : 1))),
+                          dens: K !== null ? (1 + K.heavier * gust) / (1 + K.heavier) : 1,
+                          drift: K !== null ? GUST.drift : R.wind * time,
+                          speed: R.speed,
+                          length: R.length,
+                          wind: windNow,
+                          width: R.width,
+                          bright: R.bright,
+                          reachEnd: Math.min(box.far, box.wall + R.reach),
+                          splash: R.splash,
+                          color: lightOf(fromHex(R.color), 0.3),
+                      }
+                    : null,
         };
     }
 
@@ -2045,6 +2867,7 @@
     function prepare(): void {
         if (names === null || names.pass === undefined || passBroken) return;
         ensureStandard();
+        ensureSky();
     }
 
     function start(found: KaspLobbyNames): void {
@@ -2086,8 +2909,15 @@
                 hangarModel: standard !== null ? 'ready' : standardState,
                 look: lookName,
                 nightPictures: nightPics !== null ? `ready in ${nightMs} ms` : nightState,
+                lensPictures: lensAsset !== null ? 'ready' : lensState,
+                greySky: skyAsset !== null ? `ready in ${skyMs} ms` : skyState,
                 sounds: sound.state,
                 soundLevels: Object.fromEntries([...sound.loops].map(([k, v]) => [k, v.gain.gain.value])),
+                rainHiss: sound.rain === null ? null : sound.rain.gain.value,
+                strikes: STORM.strikes,
+                boltPicture: STORM.bolt !== null,
+                thunder: thunder.state,
+                thunders: thunder.played,
                 barks: sound.barks,
             });
         },
