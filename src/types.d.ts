@@ -511,8 +511,20 @@ interface KaspLobbyPassFrame {
     readonly desun: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
     // Stage 1c (26f2): the ring lamps' light.
     readonly lamps: { readonly list: ReadonlyArray<readonly number[]>; readonly power: number; readonly reach: number; readonly glow: number; readonly color: readonly number[] } | null;
+    // Stage 2a2b (26f4a): the clear night's extras, the town's lit windows and the shooting star; null by day.
+    readonly ncx: KaspLobbyNightExtras | null;
     // Stage 2a3a (26f3): the normal day's extras, the white clouds over the sky and the leaves in the street; null at night.
     readonly ndx: KaspLobbyDayExtras | null;
+}
+
+interface KaspLobbyNightExtras {
+    readonly hor: readonly number[];
+    // the stars on the sky painted behind the town (the same amount as stage 2's stars on the real sky)
+    readonly stars: number;
+    readonly zen: readonly number[];
+    readonly windows: { readonly amount: number; readonly dense: number; readonly size: number; readonly near: number; readonly far: number; readonly change: number } | null;
+    // a = start and b = end (across, up) in radians in the door's frame, t = 0 to 1 along the flight
+    readonly meteor: { readonly a: readonly number[]; readonly b: readonly number[]; readonly t: number; readonly length: number; readonly width: number; readonly bright: number } | null;
 }
 
 interface KaspLobbyDayExtras {

@@ -358,6 +358,17 @@
         readonly leaves: LeafNumbers | null;
         // the calm city sound, in % of its loudness (0 = off)
         readonly city: number;
+        // the clear night's extras (26f4a), only when it is dark; null = off
+        readonly windows: { readonly amount: number; readonly dense: number; readonly size: number; readonly near: number; readonly far: number; readonly change: number } | null;
+        readonly shoot: ShootNumbers | null;
+    }
+    interface ShootNumbers {
+        readonly every: number;
+        readonly bright: number;
+        readonly length: number;
+        readonly speed: number;
+        readonly width: number;
+        readonly height: number;
     }
     interface LeafNumbers {
         readonly count: number;
@@ -378,6 +389,8 @@
         clouds: { amount: 0.9, cover: 0.6, size: 1, speed: 1 },
         leaves: { count: 44, dist: 2150, inside: 0, size: 4, wind: 2.9, gusts: 0.95 },
         city: 70,
+        windows: null,
+        shoot: null,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
@@ -388,6 +401,8 @@
         clouds: null,
         leaves: null,
         city: 0,
+        windows: { amount: 0.65, dense: 0.68, size: 1, near: 3700, far: 8200, change: 0 },
+        shoot: { every: 21, bright: 1.6, length: 0.35, speed: 1.25, width: 1.05, height: 1 },
     };
     // The looks built so far (the settings tab's list and hangar_files.ts use the same values); any other value is the day.
     const LOOKS: Readonly<Record<string, LobbyLook>> = { 'day-normal': DAY_NORMAL, 'night-normal': NIGHT_NORMAL };
@@ -708,6 +723,47 @@
         keyLight[n.keyStrength] = st.keyS;
         writeColour(bag(lighting, n.ambient), n, [st.fill[0] * st.fillS, st.fill[1] * st.fillS, st.fill[2] * st.fillS, 1]);
         return true;
+    }
+
+    // The stars brighter than the probe's hour table (owner, 2026-11-21: "increase the stars numbers and their glow").
+    const STAR_BOOST = 1.4;
+
+    // ---- the shooting star (26f4a), the probe's meteorStep (v1.69) ----
+    // One at a time, about every `every` seconds (the first one 4 s after the lobby shows). The sky seen through the door is a thin
+    // strip just above the far hills, so each star flies across the doorway and a little more (1200 to either side of the door's middle,
+    // seen from the camera) at `height` degrees up, dropping a little, in 2 to 3 seconds. Directions in the door's frame: across, up.
+    const MET: { next: number; t0: number; dur: number; a: number[] | null; b: number[] | null } = { next: 0, t0: 0, dur: 0, a: null, b: null };
+    function meteorStep(nowMs: number, box: KaspLobbyBox, cam: readonly number[], M: ShootNumbers): KaspLobbyNightExtras['meteor'] {
+        const every = Math.max(3, M.every) * 1000;
+        if (!MET.next) MET.next = nowMs + Math.min(4000, every);
+        if (nowMs >= MET.t0 + MET.dur && nowMs >= MET.next) {
+            const azAt = (across: number): number => {
+                const dx = box.o[0] * box.wall + box.l[0] * across - cam[0];
+                const dy = box.o[1] * box.wall + box.l[1] * across - cam[1];
+                return Math.atan2(dx * box.l[0] + dy * box.l[1], dx * box.o[0] + dy * box.o[1]);
+            };
+            const L = azAt(-1200);
+            const R = azAt(1200);
+            const side = Math.random() < 0.5 ? -1 : 1;
+            const from = side < 0 ? R : L;
+            const to = side < 0 ? L : R;
+            const el = ((M.height + Math.random() * 0.4) * Math.PI) / 180;
+            MET.a = [from + (to - from) * Math.random() * 0.15, el];
+            MET.b = [to - (to - from) * Math.random() * 0.15, el - ((0.15 + Math.random() * 0.25) * Math.PI) / 180];
+            MET.t0 = nowMs;
+            MET.dur = (2000 + Math.random() * 1000) / Math.max(0.05, M.speed);
+            MET.next = nowMs + every * (0.6 + Math.random() * 0.8);
+        }
+        if (MET.a === null || MET.b === null || nowMs >= MET.t0 + MET.dur) return null;
+        const t = (nowMs - MET.t0) / MET.dur;
+        return {
+            a: MET.a,
+            b: MET.b,
+            t,
+            length: M.length,
+            width: 0.0011 * Math.max(0.3, M.width),
+            bright: M.bright * Math.min(1, t / 0.15) * (1 - Math.max(0, (t - 0.7) / 0.3)),
+        };
     }
 
     // ---- the normal day's leaves (26f3), the probe's leaf simulation (v1.66) ----
@@ -1051,6 +1107,22 @@
                 night > 0.01 && std !== null && std.lamps.length > 0 && L.night.lamps > 0
                     ? { list: std.lamps, power: night * L.night.lamps, reach: 420 * L.night.reach, glow: night * L.night.glow, color: fromHex(L.night.color) }
                     : null,
+            ncx:
+                night > 0.01 && (L.windows !== null || L.shoot !== null || st.stars * s > 0.01)
+                    ? (() => {
+                          const met = L.shoot === null ? null : meteorStep(performance.now(), box, [pos.x, pos.y, pos.z], L.shoot);
+                          return {
+                              hor,
+                              zen,
+                              stars: st.stars * s * STAR_BOOST,
+                              windows:
+                                  L.windows !== null && L.windows.amount > 0
+                                      ? { ...L.windows, amount: L.windows.amount * night }
+                                      : null,
+                              meteor: met === null ? null : { ...met, bright: met.bright * night },
+                          };
+                      })()
+                    : null,
             ndx:
                 night < 0.99 && (L.clouds !== null || L.leaves !== null)
                     ? {
@@ -1080,7 +1152,7 @@
                     : null,
             atmos: atmosOn
                 ? {
-                      stars: st.stars * s,
+                      stars: st.stars * s * STAR_BOOST,
                       glow,
                       sunDir: sunDirection(hour, box, L.time.sunSide),
                       sunCol: st.sun,

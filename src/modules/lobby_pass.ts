@@ -29,6 +29,16 @@ Px look(){Px r;r.d=texelFetch(uDepth,ivec2(gl_FragCoord.xy),0).r;vec2 n=gl_FragC
  float s=dot(r.p.xy,uOut);
  r.outside=r.d>=.99999||s>uWall+5.;
  r.k=r.d>=.99999?1.:smoothstep(uWall-uDoorIn,uWall+uDoorOut,s);return r;}
+// one star field for the whole sky (owner 2026-11-21: more stars, more glow): a star in about 6 % of the cells (1/260 rad), a sharp
+// core and a soft halo; the 3 x 3 cells round the pixel are read so a halo is never cut at a cell's edge
+float starAt(vec3 dir,float t){vec2 sp=vec2(atan(dir.y,dir.x)*260.,dir.z*260.);vec2 c0=floor(sp);float sum=0.;
+ for(int j=-1;j<=1;j++)for(int i=-1;i<=1;i++){vec2 c=c0+vec2(float(i),float(j));
+  uint k=uint(int(c.x)+70000)*73856093u^uint(int(c.y)+70000)*19349663u;
+  if(rnd(k)<=.94)continue;
+  vec2 ctr=c+.5+.35*(vec2(rnd(k+1u),rnd(k+2u))-.5);float r=length(sp-ctr);
+  float tw=.6+.4*sin(t*(1.5+rnd(k+3u)*3.)+rnd(k+4u)*6.28);
+  sum+=tw*(exp(-r*r*30.)*1.5+exp(-r*r*4.)*.35)*(.4+.6*rnd(k+5u));}
+ return sum;}
 `;
     const GRADE_FS = `#version 300 es
 ${DEPTH_GLSL}
@@ -64,12 +74,7 @@ void main(){
  // the sun's glare is seen by the camera over the whole picture (a lens glow), so it does not stop at the doorway; the sun's disc only in the sky
  float s=max(dot(x.dir,uSunDir),0.);
  acc.rgb+=uSunCol*uGlow*((sky?pow(s,900.)*2.5:0.)+(pow(s,60.)*.35+pow(s,8.)*.12)*mix(.55,1.,x.k));
- if(uStars>0.&&sky){
-  vec2 sp=vec2(atan(x.dir.y,x.dir.x)*260.,x.dir.z*260.);vec2 c=floor(sp);
-  uint k=uint(int(c.x)+70000)*73856093u^uint(int(c.y)+70000)*19349663u;
-  if(rnd(k)>.975){vec2 ctr=c+.5+.35*(vec2(rnd(k+1u),rnd(k+2u))-.5);float r=length(sp-ctr);
-   float tw=.6+.4*sin(uTime*(1.5+rnd(k+3u)*3.)+rnd(k+4u)*6.28);
-   acc.rgb+=vec3(.9,.95,1.)*uStars*tw*exp(-r*r*18.)*(.4+.6*rnd(k+5u))*smoothstep(0.,.15,x.dir.z);}}
+ if(uStars>0.&&sky)acc.rgb+=vec3(.9,.95,1.)*uStars*starAt(x.dir,uTime);
  // the overcast sky: grey cloud over the blue sky (a flat cloud layer seen from below, drifting; lighter toward the horizon)
  if(uCloud>0.&&sky){
   vec2 q=x.dir.xy/(max(x.dir.z,0.)+.32)*.9+vec2(uTime*uCloudSpeed*.02,0.);
@@ -147,6 +152,77 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
         texture: string | null;
         opacityMap: string | null;
     }
+    // 26f4a: the clear night's extras (the probe's NCX_FS, as text). Mode 0 (multiplies, like light): the street lamps' light on the
+    // street (26f4b). Mode 1 (added): lit windows in the town's buildings (a grid on each wall, some lit; not on trees or the painted
+    // sky, told by the picture's own colour with the night colours taken out) and a shooting star (a bright head and a fading trail).
+    const NCX_FS = `#version 300 es
+${DEPTH_GLSL}
+uniform sampler2D uPic;uniform float uHasPic,uTime,uGroundZ,uSkyZ,uSkyNear,uSkyLow;uniform vec2 uLat;uniform int uMode;uniform vec3 uHor,uZen;
+uniform float uWnAmt,uWnDense,uWnSize,uWnNear,uWnFar,uWnChange;
+uniform vec4 uMet;uniform float uMetT,uMetB,uMetLen,uMetW;
+uniform float uPlAmt,uPlR,uPlStart,uPlGap,uPlH;uniform vec2 uPlSides;uniform int uPlN;uniform vec3 uPlCol;uniform float uStars;
+out vec4 o;
+// the 3D point under a pixel, read from the depth picture (no 2 x 2 block derivatives)
+bool posAt(ivec2 c,out vec3 p){c=clamp(c,ivec2(0),ivec2(uViewport)-1);float d=texelFetch(uDepth,c,0).r;if(d>=.99999)return false;
+ vec2 q=(vec2(c)+.5)/uViewport*2.-1.;vec4 w=uInv*vec4(q,d*2.-1.,1.);p=w.xyz/w.w;return true;}
+// a wall for the lit windows (owner 2026-11-21: dashes on roof edges while the camera moved): the surface's direction worked out on
+// each side of the pixel, 2 pixels away, from the depth picture; both must agree (the pixel lies well inside one flat surface) and
+// stand upright. The 2 x 2 block derivatives changed with the camera's sub-pixel moves and mixed roof and wall at the edges.
+bool wallAt(vec3 p0){ivec2 c=ivec2(gl_FragCoord.xy);vec3 pl,pr,pd,pu;
+ if(!posAt(c-ivec2(2,0),pl)||!posAt(c+ivec2(2,0),pr)||!posAt(c-ivec2(0,2),pd)||!posAt(c+ivec2(0,2),pu))return false;
+ vec3 n1=cross(p0-pl,pu-p0),n2=cross(pr-p0,p0-pd);float l1=length(n1),l2=length(n2);if(l1<=0.||l2<=0.)return false;
+ n1/=l1;n2/=l2;if(dot(n1,n2)<.98)return false;
+ return abs(normalize(n1+n2).z)<.3;}
+void main(){
+ Px x=look();
+ float s=dot(x.p.xy,uOut);
+ bool sky=x.outside&&(x.d>=.99999||x.p.z>uSkyZ||(s>uSkyNear-60.&&x.p.z>uSkyLow));
+ vec3 g=mix(uHor,uZen,smoothstep(-.02,.35,x.dir.z));
+ vec3 n=cross(dFdx(x.p),dFdy(x.p));float ln=length(n);n=ln>0.?n/ln:vec3(0.,0.,1.);if(dot(n,uCam-x.p)<0.)n=-n;
+ if(uMode==0){
+  if(sky||x.d>=.99999||x.k<.01)discard;
+  float L=0.;
+  for(int i=0;i<24;i++){if(i>=uPlN)break;
+   float side=(i%2==0)?uPlSides.x:uPlSides.y;float sAt=uPlStart+float(i/2)*uPlGap+(i%2==1?uPlGap*.5:0.);
+   vec3 lp=vec3(uOut*sAt+uLat*side,uGroundZ+uPlH);vec3 d=lp-x.p;if(d.z<5.)continue;
+   float r=length(d.xy);L+=(max(dot(n,normalize(d)),0.)*.75+.25)*exp(-r*r/(uPlR*uPlR));}
+  if(L<.002)discard;
+  float gm=max(.06,(g.r+g.g+g.b)/3.);
+  o=vec4(uPlCol*L*uPlAmt*x.k*.6/gm,1.);return;}
+ vec3 acc=vec3(0.);
+ vec3 c0=uHasPic>.5?texelFetch(uPic,ivec2(gl_FragCoord.xy),0).rgb/max(g,vec3(.02)):vec3(.5);
+ // the painted sky behind the town: clearly sky-blue (a pale building with a blue tint is not), far out, as a 0 to 1 amount
+ float skyBlue=uHasPic>.5?smoothstep(.16,.24,c0.b-c0.r)*step(.35,c0.b):0.;
+ bool bluish=skyBlue>.01;
+ float painted=x.outside&&!sky&&s>uSkyNear-60.?skyBlue:0.;
+ if(uWnAmt>0.&&x.outside&&!sky&&x.d<.99999){
+  float h=x.p.z-uGroundZ;
+  if(s>uWall+uWnNear&&s<min(uWall+uWnFar,uSkyNear-60.)&&wallAt(x.p)&&h>100.&&!(uHasPic>.5&&(c0.g>max(c0.r,c0.b)*1.1||bluish))){
+   // one coordinate along any wall facing the street or across it (no choice from the pixel's own normal, which is noisy far away)
+   float u_=dot(x.p.xy,uLat+uOut);
+   vec2 q=vec2(u_,h-100.)/(vec2(120.,140.)*uWnSize),c=floor(q),fq=fract(q);
+   uint k=uint(int(c.x)+70000)*73856093u^uint(int(c.y)+70000)*19349663u;
+   float per=mix(40.,150.,rnd(k+1u))/max(uWnChange,.05),T=uTime/per+rnd(k+2u),e=floor(T);
+   float cur=step(rnd(k+uint(int(e)+1000)*7919u),uWnDense),prev=step(rnd(k+uint(int(e)+999)*7919u),uWnDense);
+   float on=mix(prev,cur,smoothstep(0.,.4/per,fract(T)));
+   if(on>.001){
+    vec2 w=fwidth(q)+1e-4;
+    float bx=smoothstep(.27-w.x,.27+w.x,fq.x)*(1.-smoothstep(.73-w.x,.73+w.x,fq.x));
+    float by=smoothstep(.3-w.y,.3+w.y,fq.y)*(1.-smoothstep(.75-w.y,.75+w.y,fq.y));
+    float win=mix(bx*by,.2,smoothstep(.25,.6,max(w.x,w.y)));
+    float r3=rnd(k+3u);vec3 wc=r3<.6?vec3(1.,.7,.36):(r3<.88?vec3(1.,.86,.62):vec3(.62,.76,1.));
+    float fl=r3>=.88?.8+.2*sin(uTime*(3.+rnd(k+4u)*5.)+rnd(k+5u)*20.):1.;
+    acc+=wc*on*win*fl*mix(.55,1.,rnd(k+6u))*uWnAmt;}}}
+ if(uStars>0.&&painted>.01)acc+=vec3(.9,.95,1.)*uStars*starAt(x.dir,uTime)*painted;
+ if(uMetB>0.&&x.outside&&(sky||painted>.01)){
+  vec2 P=vec2(atan(dot(x.dir.xy,uLat),dot(x.dir.xy,uOut)),asin(clamp(x.dir.z,-1.,1.)));
+  vec2 d=P-uMet.xy,ab=uMet.zw-uMet.xy;float len=max(length(ab),1e-4);vec2 dv=ab/len;
+  float along=dot(d,dv),across=abs(d.x*dv.y-d.y*dv.x),behind=uMetT*len-along,tl=max(uMetLen*len,1e-4);
+  if(behind>-uMetW*4.&&behind<tl){
+   float a=exp(-across*across/(uMetW*uMetW))*(behind<0.?exp(-behind*behind/(uMetW*uMetW)):pow(1.-behind/tl,2.)*(.35+.65*exp(-behind/(uMetW*6.))));
+   acc+=vec3(.85,.92,1.)*a*uMetB*(sky?1.:painted);}}
+ if(max(acc.r,max(acc.g,acc.b))<.002)discard;
+ o=vec4(acc,0.);}`;
     // 26f3: the normal day's extras (the probe's CLOUDX_FS, LEAF_VS, LEAF_FS, as text)
     const CLOUDX_FS = `#version 300 es
 ${DEPTH_GLSL}
@@ -731,6 +807,11 @@ void main(){
         ]);
         const lampProg = program(FULL_VS, LAMP_FS, [...DEPTH_U, 'uLamp', 'uN', 'uMode', 'uPower', 'uReach', 'uGlow', 'uCol', 'uVP']);
         const lampArray = new Float32Array(24);
+        const ncxProg = program(FULL_VS, NCX_FS, [
+            ...DEPTH_U, 'uPic', 'uHasPic', 'uTime', 'uGroundZ', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uLat', 'uMode', 'uHor', 'uZen', 'uWnAmt', 'uWnDense',
+            'uWnSize', 'uWnNear', 'uWnFar', 'uWnChange', 'uMet', 'uMetT', 'uMetB', 'uMetLen', 'uMetW', 'uPlAmt', 'uPlR', 'uPlStart', 'uPlGap', 'uPlH',
+            'uPlSides', 'uPlN', 'uPlCol', 'uStars',
+        ]);
         const cloudxProg = program(FULL_VS, CLOUDX_FS, [...DEPTH_U, 'uTime', 'uAmt', 'uCover', 'uSize', 'uSpeed', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uCol', 'uShade', 'uPic', 'uHasPic']);
         const leafProg = program(LEAF_VS, LEAF_FS, ['uVP', 'uCam', 'uP', 'uA', 'uB', 'uSize', 'uGround', 'uFloor', 'uWall', 'uOut', 'uMode', 'uLight', 'uSun']);
         const PIECE_ATTRIBS: ReadonlyArray<readonly [number, string]> = [[0, 'aP'], [1, 'aT']];
@@ -1124,7 +1205,7 @@ void main(){
                 gl.viewport(0, 0, W, H);
                 const A = f.atmos;
                 // (0a to 0c: the seasonal outside, the night, the grey sky; with their looks)
-                const needDepth = !!(f.ndx || f.grade || A || f.lamps);
+                const needDepth = !!(f.ncx || f.ndx || f.grade || A || f.lamps);
                 const depthOk = needDepth && st.draw === null && !depthBroken && copyDepth(W, H);
                 gl.colorMask(true, true, true, false);
                 gl.depthMask(false);
@@ -1273,6 +1354,55 @@ void main(){
                     gl.uniform3fv(uni(atmos, 'uCoverCol'), A.coverCol);
                     gl.uniform1f(uni(atmos, 'uCoverThick'), A.coverThick);
                     gl.drawArrays(gl.TRIANGLES, 0, 3);
+                }
+                // 2a2b. the clear night's extras: the town's lit windows and the shooting star (added)
+                if (depthOk && f.ncx) {
+                    const NC = f.ncx;
+                    if (NC.windows || NC.meteor || NC.stars > 0) {
+                        const hasPic = st.draw === null && copyColour(W, H);
+                        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, st.draw);
+                        gl.viewport(0, 0, W, H);
+                        gl.bindVertexArray(vao);
+                        gl.useProgram(ncxProg.p);
+                        depthUniforms(ncxProg, f, W, H);
+                        gl.activeTexture(gl.TEXTURE0 + PANO);
+                        gl.bindTexture(gl.TEXTURE_2D, hasPic ? colTex : null);
+                        gl.bindSampler(PANO, null);
+                        gl.uniform1i(uni(ncxProg, 'uPic'), PANO);
+                        gl.uniform1f(uni(ncxProg, 'uHasPic'), hasPic ? 1 : 0);
+                        gl.activeTexture(gl.TEXTURE0 + UNIT);
+                        gl.bindTexture(gl.TEXTURE_2D, depthTex);
+                        gl.uniform1f(uni(ncxProg, 'uTime'), f.time);
+                        gl.uniform1f(uni(ncxProg, 'uGroundZ'), f.box.groundZ);
+                        gl.uniform1f(uni(ncxProg, 'uSkyZ'), f.box.skyZ);
+                        gl.uniform1f(uni(ncxProg, 'uSkyNear'), f.box.skyNear);
+                        gl.uniform1f(uni(ncxProg, 'uSkyLow'), f.box.skyLow);
+                        gl.uniform2f(uni(ncxProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                        gl.uniform3fv(uni(ncxProg, 'uHor'), NC.hor);
+                        gl.uniform3fv(uni(ncxProg, 'uZen'), NC.zen);
+                        const Wn = NC.windows;
+                        gl.uniform1f(uni(ncxProg, 'uWnAmt'), Wn ? Wn.amount : 0);
+                        if (Wn) {
+                            gl.uniform1f(uni(ncxProg, 'uWnDense'), Wn.dense);
+                            gl.uniform1f(uni(ncxProg, 'uWnSize'), Math.max(0.1, Wn.size));
+                            gl.uniform1f(uni(ncxProg, 'uWnNear'), Wn.near);
+                            gl.uniform1f(uni(ncxProg, 'uWnFar'), Wn.far);
+                            gl.uniform1f(uni(ncxProg, 'uWnChange'), Wn.change);
+                        }
+                        const Mt = NC.meteor;
+                        gl.uniform1f(uni(ncxProg, 'uMetB'), Mt ? Mt.bright : 0);
+                        if (Mt) {
+                            gl.uniform4f(uni(ncxProg, 'uMet'), Mt.a[0], Mt.a[1], Mt.b[0], Mt.b[1]);
+                            gl.uniform1f(uni(ncxProg, 'uMetT'), Mt.t);
+                            gl.uniform1f(uni(ncxProg, 'uMetLen'), Mt.length);
+                            gl.uniform1f(uni(ncxProg, 'uMetW'), Mt.width);
+                        }
+                        gl.uniform1f(uni(ncxProg, 'uStars'), NC.stars);
+                        gl.uniform1i(uni(ncxProg, 'uMode'), 1);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                        gl.drawArrays(gl.TRIANGLES, 0, 3);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    }
                 }
                 // 2a3a. the normal day's extras: the white clouds (laid over the sky), then the leaves (hidden by the game's depth)
                 if (depthOk && f.ndx) {
