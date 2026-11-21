@@ -862,6 +862,57 @@ void main(){
  float gl2=step(.975,rnd(k))*pow(max(0.,sin(uTime*(1.5+rnd(k+1u)*3.)+rnd(k+2u)*6.28)),8.);
  vec3 col=uCol*shade+vec3(1.)*gl2*uSpark;
  a=min(1.,a);o=vec4(col*a,a);}`;
+    // the seasonal outside (26k): the game's depth emptied beyond the door before the season's own sky and town are drawn; the probe's own text
+    const CLEAR_FS = `#version 300 es
+${DEPTH_GLSL}
+out vec4 o;void main(){Px x=look();if(x.d>=.99999||dot(x.p.xy,uOut)<uWall+40.)discard;gl_FragDepth=1.;o=vec4(0.);}`;
+    // the Halloween night (26k): the pumpkins' candle light on what is round them (multiplies); the probe's own text
+    const HWX_FS = `#version 300 es
+${DEPTH_GLSL}
+uniform vec4 uC[32];uniform int uN;uniform float uR,uAmt,uDim;uniform vec3 uCol;out vec4 o;
+void main(){Px x=look();if(x.d>=.99999)discard;
+ vec3 n=cross(dFdx(x.p),dFdy(x.p));float ln=length(n);n=ln>0.?n/ln:vec3(0.,0.,1.);if(dot(n,uCam-x.p)<0.)n=-n;
+ float L=0.;
+ for(int i=0;i<32;i++){if(i>=uN)break;vec3 d=uC[i].xyz-x.p;float r=length(d);
+  L+=(max(dot(n,d/max(r,1.)),0.)*.8+.2)/(1.+r*r/(uR*uR))*(1.-smoothstep(uR*1.5,uR*3.,r))*uC[i].w;}
+ if(L<.003)discard;o=vec4(uCol*L*uAmt*.5/uDim,1.);}`;
+    // small glowing points facing the camera (26k): mode 0 the pumpkins' candles, mode 1 the string lights; the probe's own text
+    const GLOW_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec3 uCam;uniform vec4 uP[96];uniform float uSize,uPull;
+out vec2 vQ;out float vI;
+void main(){vec4 P=uP[gl_InstanceID];vec3 p=P.xyz;vec3 f=normalize(uCam-p);p+=f*uPull;
+ vec3 r=normalize(cross(vec3(0.,0.,1.),f)),u=cross(f,r);
+ vec2 q=vec2(float(gl_VertexID&1)*2.-1.,float(gl_VertexID>>1)*2.-1.);vQ=q;vI=P.w;
+ gl_Position=uVP*vec4(p+(r*q.x+u*q.y)*uSize,1.);}`;
+    const GLOW_FS = `#version 300 es
+precision highp float;precision highp int;
+uniform vec3 uC0,uC1;uniform float uBright,uTime,uBlink;uniform int uMode;in vec2 vQ;in float vI;out vec4 o;
+void main(){float r=length(vQ);if(r>1.)discard;
+ float ph=fract(vI)*6.2832,k;vec3 col;
+ if(uMode==0){k=.75+.25*sin(uTime*11.+ph*3.)*sin(uTime*7.3+ph)+.1*sin(uTime*23.+ph*5.);col=uC0;}
+ else if(uMode==2){vec3 pal[4]=vec3[4](vec3(1.,.15,.1),vec3(.2,1.,.3),vec3(1.,.75,.2),vec3(.95,.95,1.));col=pal[int(floor(vI))%4];
+  k=uBlink>.01?.35+.65*(.5+.5*sin(uTime*uBlink*2.+ph)):1.;}
+ else if(uMode==3){col=uC0;k=.85+.15*sin(uTime*2.+ph);}
+ else{k=uBlink>.01?.3+.7*smoothstep(-.2,.2,sin(uTime*uBlink*2.+ph)):1.;col=floor(vI)>.5?uC1:uC0;}
+ vec3 c=col*uBright*k*(uMode==0?exp(-r*r*4.)*.3:uMode==3?exp(-r*r*25.)*2.5+exp(-r*r*3.)*.4:exp(-r*r*40.)*2.+exp(-r*r*5.)*.25);
+ if(max(c.r,max(c.g,c.b))<.003)discard;o=vec4(c,0.);}`;
+    // the spider webs in the door's top corners (26k); the probe's own text
+    const WEB_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec4 uW[8];uniform vec2 uLat;uniform float uSize;out vec2 vU;
+void main(){vec4 W=uW[gl_InstanceID];vec2 q=vec2(float(gl_VertexID&1),float(gl_VertexID>>1));vU=q;
+ gl_Position=uVP*vec4(W.xyz+(vec3(uLat*W.w,0.)*q.x-vec3(0.,0.,1.)*q.y)*uSize,1.);}`;
+    const WEB_FS = `#version 300 es
+precision highp float;
+uniform vec3 uCol;uniform float uAmt,uTime;in vec2 vU;out vec4 o;
+void main(){float r=length(vU);if(r>1.)discard;float an=atan(vU.y,vU.x);
+ float k=an/1.5708*7.;float ds=abs(fract(k+.5)-.5)/7.*1.5708*r;
+ float rr=r+.025*sin(fract(k)*3.1416)+.004*sin(uTime*.8+r*20.);
+ float dr=(r<.93&&r>.06)?abs(fract(rr/.1+.5)-.5)*.1:1.;
+ float w=fwidth(r)*1.1+.0015,line=min(ds,dr);
+ float a=(1.-smoothstep(w*.4,w*1.4,line))*uAmt*(1.-smoothstep(.85,1.,r));
+ if(a<.01)discard;o=vec4(uCol*a,a);}`;
     interface Model {
         readonly objects: ModelObject[];
         readonly materials: Record<string, Material>;
@@ -1525,6 +1576,10 @@ void main(){
         ]);
         const sunxProg = program(FULL_VS, SUNX_FS, [...DEPTH_U, 'uCol', 'uTime', 'uGroundZ', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uShAmt', 'uShH', 'uShSpeed']);
         const birdProg = program(BIRD_VS, BIRD_FS, ['uBat', 'uOne', 'uVP', 'uCam', 'uOut', 'uLat', 'uDist', 'uZ', 'uSpan', 'uTime', 'uSize', 'uSpeed', 'uHaze']);
+        const clearProg = program(FULL_VS, CLEAR_FS, DEPTH_U);
+        const hwxProg = program(FULL_VS, HWX_FS, [...DEPTH_U, 'uC', 'uN', 'uR', 'uAmt', 'uDim', 'uCol']);
+        const glowProg = program(GLOW_VS, GLOW_FS, ['uVP', 'uCam', 'uP', 'uSize', 'uPull', 'uC0', 'uC1', 'uBright', 'uTime', 'uBlink', 'uMode']);
+        const webProg = program(WEB_VS, WEB_FS, ['uVP', 'uW', 'uLat', 'uSize', 'uCol', 'uAmt', 'uTime']);
         const iceProg = program(ICE_VS, ICE_FS, ['uVP', 'uCam', 'uOut', 'uLat', 'uSpan', 'uTop', 'uAt', 'uLen', 'uWidth', 'uN', 'uColor', 'uTime', 'uGlint']);
         const driftProg = program(FULL_VS, DRIFT_FS, [...DEPTH_U, 'uLat', 'uLim', 'uCol', 'uAmt', 'uDepthW', 'uGust', 'uFloorZ', 'uTime', 'uSpark']);
         const flakeProg = program(FLAKE_VS, FLAKE_FS, [
@@ -1723,14 +1778,23 @@ void main(){
 
         // Draws the loaded pieces; only = 'solid' (modes 0 and 1), 'sun' (every piece with a night picture, as the night multiply) or
         // 'lens' (every piece with a lens picture, the same multiply); alpha fades the pieces in (1 = fully there).
-        function drawPieces(f: KaspLobbyPassFrame, asset: KaspLobbyAsset, only: 'solid' | 'clear' | 'sun' | 'lens', bright: number, amt: number, alpha: number): void {
+        function drawPieces(
+            f: KaspLobbyPassFrame,
+            asset: KaspLobbyAsset,
+            only: 'solid' | 'clear' | 'sun' | 'lens' | 'glow',
+            bright: number,
+            amt: number,
+            alpha: number,
+        ): void {
             const list = piecesOf(asset);
             gl.useProgram(meshProg.p);
             gl.uniformMatrix4fv(uni(meshProg, 'uVP'), false, f.vp);
             gl.uniform3fv(uni(meshProg, 'uOff'), f.offset);
-            gl.uniform4fv(uni(meshProg, 'uXr'), [1, 0, 0, 1]);
-            gl.uniform1f(uni(meshProg, 'uXs'), 1);
-            gl.uniform3fv(uni(meshProg, 'uXt'), [0, 0, 0]);
+            // where a piece is moved to: a turn or a mirror (2 x 2, column by column), a size and a move (the mirrored copies of a
+            // seasonal sky); every other piece stays where it was made
+            gl.uniform4fv(uni(meshProg, 'uXr'), asset.xr ?? [1, 0, 0, 1]);
+            gl.uniform1f(uni(meshProg, 'uXs'), asset.xs ?? 1);
+            gl.uniform3fv(uni(meshProg, 'uXt'), asset.xt ?? [0, 0, 0]);
             gl.uniform1i(uni(meshProg, 'uTex'), PANO);
             gl.uniform1f(uni(meshProg, 'uBright'), bright);
             gl.uniform1f(uni(meshProg, 'uAmt'), amt);
@@ -1748,6 +1812,7 @@ void main(){
                         p.ntex = uploadPicture(n);
                     }
                 }
+                if (only === 'glow' && p.mode === 2) continue;
                 if (only === 'lens') {
                     if (p.mode === 2) continue;
                     if (p.ltex === null) {
@@ -1756,7 +1821,7 @@ void main(){
                         p.ltex = uploadPicture(n);
                     }
                 }
-                gl.uniform1i(uni(meshProg, 'uMode'), only === 'sun' || only === 'lens' ? 3 : p.mode);
+                gl.uniform1i(uni(meshProg, 'uMode'), only === 'sun' || only === 'lens' ? 3 : only === 'glow' ? 4 : p.mode);
                 gl.bindTexture(gl.TEXTURE_2D, only === 'sun' && p.ntex !== null ? p.ntex : only === 'lens' && p.ltex !== null ? p.ltex : p.tex);
                 gl.bindVertexArray(p.vao);
                 gl.drawArrays(gl.TRIANGLES, 0, p.count);
@@ -1935,9 +2000,73 @@ void main(){
                 for (const [c] of st.caps) gl.disable(c);
                 gl.viewport(0, 0, W, H);
                 const A = f.atmos;
-                // (0a to 0c: the seasonal outside, the night, the grey sky; with their looks)
+                // 0a. the seasonal outside (26k: sky, town, road), drawn into the game's picture and depth before the depth is copied, so
+                // the time colours, fog, snow and rain fall on it like on the game's own town
+                if (f.outside && st.draw === null) {
+                    if (!depthBroken && copyDepth(W, H)) {
+                        gl.bindVertexArray(vao);
+                        gl.useProgram(clearProg.p);
+                        depthUniforms(clearProg, f, W, H);
+                        gl.activeTexture(gl.TEXTURE0 + UNIT);
+                        gl.bindTexture(gl.TEXTURE_2D, depthTex);
+                        gl.bindSampler(UNIT, null);
+                        gl.enable(gl.DEPTH_TEST);
+                        gl.depthFunc(gl.ALWAYS);
+                        gl.depthMask(true);
+                        gl.colorMask(false, false, false, false);
+                        gl.disable(gl.BLEND);
+                        gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    }
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(true);
+                    gl.colorMask(true, true, true, false);
+                    gl.disable(gl.BLEND);
+                    drawPieces(f, f.outside.asset, 'solid', f.outside.bright, 0, 1);
+                    // the sky's mirrored copies past its ends (a mirror turns the faces round, so no face is skipped)
+                    const copies = f.outside.asset.skyCopies ?? [];
+                    if (copies.length > 0) {
+                        const wasCull = gl.isEnabled(gl.CULL_FACE);
+                        gl.disable(gl.CULL_FACE);
+                        for (const c of copies) drawPieces(f, c, 'solid', f.outside.bright, 0, 1);
+                        if (wasCull) gl.enable(gl.CULL_FACE);
+                    }
+                    gl.enable(gl.BLEND);
+                    gl.blendEquation(gl.FUNC_ADD);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.depthMask(false);
+                    drawPieces(f, f.outside.asset, 'clear', f.outside.bright, 0, 1);
+                    gl.disable(gl.DEPTH_TEST);
+                }
+                // 0a2. the Halloween hangar's pumpkins on the floor (26k), drawn into the game's picture and depth
+                if (f.hw && f.hw.pumpkins && st.draw === null) {
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(true);
+                    gl.colorMask(true, true, true, false);
+                    gl.disable(gl.BLEND);
+                    drawPieces(f, f.hw.pumpkins.asset, 'solid', 1, 0, 1);
+                    gl.enable(gl.BLEND);
+                    gl.blendEquation(gl.FUNC_ADD);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.depthMask(false);
+                    gl.disable(gl.DEPTH_TEST);
+                }
+                // (0a3: the Christmas tree and gifts; with its look)
                 const R = f.rain;
-                const needDepth = !!(f.ncx || f.ndx || f.grade || A || f.lamps || (R && R.splash > 0) || f.wet);
+                const needDepth = !!(
+                    (f.hw && f.hw.pumpkins) ||
+                    f.sunx ||
+                    f.ndx ||
+                    f.ncx ||
+                    (f.swx && f.swx.drift) ||
+                    (R && R.splash > 0) ||
+                    f.grade ||
+                    A ||
+                    f.lamps ||
+                    f.wet ||
+                    f.fogx
+                );
                 const depthOk = needDepth && st.draw === null && !depthBroken && copyDepth(W, H);
                 gl.colorMask(true, true, true, false);
                 gl.depthMask(false);
@@ -2068,6 +2197,88 @@ void main(){
                     drawPieces(f, f.fixtures.asset, 'clear', 1, 0, f.fixtures.cones);
                     gl.disable(gl.DEPTH_TEST);
                     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                }
+                // 1b2. the Halloween night (26k): the candle light round the pumpkins (multiplies), their glowing faces and candles, the
+                // string lights, the spider webs; all hidden by the game's depth
+                if (f.hw && st.draw === null) {
+                    const HW = f.hw;
+                    if (depthOk && HW.pumpkins && HW.pumpkins.pool > 0.001) {
+                        const Pk = HW.pumpkins;
+                        gl.bindVertexArray(vao);
+                        gl.useProgram(hwxProg.p);
+                        depthUniforms(hwxProg, f, W, H);
+                        gl.activeTexture(gl.TEXTURE0 + UNIT);
+                        gl.bindTexture(gl.TEXTURE_2D, depthTex);
+                        gl.uniform4fv(uni(hwxProg, 'uC'), Pk.candles);
+                        gl.uniform1i(uni(hwxProg, 'uN'), Pk.n);
+                        gl.uniform1f(uni(hwxProg, 'uR'), 160);
+                        gl.uniform1f(uni(hwxProg, 'uAmt'), Pk.pool);
+                        gl.uniform1f(uni(hwxProg, 'uDim'), Pk.dim);
+                        gl.uniform3fv(uni(hwxProg, 'uCol'), [1, 0.55, 0.18]);
+                        gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE, gl.ZERO, gl.ONE);
+                        gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    }
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(false);
+                    if (HW.pumpkins && HW.pumpkins.glow > 0.001) {
+                        const Pk = HW.pumpkins;
+                        gl.enable(gl.POLYGON_OFFSET_FILL);
+                        gl.polygonOffset(-1, -4);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                        drawPieces(f, Pk.asset, 'glow', 1, Pk.glow * Pk.faces, 1);
+                        gl.disable(gl.POLYGON_OFFSET_FILL);
+                        gl.useProgram(glowProg.p);
+                        gl.uniformMatrix4fv(uni(glowProg, 'uVP'), false, f.vp);
+                        gl.uniform3fv(uni(glowProg, 'uCam'), f.cam);
+                        gl.uniform4fv(uni(glowProg, 'uP'), Pk.glowPts);
+                        gl.uniform1f(uni(glowProg, 'uSize'), 75);
+                        gl.uniform1f(uni(glowProg, 'uPull'), 80);
+                        gl.uniform3fv(uni(glowProg, 'uC0'), [1, 0.6, 0.2]);
+                        gl.uniform3fv(uni(glowProg, 'uC1'), [1, 0.6, 0.2]);
+                        gl.uniform1f(uni(glowProg, 'uBright'), Pk.glow);
+                        gl.uniform1f(uni(glowProg, 'uTime'), f.time);
+                        gl.uniform1f(uni(glowProg, 'uBlink'), 0);
+                        gl.uniform1i(uni(glowProg, 'uMode'), 0);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Pk.n);
+                    }
+                    if (HW.lights && HW.lights.n > 0) {
+                        const Lt = HW.lights;
+                        gl.useProgram(glowProg.p);
+                        gl.uniformMatrix4fv(uni(glowProg, 'uVP'), false, f.vp);
+                        gl.uniform3fv(uni(glowProg, 'uCam'), f.cam);
+                        gl.uniform4fv(uni(glowProg, 'uP'), Lt.pts);
+                        gl.uniform1f(uni(glowProg, 'uSize'), 22);
+                        gl.uniform1f(uni(glowProg, 'uPull'), 25);
+                        gl.uniform3fv(uni(glowProg, 'uC0'), [1, 0.5, 0.1]);
+                        gl.uniform3fv(uni(glowProg, 'uC1'), [0.65, 0.25, 1]);
+                        gl.uniform1f(uni(glowProg, 'uBright'), Lt.bright);
+                        gl.uniform1f(uni(glowProg, 'uTime'), f.time);
+                        gl.uniform1f(uni(glowProg, 'uBlink'), Lt.blink);
+                        gl.uniform1i(uni(glowProg, 'uMode'), 1);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Lt.n);
+                    }
+                    if (HW.webs) {
+                        const Wb = HW.webs;
+                        gl.useProgram(webProg.p);
+                        gl.uniformMatrix4fv(uni(webProg, 'uVP'), false, f.vp);
+                        gl.uniform4fv(uni(webProg, 'uW'), Wb.w);
+                        gl.uniform2f(uni(webProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                        gl.uniform1f(uni(webProg, 'uSize'), Wb.size);
+                        gl.uniform3fv(uni(webProg, 'uCol'), Wb.col);
+                        gl.uniform1f(uni(webProg, 'uAmt'), Wb.amount);
+                        gl.uniform1f(uni(webProg, 'uTime'), f.time);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                        const wasCull = gl.isEnabled(gl.CULL_FACE);
+                        gl.disable(gl.CULL_FACE);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Wb.n);
+                        if (wasCull) gl.enable(gl.CULL_FACE);
+                    }
+                    gl.disable(gl.DEPTH_TEST);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.bindVertexArray(vao);
                 }
                 // 1c. the lamps at night: their light on the tank, the platform and the floor (after the night colour, like real light),
                 // then (if wanted) a glow on their lenses
@@ -2413,6 +2624,61 @@ void main(){
                         gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                     }
                 }
+                // 2a2c. the Halloween night's will-o'-wisps among the trees and the bats, one of them now and then into the hangar (26k)
+                if (depthOk && f.hw && (f.hw.wisps || f.hw.bats) && st.draw === null) {
+                    const HW = f.hw;
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(false);
+                    if (HW.wisps) {
+                        const Wp = HW.wisps;
+                        gl.useProgram(ncbProg.p);
+                        gl.uniformMatrix4fv(uni(ncbProg, 'uVP'), false, f.vp);
+                        gl.uniform3fv(uni(ncbProg, 'uCam'), f.cam);
+                        gl.uniform2f(uni(ncbProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                        gl.uniform2f(uni(ncbProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                        gl.uniform1f(uni(ncbProg, 'uTime'), f.time);
+                        gl.uniform1f(uni(ncbProg, 'uGround'), f.box.groundZ);
+                        gl.uniform1f(uni(ncbProg, 'uSlow'), 1);
+                        gl.uniform1i(uni(ncbProg, 'uMode'), 0);
+                        gl.uniform2f(uni(ncbProg, 'uSpan'), Wp.span[0], Wp.span[1]);
+                        gl.uniform2f(uni(ncbProg, 'uDist'), Wp.near, Wp.far);
+                        gl.uniform1f(uni(ncbProg, 'uH'), Wp.height);
+                        gl.uniform1f(uni(ncbProg, 'uSize'), Wp.size);
+                        gl.uniform1f(uni(ncbProg, 'uSpeed'), Wp.speed);
+                        gl.uniform3fv(uni(ncbProg, 'uCol'), Wp.color);
+                        gl.uniform1f(uni(ncbProg, 'uBright'), Wp.bright);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Wp.n);
+                    }
+                    if (HW.bats) {
+                        const B = HW.bats;
+                        gl.useProgram(birdProg.p);
+                        gl.uniformMatrix4fv(uni(birdProg, 'uVP'), false, f.vp);
+                        gl.uniform3fv(uni(birdProg, 'uCam'), f.cam);
+                        gl.uniform2f(uni(birdProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                        gl.uniform2f(uni(birdProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                        gl.uniform2f(uni(birdProg, 'uDist'), B.near, B.far);
+                        gl.uniform2f(uni(birdProg, 'uZ'), B.low, B.high);
+                        gl.uniform2f(uni(birdProg, 'uSpan'), f.box.u[0], f.box.u[1]);
+                        gl.uniform1f(uni(birdProg, 'uTime'), f.time);
+                        gl.uniform1f(uni(birdProg, 'uSize'), B.size);
+                        gl.uniform1f(uni(birdProg, 'uSpeed'), B.speed);
+                        gl.uniform3fv(uni(birdProg, 'uHaze'), B.haze);
+                        gl.uniform1f(uni(birdProg, 'uBat'), 1);
+                        const one = B.one;
+                        if (one !== null) gl.uniform4f(uni(birdProg, 'uOne'), one[0], one[1], one[2], 1);
+                        else gl.uniform4f(uni(birdProg, 'uOne'), 0, 0, 0, 0);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                        const wasCull = gl.isEnabled(gl.CULL_FACE);
+                        gl.disable(gl.CULL_FACE);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, B.n + (one !== null ? 1 : 0));
+                        if (wasCull) gl.enable(gl.CULL_FACE);
+                    }
+                    gl.disable(gl.DEPTH_TEST);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.bindVertexArray(vao);
+                }
                 // 2a3a. the normal day's extras: the white clouds (laid over the sky), then the leaves (hidden by the game's depth)
                 if (depthOk && f.ndx) {
                     const NX = f.ndx;
@@ -2752,5 +3018,81 @@ void main(){
         return { key: 'halloween-lamps', batches, pics: await pictures(batches) };
     }
 
-    window.__kaspLobbyPass = { make, loadStandard, nightPictures, loadFixtures, lensPictures, loadSky };
+    // A seasonal outside (26k, the probe's ensureSeason): the season hangar's sky, town and its mist pieces; its ground just outside the
+    // door for the floor blend (the town's flat, upward faces near the ground: no trees, no roofs); and, as its sky picture is one flat
+    // sheet that ends where the game's own camera stops looking, a mirrored copy at each end that carries the sheet on seamlessly.
+    async function loadSeason(base: string, season: string): Promise<KaspLobbySeason> {
+        const fileOf = (pic: string): string => base + season + '-' + encodeURIComponent(pic);
+        const model = await sharedModel(base + season + '-object.3ds');
+        const batches = batchesOf(model, ['Sky0', 'bg0', 'transp2', 'transp3'], fileOf);
+        const pics = await pictures(batches);
+        const ground: KaspLobbyAsset = {
+            key: season + ':ground',
+            batches: batchesOf(model, ['bg0'], fileOf, (_name, _c, n, zTop) => zTop < 160 && Math.abs(n[2]) > 0.6).filter((b) => b.mode !== 2),
+            pics,
+        };
+        const skyCopies: KaspLobbyAsset[] = [];
+        const skyB = batches.filter((b) => b.name === 'Sky0');
+        if (skyB.length > 0) {
+            const xy: Array<[number, number]> = [];
+            for (const b of skyB) for (let i = 0; i < b.pos.length; i += 3) xy.push([b.pos[i], b.pos[i + 1]]);
+            let A = xy[0];
+            let B = xy[0];
+            let far = -1;
+            for (const Pt of xy)
+                for (const Q of xy) {
+                    const d = Math.hypot(Pt[0] - Q[0], Pt[1] - Q[1]);
+                    if (d > far) {
+                        far = d;
+                        A = Pt;
+                        B = Q;
+                    }
+                }
+            for (const [E, O] of [
+                [A, B],
+                [B, A],
+            ]) {
+                const len = Math.hypot(E[0] - O[0], E[1] - O[1]) || 1;
+                const nx = (E[0] - O[0]) / len;
+                const ny = (E[1] - O[1]) / len;
+                const k = 2 * (E[0] * nx + E[1] * ny);
+                skyCopies.push({
+                    key: season + ':sky-mirror-' + skyCopies.length,
+                    batches: skyB,
+                    pics,
+                    xr: [1 - 2 * nx * nx, -2 * nx * ny, -2 * nx * ny, 1 - 2 * ny * ny],
+                    xs: 1,
+                    xt: [k * nx, k * ny, 0],
+                });
+            }
+        }
+        return { asset: { key: season, batches, pics, skyCopies }, ground };
+    }
+    // The Halloween hangar's pumpkins (26k, the probe's ensureHwPumpkins: its "pumpkins" piece, at its own places round the floor) and a
+    // candle in each (the middle of each pumpkin, grouped from its faces; small leftover bits are skipped).
+    async function loadPumpkins(base: string): Promise<KaspLobbyPumpkins> {
+        const model = await sharedModel(base + 'halloween2024-object.3ds');
+        const batches = batchesOf(model, ['pumpkins'], (pic) => base + 'halloween2024-' + encodeURIComponent(pic));
+        const asset: KaspLobbyAsset = { key: 'halloween-pumpkins', batches, pics: await pictures(batches) };
+        const groups: Array<{ s: number[]; n: number; lo: number; hi: number }> = [];
+        for (const b of batches) {
+            const Ps = b.pos;
+            for (let t = 0; t < Ps.length / 9; t++) {
+                const c = [0, 1, 2].map((k) => (Ps[t * 9 + k] + Ps[t * 9 + 3 + k] + Ps[t * 9 + 6 + k]) / 3);
+                let g = groups.find((q) => Math.hypot(q.s[0] / q.n - c[0], q.s[1] / q.n - c[1]) < 90);
+                if (g === undefined) {
+                    g = { s: [0, 0, 0], n: 0, lo: 1e9, hi: -1e9 };
+                    groups.push(g);
+                }
+                for (let k = 0; k < 3; k++) g.s[k] += c[k];
+                g.n++;
+                g.lo = Math.min(g.lo, c[2]);
+                g.hi = Math.max(g.hi, c[2]);
+            }
+        }
+        const candles = groups.filter((g) => g.n >= 20 && g.hi - g.lo > 40).map((g) => [g.s[0] / g.n, g.s[1] / g.n, g.lo + (g.hi - g.lo) * 0.45]);
+        return { asset, candles };
+    }
+
+    window.__kaspLobbyPass = { make, loadStandard, nightPictures, loadFixtures, lensPictures, loadSky, loadSeason, loadPumpkins };
 })();

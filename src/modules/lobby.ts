@@ -609,6 +609,51 @@
         readonly snowSounds: { readonly volume: number; readonly fall: number } | null;
         readonly snowGusts: { readonly every: number; readonly strength: number; readonly length: number; readonly sound: number } | null;
         readonly snowGlow: { readonly amount: number; readonly reach: number } | null;
+        // a seasonal outside (26k, the probe's "Seasonal outside"); null = the game's own. season = the hangar's files in hangars/
+        // (<season>-object.3ds and its pictures), bright = its brightness, own = how much it keeps its own colours (the time colours
+        // touch it only lightly), mix / mixDepth = the hangar floor turning into its ground near the door, and how far in. The game's
+        // sky, town and transp2 are hidden while it is on (the probe's automatic hiding).
+        readonly outside: { readonly season: string; readonly bright: number; readonly own: number; readonly mix: number; readonly mixDepth: number } | null;
+        // the Halloween night's extras (26k); null = none. Pumpkins (the Halloween hangar's own, at its places on the floor): glow =
+        // their faces and candles, pool = the candle light round them, flicker. Wisps among the trees (count, from near to far out,
+        // height, size, bright, speed, colour). Bats over the town (count, height, dist, size, speed; inside > 0.5 = one now and then
+        // flies into the hangar, about every `every` seconds). String lights over the door and along the side wall (door / wall on at
+        // > 0.5, their heights, sag, gap between bulbs, bright, blink). Webs in the door's top corners (size, amount, top, left, right).
+        // Haunt = the lamp flicker by itself about every `every` seconds (needs `flicker`). Spooky sounds in % (owl, wolf, creak),
+        // each about every `every` seconds.
+        readonly pumpkins: { readonly glow: number; readonly pool: number; readonly flicker: number } | null;
+        readonly wisps: {
+            readonly count: number;
+            readonly near: number;
+            readonly far: number;
+            readonly height: number;
+            readonly size: number;
+            readonly bright: number;
+            readonly speed: number;
+            readonly color: string;
+        } | null;
+        readonly bats: {
+            readonly count: number;
+            readonly height: number;
+            readonly dist: number;
+            readonly size: number;
+            readonly speed: number;
+            readonly inside: number;
+            readonly every: number;
+        } | null;
+        readonly stringLights: {
+            readonly door: number;
+            readonly wall: number;
+            readonly doorZ: number;
+            readonly wallZ: number;
+            readonly sag: number;
+            readonly gap: number;
+            readonly bright: number;
+            readonly blink: number;
+        } | null;
+        readonly webs: { readonly size: number; readonly amount: number; readonly top: number; readonly left: number; readonly right: number } | null;
+        readonly haunt: { readonly every: number } | null;
+        readonly spooky: { readonly owl: number; readonly wolf: number; readonly creak: number; readonly every: number } | null;
     }
     interface ShootNumbers {
         readonly every: number;
@@ -690,6 +735,14 @@
         snowSounds: null,
         snowGusts: null,
         snowGlow: null,
+        outside: null,
+        pumpkins: null,
+        wisps: null,
+        bats: null,
+        stringLights: null,
+        webs: null,
+        haunt: null,
+        spooky: null,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
@@ -838,6 +891,39 @@
         pools: { amount: 3.5, size: 1.6 },
         snowGlow: { amount: 3.5, reach: 1.1 },
     };
+    // The owner's final Halloween (probe v1.79 HALLOWEEN, report of 2026-11-20 18:53 without its lightning and thunder, which the
+    // owner dropped): the probe's clear night (its own numbers) with the Halloween outside, the night colour reaching fully inside, the
+    // Halloween lamps off, no ground fog (on at 0), the night ambience (dog every 45 s) and a little wind, the lamp flicker every
+    // 20 s, the pumpkins, wisps, bats (one inside every ~30 s), string lights, webs and spooky sounds; no town windows, street lamps,
+    // red light, shooting stars, fireflies or moths.
+    const HALLOWEEN: LobbyLook = {
+        ...NIGHT_NORMAL,
+        time: { hour: 23, strength: 1, inside: 1.5, sunSide: 0 },
+        outside: { season: 'halloween2024', bright: 1, own: 0.75, mix: 1, mixDepth: 700 },
+        night: { lamps: 0.95, reach: 0.6, glow: 0, sunOff: 1, fixtures: 0, keyDown: 1, color: '#f9ec9a' },
+        door: 1,
+        cleanWall: 1,
+        windows: null,
+        shoot: null,
+        flies: null,
+        moths: null,
+        pools: null,
+        streetLamps: null,
+        red: null,
+        nightSounds: { ambience: 100, dogs: 40, every: 45, far: 0.8 },
+        snowSounds: { volume: 60, fall: 0 },
+        fog: null,
+        floorFog: { amount: 0, height: 40, depth: 975, speed: 0.5, lumps: 1, out: 0, bright: 0.6 },
+        storm: null,
+        flicker: { dark: 0.6, length: 1.1, chance: 1 },
+        pumpkins: { glow: 1, pool: 1, flicker: 1 },
+        wisps: { count: 24, near: 900, far: 3800, height: 220, size: 1.6, bright: 1.4, speed: 0.5, color: '#9fe8d0' },
+        bats: { count: 6, height: 700, dist: 3000, size: 1.6, speed: 1.2, inside: 1, every: 30 },
+        stringLights: { door: 1, wall: 1, doorZ: 610, wallZ: 600, sag: 49, gap: 110, bright: 1.7, blink: 1.25 },
+        webs: { size: 235, amount: 0.4, top: 600, left: -940, right: 690 },
+        haunt: { every: 20 },
+        spooky: { owl: 80, wolf: 70, creak: 60, every: 25 },
+    };
     // The owner's final "day foggy" (probe v1.56 DAY_FOGGY, report of 2026-11-20 09:43): the very sunny look (its key light, lamp speed,
     // door blend and road, written out here; the sunny look itself is 26i) with the heat off, the moving low fog, clean walls and every
     // sunbeam part hidden; the floor fog, the door beam and the fog banks (on at the owner's 0, so they draw nothing).
@@ -884,6 +970,7 @@
         'day-sunny': DAY_SUNNY,
         'day-snowy': DAY_SNOWY,
         'night-snowy': NIGHT_SNOWY,
+        halloween: HALLOWEEN,
         'night-normal': NIGHT_NORMAL,
         'day-rainy': DAY_RAINY,
         'night-rainy': NIGHT_RAINY,
@@ -1059,6 +1146,7 @@
             u: best.u,
             far: best.far,
             z: [town.minZ, room.maxZ + 2500],
+            room: { minX: room.minX, maxX: room.maxX, minY: room.minY, maxY: room.maxY },
             roomMin: [room.minX + 120, room.minY + 120, room.minZ + 80],
             roomMax: [room.maxX - 120, room.maxY - 120, room.maxZ - 150],
         };
@@ -1119,7 +1207,7 @@
                 offset = [at.x, at.y, at.z];
             }
             const beams = sunbeams(parts, p);
-            const hidden = [...parts.filter((q) => look.hidden.includes(q.name)), ...beams.hide];
+            const hidden = [...parts.filter((q) => hiddenNames().includes(q.name)), ...beams.hide];
             passScene = { parts, box: streetBox(parts, n, p), offset, hidden, faded: beams.faded };
             for (const part of hidden) invoke(part.node, p.setShown, [false]);
             for (const { part } of beams.faded) invoke(part.node, p.alpha?.set ?? '', [beams.want]);
@@ -1129,6 +1217,9 @@
         }
     }
 
+    // The parts the look hides, and with a seasonal outside the game's sky, town and transp2 too (its own sky and ground replace them;
+    // the probe's automatic hiding, whether or not the season's files have arrived yet).
+    const hiddenNames = (): readonly string[] => (look.outside !== null ? [...look.hidden, 'Sky0', 'bg0', 'transp2'] : look.hidden);
     // The sunbeams (the probe's applyBeams): the light rays and the see-through parts but the lamp halo (transp1, hidden by every
     // look) at the look's hour times the overcast's share. Below 0.03 they are hidden; otherwise faded by their see-through amount
     // (or, without its setter, hidden below 0.3); a part already as wanted, or hidden by the look, is left alone.
@@ -1138,7 +1229,7 @@
         const hide: Part[] = [];
         const faded: Array<{ part: Part; was: number }> = [];
         for (const part of parts) {
-            if (!isSunbeam(part.name) || look.hidden.includes(part.name)) continue;
+            if (!isSunbeam(part.name) || hiddenNames().includes(part.name)) continue;
             if (want < 0.03 || (p.alpha === undefined && want < 0.3)) {
                 hide.push(part);
                 continue;
@@ -1320,9 +1411,46 @@
     // loading, not at the lobby's first frame: the hangar model (then the night pictures, the lens picture and the Halloween lamps
     // when the look uses them) and the grey sky. Most of it is read from the saved store, so the look is usually whole from its first
     // frame. With the lobby switched off hangar_files.ts sets no folder, so nothing is loaded.
+    // A seasonal outside and the Halloween pumpkins (26k), read once from the extension's hangars/ folder (loadEarly, so the look is
+    // whole from its first frame); a failure leaves that piece out.
+    let season: KaspLobbySeason | null = null;
+    let seasonState: 'none' | 'loading' | 'failed' = 'none';
+    let pumpkinSet: KaspLobbyPumpkins | null = null;
+    let pumpkinState: 'none' | 'loading' | 'failed' = 'none';
+    function ensureSeasonal(): void {
+        const base = document.documentElement.getAttribute('data-kasp-hangar-base');
+        const api = window.__kaspLobbyPass;
+        if (base === null || api === undefined) return;
+        const O = look.outside;
+        if (O !== null && season === null && seasonState === 'none') {
+            seasonState = 'loading';
+            api.loadSeason(base, O.season).then(
+                (got) => {
+                    season = got;
+                    seasonState = 'none';
+                },
+                () => {
+                    seasonState = 'failed';
+                },
+            );
+        }
+        if (look.pumpkins !== null && pumpkinSet === null && pumpkinState === 'none') {
+            pumpkinState = 'loading';
+            api.loadPumpkins(base).then(
+                (got) => {
+                    pumpkinSet = got;
+                    pumpkinState = 'none';
+                },
+                () => {
+                    pumpkinState = 'failed';
+                },
+            );
+        }
+    }
     function loadEarly(): void {
         ensureStandard();
         ensureSky();
+        ensureSeasonal();
     }
     if (document.documentElement.hasAttribute('data-kasp-hangar-folder')) loadEarly();
     else {
@@ -1697,6 +1825,128 @@
         }
         SNOWG.level = Math.max(0, Math.min(1, v));
         return SNOWG.level;
+    }
+
+    // ---- the Halloween night (26k) ----
+    // Now and then one bat flies in through the door, circles under the ceiling and flies out (the probe's batStep: a smooth curve
+    // through set points, 6 to 9 s; the first 6 s after the look shows, then about every `every` seconds, a random side each time).
+    const BAT = { t0: 0, dur: 0, next: 0, side: 1 };
+    function batStep(now: number, box: KaspLobbyBox, off: readonly number[]): number[] | null {
+        const K = look.bats;
+        if (K === null || !(K.inside > 0.5)) {
+            BAT.next = 0;
+            return null;
+        }
+        if (BAT.next === 0) BAT.next = now + 6000;
+        if (now >= BAT.t0 + BAT.dur && now >= BAT.next) {
+            BAT.t0 = now;
+            BAT.dur = 6000 + Math.random() * 3000;
+            BAT.next = now + K.every * 1000 * (0.6 + 0.8 * Math.random());
+            BAT.side = Math.random() < 0.5 ? -1 : 1;
+        }
+        if (BAT.t0 === 0 || now >= BAT.t0 + BAT.dur) return null;
+        const s = (now - BAT.t0) / BAT.dur;
+        const o = box.o;
+        const l = box.l;
+        const w = box.wall;
+        const sd = BAT.side;
+        const C = [
+            [w + 1800, -600 * sd, 820],
+            [w + 300, -200 * sd, 600],
+            [w - 150, -100 * sd, 520],
+            [w - 1000, 400 * sd, 820],
+            [w - 1700, -200 * sd, 950],
+            [w - 900, -700 * sd, 760],
+            [w - 100, 250 * sd, 540],
+            [w + 400, 450 * sd, 620],
+            [w + 1900, 800 * sd, 860],
+        ].map(([a, b, z]) => [o[0] * a + l[0] * b, o[1] * a + l[1] * b, z]);
+        const seg = s * (C.length - 3);
+        const i = Math.min(C.length - 4, Math.floor(seg));
+        const u = seg - i;
+        const cr = (p0: number, p1: number, p2: number, p3: number): number =>
+            0.5 * (2 * p1 + (-p0 + p2) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (-p0 + 3 * p1 - 3 * p2 + p3) * u * u * u);
+        return [0, 1, 2].map((k) => cr(C[i][k], C[i + 1][k], C[i + 2][k], C[i + 3][k]) + off[k]);
+    }
+    // Haunted lamps: now and then the hangar's light stutters (the lamp flicker, without a thunder; the first 8 s after the look shows).
+    const HAUNT = { next: 0 };
+    // Spooky sounds (the probe's hwSoundsTick): an owl, a far wolf and a creak (credits in HALLOWEEN-SOUNDS-CREDITS.txt), each played
+    // about every `every` seconds (the creak half as often; the first 4 s to `every` s in), to one side, at % x 0.06 / its loudness.
+    const SPOOKY_FILES: Readonly<Record<'owl' | 'wolf' | 'creak', string>> = { owl: 'halloween-owl.mp3', wolf: 'halloween-wolf.mp3', creak: 'halloween-creak.mp3' };
+    const SPOOKY: {
+        ctx: AudioContext | null;
+        state: 'none' | 'loading' | 'ready';
+        bufs: Map<'owl' | 'wolf' | 'creak', { readonly buf: AudioBuffer; readonly norm: number }>;
+        next: Map<string, number>;
+        // until when the last one is still playing (with a short gap after it)
+        busy: number;
+    } = { ctx: null, state: 'none', bufs: new Map(), next: new Map(), busy: 0 };
+    function spookyTick(nowMs: number): void {
+        const K = look.spooky;
+        const ctx = sound.ctx;
+        if (K === null || !soundWanted()) {
+            SPOOKY.next.clear();
+            SPOOKY.busy = 0;
+            return;
+        }
+        if (ctx === null) return;
+        if (SPOOKY.ctx !== ctx) {
+            SPOOKY.ctx = ctx;
+            SPOOKY.state = 'none';
+            SPOOKY.bufs.clear();
+        }
+        if (SPOOKY.state === 'none') {
+            const base = document.documentElement.getAttribute('data-kasp-hangar-base');
+            if (base === null) return;
+            SPOOKY.state = 'loading';
+            const keys: ReadonlyArray<'owl' | 'wolf' | 'creak'> = ['owl', 'wolf', 'creak'];
+            Promise.all(
+                keys.map((k) =>
+                    loadBuffer(ctx, base, SPOOKY_FILES[k]).then(
+                        (buf) => {
+                            const d = buf.getChannelData(0);
+                            let sum = 0;
+                            for (let i = 0; i < d.length; i++) sum += d[i] * d[i];
+                            SPOOKY.bufs.set(k, { buf, norm: Math.min(8, 0.06 / Math.max(1e-4, Math.sqrt(sum / d.length))) });
+                        },
+                        () => {
+                            // a missing one is left out
+                        },
+                    ),
+                ),
+            ).then(() => {
+                SPOOKY.state = 'ready';
+            });
+            return;
+        }
+        if (SPOOKY.state !== 'ready' || ctx.state !== 'running') return;
+        for (const [k, one] of SPOOKY.bufs) {
+            if (!(K[k] > 0)) continue;
+            const at = SPOOKY.next.get(k);
+            if (at === undefined) {
+                SPOOKY.next.set(k, nowMs + (4 + Math.random() * K.every) * 1000);
+                continue;
+            }
+            if (nowMs < at) continue;
+            // never two at once (owner 2026-11-21: the wolf and the creak sometimes came together): one that is due while another
+            // still plays waits until it has ended, plus 1.5 to 3.5 s
+            if (nowMs < SPOOKY.busy) {
+                SPOOKY.next.set(k, SPOOKY.busy + Math.random() * 2000);
+                continue;
+            }
+            SPOOKY.busy = nowMs + one.buf.duration * 1000 + 1500;
+            SPOOKY.next.set(k, nowMs + K.every * 1000 * (0.7 + 0.9 * Math.random()) * (k === 'creak' ? 1.5 : 1));
+            const src = ctx.createBufferSource();
+            const g = ctx.createGain();
+            const pan = ctx.createStereoPanner();
+            src.buffer = one.buf;
+            g.gain.value = (K[k] / 100) * one.norm;
+            pan.pan.value = (Math.random() * 2 - 1) * 0.7;
+            src.connect(g);
+            g.connect(pan);
+            pan.connect(ctx.destination);
+            src.start();
+        }
     }
 
     // ---- thunder and lightning (26g4), the probe's STORM, strike and makeBolt ----
@@ -2269,6 +2519,15 @@
             zen = zen.map((x, i) => x * lerp(1, warm[i], 0.6));
             inn = inn.map((x, i) => x * lerp(1, warm[i], 0.5));
         }
+        // a seasonal outside carries its own time of day (26k): our colours touch it only lightly
+        ensureSeasonal();
+        const OS = L.outside;
+        const seasonOn = OS !== null && season !== null;
+        if (OS !== null && season !== null) {
+            const keep = Math.max(0, Math.min(1, OS.own));
+            hor = hor.map((x) => lerp(x, 1, keep));
+            zen = zen.map((x) => lerp(x, 1, keep));
+        }
         // the overcast: the whole outside (town, sky, road) darker, the inside darker and a little cooler
         const O = L.overcast;
         if (O !== null) {
@@ -2340,16 +2599,42 @@
                 snowGains(soundWanted());
             }
         } else SNOWG.last = 0;
+        // the Halloween night (26k): the haunted lamps and the spooky sounds
+        if (L.haunt !== null && L.flicker !== null) {
+            if (HAUNT.next === 0) HAUNT.next = nowMs + 8000;
+            if (nowMs >= HAUNT.next) {
+                startFlicker(0.8 + 0.2 * Math.random());
+                HAUNT.next = nowMs + L.haunt.every * 1000 * (0.6 + 0.8 * Math.random());
+            }
+        } else HAUNT.next = 0;
+        spookyTick(nowMs);
         return {
             vp,
             cam: [pos.x, pos.y, pos.z],
             time,
             box,
-            doorIn: 900 * door,
+            doorIn: (seasonOn ? 60 : 900) * door,
             doorOut: 350 * door,
             offset: ps.offset,
+            // a seasonal outside (26k), drawn into the picture and depth in place of the game's sky and town
+            outside: OS !== null && season !== null ? { asset: season.asset, bright: OS.bright } : null,
+            // the floor blend near the door: the season's ground (26k), or else, without a seasonal outside, the road
             floorMix:
-                std !== null && roadAmount > 0.01
+                OS !== null && season !== null && std !== null && OS.mix > 0
+                    ? {
+                          ground: season.ground,
+                          std: std.std,
+                          amount: OS.mix,
+                          depth: OS.mixDepth,
+                          bright: OS.bright,
+                          tone: 0,
+                          fade: 0,
+                          inside: 1,
+                          wall: box.wall,
+                          outR: 45,
+                          lim: [0, 0, -1],
+                      }
+                    : OS === null && std !== null && roadAmount > 0.01
                     ? {
                           ground: std.ground,
                           std: std.std,
@@ -2665,6 +2950,126 @@
                               beamCol: fromHex(Bm !== null ? Bm.color : '#fff1d6').map((x, i) => x * day * Math.min(1.3, outLight[i])),
                               beamDir,
                               door: Bm !== null ? [Bm.left, Bm.right, Bm.top] : [0, 0, 0],
+                          };
+                      })()
+                    : null,
+            // the Halloween night's extras (26k): pumpkins, string lights, webs, wisps, bats
+            hw:
+                L.pumpkins !== null || L.wisps !== null || L.bats !== null || L.stringLights !== null || L.webs !== null
+                    ? (() => {
+                          const t = nowMs / 1000;
+                          const o = box.o;
+                          const l = box.l;
+                          const off = ps.offset;
+                          const at = (sOut: number, side: number, z: number): number[] => [o[0] * sOut + l[0] * side, o[1] * sOut + l[1] * side, z];
+                          const Pk = L.pumpkins;
+                          const pk = Pk !== null ? pumpkinSet : null;
+                          let pumpkins: NonNullable<KaspLobbyPassFrame['hw']>['pumpkins'] = null;
+                          if (Pk !== null && pk !== null) {
+                              const n = Math.min(32, pk.candles.length);
+                              const candles = new Float32Array(32 * 4);
+                              const glowPts = new Float32Array(96 * 4);
+                              for (let i = 0; i < n; i++) {
+                                  const c = pk.candles[i];
+                                  const ph = (i * 0.6180339) % 1;
+                                  const k = 1 - Pk.flicker * 0.35 * (0.5 - 0.5 * Math.sin(t * 11 + ph * 18.8) * Math.sin(t * 7.3 + ph * 6.28));
+                                  candles.set([c[0] + off[0], c[1] + off[1], c[2] + off[2], k], i * 4);
+                                  glowPts.set([c[0] + off[0], c[1] + off[1], c[2] + off[2], ph], i * 4);
+                              }
+                              pumpkins = {
+                                  asset: pk.asset,
+                                  n,
+                                  candles,
+                                  glowPts,
+                                  glow: Pk.glow * night,
+                                  faces: 1 - Pk.flicker * 0.3 * (0.5 - 0.5 * Math.sin(t * 9.1)),
+                                  pool: Pk.pool * night,
+                                  dim: Math.max(0.06, (inn[0] + inn[1] + inn[2]) / 3),
+                              };
+                          }
+                          const Wp = L.wisps;
+                          const Bt = L.bats;
+                          const Lt = L.stringLights;
+                          const Wb = L.webs;
+                          let lights: NonNullable<KaspLobbyPassFrame['hw']>['lights'] = null;
+                          if (Lt !== null && night > 0.01) {
+                              const pts: number[][] = [];
+                              const hash = (i: number): number => {
+                                  const x = Math.sin(i * 12.9898) * 43758.5453;
+                                  return x - Math.floor(x);
+                              };
+                              const string = (A: number[], B: number[], sag: number): void => {
+                                  const len = Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]);
+                                  const n = Math.max(2, Math.floor(len / Math.max(30, Lt.gap)));
+                                  for (let i = 0; i <= n && pts.length < 96; i++) {
+                                      const q = i / n;
+                                      const hook = ((q * len) / 450) % 1;
+                                      pts.push([
+                                          A[0] + (B[0] - A[0]) * q,
+                                          A[1] + (B[1] - A[1]) * q,
+                                          A[2] + (B[2] - A[2]) * q - sag * 4 * hook * (1 - hook),
+                                          (pts.length % 2) + hash(pts.length) * 0.999,
+                                      ]);
+                                  }
+                              };
+                              if (Lt.door > 0.5) string(at(box.wall - 130, -1000, Lt.doorZ), at(box.wall - 130, 780, Lt.doorZ), Lt.sag);
+                              if (Lt.wall > 0.5) {
+                                  const Rm = box.room;
+                                  const latMin = Math.min(
+                                      ...[
+                                          [Rm.minX, Rm.minY],
+                                          [Rm.minX, Rm.maxY],
+                                          [Rm.maxX, Rm.minY],
+                                          [Rm.maxX, Rm.maxY],
+                                      ].map((c) => c[0] * l[0] + c[1] * l[1]),
+                                  );
+                                  string(at(box.wall - 60, latMin + 60, Lt.wallZ), at(box.wall - 2600, latMin + 60, Lt.wallZ), Lt.sag);
+                              }
+                              const arr = new Float32Array(96 * 4);
+                              pts.forEach((q, i) => arr.set([q[0] + off[0], q[1] + off[1], q[2] + off[2], q[3]], i * 4));
+                              lights = { pts: arr, n: pts.length, bright: Lt.bright * night, blink: Lt.blink };
+                          }
+                          let webs: NonNullable<KaspLobbyPassFrame['hw']>['webs'] = null;
+                          if (Wb !== null && Wb.amount > 0) {
+                              const w = new Float32Array(8 * 4);
+                              const c1 = at(box.wall - 20, Wb.left, Wb.top);
+                              const c2 = at(box.wall - 20, Wb.right, Wb.top);
+                              w.set([c1[0] + off[0], c1[1] + off[1], c1[2] + off[2], 1], 0);
+                              w.set([c2[0] + off[0], c2[1] + off[1], c2[2] + off[2], -1], 4);
+                              webs = { w, n: 2, size: Wb.size, amount: Wb.amount, col: [0.78, 0.8, 0.84].map((x, i) => x * Math.max(0.3, inn[i] * 1.2)) };
+                          }
+                          return {
+                              pumpkins,
+                              lights,
+                              webs,
+                              wisps:
+                                  Wp !== null && Wp.count > 0 && night > 0.01
+                                      ? {
+                                            n: Math.round(Wp.count),
+                                            near: box.wall + Wp.near,
+                                            far: box.wall + Wp.far,
+                                            span: [Math.max(box.u[0], -2500), Math.min(box.u[1], 2200)],
+                                            height: Wp.height,
+                                            size: Wp.size,
+                                            speed: Wp.speed,
+                                            bright: Wp.bright * night,
+                                            color: fromHex(Wp.color),
+                                        }
+                                      : null,
+                              bats:
+                                  Bt !== null && Bt.count > 0
+                                      ? {
+                                            n: Math.round(Bt.count),
+                                            near: box.wall + Bt.dist * 0.7,
+                                            far: box.wall + Bt.dist * 1.5,
+                                            low: Bt.height * 0.75,
+                                            high: Bt.height * 1.25,
+                                            size: Bt.size,
+                                            speed: Bt.speed,
+                                            haze: [0.1, 0.1, 0.14].map((x, i) => x + 0.25 * Math.max(0, outLight[i])),
+                                            one: batStep(nowMs, box, off),
+                                        }
+                                      : null,
                           };
                       })()
                     : null,

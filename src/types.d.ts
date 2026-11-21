@@ -435,6 +435,24 @@ interface KaspLobbyAsset {
     readonly nightPics?: ReadonlyMap<string, ImageBitmap>;
     // The lens factor pictures by picture name (26g1), once made.
     readonly lensPics?: ReadonlyMap<string, ImageBitmap>;
+    // Where the pieces are moved to when drawn (26k): a turn or a mirror (2 x 2, column by column), a size and a move.
+    readonly xr?: readonly number[];
+    readonly xs?: number;
+    readonly xt?: readonly number[];
+    // A seasonal sky's mirrored copies past its two ends (26k).
+    readonly skyCopies?: readonly KaspLobbyAsset[];
+}
+
+// A seasonal hangar's outside (26k): its sky, town and mist pieces, and its ground just outside the door for the floor blend.
+interface KaspLobbySeason {
+    readonly asset: KaspLobbyAsset;
+    readonly ground: KaspLobbyAsset;
+}
+
+// The Halloween hangar's pumpkins (26k) and a candle point in each.
+interface KaspLobbyPumpkins {
+    readonly asset: KaspLobbyAsset;
+    readonly candles: ReadonlyArray<readonly number[]>;
 }
 
 // The game's own hangar: its room and floor, and the road's flat ground just outside the door.
@@ -461,6 +479,8 @@ interface KaspLobbyBox {
     // the town's far edge along o, and the rain's height range (the town's bottom to 2500 above the room's top) (26g2)
     readonly far: number;
     readonly z: readonly [number, number];
+    // the hangar's room as the model has it (26k: the string lights along the side wall)
+    readonly room: { readonly minX: number; readonly maxX: number; readonly minY: number; readonly maxY: number };
     // the hangar's room, a little inside its walls, floor and roof (26h: the door beam's top, the floating dust)
     readonly roomMin: readonly [number, number, number];
     readonly roomMax: readonly [number, number, number];
@@ -535,6 +555,46 @@ interface KaspLobbyPassFrame {
     readonly grade: { readonly inn: readonly number[]; readonly hor: readonly number[]; readonly zen: readonly number[] } | null;
     readonly atmos: KaspLobbyAtmos | null;
     readonly floorMix: KaspLobbyFloorMix | null;
+    // Stage 0a (26k): a seasonal outside drawn in place of the game's sky and town (its own brightness); null = the game's own.
+    readonly outside: { readonly asset: KaspLobbyAsset; readonly bright: number } | null;
+    // Stages 0a2, 1b2 and 2a2c (26k): the Halloween night's pumpkins, string lights, webs, wisps and bats; null = none.
+    readonly hw: {
+        readonly pumpkins: {
+            readonly asset: KaspLobbyAsset;
+            readonly n: number;
+            readonly candles: Float32Array;
+            readonly glowPts: Float32Array;
+            readonly glow: number;
+            readonly faces: number;
+            readonly pool: number;
+            readonly dim: number;
+        } | null;
+        readonly lights: { readonly pts: Float32Array; readonly n: number; readonly bright: number; readonly blink: number } | null;
+        readonly webs: { readonly w: Float32Array; readonly n: number; readonly size: number; readonly amount: number; readonly col: readonly number[] } | null;
+        readonly wisps: {
+            readonly n: number;
+            readonly near: number;
+            readonly far: number;
+            readonly span: readonly number[];
+            readonly height: number;
+            readonly size: number;
+            readonly speed: number;
+            readonly bright: number;
+            readonly color: readonly number[];
+        } | null;
+        readonly bats: {
+            readonly n: number;
+            readonly near: number;
+            readonly far: number;
+            readonly low: number;
+            readonly high: number;
+            readonly size: number;
+            readonly speed: number;
+            readonly haze: readonly number[];
+            // the one bat flying inside the hangar now (where it is), or null
+            readonly one: readonly number[] | null;
+        } | null;
+    } | null;
     // Stage 0b (26f2): the hangar's walls and floor multiplied by their night factor pictures.
     readonly desun: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
     // Stage 0b2 (26g1): the ring lamp lenses made dark by their lens factor picture (the overcast).
@@ -784,6 +844,9 @@ interface KaspLobbyPassApi {
     // The overcast (26g1): the ring lamp lenses' factor picture, and the game's sky mesh with its picture greyed (saved once made).
     readonly lensPictures: (asset: KaspLobbyAsset) => Promise<ReadonlyMap<string, ImageBitmap>>;
     readonly loadSky: (folder: string, grey: { readonly amount: number; readonly contrast: number; readonly tint: readonly number[] }) => Promise<KaspLobbyAsset>;
+    // A seasonal outside and the Halloween pumpkins (26k), from the extension's hangars/ folder.
+    readonly loadSeason: (base: string, season: string) => Promise<KaspLobbySeason>;
+    readonly loadPumpkins: (base: string) => Promise<KaspLobbyPumpkins>;
 }
 
 // MAIN world, defined by src/modules/hangar_files.ts (26e): its two floor steps, used by lobby_pass.ts for the night floor (26f2).
