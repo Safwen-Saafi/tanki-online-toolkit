@@ -183,6 +183,53 @@ void main(){
  float core=exp(-r*r*180.)*(1.-fog*.75),halo=exp(-r*r*6.)*.22*uHalo*(.5+fog);
  vec3 c=uCol*uBright*(core*3.+halo);if(max(c.r,max(c.g,c.b))<.002)discard;
  o=vec4(c,0.);}`;
+    // 26f4c: small living things at night (the probe's NCB_VS / NCB_FS, as text), hidden by the game's depth. Mode 0: fireflies, low
+    // over the street outside the door, wandering slowly, each blinking now and then (a bright core and a soft glow, added). Mode 1:
+    // moths fluttering round the four ring lamps (two flapping wings and a body, lit by the lamps).
+    const NCB_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec3 uCam;uniform vec2 uOut,uLat,uSpan,uDist;uniform float uTime,uGround,uSize,uH,uSpeed,uSlow;uniform int uMode,uLampN;
+uniform vec3 uLamp[8];
+out vec2 vQ;out float vA;out float vSeed;
+${HASH_GLSL}
+void main(){
+ uint id=uint(gl_InstanceID)*7u+(uMode==0?911u:1733u)+uint(uSlow*500.);
+ float a=rnd(id),b=rnd(id+1u),c=rnd(id+2u),d=rnd(id+3u),e=rnd(id+4u);
+ vec3 p;float sz;
+ if(uMode==0){
+  float t=uTime*uSpeed;
+  float sOut=mix(uDist.x,uDist.y,a)+sin(t*.13+b*6.28)*120.+sin(t*.31+c*6.28)*50.;
+  float lat=mix(uSpan.x,uSpan.y,b)+sin(t*.11+d*6.28)*160.+sin(t*.27+e*6.28)*60.;
+  p=vec3(uOut*sOut+uLat*lat,uGround+mix(20.,uH,c)+sin(t*.4+a*6.28)*25.);
+  float per=mix(2.5,6.,d),ph=fract(uTime/per+e);
+  vA=mix(smoothstep(0.,.08,ph)*(1.-smoothstep(.15,.45,ph)),pow(.5+.5*sin(uTime*.45+e*6.28),2.),uSlow);
+  sz=uSize*24.;
+ }else{
+  int L=gl_InstanceID%max(uLampN,1);vec3 lp=uLamp[L];
+  float t=uTime*uSpeed*mix(.8,1.3,a);
+  float ang=t*mix(2.,3.5,b)*(c<.5?-1.:1.)+d*6.28+sin(t*1.7+e*9.)*1.2;
+  float r=mix(18.,55.,e)+sin(t*2.3+a*5.)*12.;
+  p=lp+vec3(cos(ang)*r,sin(ang)*r,-25.+sin(t*1.9+b*7.)*18.+sin(t*5.1+c*3.)*6.);
+  vA=1.;sz=uSize*mix(3.,4.5,a);
+ }
+ vSeed=a;
+ vec2 q=vec2(float(gl_VertexID&1)*2.-1.,float(gl_VertexID>>1)*2.-1.);vQ=q;
+ vec3 f=normalize(uCam-p),r=normalize(cross(vec3(0.,0.,1.),f)),u=cross(f,r);
+ gl_Position=uVP*vec4(p+(r*q.x+u*q.y)*sz,1.);}`;
+    const NCB_FS = `#version 300 es
+precision highp float;precision highp int;
+uniform int uMode;uniform vec3 uCol;uniform float uBright,uTime;
+in vec2 vQ;in float vA;in float vSeed;out vec4 o;
+void main(){
+ if(uMode==0){float r=length(vQ);if(r>1.)discard;
+  vec3 c=uCol*uBright*vA*(exp(-r*r*90.)*2.5+exp(-r*r*9.)*.22);
+  if(max(c.r,max(c.g,c.b))<.003)discard;o=vec4(c,0.);return;}
+ float flap=abs(sin(uTime*mix(28.,40.,vSeed)+vSeed*30.));
+ vec2 q=vQ;float ax=abs(q.x);
+ float wing=1.-smoothstep(.8,1.,length(vec2((ax-.45)/(.12+.4*flap),(q.y-.05)/.6)));
+ float body=1.-smoothstep(.8,1.,length(vec2(q.x/.12,q.y/.55)));
+ float a=max(wing*.85,body)*uBright;if(a<.02)discard;
+ vec3 c=mix(vec3(.18,.14,.1),uCol,mix(.55,.8,wing));o=vec4(c*a,a);}`;
     // 26f4a: the clear night's extras (the probe's NCX_FS, as text). Mode 0 (multiplies, like light): the street lamps' light on the
     // street (26f4b). Mode 1 (added): lit windows in the town's buildings (a grid on each wall, some lit; not on trees or the painted
     // sky, told by the picture's own colour with the night colours taken out) and a shooting star (a bright head and a fading trail).
@@ -842,6 +889,10 @@ void main(){
             'uVP', 'uCam', 'uOut', 'uLat', 'uMode', 'uStart', 'uGap', 'uH', 'uGround', 'uSize', 'uRedSize', 'uSides', 'uRed', 'uCol', 'uPostCol',
             'uFogCol', 'uBright', 'uFog', 'uFogStart', 'uHalo',
         ]);
+        const ncbProg = program(NCB_VS, NCB_FS, [
+            'uSlow', 'uVP', 'uCam', 'uOut', 'uLat', 'uSpan', 'uDist', 'uTime', 'uGround', 'uSize', 'uH', 'uSpeed', 'uMode', 'uLampN', 'uLamp', 'uCol',
+            'uBright',
+        ]);
         const ncxProg = program(FULL_VS, NCX_FS, [
             ...DEPTH_U, 'uPic', 'uHasPic', 'uTime', 'uGroundZ', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uLat', 'uMode', 'uHor', 'uZen', 'uWnAmt', 'uWnDense',
             'uWnSize', 'uWnNear', 'uWnFar', 'uWnChange', 'uMet', 'uMetT', 'uMetB', 'uMetLen', 'uMetW', 'uPlAmt', 'uPlR', 'uPlStart', 'uPlGap', 'uPlH',
@@ -1036,7 +1087,7 @@ void main(){
 
         // Draws the loaded pieces; only = 'solid' (modes 0 and 1) or 'sun' (every piece with a night picture, as the night
         // multiply); alpha fades the pieces in (1 = fully there).
-        function drawPieces(f: KaspLobbyPassFrame, asset: KaspLobbyAsset, only: 'solid' | 'sun', bright: number, amt: number, alpha: number): void {
+        function drawPieces(f: KaspLobbyPassFrame, asset: KaspLobbyAsset, only: 'solid' | 'clear' | 'sun', bright: number, amt: number, alpha: number): void {
             const list = piecesOf(asset);
             gl.useProgram(meshProg.p);
             gl.uniformMatrix4fv(uni(meshProg, 'uVP'), false, f.vp);
@@ -1052,6 +1103,7 @@ void main(){
             gl.bindSampler(PANO, null);
             for (const p of list) {
                 if (only === 'solid' && p.mode === 2) continue;
+                if (only === 'clear' && p.mode !== 2) continue;
                 if (only === 'sun') {
                     if (p.mode === 2) continue;
                     if (p.ntex === null) {
@@ -1329,6 +1381,22 @@ void main(){
                     gl.disable(gl.DEPTH_TEST);
                 }
                 // (1b, 1b2, 1b3: the fixtures and the seasons' pieces; with their looks)
+                // 1b. the Halloween hangar's lamp heads (night-lit lenses) over the standard ones, then their light cones, added like the
+                // game's own; after the night colour, so they keep the Halloween hangar's own brightness
+                if (f.fixtures && st.draw === null) {
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(false);
+                    gl.enable(gl.POLYGON_OFFSET_FILL);
+                    gl.polygonOffset(-1, -4);
+                    gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    drawPieces(f, f.fixtures.asset, 'solid', 1, 0, f.fixtures.alpha);
+                    gl.disable(gl.POLYGON_OFFSET_FILL);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                    drawPieces(f, f.fixtures.asset, 'clear', 1, 0, f.fixtures.cones);
+                    gl.disable(gl.DEPTH_TEST);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                }
                 // 1c. the lamps at night: their light on the tank, the platform and the floor (after the night colour, like real light),
                 // then (if wanted) a glow on their lenses
                 if (depthOk && f.lamps) {
@@ -1502,6 +1570,51 @@ void main(){
                         }
                         gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                     }
+                    // then the fireflies (added glow) and the moths at the ring lamps, hidden by the game's depth
+                    if ((NC.flies || NC.moths) && st.draw === null) {
+                        gl.enable(gl.DEPTH_TEST);
+                        gl.depthFunc(gl.LEQUAL);
+                        gl.depthMask(false);
+                        gl.useProgram(ncbProg.p);
+                        gl.uniformMatrix4fv(uni(ncbProg, 'uVP'), false, f.vp);
+                        gl.uniform3fv(uni(ncbProg, 'uCam'), f.cam);
+                        gl.uniform2f(uni(ncbProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                        gl.uniform2f(uni(ncbProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                        gl.uniform1f(uni(ncbProg, 'uTime'), f.time);
+                        gl.uniform1f(uni(ncbProg, 'uGround'), f.box.groundZ);
+                        gl.uniform1f(uni(ncbProg, 'uSlow'), 0);
+                        if (NC.flies) {
+                            const Fl = NC.flies;
+                            gl.uniform1i(uni(ncbProg, 'uMode'), 0);
+                            gl.uniform2f(uni(ncbProg, 'uSpan'), Fl.span[0], Fl.span[1]);
+                            gl.uniform2f(uni(ncbProg, 'uDist'), Fl.near, Fl.far);
+                            gl.uniform1f(uni(ncbProg, 'uH'), Fl.height);
+                            gl.uniform1f(uni(ncbProg, 'uSize'), Fl.size);
+                            gl.uniform1f(uni(ncbProg, 'uSpeed'), Fl.speed);
+                            gl.uniform3fv(uni(ncbProg, 'uCol'), Fl.color);
+                            gl.uniform1f(uni(ncbProg, 'uBright'), Fl.bright);
+                            gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                            gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Fl.n);
+                        }
+                        if (NC.moths) {
+                            const Mo = NC.moths;
+                            const n = Math.min(8, Mo.lamps.length);
+                            lampArray.fill(0);
+                            for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) lampArray[i * 3 + k] = Mo.lamps[i][k] + f.offset[k];
+                            gl.uniform3fv(uni(ncbProg, 'uLamp'), lampArray);
+                            gl.uniform1i(uni(ncbProg, 'uLampN'), n);
+                            gl.uniform1i(uni(ncbProg, 'uMode'), 1);
+                            gl.uniform1f(uni(ncbProg, 'uSize'), Mo.size);
+                            gl.uniform1f(uni(ncbProg, 'uSpeed'), Mo.speed);
+                            gl.uniform3fv(uni(ncbProg, 'uCol'), Mo.color);
+                            gl.uniform1f(uni(ncbProg, 'uBright'), Mo.alpha);
+                            gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                            gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Mo.perLamp * n);
+                        }
+                        gl.disable(gl.DEPTH_TEST);
+                        gl.bindVertexArray(vao);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    }
                 }
                 // 2a3a. the normal day's extras: the white clouds (laid over the sky), then the leaves (hidden by the game's depth)
                 if (depthOk && f.ndx) {
@@ -1593,5 +1706,15 @@ void main(){
         return { draw, dispose };
     }
 
-    window.__kaspLobbyPass = { make, loadStandard, nightPictures };
+    // The Halloween hangar's lamp heads (its room0 faces round the four ring lamp spots) and their light cones (transp1), as the probe's
+    // ensureLampFixtures (v1.20): the owner's "Halloween lamps", lit over the standard ring lamps at night.
+    async function loadFixtures(base: string, lamps: ReadonlyArray<readonly number[]>): Promise<KaspLobbyAsset> {
+        const spots = lamps.length > 0 ? lamps : [[100, 207, 403], [-104, 207, 403], [100, -205, 403], [-104, -205, 403]];
+        const keep: Keep = (name, c) => name !== 'room0' || spots.some((l) => Math.hypot(c[0] - l[0], c[1] - l[1]) < 75 && Math.abs(c[2] - l[2] - 7) < 40);
+        const model = await sharedModel(base + 'halloween2024-object.3ds');
+        const batches = batchesOf(model, ['room0', 'transp1'], (pic) => base + 'halloween2024-' + encodeURIComponent(pic), keep);
+        return { key: 'halloween-lamps', batches, pics: await pictures(batches) };
+    }
+
+    window.__kaspLobbyPass = { make, loadStandard, nightPictures, loadFixtures };
 })();

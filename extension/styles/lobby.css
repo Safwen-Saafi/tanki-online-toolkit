@@ -3,9 +3,11 @@
    The tank stands on the left, behind the game's left menu box (PLAY, the menu words, the footer buttons) and its dark shade. The
    box and the shade stop taking presses, so a drag that starts on their empty parts reaches the 3D and turns the tank; PLAY, each
    menu word and the footer buttons keep the mouse. Nothing moves: only where the presses go changes. */
-html[data-kasp-lobby] [class*="MainScreenComponentStyle-containerForMenuGradient"],
-html[data-kasp-lobby] [class*="MainScreenComponentStyle-containerForMenuGradient"] [class*="MainScreenComponentStyle-gradientBlock"],
-html[data-kasp-lobby] [class*="MainScreenComponentStyle-blockMainMenu"] {
+/* Not while the news is open (owner 2026-11-21: the news could not be closed): the game catches the press outside the news inside that
+   box, so it must keep its presses then. */
+html[data-kasp-lobby]:not(:has([class*="NewsComponentStyle-newsWindow"])) [class*="MainScreenComponentStyle-containerForMenuGradient"],
+html[data-kasp-lobby]:not(:has([class*="NewsComponentStyle-newsWindow"])) [class*="MainScreenComponentStyle-containerForMenuGradient"] [class*="MainScreenComponentStyle-gradientBlock"],
+html[data-kasp-lobby]:not(:has([class*="NewsComponentStyle-newsWindow"])) [class*="MainScreenComponentStyle-blockMainMenu"] {
     pointer-events: none !important;
 }
 

@@ -509,6 +509,8 @@ interface KaspLobbyPassFrame {
     readonly floorMix: KaspLobbyFloorMix | null;
     // Stage 0b (26f2): the hangar's walls and floor multiplied by their night factor pictures.
     readonly desun: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
+    // Stage 1b (26f4c): the Halloween hangar's lit lamp heads over the ring lamps, then their light cones (added).
+    readonly fixtures: { readonly asset: KaspLobbyAsset; readonly alpha: number; readonly cones: number } | null;
     // Stage 1c (26f2): the ring lamps' light.
     readonly lamps: { readonly list: ReadonlyArray<readonly number[]>; readonly power: number; readonly reach: number; readonly glow: number; readonly color: readonly number[] } | null;
     // Stage 2a2 (26f4b): the night's lights out on the street, the street lamps and the red warning light; null by day.
@@ -546,6 +548,26 @@ interface KaspLobbyNightExtras {
     readonly zen: readonly number[];
     readonly windows: { readonly amount: number; readonly dense: number; readonly size: number; readonly near: number; readonly far: number; readonly change: number } | null;
     // a = start and b = end (across, up) in radians in the door's frame, t = 0 to 1 along the flight
+    // fireflies low over the street and moths round the ring lamps (26f4c)
+    readonly flies: {
+        readonly n: number;
+        readonly near: number;
+        readonly far: number;
+        readonly span: readonly number[];
+        readonly height: number;
+        readonly size: number;
+        readonly speed: number;
+        readonly bright: number;
+        readonly color: readonly number[];
+    } | null;
+    readonly moths: {
+        readonly lamps: ReadonlyArray<readonly number[]>;
+        readonly perLamp: number;
+        readonly size: number;
+        readonly speed: number;
+        readonly alpha: number;
+        readonly color: readonly number[];
+    } | null;
     // the street lamps' light on the street and the walls under them (26f4b)
     readonly pools: {
         readonly amount: number;
@@ -576,6 +598,8 @@ interface KaspLobbyPassApi {
     readonly make: (gl: WebGL2RenderingContext) => KaspLobbyGpu;
     readonly loadStandard: (folder: string) => Promise<KaspLobbyStandard>;
     readonly nightPictures: (asset: KaspLobbyAsset) => Promise<ReadonlyMap<string, ImageBitmap>>;
+    // The Halloween hangar's lamp heads round the ring lamps' spots and their light cones (26f4c), from the extension's hangars/ folder.
+    readonly loadFixtures: (base: string, lamps: ReadonlyArray<readonly number[]>) => Promise<KaspLobbyAsset>;
 }
 
 // MAIN world, defined by src/modules/hangar_files.ts (26e): its two floor steps, used by lobby_pass.ts for the night floor (26f2).

@@ -344,10 +344,20 @@
         readonly fade: number;
         readonly inside: number;
     }
+    // The night lights (the probe's "Night lights" group).
+    interface NightLights {
+        readonly lamps: number;
+        readonly reach: number;
+        readonly glow: number;
+        readonly sunOff: number;
+        readonly fixtures: number;
+        readonly keyDown: number;
+        readonly color: string;
+    }
     interface LobbyLook {
         readonly time: { readonly hour: number; readonly strength: number; readonly inside: number; readonly sunSide: number };
         readonly door: number;
-        readonly night: { readonly lamps: number; readonly reach: number; readonly glow: number; readonly sunOff: number; readonly fixtures: number; readonly keyDown: number; readonly color: string };
+        readonly night: NightLights;
         // the probe's "clean walls" (the painted sunlight taken out by day too); 0 = off
         readonly cleanWall: number;
         readonly road: RoadNumbers;
@@ -358,6 +368,8 @@
         readonly leaves: LeafNumbers | null;
         // the calm city sound, in % of its loudness (0 = off)
         readonly city: number;
+        // the night's sounds (26f4d): the night ambience in %, the far dog in % every `every` seconds, how far it is (0 to 1); null = off
+        readonly nightSounds: { readonly ambience: number; readonly dogs: number; readonly every: number; readonly far: number } | null;
         // the clear night's extras (26f4a), only when it is dark; null = off
         readonly windows: { readonly amount: number; readonly dense: number; readonly size: number; readonly near: number; readonly far: number; readonly change: number } | null;
         readonly shoot: ShootNumbers | null;
@@ -385,6 +397,17 @@
         } | null;
         // the street lamps' light on the street (needs streetLamps)
         readonly pools: { readonly amount: number; readonly size: number } | null;
+        // fireflies over the street and moths round the ring lamps (26f4c), only when it is dark; null = off
+        readonly flies: {
+            readonly count: number;
+            readonly dist: number;
+            readonly height: number;
+            readonly size: number;
+            readonly bright: number;
+            readonly speed: number;
+            readonly color: string;
+        } | null;
+        readonly moths: { readonly count: number; readonly size: number; readonly speed: number } | null;
     }
     interface ShootNumbers {
         readonly every: number;
@@ -413,36 +436,45 @@
         clouds: { amount: 0.9, cover: 0.6, size: 1, speed: 1 },
         leaves: { count: 44, dist: 2150, inside: 0, size: 4, wind: 2.9, gusts: 0.95 },
         city: 70,
+        nightSounds: null,
         windows: null,
         shoot: null,
         streetLamps: null,
         red: null,
         pools: null,
+        flies: null,
+        moths: null,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
         time: { hour: 23, strength: 1, inside: 0.7, sunSide: 0 },
-        night: { lamps: 0.95, reach: 0.75, glow: 0, sunOff: 1, fixtures: 0, keyDown: 0.55, color: '#f9ec9a' },
+        // the night lights: the owner's light panel report (lobby-night-lights.json, 2026-11-21 15:01)
+        night: { lamps: 1.25, reach: 0.55, glow: 0, sunOff: 1, fixtures: 0.95, keyDown: 1, color: '#fff8cc' },
         cleanWall: 1,
         hidden: ['light0', 'light1', 'light2', 'transp1', 'transp2'],
         clouds: null,
         leaves: null,
         city: 0,
+        nightSounds: { ambience: 135, dogs: 60, every: 30, far: 0.6 },
         windows: { amount: 0.65, dense: 0.68, size: 1, near: 3700, far: 8200, change: 0 },
         shoot: { every: 21, bright: 1.6, length: 0.35, speed: 1.25, width: 1.05, height: 1 },
         streetLamps: { count: 3, start: 1325, gap: 500, left: -1210, right: 1040, height: 320, size: 1.35, halo: 1, bright: 2.1, color: '#ffd06b' },
         red: { across: -500, dist: 4000, height: 400, size: 1, halo: 1.8, bright: 1, blink: 1.6 },
         pools: { amount: 3, size: 1.6 },
+        flies: { count: 120, dist: 3100, height: 305, size: 1.2, bright: 3.25, speed: 2.2, color: '#d4ff6a' },
+        moths: { count: 3, size: 1.1, speed: 0.25 },
     };
     // The looks built so far (the settings tab's list and hangar_files.ts use the same values); any other value is the day.
     const LOOKS: Readonly<Record<string, LobbyLook>> = { 'day-normal': DAY_NORMAL, 'night-normal': NIGHT_NORMAL };
-    const look: LobbyLook = (() => {
+    const lookName: string = (() => {
         try {
-            return LOOKS[localStorage.getItem('kasp_lobby_look') ?? ''] ?? DAY_NORMAL;
+            const v = localStorage.getItem('kasp_lobby_look') ?? '';
+            return LOOKS[v] !== undefined ? v : 'day-normal';
         } catch {
-            return DAY_NORMAL;
+            return 'day-normal';
         }
     })();
+    const look: LobbyLook = LOOKS[lookName];
     // How dark it is at the look's hour (0 by day, 1 at night): the hangar's painted sunbeams left, turned round.
     const nightAmount = (): number => Math.max(0, Math.min(1, 1 - timeState(look.time.hour).beams));
 
@@ -706,6 +738,26 @@
     }
 
     // The game's own hangar model read once, as soon as hangar_files.ts has seen its folder.
+    // The Halloween lamps (26f4c), read once from the extension's hangars/ folder after the hangar model (for the lamp spots).
+    let fixtures: KaspLobbyAsset | null = null;
+    let fixturesState: 'none' | 'loading' | 'failed' = 'none';
+    function ensureFixtures(std: KaspLobbyStandard): void {
+        if (fixtures !== null || fixturesState !== 'none' || look.night.fixtures <= 0) return;
+        const base = document.documentElement.getAttribute('data-kasp-hangar-base');
+        const api = window.__kaspLobbyPass;
+        if (base === null || api === undefined) return;
+        fixturesState = 'loading';
+        api.loadFixtures(base, std.lamps).then(
+            (got) => {
+                fixtures = got;
+                fixturesState = 'none';
+            },
+            () => {
+                fixturesState = 'failed';
+            },
+        );
+    }
+
     function ensureStandard(): void {
         if (standard !== null || standardState !== 'none') return;
         const folder = document.documentElement.getAttribute('data-kasp-hangar-folder');
@@ -988,31 +1040,54 @@
         return { n: LEAVES.list.length, P, A, B };
     }
 
-    // ---- the calm city sound (26f3): the probe's day loop (birds, far traffic), only by day, only while the lobby is drawn ----
-    // The recording (extension/hangars/day-city.mp3) is cut into a seamless loop (its last 1.5 s faded into its start) and played at
-    // its target loudness (0.015 at 100 %) times the look's %. Browsers start no sound before a click or a key on the page, so the sound
-    // waits for the first one. Any failure leaves it silent.
-    const CITY_TARGET = 0.015;
-    const city: { ctx: AudioContext | null; gain: GainNode | null; norm: number; state: 'none' | 'loading' | 'ready' | 'failed' } = {
-        ctx: null,
-        gain: null,
-        norm: 0,
-        state: 'none',
+    // ---- the lobby's sounds: the calm city by day (26f3), the night ambience and the far dog at night (26f4d), from the probe ----
+    // Only while the lobby is drawn. Each loop recording is cut into a seamless loop (its last 1.5 s faded into its start, equal power)
+    // and played at its target loudness (divided by the file's own loudness) times the look's %, by day or at night. The far dog: one
+    // of the two bark groups in its recording, muffled by distance, to one side, a slightly different dog each time, through an outdoor
+    // echo, about every `every` seconds (give or take 20 %; the first 3 to 7 s after the night sounds start). Browsers start no sound
+    // before a click or a key on the page, so everything waits for the first one. Any failure leaves that sound silent.
+    interface SoundLoop {
+        readonly file: string;
+        readonly target: number;
+        readonly level: () => number;
+    }
+    const SOUND_LOOPS: Readonly<Record<string, SoundLoop>> = {
+        city: { file: 'day-city.mp3', target: 0.015, level: () => (look.city / 100) * (1 - nightAmount()) },
+        night: {
+            file: 'night-ambience.mp3',
+            target: 0.015,
+            level: () => (look.nightSounds === null ? 0 : look.nightSounds.ambience / 100) * nightAmount(),
+        },
     };
-    function loadCity(ctx: AudioContext): void {
-        const base = document.documentElement.getAttribute('data-kasp-hangar-base');
-        if (base === null) {
-            city.state = 'failed';
-            return;
-        }
-        city.state = 'loading';
-        fetch(base + 'day-city.mp3')
+    // the barks in the recording: [start, end] in seconds (two bark groups, each with its short tail)
+    const DOG = { file: 'night-dog-far.mp3', barks: [[0.6, 3.0], [4.3, 6.6]] as ReadonlyArray<readonly [number, number]> };
+    const sound: {
+        ctx: AudioContext | null;
+        state: 'none' | 'loading' | 'ready' | 'failed';
+        loops: Map<string, { readonly gain: GainNode; readonly norm: number }>;
+        dog: { readonly buf: AudioBuffer; readonly norm: number } | null;
+        dogBus: GainNode | null;
+        next: number;
+        barks: number;
+    } = { ctx: null, state: 'none', loops: new Map(), dog: null, dogBus: null, next: 0, barks: 0 };
+    const wantedLoops = (): string[] => Object.keys(SOUND_LOOPS).filter((k) => (k === 'city' ? look.city > 0 : look.nightSounds !== null));
+    function loadBuffer(ctx: AudioContext, base: string, file: string): Promise<AudioBuffer> {
+        return fetch(base + file)
             .then((r) => {
-                if (!r.ok) throw new Error('day-city.mp3 ' + r.status);
+                if (!r.ok) throw new Error(file + ' ' + r.status);
                 return r.arrayBuffer();
             })
-            .then((data) => ctx.decodeAudioData(data))
-            .then((buf) => {
+            .then((data) => ctx.decodeAudioData(data));
+    }
+    function loadSounds(ctx: AudioContext): void {
+        const base = document.documentElement.getAttribute('data-kasp-hangar-base');
+        if (base === null) {
+            sound.state = 'failed';
+            return;
+        }
+        sound.state = 'loading';
+        const loops = wantedLoops().map((key) =>
+            loadBuffer(ctx, base, SOUND_LOOPS[key].file).then((buf) => {
                 const rate = buf.sampleRate;
                 const len = buf.length;
                 const lap = Math.min(Math.round(rate * 1.5), Math.floor(len / 3));
@@ -1037,45 +1112,126 @@
                 node.connect(gain);
                 gain.connect(ctx.destination);
                 node.start();
-                city.gain = gain;
-                city.norm = CITY_TARGET / Math.sqrt(sum / (n * buf.numberOfChannels) || 1);
-                city.state = 'ready';
-                applyCity();
-            })
-            .catch(() => {
-                city.state = 'failed';
-            });
+                sound.loops.set(key, { gain, norm: SOUND_LOOPS[key].target / Math.sqrt(sum / (n * buf.numberOfChannels) || 1) });
+            }),
+        );
+        const dog =
+            look.nightSounds !== null && look.nightSounds.dogs > 0
+                ? loadBuffer(ctx, base, DOG.file).then((buf) => {
+                      // loudness of the barks themselves (not the quiet street between them), so every bark plays at about the same level
+                      const rate = buf.sampleRate;
+                      const d = buf.getChannelData(0);
+                      let sum = 0;
+                      let cnt = 0;
+                      for (const [a, b] of DOG.barks) for (let i = Math.floor(a * rate); i < Math.min(d.length, b * rate); i++) {
+                          sum += d[i] * d[i];
+                          cnt++;
+                      }
+                      sound.dog = { buf, norm: 0.08 / Math.sqrt(sum / (cnt || 1) || 1e-6) };
+                      // the dogs' way out: straight, plus an outdoor echo (a delay that repeats softly, darker each time)
+                      const bus = ctx.createGain();
+                      const echo = ctx.createDelay(1);
+                      const back = ctx.createGain();
+                      const dark = ctx.createBiquadFilter();
+                      const wet = ctx.createGain();
+                      echo.delayTime.value = 0.32;
+                      back.gain.value = 0.32;
+                      dark.type = 'lowpass';
+                      dark.frequency.value = 1300;
+                      wet.gain.value = 0.45;
+                      bus.connect(ctx.destination);
+                      bus.connect(echo);
+                      echo.connect(dark);
+                      dark.connect(back);
+                      back.connect(echo);
+                      dark.connect(wet);
+                      wet.connect(ctx.destination);
+                      sound.dogBus = bus;
+                  })
+                : Promise.resolve();
+        Promise.all([...loops, dog]).then(
+            () => {
+                sound.state = 'ready';
+                applySounds();
+            },
+            () => {
+                sound.state = 'failed';
+            },
+        );
     }
-    // The loudness now: the look's % by day while the lobby is drawn and nothing stopped it; else silence (faded over about a second).
-    function applyCity(): void {
-        const ctx = city.ctx;
-        const want =
-            look.city > 0 && !broken && !passBroken && passScene !== null && performance.now() - lobbyTickAt < 1000;
-        if (want && ctx === null && city.state === 'none' && unlocked) {
+    // one bark: a part of the recording, faded in and out, muffled by distance, to one side
+    function playBark(side: number): void {
+        const ctx = sound.ctx;
+        const D = sound.dog;
+        const F = look.nightSounds;
+        if (ctx === null || D === null || sound.dogBus === null || F === null) return;
+        const [a, b] = DOG.barks[Math.floor(Math.random() * DOG.barks.length)];
+        const far = Math.max(0, Math.min(1, F.far + (Math.random() - 0.5) * 0.3));
+        const t0 = ctx.currentTime;
+        const dur = b - a;
+        const src = ctx.createBufferSource();
+        src.buffer = D.buf;
+        src.playbackRate.value = 0.94 + Math.random() * 0.12; // a slightly different dog each time
+        const g = ctx.createGain();
+        const level = (F.dogs / 100) * D.norm * (1 - 0.55 * far) * nightAmount();
+        g.gain.setValueAtTime(0, t0);
+        g.gain.linearRampToValueAtTime(level, t0 + 0.03);
+        g.gain.setValueAtTime(level, t0 + Math.max(0.05, dur - 0.15));
+        g.gain.linearRampToValueAtTime(0, t0 + dur);
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 4500 - 3700 * far;
+        const pan = ctx.createStereoPanner();
+        pan.pan.value = side;
+        src.connect(lp);
+        lp.connect(g);
+        g.connect(pan);
+        pan.connect(sound.dogBus);
+        src.start(t0, a, dur);
+        sound.barks++;
+    }
+    // Every half second: each loop fades to its level while the lobby is drawn and nothing stopped it, else to silence; the far dog.
+    function applySounds(): void {
+        const ctx = sound.ctx;
+        const want = !broken && !passBroken && passScene !== null && performance.now() - lobbyTickAt < 1000;
+        if (want && ctx === null && sound.state === 'none' && unlocked) {
             try {
                 const made = new AudioContext();
-                city.ctx = made;
-                loadCity(made);
+                sound.ctx = made;
+                loadSounds(made);
             } catch {
-                city.state = 'failed';
+                sound.state = 'failed';
             }
             return;
         }
-        if (ctx === null || city.gain === null) return;
+        if (ctx === null) return;
         if (want && ctx.state === 'suspended') ctx.resume().catch(() => {});
-        city.gain.gain.setTargetAtTime(want ? (look.city / 100) * city.norm * (1 - nightAmount()) : 0, ctx.currentTime, 0.8);
+        for (const [key, lp] of sound.loops) lp.gain.gain.setTargetAtTime(want ? SOUND_LOOPS[key].level() * lp.norm : 0, ctx.currentTime, 0.8);
+        const F = look.nightSounds;
+        const now = performance.now();
+        if (!want || F === null || !(F.dogs > 0) || sound.state !== 'ready' || nightAmount() <= 0.02) {
+            sound.next = 0;
+            return;
+        }
+        if (sound.next === 0) {
+            sound.next = now + 3000 + Math.random() * 4000;
+            return;
+        }
+        if (now < sound.next) return;
+        playBark((Math.random() < 0.5 ? -1 : 1) * (0.35 + Math.random() * 0.5));
+        sound.next = now + F.every * 1000 * (0.8 + 0.4 * Math.random());
     }
     let unlocked = false;
-    if (look.city > 0) {
+    if (wantedLoops().length > 0) {
         const unlock = (): void => {
             unlocked = true;
             window.removeEventListener('pointerdown', unlock, true);
             window.removeEventListener('keydown', unlock, true);
-            applyCity();
+            applySounds();
         };
         window.addEventListener('pointerdown', unlock, true);
         window.addEventListener('keydown', unlock, true);
-        window.setInterval(applyCity, 500);
+        window.setInterval(applySounds, 500);
     }
 
     // One frame of the pass (the probe's buildFrame, the groups of the day normal look).
@@ -1133,6 +1289,13 @@
                 ((night > 0.01 && L.night.sunOff > 0) || L.cleanWall > 0) && nightAsset !== null
                     ? { asset: nightAsset, amount: Math.max(night * L.night.sunOff, L.cleanWall) }
                     : null,
+            fixtures:
+                night > 0.01 && L.night.fixtures > 0 && std !== null
+                    ? (() => {
+                          ensureFixtures(std);
+                          return fixtures === null ? null : { asset: fixtures, alpha: Math.min(1, night * L.night.fixtures), cones: night * L.night.fixtures };
+                      })()
+                    : null,
             lamps:
                 night > 0.01 && std !== null && std.lamps.length > 0 && L.night.lamps > 0
                     ? { list: std.lamps, power: night * L.night.lamps, reach: 420 * L.night.reach, glow: night * L.night.glow, color: fromHex(L.night.color) }
@@ -1181,7 +1344,7 @@
                       })()
                     : null,
             ncx:
-                night > 0.01 && (L.windows !== null || L.shoot !== null || L.pools !== null || st.stars * s > 0.01)
+                night > 0.01 && (L.windows !== null || L.shoot !== null || L.pools !== null || L.flies !== null || L.moths !== null || st.stars * s > 0.01)
                     ? (() => {
                           const met = L.shoot === null ? null : meteorStep(performance.now(), box, [pos.x, pos.y, pos.z], L.shoot);
                           return {
@@ -1193,6 +1356,31 @@
                                       ? { ...L.windows, amount: L.windows.amount * night }
                                       : null,
                               meteor: met === null ? null : { ...met, bright: met.bright * night },
+                              flies:
+                                  L.flies !== null && L.flies.count > 0
+                                      ? {
+                                            n: Math.round(L.flies.count),
+                                            near: box.wall + 150,
+                                            far: box.wall + L.flies.dist,
+                                            span: [Math.max(box.u[0], -2200), Math.min(box.u[1], 2000)],
+                                            height: L.flies.height,
+                                            size: L.flies.size,
+                                            speed: L.flies.speed,
+                                            bright: L.flies.bright * night,
+                                            color: fromHex(L.flies.color),
+                                        }
+                                      : null,
+                              moths:
+                                  L.moths !== null && L.moths.count > 0 && std !== null && std.lamps.length > 0
+                                      ? {
+                                            lamps: std.lamps,
+                                            perLamp: Math.round(L.moths.count),
+                                            size: L.moths.size,
+                                            speed: L.moths.speed,
+                                            alpha: night,
+                                            color: fromHex(L.night.color).map((x) => x * 0.9),
+                                        }
+                                      : null,
                               pools:
                                   L.pools !== null && L.streetLamps !== null && L.streetLamps.count > 0 && L.pools.amount > 0
                                       ? {
@@ -1896,11 +2084,11 @@
                 passBroken,
                 passParts: passScene === null ? 0 : passScene.parts.length,
                 hangarModel: standard !== null ? 'ready' : standardState,
-                look: Object.keys(LOOKS).find((k) => LOOKS[k] === look) ?? 'day-normal',
+                look: lookName,
                 nightPictures: nightPics !== null ? `ready in ${nightMs} ms` : nightState,
-                citySound: city.state,
-                cityLevel: city.gain === null ? 0 : city.gain.gain.value,
-                cityNorm: city.norm,
+                sounds: sound.state,
+                soundLevels: Object.fromEntries([...sound.loops].map(([k, v]) => [k, v.gain.gain.value])),
+                barks: sound.barks,
             });
         },
     };
