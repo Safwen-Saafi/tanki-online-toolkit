@@ -511,10 +511,32 @@ interface KaspLobbyPassFrame {
     readonly desun: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
     // Stage 1c (26f2): the ring lamps' light.
     readonly lamps: { readonly list: ReadonlyArray<readonly number[]>; readonly power: number; readonly reach: number; readonly glow: number; readonly color: readonly number[] } | null;
+    // Stage 2a2 (26f4b): the night's lights out on the street, the street lamps and the red warning light; null by day.
+    readonly nightx: KaspLobbyStreetLights | null;
     // Stage 2a2b (26f4a): the clear night's extras, the town's lit windows and the shooting star; null by day.
     readonly ncx: KaspLobbyNightExtras | null;
     // Stage 2a3a (26f3): the normal day's extras, the white clouds over the sky and the leaves in the street; null at night.
     readonly ndx: KaspLobbyDayExtras | null;
+}
+
+interface KaspLobbyStreetLights {
+    readonly fog: number;
+    readonly fogStart: number;
+    readonly fogCol: readonly number[];
+    readonly lamps: {
+        readonly count: number;
+        readonly start: number;
+        readonly gap: number;
+        readonly left: number;
+        readonly right: number;
+        readonly height: number;
+        readonly size: number;
+        readonly halo: number;
+        readonly bright: number;
+        readonly color: readonly number[];
+        readonly postCol: readonly number[];
+    } | null;
+    readonly red: { readonly pos: readonly number[]; readonly size: number; readonly halo: number; readonly bright: number } | null;
 }
 
 interface KaspLobbyNightExtras {
@@ -524,6 +546,17 @@ interface KaspLobbyNightExtras {
     readonly zen: readonly number[];
     readonly windows: { readonly amount: number; readonly dense: number; readonly size: number; readonly near: number; readonly far: number; readonly change: number } | null;
     // a = start and b = end (across, up) in radians in the door's frame, t = 0 to 1 along the flight
+    // the street lamps' light on the street and the walls under them (26f4b)
+    readonly pools: {
+        readonly amount: number;
+        readonly r: number;
+        readonly n: number;
+        readonly start: number;
+        readonly gap: number;
+        readonly sides: readonly number[];
+        readonly h: number;
+        readonly color: readonly number[];
+    } | null;
     readonly meteor: { readonly a: readonly number[]; readonly b: readonly number[]; readonly t: number; readonly length: number; readonly width: number; readonly bright: number } | null;
 }
 

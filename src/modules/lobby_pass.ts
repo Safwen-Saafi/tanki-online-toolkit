@@ -152,6 +152,37 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
         texture: string | null;
         opacityMap: string | null;
     }
+    // 26f4b: the night's lights out on the street (the probe's NIGHTX_VS / NIGHTX_FS, as text): mode 0 = the street lamps' posts (thin,
+    // dark, facing the camera, fogged by their distance), mode 1 = the lamps' glow (a small bright core and a wide soft halo), mode 2 =
+    // the red warning light far out (the same glow, blinking). All hidden behind buildings by the game's depth.
+    const NIGHTX_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec3 uCam;uniform vec2 uOut,uLat;uniform int uMode;
+uniform float uStart,uGap,uH,uGround,uSize,uRedSize;uniform vec2 uSides;uniform vec3 uRed;
+out vec2 vQ;out float vDist;
+void main(){
+ int i=gl_InstanceID;vec3 p;
+ if(uMode==2)p=uRed;
+ else{float side=(i%2==0)?uSides.x:uSides.y;float sAt=uStart+float(i/2)*uGap+(i%2==1?uGap*.5:0.);
+  p=vec3(uOut*sAt+uLat*side,uGround+(uMode==0?0.:uH));}
+ vec2 q=vec2(float(gl_VertexID&1)*2.-1.,float(gl_VertexID>>1)*2.-1.);vQ=q;vDist=distance(uCam,p);
+ vec3 to=uCam-p;
+ if(uMode==0){vec3 r=normalize(vec3(-to.y,to.x,0.)+vec3(1e-4,0.,0.));
+  gl_Position=uVP*vec4(p+r*q.x*8.+vec3(0.,0.,(q.y*.5+.5)*(uH+10.)),1.);return;}
+ vec3 f=normalize(to),r=normalize(cross(vec3(0.,0.,1.),f)),u=cross(f,r);
+ float sz=uMode==2?uRedSize:uSize;
+ gl_Position=uVP*vec4(p+f*30.+(r*q.x+u*q.y)*sz,1.);}`;
+    const NIGHTX_FS = `#version 300 es
+precision highp float;precision highp int;
+uniform int uMode;uniform vec3 uCol,uPostCol,uFogCol;uniform float uBright,uFog,uFogStart,uHalo;
+in vec2 vQ;in float vDist;out vec4 o;
+void main(){
+ float fog=1.-exp(-max(vDist-uFogStart,0.)*uFog*.00045);
+ if(uMode==0){o=vec4(mix(uPostCol,uFogCol,fog),1.);return;}
+ float r=length(vQ);if(r>1.)discard;
+ float core=exp(-r*r*180.)*(1.-fog*.75),halo=exp(-r*r*6.)*.22*uHalo*(.5+fog);
+ vec3 c=uCol*uBright*(core*3.+halo);if(max(c.r,max(c.g,c.b))<.002)discard;
+ o=vec4(c,0.);}`;
     // 26f4a: the clear night's extras (the probe's NCX_FS, as text). Mode 0 (multiplies, like light): the street lamps' light on the
     // street (26f4b). Mode 1 (added): lit windows in the town's buildings (a grid on each wall, some lit; not on trees or the painted
     // sky, told by the picture's own colour with the night colours taken out) and a shooting star (a bright head and a fading trail).
@@ -807,6 +838,10 @@ void main(){
         ]);
         const lampProg = program(FULL_VS, LAMP_FS, [...DEPTH_U, 'uLamp', 'uN', 'uMode', 'uPower', 'uReach', 'uGlow', 'uCol', 'uVP']);
         const lampArray = new Float32Array(24);
+        const nightxProg = program(NIGHTX_VS, NIGHTX_FS, [
+            'uVP', 'uCam', 'uOut', 'uLat', 'uMode', 'uStart', 'uGap', 'uH', 'uGround', 'uSize', 'uRedSize', 'uSides', 'uRed', 'uCol', 'uPostCol',
+            'uFogCol', 'uBright', 'uFog', 'uFogStart', 'uHalo',
+        ]);
         const ncxProg = program(FULL_VS, NCX_FS, [
             ...DEPTH_U, 'uPic', 'uHasPic', 'uTime', 'uGroundZ', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uLat', 'uMode', 'uHor', 'uZen', 'uWnAmt', 'uWnDense',
             'uWnSize', 'uWnNear', 'uWnFar', 'uWnChange', 'uMet', 'uMetT', 'uMetB', 'uMetLen', 'uMetW', 'uPlAmt', 'uPlR', 'uPlStart', 'uPlGap', 'uPlH',
@@ -1355,11 +1390,59 @@ void main(){
                     gl.uniform1f(uni(atmos, 'uCoverThick'), A.coverThick);
                     gl.drawArrays(gl.TRIANGLES, 0, 3);
                 }
-                // 2a2b. the clear night's extras: the town's lit windows and the shooting star (added)
+                // 2a2. the night's street lamps and red warning light: posts, then the glows (added), hidden behind buildings
+                if (f.nightx && (f.nightx.lamps || f.nightx.red) && st.draw === null) {
+                    const NX = f.nightx;
+                    gl.useProgram(nightxProg.p);
+                    gl.uniformMatrix4fv(uni(nightxProg, 'uVP'), false, f.vp);
+                    gl.uniform3fv(uni(nightxProg, 'uCam'), f.cam);
+                    gl.uniform2f(uni(nightxProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                    gl.uniform2f(uni(nightxProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                    gl.uniform1f(uni(nightxProg, 'uGround'), f.box.groundZ);
+                    gl.uniform3fv(uni(nightxProg, 'uFogCol'), NX.fogCol);
+                    gl.uniform1f(uni(nightxProg, 'uFog'), NX.fog);
+                    gl.uniform1f(uni(nightxProg, 'uFogStart'), NX.fogStart);
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(false);
+                    if (NX.lamps) {
+                        const Lm = NX.lamps;
+                        gl.uniform1f(uni(nightxProg, 'uStart'), Lm.start);
+                        gl.uniform1f(uni(nightxProg, 'uGap'), Lm.gap);
+                        gl.uniform1f(uni(nightxProg, 'uH'), Lm.height);
+                        gl.uniform2f(uni(nightxProg, 'uSides'), Lm.left, Lm.right);
+                        gl.uniform1f(uni(nightxProg, 'uSize'), Lm.size);
+                        gl.uniform3fv(uni(nightxProg, 'uPostCol'), Lm.postCol);
+                        gl.uniform1i(uni(nightxProg, 'uMode'), 0);
+                        gl.blendFuncSeparate(gl.ONE, gl.ZERO, gl.ZERO, gl.ONE);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Lm.count * 2);
+                        gl.uniform1i(uni(nightxProg, 'uMode'), 1);
+                        gl.uniform3fv(uni(nightxProg, 'uCol'), Lm.color);
+                        gl.uniform1f(uni(nightxProg, 'uBright'), Lm.bright);
+                        gl.uniform1f(uni(nightxProg, 'uHalo'), Lm.halo);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Lm.count * 2);
+                    }
+                    if (NX.red && NX.red.bright > 0.002) {
+                        gl.uniform1i(uni(nightxProg, 'uMode'), 2);
+                        gl.uniform3fv(uni(nightxProg, 'uRed'), NX.red.pos);
+                        gl.uniform1f(uni(nightxProg, 'uRedSize'), NX.red.size);
+                        gl.uniform3fv(uni(nightxProg, 'uCol'), [1, 0.12, 0.08]);
+                        gl.uniform1f(uni(nightxProg, 'uBright'), NX.red.bright);
+                        gl.uniform1f(uni(nightxProg, 'uHalo'), NX.red.halo);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, 1);
+                    }
+                    gl.disable(gl.DEPTH_TEST);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.bindVertexArray(vao);
+                }
+                // 2a2b. the clear night's extras: the street lamps' light on the street (multiplies), the town's lit windows and the
+                // shooting star (added)
                 if (depthOk && f.ncx) {
                     const NC = f.ncx;
-                    if (NC.windows || NC.meteor || NC.stars > 0) {
-                        const hasPic = st.draw === null && copyColour(W, H);
+                    if (NC.pools || NC.windows || NC.meteor || NC.stars > 0) {
+                        const hasPic = !!(NC.windows || NC.meteor || NC.stars > 0) && st.draw === null && copyColour(W, H);
                         gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, st.draw);
                         gl.viewport(0, 0, W, H);
                         gl.bindVertexArray(vao);
@@ -1398,9 +1481,25 @@ void main(){
                             gl.uniform1f(uni(ncxProg, 'uMetW'), Mt.width);
                         }
                         gl.uniform1f(uni(ncxProg, 'uStars'), NC.stars);
-                        gl.uniform1i(uni(ncxProg, 'uMode'), 1);
-                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
-                        gl.drawArrays(gl.TRIANGLES, 0, 3);
+                        if (NC.pools) {
+                            const Pl = NC.pools;
+                            gl.uniform1f(uni(ncxProg, 'uPlAmt'), Pl.amount);
+                            gl.uniform1f(uni(ncxProg, 'uPlR'), Pl.r);
+                            gl.uniform1f(uni(ncxProg, 'uPlStart'), Pl.start);
+                            gl.uniform1f(uni(ncxProg, 'uPlGap'), Pl.gap);
+                            gl.uniform1f(uni(ncxProg, 'uPlH'), Pl.h);
+                            gl.uniform2f(uni(ncxProg, 'uPlSides'), Pl.sides[0], Pl.sides[1]);
+                            gl.uniform1i(uni(ncxProg, 'uPlN'), Pl.n);
+                            gl.uniform3fv(uni(ncxProg, 'uPlCol'), Pl.color);
+                            gl.uniform1i(uni(ncxProg, 'uMode'), 0);
+                            gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE, gl.ZERO, gl.ONE);
+                            gl.drawArrays(gl.TRIANGLES, 0, 3);
+                        }
+                        if (NC.windows || NC.meteor || NC.stars > 0) {
+                            gl.uniform1i(uni(ncxProg, 'uMode'), 1);
+                            gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                            gl.drawArrays(gl.TRIANGLES, 0, 3);
+                        }
                         gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                     }
                 }

@@ -361,6 +361,30 @@
         // the clear night's extras (26f4a), only when it is dark; null = off
         readonly windows: { readonly amount: number; readonly dense: number; readonly size: number; readonly near: number; readonly far: number; readonly change: number } | null;
         readonly shoot: ShootNumbers | null;
+        // the night's street lights (26f4b), only when it is dark; null = off
+        readonly streetLamps: {
+            readonly count: number;
+            readonly start: number;
+            readonly gap: number;
+            readonly left: number;
+            readonly right: number;
+            readonly height: number;
+            readonly size: number;
+            readonly halo: number;
+            readonly bright: number;
+            readonly color: string;
+        } | null;
+        readonly red: {
+            readonly across: number;
+            readonly dist: number;
+            readonly height: number;
+            readonly size: number;
+            readonly halo: number;
+            readonly bright: number;
+            readonly blink: number;
+        } | null;
+        // the street lamps' light on the street (needs streetLamps)
+        readonly pools: { readonly amount: number; readonly size: number } | null;
     }
     interface ShootNumbers {
         readonly every: number;
@@ -391,6 +415,9 @@
         city: 70,
         windows: null,
         shoot: null,
+        streetLamps: null,
+        red: null,
+        pools: null,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
@@ -403,6 +430,9 @@
         city: 0,
         windows: { amount: 0.65, dense: 0.68, size: 1, near: 3700, far: 8200, change: 0 },
         shoot: { every: 21, bright: 1.6, length: 0.35, speed: 1.25, width: 1.05, height: 1 },
+        streetLamps: { count: 3, start: 1325, gap: 500, left: -1210, right: 1040, height: 320, size: 1.35, halo: 1, bright: 2.1, color: '#ffd06b' },
+        red: { across: -500, dist: 4000, height: 400, size: 1, halo: 1.8, bright: 1, blink: 1.6 },
+        pools: { amount: 3, size: 1.6 },
     };
     // The looks built so far (the settings tab's list and hangar_files.ts use the same values); any other value is the day.
     const LOOKS: Readonly<Record<string, LobbyLook>> = { 'day-normal': DAY_NORMAL, 'night-normal': NIGHT_NORMAL };
@@ -1107,8 +1137,51 @@
                 night > 0.01 && std !== null && std.lamps.length > 0 && L.night.lamps > 0
                     ? { list: std.lamps, power: night * L.night.lamps, reach: 420 * L.night.reach, glow: night * L.night.glow, color: fromHex(L.night.color) }
                     : null,
+            nightx:
+                night > 0.01 && (L.streetLamps !== null || L.red !== null)
+                    ? (() => {
+                          const t = performance.now() / 1000;
+                          const Lm = L.streetLamps;
+                          const Rd = L.red;
+                          const blink = Rd !== null ? Math.pow(Math.max(0, Math.sin((t / Math.max(0.2, Rd.blink)) * Math.PI * 2)), 0.6) : 0;
+                          return {
+                              fog: 0,
+                              fogStart: 0,
+                              fogCol: [0, 0, 0],
+                              lamps:
+                                  Lm !== null
+                                      ? {
+                                            count: Math.max(0, Math.round(Lm.count)),
+                                            start: box.wall + Lm.start,
+                                            gap: Math.max(100, Lm.gap),
+                                            left: Lm.left,
+                                            right: Lm.right,
+                                            height: Lm.height,
+                                            size: 140 * Lm.size,
+                                            halo: Lm.halo,
+                                            bright: Lm.bright * night,
+                                            color: fromHex(Lm.color),
+                                            postCol: [0.05, 0.05, 0.06].map((x, i) => x * Math.max(0.3, outLight[i]) * 2),
+                                        }
+                                      : null,
+                              red:
+                                  Rd !== null
+                                      ? {
+                                            pos: [
+                                                box.o[0] * (box.wall + Rd.dist) + box.l[0] * Rd.across,
+                                                box.o[1] * (box.wall + Rd.dist) + box.l[1] * Rd.across,
+                                                Rd.height,
+                                            ],
+                                            size: 220 * Rd.size,
+                                            halo: Rd.halo,
+                                            bright: Rd.bright * night * blink,
+                                        }
+                                      : null,
+                          };
+                      })()
+                    : null,
             ncx:
-                night > 0.01 && (L.windows !== null || L.shoot !== null || st.stars * s > 0.01)
+                night > 0.01 && (L.windows !== null || L.shoot !== null || L.pools !== null || st.stars * s > 0.01)
                     ? (() => {
                           const met = L.shoot === null ? null : meteorStep(performance.now(), box, [pos.x, pos.y, pos.z], L.shoot);
                           return {
@@ -1120,6 +1193,19 @@
                                       ? { ...L.windows, amount: L.windows.amount * night }
                                       : null,
                               meteor: met === null ? null : { ...met, bright: met.bright * night },
+                              pools:
+                                  L.pools !== null && L.streetLamps !== null && L.streetLamps.count > 0 && L.pools.amount > 0
+                                      ? {
+                                            amount: L.pools.amount * night,
+                                            r: 260 * L.pools.size,
+                                            n: Math.min(24, Math.round(L.streetLamps.count) * 2),
+                                            start: box.wall + L.streetLamps.start,
+                                            gap: Math.max(100, L.streetLamps.gap),
+                                            sides: [L.streetLamps.left, L.streetLamps.right],
+                                            h: L.streetLamps.height,
+                                            color: fromHex(L.streetLamps.color),
+                                        }
+                                      : null,
                           };
                       })()
                     : null,
