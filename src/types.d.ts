@@ -564,6 +564,20 @@ interface KaspLobbyPassFrame {
     readonly fogx: KaspLobbyFogExtras | null;
     // Stage 4 (26h): the dust floating in the hangar's light, n specks; null = none.
     readonly motes: { readonly n: number; readonly bright: number; readonly color: readonly number[] } | null;
+    // Stage 2a3 (26i): the very sunny day's birds and heat shimmer, only by day; null = none.
+    readonly sunx: {
+        readonly shimmer: { readonly amount: number; readonly height: number; readonly speed: number } | null;
+        readonly birds: {
+            readonly n: number;
+            readonly near: number;
+            readonly far: number;
+            readonly low: number;
+            readonly high: number;
+            readonly size: number;
+            readonly speed: number;
+            readonly haze: readonly number[];
+        } | null;
+    } | null;
 }
 
 // amount = how wet, depth = how far in from the door, puddles = how much is standing water, shine = how strongly they mirror,

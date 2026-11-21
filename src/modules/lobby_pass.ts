@@ -767,6 +767,49 @@ void main(){
   a=vA*min(1.,(1.-smoothstep(mix(.3,.05,blur)*edge,edge,r))*.8+.35*exp(-r*r*mix(14.,5.,blur)));
  }
  a*=1.+vWarm*.6;if(a<.003)discard;o=vec4((uColor+uLampCol*vWarm)*a,min(1.,a*uAlphaMul));}`;
+    // the very sunny day's heat shimmer (26i): the picture drawn so far read again, shifted by small rising ripples low over the
+    // street; the probe's own text
+    const SUNX_FS = `#version 300 es
+${DEPTH_GLSL}
+uniform sampler2D uCol;uniform float uTime,uGroundZ,uSkyZ,uSkyNear,uSkyLow;
+uniform float uShAmt,uShH,uShSpeed;out vec4 o;
+void main(){
+ Px x=look();if(x.d>=.99999)discard;
+ bool sky=x.p.z>uSkyZ||(dot(x.p.xy,uOut)>uSkyNear-60.&&x.p.z>uSkyLow);if(sky)discard;
+ float h=x.p.z-uGroundZ;if(x.k<.3||h>uShH*3.||x.dist<500.)discard;
+ float m=x.k*exp(-max(h,0.)/max(uShH,1.))*smoothstep(500.,2500.,x.dist)*uShAmt;
+ if(m<.01)discard;
+ // ripples of a fixed size on the screen (wide and flat, rising), so they wobble the same near and far
+ vec3 nq=vec3(gl_FragCoord.x/26.,gl_FragCoord.y/9.-uTime*uShSpeed*3.,uTime*.4);
+ vec2 off=(vec2(noise3(nq),noise3(nq+vec3(5.2,1.3,7.7)))-.5)*m*vec2(4.,2.);
+ vec2 uv=clamp((gl_FragCoord.xy+off)/uViewport,vec2(0.),vec2(1.));
+ float a=min(1.,m*1.5);o=vec4(texture(uCol,uv).rgb*a,a);}`;
+    // birds flying over the street (26i; the Halloween bats later use its uBat), hidden by the game's depth; the probe's own text
+    const BIRD_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec3 uCam;uniform vec2 uOut,uLat,uDist,uZ,uSpan;uniform float uTime,uSize,uSpeed,uBat;uniform vec4 uOne;
+out vec2 vQ;out float vFlap;out float vDist;
+${HASH_GLSL}
+void main(){
+ uint id=uint(gl_InstanceID)*5u+211u;float a=rnd(id),b=rnd(id+1u),c=rnd(id+2u),d=rnd(id+3u),e=rnd(id+4u);
+ float w=max(uSpan.y-uSpan.x,1.),dir=d<.5?-1.:1.,v=uSpeed*mix(220.,420.,e);
+ float lat=uSpan.x+w*fract(c+dir*v*uTime/w);
+ float sOut=mix(uDist.x,uDist.y,a),z=mix(uZ.x,uZ.y,b)+sin(uTime*.6+a*6.28)*40.;
+ vec3 p=vec3(uOut*sOut+uLat*lat,z);
+ p.z+=uBat*sin(uTime*2.3+a*9.)*70.;if(uOne.w>.5&&gl_InstanceID==0)p=uOne.xyz;
+ vec2 q=vec2(float(gl_VertexID&1)*2.-1.,float(gl_VertexID>>1)*2.-1.);vQ=q;
+ vFlap=mix(sin(uTime*mix(7.,11.,e)+a*20.)*step(.3,fract(uTime*.13+b))+ (1.-step(.3,fract(uTime*.13+b)))*.15,sin(uTime*mix(16.,22.,e)+a*20.),uBat);vDist=distance(uCam,p);
+ vec3 f=normalize(uCam-p),r=normalize(cross(vec3(0.,0.,1.),f)),u=cross(f,r);
+ float sz=uSize*mix(35.,60.,c);gl_Position=uVP*vec4(p+(r*q.x+u*q.y*.7)*sz,1.);}`;
+    const BIRD_FS = `#version 300 es
+precision highp float;
+uniform vec3 uHaze;in vec2 vQ;in float vFlap;in float vDist;out vec4 o;
+void main(){float ax=abs(vQ.x);if(ax>1.)discard;
+ float yw=vFlap*.55*ax-.18*ax*(1.-ax);float th=mix(.16,.05,ax);
+ float a=1.-smoothstep(th*.5,th,abs(vQ.y-yw));
+ a=max(a,1.-smoothstep(.1,.16,length(vQ*vec2(1.,1.6))));
+ if(a<.02)discard;float far=smoothstep(2000.,11000.,vDist);
+ vec3 c=mix(vec3(.07,.07,.08),uHaze,far*.7);a*=mix(1.,.55,far);o=vec4(c*a,a);}`;
     interface Model {
         readonly objects: ModelObject[];
         readonly materials: Record<string, Material>;
@@ -1428,6 +1471,8 @@ void main(){
             'uBmSoft', 'uBmCol', 'uBmDir', 'uDoor', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uSlAmt', 'uSlW', 'uSlO', 'uSlD', 'uSlCol', 'uCnAmt', 'uCnTan',
             'uCnReach', 'uCnDust', 'uCnCol', 'uCnLamp', 'uCnN',
         ]);
+        const sunxProg = program(FULL_VS, SUNX_FS, [...DEPTH_U, 'uCol', 'uTime', 'uGroundZ', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uShAmt', 'uShH', 'uShSpeed']);
+        const birdProg = program(BIRD_VS, BIRD_FS, ['uBat', 'uOne', 'uVP', 'uCam', 'uOut', 'uLat', 'uDist', 'uZ', 'uSpan', 'uTime', 'uSize', 'uSpeed', 'uHaze']);
         const flakeProg = program(FLAKE_VS, FLAKE_FS, [
             'uDrift', 'uGust', 'uLampN', 'uLampStart', 'uLampGap', 'uLampZ', 'uLampR', 'uLampGlow', 'uLampSides', 'uLampCol', 'uVP', 'uCam', 'uViewport',
             'uTime', 'uSpeed', 'uSize', 'uWind', 'uSway', 'uBright', 'uMode', 'uOut', 'uLat', 'uRange', 'uZ', 'uRoomMin', 'uRoomMax', 'uColor', 'uAlphaMul',
@@ -2356,6 +2401,61 @@ void main(){
                         gl.disable(gl.POLYGON_OFFSET_FILL);
                         gl.disable(gl.DEPTH_TEST);
                         gl.bindVertexArray(vao);
+                    }
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                }
+                // 2a3. the very sunny day's extras (26i): the birds (hidden by the game's depth), then the heat shimmer last (it reads a
+                // copy of everything drawn so far)
+                if (depthOk && f.sunx) {
+                    const SX = f.sunx;
+                    if (SX.birds && st.draw === null) {
+                        gl.enable(gl.DEPTH_TEST);
+                        gl.depthFunc(gl.LEQUAL);
+                        gl.depthMask(false);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                        if (SX.birds) {
+                            const B = SX.birds;
+                            gl.useProgram(birdProg.p);
+                            gl.uniformMatrix4fv(uni(birdProg, 'uVP'), false, f.vp);
+                            gl.uniform3fv(uni(birdProg, 'uCam'), f.cam);
+                            gl.uniform2f(uni(birdProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                            gl.uniform2f(uni(birdProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                            gl.uniform2f(uni(birdProg, 'uDist'), B.near, B.far);
+                            gl.uniform2f(uni(birdProg, 'uZ'), B.low, B.high);
+                            gl.uniform2f(uni(birdProg, 'uSpan'), f.box.u[0], f.box.u[1]);
+                            gl.uniform1f(uni(birdProg, 'uTime'), f.time);
+                            gl.uniform1f(uni(birdProg, 'uSize'), B.size);
+                            gl.uniform1f(uni(birdProg, 'uSpeed'), B.speed);
+                            gl.uniform3fv(uni(birdProg, 'uHaze'), B.haze);
+                            gl.uniform1f(uni(birdProg, 'uBat'), 0);
+                            gl.uniform4f(uni(birdProg, 'uOne'), 0, 0, 0, 0);
+                            gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, B.n);
+                        }
+                        gl.disable(gl.DEPTH_TEST);
+                        gl.bindVertexArray(vao);
+                    }
+                    if (SX.shimmer && st.draw === null && copyColour(W, H)) {
+                        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, st.draw);
+                        gl.viewport(0, 0, W, H);
+                        gl.useProgram(sunxProg.p);
+                        depthUniforms(sunxProg, f, W, H);
+                        gl.activeTexture(gl.TEXTURE0 + PANO);
+                        gl.bindTexture(gl.TEXTURE_2D, colTex);
+                        gl.bindSampler(PANO, null);
+                        gl.uniform1i(uni(sunxProg, 'uCol'), PANO);
+                        gl.activeTexture(gl.TEXTURE0 + UNIT);
+                        gl.bindTexture(gl.TEXTURE_2D, depthTex);
+                        gl.uniform1f(uni(sunxProg, 'uTime'), f.time);
+                        gl.uniform1f(uni(sunxProg, 'uGroundZ'), f.box.groundZ);
+                        gl.uniform1f(uni(sunxProg, 'uSkyZ'), f.box.skyZ);
+                        gl.uniform1f(uni(sunxProg, 'uSkyNear'), f.box.skyNear);
+                        gl.uniform1f(uni(sunxProg, 'uSkyLow'), f.box.skyLow);
+                        gl.uniform1f(uni(sunxProg, 'uShAmt'), SX.shimmer.amount);
+                        gl.uniform1f(uni(sunxProg, 'uShH'), SX.shimmer.height);
+                        gl.uniform1f(uni(sunxProg, 'uShSpeed'), SX.shimmer.speed);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                        gl.bindVertexArray(vao);
+                        gl.drawArrays(gl.TRIANGLES, 0, 3);
                     }
                     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                 }

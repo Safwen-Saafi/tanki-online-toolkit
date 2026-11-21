@@ -9,6 +9,7 @@
 // name KASP_LOBBY_LOOKS itself; it is kept for the types below.
 const KASP_LOBBY_LOOKS = [
     { value: 'day-normal', label: { EN: 'Day', RU: 'День' }, sunlit: true },
+    { value: 'day-sunny', label: { EN: 'Day, very sunny', RU: 'День, очень солнечно' }, sunlit: true },
     { value: 'night-normal', label: { EN: 'Night', RU: 'Ночь' }, sunlit: false },
     { value: 'day-rainy', label: { EN: 'Day, rainy', RU: 'День, дождь' }, sunlit: false },
     { value: 'night-rainy', label: { EN: 'Night, rainy', RU: 'Ночь, дождь' }, sunlit: false },

@@ -568,6 +568,12 @@
         } | null;
         // the ring lamps' light cones in the fog (26h, the probe's "Lamp cones"), only when it is dark; null = none
         readonly cones: { readonly amount: number; readonly angle: number; readonly reach: number; readonly dust: number; readonly color: string } | null;
+        // the very sunny day's extras (26i), only by day; null = none. Heat shimmer: amount, height = how high over the street the hot
+        // air wobbles, speed = how fast it rises. Birds: count, height over the street, dist = how far out, size, speed
+        readonly shimmer: { readonly amount: number; readonly height: number; readonly speed: number } | null;
+        readonly birds: { readonly count: number; readonly height: number; readonly dist: number; readonly size: number; readonly speed: number } | null;
+        // the cicadas (26i, the probe's summer sounds), in % of their loudness, only by day (0 = off)
+        readonly cicadas: number;
     }
     interface ShootNumbers {
         readonly every: number;
@@ -639,6 +645,9 @@
         beam: null,
         search: null,
         cones: null,
+        shimmer: null,
+        birds: null,
+        cicadas: 0,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
@@ -715,6 +724,22 @@
         // the night's wider, shinier wet floor
         wet: { amount: 1, depth: 660, puddles: 0.55, shine: 1.6, rings: 1.25 },
     };
+    // The owner's final "day very sunny" (probe v1.64 DAY_SUNNY, report of 2026-11-20 11:13; its own key light and lamp speed of v1.68):
+    // the normal day with the hot sun (glare, warmth, dust in the light), door blend 3, its road, the heat shimmer, four birds, the
+    // summer sounds (the city loop at 100 % and the cicadas at 65 %); no white clouds or leaves; only transp1 hidden, the game's own floor.
+    const DAY_SUNNY: LobbyLook = {
+        ...DAY_NORMAL,
+        light: { ...DAY_NORMAL.light, keySide: -44, keyHeight: 31, keyStrength: 1.95, keyColour: '#ffe9cf', lampSpeed: 0.38 },
+        door: 3,
+        road: { amount: 0.55, reach: 1175, line: 0, x0: -930, x1: 670, feather: 160, out: 45, bright: 1.05, tone: 0, fade: 0, inside: 1 },
+        clouds: null,
+        leaves: null,
+        city: 100,
+        heat: { glare: 3, warmth: 1.5, motes: 3450 },
+        shimmer: { amount: 1.2, height: 120, speed: 1 },
+        birds: { count: 4, height: 760, dist: 4200, size: 2, speed: 1 },
+        cicadas: 65,
+    };
     // The owner's final "day foggy" (probe v1.56 DAY_FOGGY, report of 2026-11-20 09:43): the very sunny look (its key light, lamp speed,
     // door blend and road, written out here; the sunny look itself is 26i) with the heat off, the moving low fog, clean walls and every
     // sunbeam part hidden; the floor fog, the door beam and the fog banks (on at the owner's 0, so they draw nothing).
@@ -758,6 +783,7 @@
     // (kasp_lobby_look) is used when it is in the list; otherwise the list's first look.
     const LOOKS: Readonly<Record<KaspLobbyLookName, LobbyLook>> = {
         'day-normal': DAY_NORMAL,
+        'day-sunny': DAY_SUNNY,
         'night-normal': NIGHT_NORMAL,
         'day-rainy': DAY_RAINY,
         'night-rainy': NIGHT_RAINY,
@@ -1706,18 +1732,23 @@
     interface SoundLoop {
         readonly file: string;
         readonly target: number;
+        // seconds cut from the recording's start before it is made into a loop (the cicada file clicks at 0.5 s)
+        readonly skip: number;
         readonly level: () => number;
     }
     const SOUND_LOOPS: Readonly<Record<string, SoundLoop>> = {
-        city: { file: 'day-city.mp3', target: 0.015, level: () => (look.city / 100) * (1 - nightAmount()) },
+        city: { file: 'day-city.mp3', target: 0.015, skip: 0, level: () => (look.city / 100) * (1 - nightAmount()) },
+        // the very sunny day's cicadas (26i; credit in DAY-SOUNDS-CREDITS.txt), quieter than the city
+        cicada: { file: 'day-cicada.mp3', target: 0.008, skip: 1.2, level: () => (look.cicadas / 100) * (1 - nightAmount()) },
         night: {
             file: 'night-ambience.mp3',
             target: 0.015,
+            skip: 0,
             level: () => (look.nightSounds === null ? 0 : look.nightSounds.ambience / 100) * nightAmount(),
         },
         // rain on the roof (26g3): a real recording of rain drumming on a roof heard from inside (credit in RAIN-ROOF-CREDITS.txt);
         // its gain is set with the rain's sounds (rainGains), louder with the gusts
-        roof: { file: 'rain-roof.webm', target: 0.14, level: () => (look.rain === null ? 0 : look.roof / 100) },
+        roof: { file: 'rain-roof.webm', target: 0.14, skip: 0, level: () => (look.rain === null ? 0 : look.roof / 100) },
     };
     // the barks in the recording: [start, end] in seconds (two bark groups, each with its short tail)
     const DOG = { file: 'night-dog-far.mp3', barks: [[0.6, 3.0], [4.3, 6.6]] as ReadonlyArray<readonly [number, number]> };
@@ -1795,7 +1826,9 @@
         return gain;
     }
     const wantedLoops = (): string[] =>
-        Object.keys(SOUND_LOOPS).filter((k) => (k === 'city' ? look.city > 0 : k === 'roof' ? look.rain !== null && look.roof > 0 : look.nightSounds !== null));
+        Object.keys(SOUND_LOOPS).filter((k) =>
+            k === 'city' ? look.city > 0 : k === 'cicada' ? look.cicadas > 0 : k === 'roof' ? look.rain !== null && look.roof > 0 : look.nightSounds !== null,
+        );
     function loadBuffer(ctx: AudioContext, base: string, file: string): Promise<AudioBuffer> {
         return fetch(base + file)
             .then((r) => {
@@ -1822,7 +1855,8 @@
         const loops = wantedLoops().map((key) =>
             loadBuffer(ctx, base, SOUND_LOOPS[key].file).then((buf) => {
                 const rate = buf.sampleRate;
-                const len = buf.length;
+                const from = Math.min(Math.round(SOUND_LOOPS[key].skip * rate), Math.floor(buf.length / 4));
+                const len = buf.length - from;
                 const lap = Math.min(Math.round(rate * 1.5), Math.floor(len / 3));
                 const n = len - lap;
                 const out = ctx.createBuffer(buf.numberOfChannels, n, rate);
@@ -1830,10 +1864,10 @@
                 for (let ch = 0; ch < buf.numberOfChannels; ch++) {
                     const src = buf.getChannelData(ch);
                     const dst = out.getChannelData(ch);
-                    for (let i = 0; i < n; i++) dst[i] = src[i];
+                    for (let i = 0; i < n; i++) dst[i] = src[from + i];
                     for (let i = 0; i < lap; i++) {
                         const t = i / lap;
-                        dst[i] = src[n + i] * Math.cos((t * Math.PI) / 2) + src[i] * Math.sin((t * Math.PI) / 2);
+                        dst[i] = src[from + n + i] * Math.cos((t * Math.PI) / 2) + src[from + i] * Math.sin((t * Math.PI) / 2);
                     }
                     for (let i = 0; i < n; i++) sum += dst[i] * dst[i];
                 }
@@ -2439,6 +2473,31 @@
                               beamCol: fromHex(Bm !== null ? Bm.color : '#fff1d6').map((x, i) => x * day * Math.min(1.3, outLight[i])),
                               beamDir,
                               door: Bm !== null ? [Bm.left, Bm.right, Bm.top] : [0, 0, 0],
+                          };
+                      })()
+                    : null,
+            // the very sunny day's extras (26i), only by day: the heat shimmer and the birds (in the fog's colour when there is fog)
+            sunx:
+                night < 0.99 && (L.shimmer !== null || L.birds !== null)
+                    ? (() => {
+                          const day = 1 - night;
+                          const Sh = L.shimmer;
+                          const Bd = L.birds;
+                          return {
+                              shimmer: Sh !== null ? { amount: Sh.amount * day, height: Sh.height, speed: Sh.speed } : null,
+                              birds:
+                                  Bd !== null && Bd.count > 0
+                                      ? {
+                                            n: Math.round(Bd.count),
+                                            near: box.wall + Bd.dist * 0.7,
+                                            far: box.wall + Bd.dist * 1.5,
+                                            low: Bd.height * 0.75,
+                                            high: Bd.height * 1.25,
+                                            size: Bd.size,
+                                            speed: Bd.speed,
+                                            haze: (Fg !== null ? fromHex(Fg.color) : [0.75, 0.82, 0.92]).map((x, i) => x * Math.max(0.3, outLight[i])),
+                                        }
+                                      : null,
                           };
                       })()
                     : null,
