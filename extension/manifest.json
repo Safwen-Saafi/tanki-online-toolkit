@@ -14,7 +14,8 @@
         "js/injector.js",
         "js/modules/shop_quick_buy.js",
         "js/modules/showroom.js",
-        "js/modules/lobby.js"
+        "js/modules/lobby.js",
+        "js/modules/hangar_files.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"
@@ -24,6 +25,7 @@
         "*://*.tankionline.com/*"
       ],
       "js": [
+        "js/modules/hangar_files_base.js",
         "js/modules/language.js",
         "js/modules/switches.js",
         "js/modules/loading_screens.js",
@@ -81,7 +83,8 @@
         "flags/*",
         "sounds/*",
         "icons/*",
-        "showroom/*"
+        "showroom/*",
+        "hangars/*"
       ],
       "matches": [
         "*://*.tankionline.com/*"

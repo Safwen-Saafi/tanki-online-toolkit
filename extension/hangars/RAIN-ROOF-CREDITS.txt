@@ -1,0 +1,9 @@
+Rain-on-the-roof sound used by the lobby test (spike branch), from Wikimedia Commons, licence CC BY-SA 3.0
+(https://creativecommons.org/licenses/by-sa/3.0/).
+
+rain-roof.webm = a 40 second part (7:26 to 8:06) of "Regen op het dak van een stilstaande auto en onweer - SoundCloud - Beeld en Geluid.ogg"
+                 (rain on the roof of a parked car, recorded inside), by Beeld en Geluid
+                 https://commons.wikimedia.org/wiki/File:Regen_op_het_dak_van_een_stilstaande_auto_en_onweer_-_SoundCloud_-_Beeld_en_Geluid.ogg
+                 Changes: cut to that part and saved as webm/opus (96 kbit/s); the probe loops it with a 1.5 s crossfade.
+
+If this ever ships in a published extension, the credit above has to ship with it (CC BY-SA asks for the author, the licence, a link and the changes).

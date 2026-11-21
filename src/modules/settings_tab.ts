@@ -36,6 +36,8 @@
         group: SwitchGroup;
         // True when the module applies a change at once; false when it applies after a reload.
         live: boolean;
+        // Off on a fresh profile and after RESET ALL (the switch service saves it as 1 when on).
+        offByDefault?: true;
     }
 
     const GROUPS: ReadonlyArray<{ id: SwitchGroup; heading: Record<KaspLanguageCode, string> }> = [
@@ -88,6 +90,8 @@
         { key: 'kasp_lobby', group: 'lobby', live: false, label: { EN: 'Lobby camera and look', RU: 'Камера и вид лобби' } },
         // Read by the injector when the game starts: the drone's flight round the tank (26c); works only with the switch above.
         { key: 'kasp_lobbydrone', group: 'lobby', live: false, label: { EN: 'Drone flight', RU: 'Полёт дрона' } },
+        // Read by hangar_files.ts when the game starts: the Birthday hangar's wall banners in the lobby (26e); off unless turned on.
+        { key: 'kasp_lobbybanners', group: 'lobby', live: false, offByDefault: true, label: { EN: 'Birthday banners', RU: 'Праздничные флажки' } },
         // Read by the injector when the game starts: the daily offer's click buys without the success dialog (a change needs a reload).
         { key: 'kasp_shopquickbuy', group: 'shop', live: false, label: { EN: 'Daily offer quick buying', RU: 'Быстрая покупка ежедневного предложения' } },
         { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },
@@ -682,7 +686,8 @@
             panel.appendChild(section);
         });
 
-        // RESET ALL removes every key, so every switch is on and every dropdown shows its default; a key the browser refused to
+        // RESET ALL removes every key, so every switch is back to its default (on, but off for the few off by default) and every
+        // dropdown shows its default; a key the browser refused to
         // remove keeps what it had.
         const resetBox = element('div', 'SettingsButtonsComponentStyle-containerGroupButton');
         const reset = element('div', 'kasp-reset');
@@ -690,7 +695,7 @@
         reset.appendChild(element('span', '', TEXT.reset[language]));
         onPress(reset, () => {
             for (const [entry, row] of rows) {
-                save(entry.key, true);
+                save(entry.key, entry.offByDefault !== true);
                 setSwitch(row, isOn(entry.key));
             }
             for (const [entry, choice] of choices) {

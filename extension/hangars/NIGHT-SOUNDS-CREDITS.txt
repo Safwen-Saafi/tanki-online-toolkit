@@ -1,0 +1,11 @@
+Night sounds used by the lobby test (spike branch): the foggy night's background sounds (a quiet night ambience, a dog barking far away).
+
+night-ambience.mp3 = "night ambience" (Pixabay file 17064, by freesound_community), Pixabay Content License
+                     (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+                     Changes: none to the file; the probe loops it with a 1.5 s crossfade.
+
+night-dog-far.mp3 = "big dog bark distant" (Pixabay file 113701, by solarmusic), Pixabay Content License
+                    (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+                    Changes: none to the file; the probe plays one of its two bark groups about every 30 s, muffled, to one side, with an echo.
+
+Both files were downloaded by the owner; the source above is read from their file names (Pixabay's naming).

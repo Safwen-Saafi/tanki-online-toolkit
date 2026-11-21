@@ -1,0 +1,11 @@
+Snow sounds used by the lobby test (spike branch): the snowy day's background sound.
+
+snow-wind.mp3 = "freezing winter wind" (Pixabay file 499654, by Dragon-Studio), Pixabay Content License
+                (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+                Changes: none to the file; the probe loops it with a 1.5 s crossfade, at a set loudness.
+
+snow-fall.mp3 = "sound of falling snow" (Pixabay file 211055, by Mind_Out_Of_Office), Pixabay Content License
+                (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+                Changes: none to the file; the probe loops it with a 1.5 s crossfade, at a set loudness.
+
+Both downloaded by the owner; the source above is read from the file names (Pixabay's naming).

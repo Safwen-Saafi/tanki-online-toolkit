@@ -1,0 +1,11 @@
+Thunder sounds used by the lobby test (spike branch), all from Wikimedia Commons, licence CC BY-SA 4.0
+(https://creativecommons.org/licenses/by-sa/4.0/). They are played as they are (a part of each file, with a fade out); nothing else is changed.
+
+thunder-soft.ogg    = "Thunder 01.ogg", by Amuzujoe
+                      https://commons.wikimedia.org/wiki/File:Thunder_01.ogg
+thunder-medium.ogg  = "Booming Thunder 2023-10-09 2-07-34 am.ogg", by KTerPalmers
+                      https://commons.wikimedia.org/wiki/File:Booming_Thunder_2023-10-09_2-07-34_am.ogg
+thunder-loud.ogg    = "Thunder crack 2B.ogg", by Jud McCranie
+                      https://commons.wikimedia.org/wiki/File:Thunder_crack_2B.ogg
+
+If these ever ship in a published extension, the credit above has to ship with them (CC BY-SA asks for the author, the licence and a link).

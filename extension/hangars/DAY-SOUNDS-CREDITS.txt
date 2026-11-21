@@ -1,0 +1,12 @@
+Day sound used by the lobby test (spike branch): the very sunny day's background sound.
+
+day-city.mp3 = "ambience city daytime birds traffic" (Pixabay file 61955, by freesound_community), Pixabay Content License
+               (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+               Changes: none to the file; the probe loops it with a 1.5 s crossfade, quietly, only by day.
+
+day-cicada.mp3 = "cicada" (Pixabay file 72075, by freesound_community), Pixabay Content License
+                 (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+                 Changes: none to the file; the probe leaves out its first 1.2 s (a click) and loops the rest with a 1.5 s crossfade, quietly,
+                 only by day.
+
+Both downloaded by the owner; the source above is read from the file name (Pixabay's naming).
