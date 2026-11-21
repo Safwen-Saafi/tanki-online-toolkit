@@ -13,7 +13,8 @@
       "js": [
         "js/injector.js",
         "js/modules/shop_quick_buy.js",
-        "js/modules/showroom.js"
+        "js/modules/showroom.js",
+        "js/modules/lobby.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"
@@ -62,7 +63,8 @@
         "styles/showroom_drones.css",
         "styles/showroom_protection.css",
         "styles/showroom_supplies.css",
-        "styles/showroom_paints.css"
+        "styles/showroom_paints.css",
+        "styles/lobby.css"
       ],
       "run_at": "document_start"
     }

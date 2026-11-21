@@ -27,7 +27,7 @@
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
     const DIVIDER_BLOCK_CLASS = 'SettingsComponentStyle-commonBlock';
 
-    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'shop' | 'interface' | 'colour' | 'tabColours' | 'loading';
+    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'lobby' | 'shop' | 'interface' | 'colour' | 'tabColours' | 'loading';
 
     interface SwitchEntry {
         // The localStorage key the feature's module reads.
@@ -46,6 +46,7 @@
         { id: 'battle', heading: { EN: 'Battle tab', RU: 'Таблица боя' } },
         { id: 'chat', heading: { EN: 'Chat', RU: 'Чат' } },
         { id: 'garage', heading: { EN: 'Garage', RU: 'Гараж' } },
+        { id: 'lobby', heading: { EN: 'Lobby', RU: 'Лобби' } },
         { id: 'shop', heading: { EN: 'Shop', RU: 'Магазин' } },
         { id: 'interface', heading: { EN: 'Interface', RU: 'Интерфейс' } },
         // No switch: its row of colour circles (THEME_COLOURS).
@@ -83,6 +84,8 @@
         { key: 'kasp_garageskins', group: 'garage', live: true, label: { EN: 'Equipped skins in the garage', RU: 'Надетые скины в гараже' } },
         // Read by the injector when the game starts: the website's camera, light, drone place and floor in the garage (a change needs a reload).
         { key: 'kasp_showroom', group: 'garage', live: false, label: { EN: 'Showroom garage', RU: 'Гараж-витрина' } },
+        // Read by the injector when the game starts: the lobby's camera and the hangar's light (build-plan 26a, a change needs a reload).
+        { key: 'kasp_lobby', group: 'lobby', live: false, label: { EN: 'Lobby camera and look', RU: 'Камера и вид лобби' } },
         // Read by the injector when the game starts: the daily offer's click buys without the success dialog (a change needs a reload).
         { key: 'kasp_shopquickbuy', group: 'shop', live: false, label: { EN: 'Daily offer quick buying', RU: 'Быстрая покупка ежедневного предложения' } },
         { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },
@@ -221,12 +224,13 @@
     const NOTICE_SHOWN = 'kasp-waiting';
 
     const TEXT: Record<
-        'reset' | 'defaultColour' | 'afterReload' | 'reloadsOnClose' | 'notice' | 'choosePicture' | 'gameOwn' | 'making' | 'notImage' | 'tooBig' | 'noRoom',
+        'reset' | 'defaultColour' | 'afterReload' | 'reloadsOnClose' | 'notice' | 'choosePicture' | 'gameOwn' | 'making' | 'notImage' | 'tooBig' | 'noRoom' | 'lobbyGuard',
         Record<KaspLanguageCode, string>
     > = {
         reset: { EN: 'reset all', RU: 'сбросить всё' },
         defaultColour: { EN: 'Default', RU: 'Сбросить' },
         afterReload: { EN: 'Applies after a reload', RU: 'Применится после перезагрузки' },
+        lobbyGuard: { EN: "Back to the game's own look: the lobby picture was slow", RU: 'Вернулся обычный вид игры: картинка лобби тормозила' },
         reloadsOnClose: { EN: 'The game reloads by itself when you close settings', RU: 'Игра перезагрузится сама, когда вы закроете настройки' },
         notice: { EN: 'The game will reload when you close settings', RU: 'Игра перезагрузится, когда вы закроете настройки' },
         choosePicture: { EN: 'Choose picture', RU: 'Выбрать картинку' },
@@ -249,6 +253,15 @@
     // False when it was not saved, so the switch stays where it was.
     function save(key: string, on: boolean): boolean {
         return window.kaspSwitches?.set(key, on) ?? false;
+    }
+
+    const LOBBY_KEY = 'kasp_lobby';
+    function lobbyGuardTripped(): boolean {
+        try {
+            return sessionStorage.getItem('kasp_lobby_guard') === '1';
+        } catch {
+            return false;
+        }
     }
 
     // How each reload switch was when the page started, which is when its module read it.
@@ -633,6 +646,11 @@
                     section.appendChild(form);
                 }
                 form.appendChild(row);
+                // Set by lobby.ts when the lobby was too slow this page's life and went back to the game's own look.
+                if (entry.key === LOBBY_KEY && lobbyGuardTripped()) {
+                    section.appendChild(element('p', 'kasp-legend kasp-lobby-guard', TEXT.lobbyGuard[language]));
+                    form = null;
+                }
                 for (const choiceEntry of CHOICES) {
                     if (choiceEntry.after !== entry.key) continue;
                     const choice = makeChoice(choiceEntry, language);

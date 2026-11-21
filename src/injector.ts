@@ -1478,6 +1478,94 @@
         return { code: edited, grenades: grenade !== null, supplies: grenade !== null && grenade.parts.supplies };
     }
 
+    // The lobby (build-plan 26a, see blueprint/context/lobby-restyle-research.md). The game's hangar system has one per-frame update
+    // (the one that draws its "Controls" debug window, with "Move camera" and "Disable tank rotation"); it gets a call to
+    // window.__kaspLobby.frame(this) as its first statement, so lobby.ts writes the camera and light before the game's own code in
+    // that update reads them. Every game name lobby.ts needs is read here from the game's code, each anchored on the game's own
+    // strings (its lateinit error texts "cameraComponent" and "platformMesh", the hangar's node names "cam0", "cam_t0" and "tnk_base",
+    // the ShadowSettings text and the renderer's "Depth bias: " console line) or on a code shape next to them, and the names two places
+    // give must agree. One missing or doubtful name skips the whole lobby: the game keeps its own lobby.
+    // How far after the start of the hangar's update its "Disable tank rotation" text may be.
+    const LOBBY_UPDATE_RANGE = 2000;
+    // The names patchLobby found, handed to lobby.ts once the patched bundle is about to run.
+    let lobbyNames: KaspLobbyNames | null = null;
+
+    function patchLobby(code: string): { readonly code: string; readonly names: KaspLobbyNames } | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the lobby ${what} in this bundle, the lobby look is skipped`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const R = String.raw;
+        const one = (pattern: string): RegExpExecArray | null => exactlyOne(code, new RegExp(pattern, 'g'));
+        // The game has several "cameraComponent" getters; the hangar's sits between its "garageResource" and "platformMesh" ones.
+        const lateinit = (label: string): string => R`function ${N}\(t\)\{var n=t\.(${N});if\(null!=n\)return n;${N}\("${label}"\)\}`;
+        const getters = one(lateinit('garageResource') + lateinit('cameraComponent') + lateinit('platformMesh'));
+
+        const update = one(R`\.${N}=function\(t,n\)\{var i,r,e,u;this\.${N}\(\)\.${N}\(\)&&this\.${N}\(\)\.${N}&&function\(t\)\{var n=t\.${N}\(\)\.${N}\(\),i="Controls"`);
+        if (update === null || !code.slice(update.index, update.index + LOBBY_UPDATE_RANGE).includes('"Disable tank rotation"')) return skip('frame update');
+        if (getters === null) return skip('camera or platform');
+        const [, , cameraComponent, platform] = getters;
+        const points = one(R`case"cam0":t\.(${N})\.(${N})\(u\.(${N})\);break;case"cam_t0":t\.(${N})\.\2\(u\.\3\);break;default:if\("tnk_base"===_\)\{t\.(${N})\.\2\(u\.\3\);var h=t\.\5;h\.(${N})=h\.\6\+u\.${N}\(\)\.${N},t\.(${N})=u\}`);
+        if (points === null || points[7] !== platform) return skip('camera points');
+        const [, cam, , , target, base, z] = points;
+        const wobbleCode = one(R`function\(t,n\)\{if\(t\.${N}\)\{t\.(${N})=${N}\(t\.\1,n\);var i=t\.\1,r=t\.(${N}),e=${N}\(\.3,i\)\+0;r\.(${N})=30\*Math\.sin\(e\);var u=t\.\2,s=${N}\(\.1,i\)\+\.3;u\.(${N})=30\*Math\.sin\(s\);var o=t\.\2,_=${N}\(\.2,i\)\+\.6;o\.(${N})=30\*Math\.sin\(_\),${N}\(t\)\.(${N})\.${N}\(t\.(${N}),t\.\2\),${N}\(t\)\.${N}\(t\.(${N})\)\}\}`);
+        if (wobbleCode === null || wobbleCode[5] !== z || wobbleCode[7] !== cam || wobbleCode[8] !== target) return skip('breathing');
+        const [, , wobble, x, y, , cameraPlace] = wobbleCode;
+        const light = one(R`"freeCameraEntity"\)\}function ${N}\(t\)\{t\.(${N})\(\)\.(${N})\(\)\.(${N})\.(${N})\.${N}\.${N}\(t\.(${N})\)\}function ${N}\(t,n\)\{var i=${N}\(t\)\.(${N});i\.(${N})=i\.\7\+n\}`);
+        if (light === null || light[7] !== z) return skip('light direction');
+        const [, world, renderer, lighting, key, lightDir, rotation] = light;
+        const start = one(R`\.(${N})\(0,0,0,1\);var i=n\.(${N});i\.(${N})\.${N}\(${N}\(200,200,200\)\),i\.(${N})\.(${N})\.${N}\(${N}\(\)\.${N}\),i\.\4\.(${N})=1,`);
+        if (start === null || start[2] !== lighting || start[4] !== key) return skip('lights');
+        const [, colourSet, , ambient, , keyColour, keyStrength] = start;
+        const colour = one(R`\.${asPattern(colourSet)}=function\(t,n,i,r\)\{this\.(${N})=t,this\.(${N})=n,this\.(${N})=i,this\.(${N})=r\}`);
+        if (colour === null) return skip('colour');
+        const [, red, green, blue, alpha] = colour;
+        const lamps = one(R`for\(var i=t\.${N}\.${N}\(\);i\.${N}\(\);\)\{var r=i\.${N}\(\)\.(${N});r\.(${N})=r\.\2\+${N}\(t\.(${N}),n\)\}`);
+        if (lamps === null || lamps[1] !== rotation || lamps[2] !== x) return skip('lamps');
+        const lampSpeed = lamps[3];
+        const sharpnessCode = one(R`\.(${N})=function\(t\)\{this\.(${N})\.(${N})!==t&&${N}\(\)\.${N}\.${N}\(t\)&&\(this\.\2=this\.\2\.${N}\(t\)\)\}`);
+        if (sharpnessCode === null) return skip('sharpness');
+        const [, setSharpness, state, sharpness] = sharpnessCode;
+        const shadowsFlag = one(R`this\.${asPattern(sharpness)}=t,this\.(${N})=n,this\.${N}=i,this\.${N}=r,this\.${N}=e,this\.${N}=u,this\.${N}=s,this\.${N}=o\}`);
+        if (shadowsFlag === null) return skip('shadows switch');
+        const shadowsOn = shadowsFlag[1];
+        const shadowText = one(R`${N}\((${N})\)\.toString=function\(\)\{return"ShadowSettings\(shadowTextureSize="\+this\.(${N})\+", shadowFullDistance="\+this\.(${N})\+", shadowFadeDistance="\+this\.(${N})\+", shadowStrength="\+this\.(${N})\+", shadowDepthBias="\+this\.(${N})\+", blurSize="\+this\.(${N})\+", normalBias="\+this\.(${N})\+", viewBias="\+this\.(${N})\+", slopeBias="\+this\.(${N})\+"\)"\}`);
+        if (shadowText === null) return skip('shadow settings');
+        const [, shadowClass, ...shadowFields] = shadowText;
+        const shadowCopyCode = one(R`${N}\(${asPattern(shadowClass)}\)\.(${N})=function\(t,n,i,r,e,u,s,o,_,h\)\{return t=t===${N}\?this\.${asPattern(shadowFields[0])}:t,`);
+        const shadowPlace = one(R`"Depth bias: "\+${N}\.${N}\(\)\.${asPattern(renderer)}\(\)\.(${N})\.${asPattern(shadowFields[4])}`);
+        if (shadowCopyCode === null || shadowPlace === null) return skip('shadow settings');
+        const fovCode = one(R`\.call\(this\),this\.(${N})=3\.1415927\/3,this\.(${N})=new ${N},this\.${N}=new ${N}\}`);
+        if (fovCode === null || fovCode[2] !== cameraPlace) return skip('lens');
+
+        const names: KaspLobbyNames = {
+            cam, target, base, platform, cameraComponent, wobble, lightDir, lampSpeed,
+            x, y, z, rotation, fov: fovCode[1],
+            world, renderer,
+            lighting, ambient, key, keyColour, keyStrength,
+            colourSet, red, green, blue, alpha,
+            state, shadowsOn, sharpness, setSharpness,
+            shadow: shadowPlace[1], shadowCopy: shadowCopyCode[1], shadowFields,
+        };
+        const at = update.index + update[0].indexOf('{') + 1;
+        return { code: applyEdits(code, [{ at, length: 0, text: 'window.__kaspLobby&&window.__kaspLobby.frame(this);' }]), names };
+    }
+
+    function lobbySwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_lobby') === '0';
+        } catch {
+            return false;
+        }
+    }
+
+    // lobby.css and the later lobby parts wait for this mark on <html>, put there only once the lobby edit went into the bundle.
+    function lobbyOn(names: KaspLobbyNames): void {
+        document.documentElement.setAttribute('data-kasp-lobby', '');
+        window.__kaspLobby?.start(names);
+    }
+
     function showroomSwitchedOff(): boolean {
         try {
             return localStorage.getItem('kasp_showroom') === '0';
@@ -1571,6 +1659,14 @@
                 if (showroom.supplies) hooked.push('showroom-supplies');
             }
         }
+        if (!lobbySwitchedOff()) {
+            const lobby = patchLobby(result);
+            if (lobby !== null) {
+                result = lobby.code;
+                lobbyNames = lobby.names;
+                hooked.push('lobby');
+            }
+        }
         // Last, so every other edit finds the game's code as it was.
         if (theme !== null) {
             const coloured = patchColours(result, theme);
@@ -1605,6 +1701,7 @@
             const patched = patchBundle(original);
             script.textContent = patched.code;
             if (patched.hooked.includes('showroom')) showroomOn();
+            if (lobbyNames !== null) lobbyOn(lobbyNames);
             if (patched.hooked.length > 0) log(`${LOG} hooks added to the game: ${patched.hooked.join(', ')}`);
         } catch (e: unknown) {
             warn(`${LOG} could not fetch the game bundle, starting it without the hook:`, e instanceof Error ? e.message : e);

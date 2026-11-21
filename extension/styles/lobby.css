@@ -1,0 +1,16 @@
+/* The lobby (build-plan 26a, src/modules/lobby.ts). Every rule waits for the injector's mark, set only once its lobby edit went into
+   the game's code, so a game build it misses keeps the game's own lobby.
+   The tank stands on the left, behind the game's left menu box (PLAY, the menu words, the footer buttons) and its dark shade. The
+   box and the shade stop taking presses, so a drag that starts on their empty parts reaches the 3D and turns the tank; PLAY, each
+   menu word and the footer buttons keep the mouse. Nothing moves: only where the presses go changes. */
+html[data-kasp-lobby] [class*="MainScreenComponentStyle-containerForMenuGradient"],
+html[data-kasp-lobby] [class*="MainScreenComponentStyle-containerForMenuGradient"] [class*="MainScreenComponentStyle-gradientBlock"],
+html[data-kasp-lobby] [class*="MainScreenComponentStyle-blockMainMenu"] {
+    pointer-events: none !important;
+}
+
+html[data-kasp-lobby] [class*="MainScreenComponentStyle-playButtonContainer"],
+html[data-kasp-lobby] [class*="PrimaryMenuItemComponentStyle-menuItemContainer"],
+html[data-kasp-lobby] [class*="FooterComponentStyle-containerMenu"] {
+    pointer-events: auto !important;
+}

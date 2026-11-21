@@ -305,7 +305,88 @@ interface KaspShowroom {
     readonly drone: () => KaspShowroomDrone | null;
 }
 
+// The game's own names the lobby needs (build-plan 26), found by src/injector.ts in the game's code at start and handed to
+// src/modules/lobby.ts once, so lobby.ts never spells a game name. Load-bearing: later lobby parts add their names here.
+interface KaspLobbyNames {
+    // The hangar system: its camera point, look-at point, tank base, platform node, camera component, breathing offset, the
+    // light direction it copies into the key light every frame, and the ring lamps' turn speed.
+    readonly cam: string;
+    readonly target: string;
+    readonly base: string;
+    readonly platform: string;
+    readonly cameraComponent: string;
+    readonly wobble: string;
+    readonly lightDir: string;
+    readonly lampSpeed: string;
+    // A vector's parts, a node's rotation (a vector), a camera component's lens (radians).
+    readonly x: string;
+    readonly y: string;
+    readonly z: string;
+    readonly rotation: string;
+    readonly fov: string;
+    // Methods: the system's world, the world's renderer.
+    readonly world: string;
+    readonly renderer: string;
+    // The renderer's lighting: the ambient (fill) colour, the key light, its colour and strength.
+    readonly lighting: string;
+    readonly ambient: string;
+    readonly key: string;
+    readonly keyColour: string;
+    readonly keyStrength: string;
+    // A colour's setter (r, g, b, a, 0 to 1) and its four parts.
+    readonly colourSet: string;
+    readonly red: string;
+    readonly green: string;
+    readonly blue: string;
+    readonly alpha: string;
+    // The renderer's settings state, its shadows flag and texture sharpness, and the sharpness setter.
+    readonly state: string;
+    readonly shadowsOn: string;
+    readonly sharpness: string;
+    readonly setSharpness: string;
+    // The renderer's shadow settings, the copy-with-changes method and its nine fields in the copy's order.
+    readonly shadow: string;
+    readonly shadowCopy: string;
+    readonly shadowFields: readonly string[];
+}
+
+// The game's own values in the lobby, recorded before anything is written (build-plan 26a).
+interface KaspLobbyVector {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+}
+
+interface KaspLobbyRecord {
+    readonly cam: KaspLobbyVector;
+    readonly target: KaspLobbyVector;
+    readonly base: KaspLobbyVector;
+    readonly turn: number;
+    readonly fov: number;
+    readonly lightDir: KaspLobbyVector;
+    readonly ambient: readonly number[];
+    readonly keyColour: readonly number[];
+    readonly keyStrength: number;
+    readonly lampSpeed: number;
+    readonly shadowsOn: boolean;
+    readonly shadow: readonly number[];
+    readonly sharpness: number;
+}
+
+// MAIN world, defined by src/modules/lobby.ts (build-plan 26a). The injector calls start once its lobby edit went in; the game's
+// hangar system calls frame first thing in every lobby frame.
+interface KaspLobby {
+    readonly start: (names: KaspLobbyNames) => void;
+    readonly frame: (system: unknown) => void;
+    // Read-only, for the owner's console checks.
+    readonly frames: number;
+    readonly game: KaspLobbyRecord | null;
+    readonly state: Readonly<Record<string, unknown>>;
+    readonly guard: boolean;
+}
+
 interface Window {
+    __kaspLobby?: KaspLobby;
     __kaspShowroom?: KaspShowroom;
     __kaspShowroomParts?: KaspShowroomParts;
     __kaspSendAction?: (className: string, obj: unknown) => void;
