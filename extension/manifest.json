@@ -14,6 +14,7 @@
         "js/injector.js",
         "js/modules/shop_quick_buy.js",
         "js/modules/showroom.js",
+        "js/modules/lobby_pass.js",
         "js/modules/lobby.js",
         "js/modules/hangar_files.js"
       ],

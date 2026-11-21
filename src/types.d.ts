@@ -350,6 +350,29 @@ interface KaspLobbyNames {
     readonly shadowFields: readonly string[];
     // Only while the drone flight's edit went in too (26c).
     readonly drone?: KaspLobbyDroneNames;
+    // Only while every name of the picture pass was found (26f1).
+    readonly pass?: KaspLobbyPassNames;
+}
+
+// The picture pass's names (build-plan 26f1): the renderer's frame call, its GL wrapper field and the wrapper's raw context, the
+// camera's view-projection matrix, the world's scene root and camera, a scene node's name, show switch and children (with the
+// list's size and item calls), a mesh's bounds call and the box's corner fields, a node's place.
+interface KaspLobbyPassNames {
+    readonly frame: string;
+    readonly glHolder: string;
+    readonly glContext: string;
+    readonly viewProjection: string;
+    readonly root: string;
+    readonly worldCamera: string;
+    readonly nodeName: string;
+    readonly setShown: string;
+    readonly children: string;
+    readonly size: string;
+    readonly at: string;
+    readonly bounds: string;
+    readonly boxMin: readonly string[];
+    readonly boxMax: readonly string[];
+    readonly position: string;
 }
 
 // The drone's names (build-plan 26c): the hangar's drone place (the point the drone system copies every frame), and the drone
@@ -385,6 +408,112 @@ interface KaspLobbyRecord {
     readonly sharpness: number;
 }
 
+// The lobby's picture pass (build-plan 26f, src/modules/lobby_pass.ts), driven by src/modules/lobby.ts.
+// A triangle list of one object and one material of a hangar model, with its picture's file name and address; mode 2 = see-through,
+// 1 = cut out, 0 = solid.
+interface KaspLobbyBatch {
+    readonly name: string;
+    readonly pic: string;
+    readonly url: string;
+    readonly pos: Float32Array;
+    readonly uv: Float32Array;
+    readonly mode: number;
+}
+
+// Pieces of a hangar model and their pictures; back / fwd = how far inside and outside the door a ground's top view reaches.
+interface KaspLobbyAsset {
+    readonly key: string;
+    readonly batches: readonly KaspLobbyBatch[];
+    readonly pics: ReadonlyMap<string, ImageBitmap>;
+    readonly back?: number;
+    readonly fwd?: number;
+}
+
+// The game's own hangar: its room and floor, and the road's flat ground just outside the door.
+interface KaspLobbyStandard {
+    readonly std: KaspLobbyAsset;
+    readonly ground: KaspLobbyAsset;
+}
+
+// The street side of the hangar: o = outward from the door, l = sideways, wall = the door line along o, the ground, the top of the
+// town (sky above it), where the sky backdrop begins along o (skyNear) and the room's top (skyLow).
+interface KaspLobbyBox {
+    readonly o: readonly [number, number];
+    readonly l: readonly [number, number];
+    readonly wall: number;
+    readonly groundZ: number;
+    readonly skyZ: number;
+    readonly skyNear: number;
+    readonly skyLow: number;
+    readonly floorZ: number;
+}
+
+// Stage 1a: the hangar floor drawn again with the outside's ground mirrored in through the door line.
+interface KaspLobbyFloorMix {
+    readonly ground: KaspLobbyAsset;
+    readonly std: KaspLobbyAsset;
+    readonly amount: number;
+    readonly depth: number;
+    readonly bright: number;
+    readonly tone: number;
+    readonly fade: number;
+    readonly inside: number;
+    readonly wall: number;
+    readonly outR: number;
+    readonly lim: readonly [number, number, number];
+}
+
+// Stage 2: the atmosphere laid over the picture (the sun's glow, and with their looks fog, snow on the ground, stars, clouds, flash).
+interface KaspLobbyAtmos {
+    readonly stars: number;
+    readonly glow: number;
+    readonly sunDir: readonly number[];
+    readonly sunCol: readonly number[];
+    readonly fog: number;
+    readonly fogStart: number;
+    readonly fogHeight: number;
+    readonly fogMove: number;
+    readonly fogCol: readonly number[];
+    readonly cover: number;
+    readonly spark: number;
+    readonly coverCol: readonly number[];
+    readonly coverThick: number;
+    readonly groundZ: number;
+    readonly skyZ: number;
+    readonly flash: number;
+    readonly bolt: number;
+    readonly flashCol: readonly number[];
+    readonly cloud: number;
+    readonly cloudK: number;
+    readonly cloudSpeed: number;
+    readonly cloudCol: readonly number[];
+}
+
+// Everything one frame of the pass reads (the probe's buildFrame result); a later part adds its stage's field.
+interface KaspLobbyPassFrame {
+    readonly vp: Float32Array;
+    readonly cam: readonly [number, number, number];
+    readonly time: number;
+    readonly box: KaspLobbyBox;
+    readonly doorIn: number;
+    readonly doorOut: number;
+    readonly offset: readonly [number, number, number];
+    readonly grade: { readonly inn: readonly number[]; readonly hor: readonly number[]; readonly zen: readonly number[] } | null;
+    readonly atmos: KaspLobbyAtmos | null;
+    readonly floorMix: KaspLobbyFloorMix | null;
+}
+
+// One pass per GL context; draw throws when a stage breaks (the game's GL state is put back first).
+interface KaspLobbyGpu {
+    readonly draw: (frame: KaspLobbyPassFrame) => void;
+    readonly dispose: () => void;
+}
+
+interface KaspLobbyPassApi {
+    readonly make: (gl: WebGL2RenderingContext) => KaspLobbyGpu;
+    readonly loadStandard: (folder: string) => Promise<KaspLobbyStandard>;
+}
+
 // MAIN world, defined by src/modules/lobby.ts (build-plan 26a). The injector calls start once its lobby edit went in; the game's
 // hangar system calls frame first thing in every lobby frame.
 interface KaspLobby {
@@ -401,6 +530,7 @@ interface KaspLobby {
 
 interface Window {
     __kaspLobby?: KaspLobby;
+    __kaspLobbyPass?: KaspLobbyPassApi;
     __kaspShowroom?: KaspShowroom;
     __kaspShowroomParts?: KaspShowroomParts;
     __kaspSendAction?: (className: string, obj: unknown) => void;

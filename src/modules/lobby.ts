@@ -44,6 +44,8 @@
     // A longer gap between two frames is a pause (the tab hidden), not a slow picture: the measure starts again.
     const PAUSE_MS = 1000;
     const MOUSE_EASE = 0.05;
+    // The pass draws only right after a lobby frame (26f1): a game picture this long after the last one is not the lobby's.
+    const LOBBY_TICK_MS = 250;
 
     type Bag = Record<string, unknown>;
     const isBag = (value: unknown): value is Bag => typeof value === 'object' && value !== null;
@@ -243,17 +245,20 @@
         });
         writeVector(bag(s.system, n.target), n, w.t);
         bag(s.system, n.cameraComponent)[n.fov] = s.record.fov * (POSE.lens / 100);
-        // The key light comes from keySide degrees round from the camera's side and keyHeight degrees up, swinging slowly; the game
-        // copies the system's light direction into its key light every frame.
-        const side = LOOK.keySide + Math.sin(sweepTime * LOOK.sweepSpeed) * LOOK.sweepAmount;
-        const az = w.phi + side * DEG;
-        const el = LOOK.keyHeight * DEG;
-        writeVector(bag(s.system, n.lightDir), n, { x: -Math.cos(az) * Math.cos(el), y: -Math.sin(az) * Math.cos(el), z: -Math.sin(el) });
-        const lighting = bag(s.renderer, n.lighting);
-        const key = bag(lighting, n.key);
-        writeColour(bag(key, n.keyColour), n, fromHex(LOOK.keyColour));
-        key[n.keyStrength] = LOOK.keyStrength;
-        writeColour(bag(lighting, n.ambient), n, [...fromHex(LOOK.fillColour).map((part) => part * LOOK.fillStrength), 1]);
+        // With the picture pass's look the key and fill come from the hour table (26f1). Without it: the key light comes from keySide
+        // degrees round from the camera's side and keyHeight degrees up, swinging slowly; the game copies the system's light direction
+        // into its key light every frame.
+        if (!writeTimeLights(s, n)) {
+            const side = LOOK.keySide + Math.sin(sweepTime * LOOK.sweepSpeed) * LOOK.sweepAmount;
+            const az = w.phi + side * DEG;
+            const el = LOOK.keyHeight * DEG;
+            writeVector(bag(s.system, n.lightDir), n, { x: -Math.cos(az) * Math.cos(el), y: -Math.sin(az) * Math.cos(el), z: -Math.sin(el) });
+            const lighting = bag(s.renderer, n.lighting);
+            const key = bag(lighting, n.key);
+            writeColour(bag(key, n.keyColour), n, fromHex(LOOK.keyColour));
+            key[n.keyStrength] = LOOK.keyStrength;
+            writeColour(bag(lighting, n.ambient), n, [...fromHex(LOOK.fillColour).map((part) => part * LOOK.fillStrength), 1]);
+        }
         s.system[n.lampSpeed] = LOOK.lampSpeed;
     }
 
@@ -284,6 +289,10 @@
             },
             () => setSharpness(s, n, s.rendererRecord.sharpness),
             () => restoreDrone(s, n),
+            () => {
+                unwrapFrame();
+                showHidden();
+            },
         ];
         for (const step of steps) {
             try {
@@ -321,6 +330,7 @@
         const n = names;
         if (n === null || tripped || broken || !isBag(system)) return;
         const now = performance.now();
+        lobbyTickAt = now;
         try {
             if (scene === null || scene.system !== system) {
                 const next = bind(system, n);
@@ -331,6 +341,7 @@
                 windowStart = now + GUARD_GRACE_MS;
                 windowFrames = 0;
                 firstWrites(next, n);
+                startPass(next, n);
             }
             const gap = now - lastFrame;
             if (gap > PAUSE_MS) {
@@ -350,6 +361,399 @@
         } catch {
             broken = true;
             if (scene !== null) restore(scene, n);
+        }
+    }
+
+    // ---- the picture pass and the day normal look (26f1), ported from the probe (v1.87) ----
+    // After the game has drawn its lobby picture, our pass (lobby_pass.ts) draws over it with the game's own depth. The game draws the
+    // whole picture in one call of its renderer; that call is wrapped on the lobby's renderer object only (never the class: other
+    // renderers are untouched), and the pass runs right after the game's own picture, only for the lobby world's camera and only in a
+    // tick where the lobby's own frame came through. The look is the owner's final "day normal" (report of 2026-11-20 14:13) without
+    // its three extras: the time of day at 13:00 (the hangar's key and fill light from the hour table, its colours over the picture),
+    // the doorway blend, the hangar floor carried into the road outside, and the lamp halo (transp1) hidden.
+    const DAY_NORMAL = {
+        time: { hour: 13, strength: 1, inside: 0.7, sunSide: 0 },
+        door: 1,
+        night: { lamps: 0.35, reach: 0.85, glow: 0, sunOff: 1, fixtures: 1, keyDown: 1, color: '#fff3e0' },
+        road: { amount: 0.55, reach: 1175, line: 0, x0: -860, x1: 700, feather: 160, out: 45, bright: 1, tone: 0, fade: 0, inside: 1 },
+        roadN: { amount: 1.5, reach: 1650, line: 700, x0: -1110, x1: 780, feather: 360, out: 0, bright: 1.15, tone: 0.1, fade: 1500, inside: 1 },
+        hidden: ['transp1'],
+    } as const;
+    type RoadNumbers = (typeof DAY_NORMAL)['road'];
+
+    // The time of day: a colour table by hour, read between its rows (the probe's DAY_TABLE). inn = the hangar's colour, hor / zen =
+    // the outside's colour at the horizon / looking up (all multiply the game's daytime picture), key / keyS = the sun (or moon) light
+    // on the tank, fill / fillS = the general light, stars, sun = the glow's colour and glow = its strength, beams = how much of the
+    // hangar's painted sunlight rays is left (0 at night).
+    interface Hour {
+        readonly h: number;
+        readonly inn: readonly number[];
+        readonly hor: readonly number[];
+        readonly zen: readonly number[];
+        readonly key: readonly number[];
+        readonly keyS: number;
+        readonly fill: readonly number[];
+        readonly fillS: number;
+        readonly stars: number;
+        readonly sun: readonly number[];
+        readonly glow: number;
+        readonly beams: number;
+    }
+    type Row = [number[], number[], number[], string, number, string, number, number, string, number, number];
+    const T = (h: number, [inn, hor, zen, key, keyS, fill, fillS, stars, sun, glow, beams]: Row): Hour => ({
+        h, inn, hor, zen, key: fromHex(key), keyS, fill: fromHex(fill), fillS, stars, sun: fromHex(sun), glow, beams,
+    });
+    const NIGHT: Row = [[0.62, 0.64, 0.78], [0.16, 0.18, 0.3], [0.07, 0.08, 0.17], '#b4c0ff', 1.15, '#8892b8', 0.85, 1, '#9fb4ff', 0.25, 0];
+    const DAY_TABLE: readonly Hour[] = [
+        T(0, NIGHT),
+        T(5, NIGHT),
+        T(6, [[0.86, 0.8, 0.82], [1.0, 0.66, 0.55], [0.38, 0.4, 0.62], '#ffbe96', 1.25, '#a6a3c0', 0.85, 0.15, '#ffb070', 1.0, 0.45]),
+        T(7.5, [[0.95, 0.92, 0.9], [1.0, 0.88, 0.78], [0.78, 0.84, 0.98], '#ffe0bf', 1.35, '#b4bfd4', 0.85, 0, '#ffd8a0', 0.6, 0.85]),
+        T(9, [[1.0, 0.99, 0.96], [1.0, 0.97, 0.92], [0.95, 0.98, 1.0], '#fff0dc', 1.45, '#bcc8dc', 0.9, 0, '#fff0d0', 0.45, 1]),
+        T(13, [[1, 1, 1], [1, 1, 1], [1, 1, 1], '#ffffff', 1.5, '#c8d2e0', 0.9, 0, '#ffffff', 0.35, 1]),
+        T(16.5, [[1.0, 0.96, 0.9], [1.0, 0.95, 0.86], [0.95, 0.95, 0.98], '#ffe6c4', 1.45, '#c0c4d0', 0.9, 0, '#ffe0b0', 0.45, 1]),
+        T(18.5, [[0.92, 0.78, 0.68], [1.0, 0.55, 0.32], [0.45, 0.36, 0.55], '#ffa05e', 1.4, '#b0949c', 0.85, 0, '#ff8a3c', 1.2, 0.6]),
+        T(19.5, [[0.74, 0.68, 0.78], [0.55, 0.38, 0.5], [0.16, 0.16, 0.33], '#b8a4e0', 1.2, '#8c8cb0', 0.85, 0.35, '#ff7050', 0.5, 0.2]),
+        T(20.5, [[0.66, 0.66, 0.8], [0.3, 0.27, 0.42], [0.1, 0.11, 0.24], '#b0bcff', 1.15, '#8890b6', 0.85, 0.7, '#a0b0ff', 0.25, 0]),
+        T(22, NIGHT),
+        T(24, NIGHT),
+    ];
+    const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+    const lerp3 = (a: readonly number[], b: readonly number[], t: number): number[] => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+    function timeState(hour: number): Hour {
+        const h = ((hour % 24) + 24) % 24;
+        let i = 0;
+        while (i < DAY_TABLE.length - 2 && DAY_TABLE[i + 1].h <= h) i++;
+        const a = DAY_TABLE[i];
+        const b = DAY_TABLE[i + 1];
+        const t = (h - a.h) / Math.max(0.0001, b.h - a.h);
+        return {
+            h,
+            inn: lerp3(a.inn, b.inn, t), hor: lerp3(a.hor, b.hor, t), zen: lerp3(a.zen, b.zen, t), key: lerp3(a.key, b.key, t),
+            keyS: lerp(a.keyS, b.keyS, t), fill: lerp3(a.fill, b.fill, t), fillS: lerp(a.fillS, b.fillS, t), stars: lerp(a.stars, b.stars, t),
+            sun: lerp3(a.sun, b.sun, t), glow: lerp(a.glow, b.glow, t), beams: lerp(a.beams, b.beams, t),
+        };
+    }
+    // The sun crosses the sky beyond the hangar's opening from about 6:00 to 19:00; at night a moon stands higher, a little to one side.
+    function sunDirection(hour: number, box: KaspLobbyBox, sunSide: number): number[] {
+        const h = ((hour % 24) + 24) % 24;
+        const base = Math.atan2(box.o[1], box.o[0]);
+        let el: number;
+        let az: number;
+        const side = sunSide * DEG;
+        if (h >= 5.75 && h <= 19.75) {
+            const t = (h - 6) / 13;
+            el = Math.max(-0.05, Math.sin(Math.PI * Math.min(1, Math.max(0, t)))) * 60 * DEG;
+            az = base + side + (t - 0.5) * 70 * DEG;
+        } else {
+            el = 30 * DEG;
+            az = base + side + 20 * DEG;
+        }
+        return [Math.cos(az) * Math.cos(el), Math.sin(az) * Math.cos(el), Math.sin(el)];
+    }
+
+    // The hangar's own parts in the scene (the scene draws its own objects, not the hangar resource's): found by name under the
+    // world's scene root, three levels down, the tank's hull and turret left out.
+    interface Part {
+        readonly name: string;
+        readonly node: Bag;
+    }
+    function readParts(s: Scene, n: KaspLobbyNames, p: KaspLobbyPassNames): Part[] {
+        const world = invoke(s.system, n.world, []);
+        if (!isBag(world)) return [];
+        const parts: Part[] = [];
+        const kidsOf = (node: Bag): Bag[] => {
+            const list = node[p.children];
+            if (!isBag(list)) return [];
+            const count = invoke(list, p.size, []);
+            const out: Bag[] = [];
+            if (typeof count === 'number') for (let k = 0; k < count; k++) {
+                const kid = invoke(list, p.at, [k]);
+                if (isBag(kid)) out.push(kid);
+            }
+            return out;
+        };
+        const walk = (node: Bag, depth: number): void => {
+            for (const kid of kidsOf(node)) {
+                const name = kid[p.nodeName];
+                if (typeof name === 'string' && typeof kid[p.setShown] === 'function') parts.push({ name, node: kid });
+                if (depth < 3 && !(typeof name === 'string' && /^(hull|turret)$/i.test(name))) walk(kid, depth + 1);
+            }
+        };
+        walk(bag(world, p.root), 0);
+        return parts;
+    }
+    interface Bounds {
+        readonly minX: number;
+        readonly minY: number;
+        readonly minZ: number;
+        readonly maxX: number;
+        readonly maxY: number;
+        readonly maxZ: number;
+    }
+    // The room and the town as the owner's reports measured them, for a build where the live bounds cannot be read.
+    const ROOM_FALLBACK: Bounds = { minX: -1430, minY: -1902, minZ: -23, maxX: 1220, maxY: 1163, maxZ: 1478 };
+    const TOWN_FALLBACK: Bounds = { minX: -4773, minY: -11618, minZ: -1517, maxX: 2086, maxY: -1874, maxZ: 2406 };
+    const SKY_FALLBACK: Bounds = { minX: -7045, minY: -15416, minZ: -1414, maxX: 2890, maxY: -9680, maxZ: 6662 };
+    function boundsOf(parts: readonly Part[], name: string, n: KaspLobbyNames, p: KaspLobbyPassNames): Bounds | null {
+        const part = parts.find((q) => q.name === name);
+        if (part === undefined) return null;
+        try {
+            const at = readVector(bag(part.node, p.position), n);
+            const b = invoke(part.node, p.bounds, []);
+            if (!isBag(b)) return null;
+            return {
+                minX: num(b, p.boxMin[0]) + at.x, minY: num(b, p.boxMin[1]) + at.y, minZ: num(b, p.boxMin[2]) + at.z,
+                maxX: num(b, p.boxMax[0]) + at.x, maxY: num(b, p.boxMax[1]) + at.y, maxZ: num(b, p.boxMax[2]) + at.z,
+            };
+        } catch {
+            return null;
+        }
+    }
+    // The street side: the side of the room the town reaches out of the most (the probe's rainBox).
+    function streetBox(parts: readonly Part[], n: KaspLobbyNames, p: KaspLobbyPassNames): KaspLobbyBox {
+        const room = boundsOf(parts, 'room0', n, p) ?? ROOM_FALLBACK;
+        const town = boundsOf(parts, 'bg0', n, p) ?? TOWN_FALLBACK;
+        const sky = boundsOf(parts, 'Sky0', n, p) ?? SKY_FALLBACK;
+        const floor = boundsOf(parts, 'floor0', n, p);
+        const sides = [
+            { side: '+x', o: [1, 0] as const, l: [0, 1] as const, wall: room.maxX, far: town.maxX, near: sky.minX },
+            { side: '-x', o: [-1, 0] as const, l: [0, -1] as const, wall: -room.minX, far: -town.minX, near: -sky.maxX },
+            { side: '+y', o: [0, 1] as const, l: [-1, 0] as const, wall: room.maxY, far: town.maxY, near: sky.minY },
+            { side: '-y', o: [0, -1] as const, l: [1, 0] as const, wall: -room.minY, far: -town.minY, near: -sky.maxY },
+        ];
+        const best = sides.reduce((a, c) => (c.far - c.wall > a.far - a.wall ? c : a));
+        return { o: best.o, l: best.l, wall: best.wall, groundZ: room.minZ, skyZ: town.maxZ, skyNear: best.near, skyLow: room.maxZ, floorZ: floor ? floor.maxZ : 0 };
+    }
+
+    interface PassScene {
+        readonly parts: readonly Part[];
+        readonly box: KaspLobbyBox;
+        readonly offset: [number, number, number];
+        readonly hidden: readonly Part[];
+    }
+    let passScene: PassScene | null = null;
+    let passBroken = false;
+    let passFrames = 0;
+    let lobbyTickAt = 0;
+    let gpu: KaspLobbyGpu | null = null;
+    let gpuGl: WebGL2RenderingContext | null = null;
+    // The renderer object whose frame call is wrapped, the game's own call, and whether it was the object's own property.
+    let wrapped: { readonly renderer: Bag; readonly name: string; readonly base: unknown; readonly own: boolean } | null = null;
+    let standard: KaspLobbyStandard | null = null;
+    let standardState: 'none' | 'loading' | 'failed' = 'none';
+
+    // Once per scene: the parts, the street box, the hangar's place, the hidden parts, the wrap.
+    function startPass(s: Scene, n: KaspLobbyNames): void {
+        const p = n.pass;
+        if (p === undefined || passBroken || window.__kaspLobbyPass === undefined) return;
+        try {
+            showHidden();
+            const parts = readParts(s, n, p);
+            const room = parts.find((q) => q.name === 'room0');
+            let offset: [number, number, number] = [0, 0, 0];
+            if (room !== undefined) {
+                const at = readVector(bag(room.node, p.position), n);
+                offset = [at.x, at.y, at.z];
+            }
+            const hidden = parts.filter((q) => (DAY_NORMAL.hidden as readonly string[]).includes(q.name));
+            for (const part of hidden) invoke(part.node, p.setShown, [false]);
+            passScene = { parts, box: streetBox(parts, n, p), offset, hidden };
+            wrapFrame(s.renderer, p);
+        } catch {
+            stopPass();
+        }
+    }
+
+    function wrapFrame(renderer: Bag, p: KaspLobbyPassNames): void {
+        if (wrapped !== null && wrapped.renderer === renderer) return;
+        unwrapFrame();
+        const base = renderer[p.frame];
+        if (typeof base !== 'function') throw new Error(p.frame);
+        const own = Object.prototype.hasOwnProperty.call(renderer, p.frame);
+        renderer[p.frame] = function (this: unknown, ...args: unknown[]): unknown {
+            const out: unknown = Reflect.apply(base, this, args);
+            afterPicture(args[1]);
+            return out;
+        };
+        wrapped = { renderer, name: p.frame, base, own };
+    }
+    function unwrapFrame(): void {
+        const w = wrapped;
+        wrapped = null;
+        if (w === null) return;
+        try {
+            if (w.own) w.renderer[w.name] = w.base;
+            else delete w.renderer[w.name];
+        } catch {
+            // a frozen object keeps our wrapper, which then does nothing (passBroken or tripped)
+        }
+    }
+    function showHidden(): void {
+        const p = names?.pass;
+        const ps = passScene;
+        if (p === undefined || ps === null) return;
+        for (const part of ps.hidden) {
+            try {
+                invoke(part.node, p.setShown, [true]);
+            } catch {
+                // that part stays as it is
+            }
+        }
+    }
+    // The pass off for the rest of the page's life: the game's frame call and the hidden parts put back.
+    function stopPass(): void {
+        passBroken = true;
+        unwrapFrame();
+        showHidden();
+        passScene = null;
+        try {
+            gpu?.dispose();
+        } catch {
+            // the context may be gone
+        }
+        gpu = null;
+    }
+
+    // The game's own hangar model read once, as soon as hangar_files.ts has seen its folder.
+    function ensureStandard(): void {
+        if (standard !== null || standardState !== 'none') return;
+        const folder = document.documentElement.getAttribute('data-kasp-hangar-folder');
+        const api = window.__kaspLobbyPass;
+        if (folder === null || !/^https:\/\/[^/]*tankionline\.com\//.test(folder) || api === undefined) return;
+        standardState = 'loading';
+        api.loadStandard(folder).then(
+            (got) => {
+                standard = got;
+                standardState = 'none';
+            },
+            () => {
+                standardState = 'failed';
+            },
+        );
+    }
+
+    // The game's key and fill light from the hour table (the sun or the moon); true when written. Without the pass's names the light
+    // stays 26a's.
+    function writeTimeLights(s: Scene, n: KaspLobbyNames): boolean {
+        const ps = passScene;
+        if (ps === null || passBroken) return false;
+        const L = DAY_NORMAL;
+        const st = timeState(L.time.hour);
+        const d = sunDirection(L.time.hour, ps.box, L.time.sunSide);
+        const el = Math.max(10 * DEG, Math.asin(Math.max(-1, Math.min(1, d[2]))));
+        const flat = Math.hypot(d[0], d[1]) || 1;
+        let dir = [-(d[0] / flat) * Math.cos(el), -(d[1] / flat) * Math.cos(el), -Math.sin(el)];
+        let key = st.key;
+        // at night the lamps over the tank are the light: the key light turns to come straight down in the lamp colour
+        const down = Math.max(0, Math.min(1, 1 - st.beams)) * L.night.keyDown;
+        if (down > 0) {
+            const g = s.record.lightDir;
+            dir = [lerp(dir[0], g.x, down), lerp(dir[1], g.y, down), lerp(dir[2], g.z, down)];
+            const len = Math.hypot(dir[0], dir[1], dir[2]) || 1;
+            dir = dir.map((v) => v / len);
+            key = lerp3(st.key, fromHex(L.night.color), down);
+        }
+        writeVector(bag(s.system, n.lightDir), n, { x: dir[0], y: dir[1], z: dir[2] });
+        const lighting = bag(s.renderer, n.lighting);
+        const keyLight = bag(lighting, n.key);
+        writeColour(bag(keyLight, n.keyColour), n, key);
+        keyLight[n.keyStrength] = st.keyS;
+        writeColour(bag(lighting, n.ambient), n, [st.fill[0] * st.fillS, st.fill[1] * st.fillS, st.fill[2] * st.fillS, 1]);
+        return true;
+    }
+
+    // One frame of the pass (the probe's buildFrame, the groups of the day normal look).
+    function buildFrame(vp: Float32Array, pos: KaspLobbyVector, ps: PassScene): KaspLobbyPassFrame {
+        const L = DAY_NORMAL;
+        const box = ps.box;
+        const mix1 = (v: readonly number[], k: number): number[] => v.map((x) => lerp(1, x, k));
+        const hour = L.time.hour;
+        const st = timeState(hour);
+        const s = L.time.strength;
+        const inn = mix1(st.inn, s * L.time.inside);
+        const hor = mix1(st.hor, s);
+        const zen = mix1(st.zen, s);
+        const night = Math.max(0, Math.min(1, 1 - st.beams));
+        // the floor into the road: the day numbers by day, the night numbers at night
+        const rd: RoadNumbers = L.road;
+        const rn = L.roadN;
+        const mixN = (k: keyof RoadNumbers): number => lerp(rd[k], rn[k], night);
+        const roadAmount = rd.amount * (1 - night) + rn.amount * night;
+        const graded = [inn, hor, zen].some((c) => c.some((x) => Math.abs(x - 1) > 0.002));
+        const glow = st.glow * s;
+        const atmosOn = glow > 0.01 || st.stars * s > 0.01;
+        const door = Math.max(0.02, L.door);
+        ensureStandard();
+        const std = standard;
+        return {
+            vp,
+            cam: [pos.x, pos.y, pos.z],
+            time: (performance.now() % 3600000) / 1000,
+            box,
+            doorIn: 900 * door,
+            doorOut: 350 * door,
+            offset: ps.offset,
+            floorMix:
+                std !== null && roadAmount > 0.01
+                    ? {
+                          ground: std.ground,
+                          std: std.std,
+                          amount: roadAmount,
+                          depth: mixN('reach'),
+                          bright: mixN('bright'),
+                          tone: mixN('tone'),
+                          fade: mixN('fade'),
+                          inside: mixN('inside'),
+                          wall: box.wall + mixN('line'),
+                          outR: mixN('out'),
+                          lim: [mixN('x0'), mixN('x1'), Math.max(1, mixN('feather'))],
+                      }
+                    : null,
+            grade: graded ? { inn, hor, zen } : null,
+            atmos: atmosOn
+                ? {
+                      stars: st.stars * s,
+                      glow,
+                      sunDir: sunDirection(hour, box, L.time.sunSide),
+                      sunCol: st.sun,
+                      fog: 0, fogStart: 0, fogHeight: 1, fogMove: 0, fogCol: [0, 0, 0],
+                      cover: 0, spark: 0, coverCol: [0, 0, 0], coverThick: 1,
+                      groundZ: box.groundZ,
+                      skyZ: box.skyZ,
+                      flash: 0, bolt: 0, flashCol: [1, 1, 1],
+                      cloud: 0, cloudK: 0, cloudSpeed: 0, cloudCol: [0.5, 0.5, 0.5],
+                  }
+                : null,
+        };
+    }
+
+    // Right after the game's own picture: our pass, for the lobby world's camera only, in a tick where the lobby frame came through.
+    function afterPicture(camera: unknown): void {
+        const n = names;
+        const s = scene;
+        const ps = passScene;
+        const api = window.__kaspLobbyPass;
+        if (n === null || n.pass === undefined || s === null || ps === null || api === undefined || passBroken || tripped || broken) return;
+        if (performance.now() - lobbyTickAt > LOBBY_TICK_MS) return;
+        const p = n.pass;
+        try {
+            const world = invoke(s.system, n.world, []);
+            if (!isBag(world) || camera !== world[p.worldCamera] || !isBag(camera)) return;
+            const gl = bag(s.renderer, p.glHolder)[p.glContext];
+            if (!(gl instanceof WebGL2RenderingContext)) throw new Error(p.glContext);
+            const vp = camera[p.viewProjection];
+            if (!(vp instanceof Float32Array) || vp.length !== 16) throw new Error(p.viewProjection);
+            const pos = readVector(bag(camera, p.position), n);
+            if (gpu === null || gpuGl !== gl) {
+                gpu?.dispose();
+                gpu = api.make(gl);
+                gpuGl = gl;
+            }
+            gpu.draw(buildFrame(vp, pos, ps));
+            passFrames++;
+        } catch {
+            stopPass();
         }
     }
 
@@ -961,6 +1365,10 @@
                 droneBroken,
                 flight: flight === null ? null : flight.state,
                 helloSpot: flight === null ? 0 : flight.helloSpot,
+                passFrames,
+                passBroken,
+                passParts: passScene === null ? 0 : passScene.parts.length,
+                hangarModel: standard !== null ? 'ready' : standardState,
             });
         },
         get guard() {

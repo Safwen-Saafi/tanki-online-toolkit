@@ -1552,6 +1552,77 @@
         return { code: applyEdits(code, [{ at, length: 0, text: 'window.__kaspLobby&&window.__kaspLobby.frame(this);' }]), names };
     }
 
+    // The lobby's picture pass (build-plan 26f1). Its game names: the renderer's frame call that draws the whole picture (it keeps a
+    // ring of frame times: (i + 1) % length, then 1e3 * the time), the field where the renderer keeps the GL wrapper it draws with, the
+    // wrapper's raw context (the one it asks for "EXT_color_buffer_float"), the camera's view-projection matrix (the 4th matrix the
+    // camera class makes, after its 3.1415927/3 lens), the world's scene root (a node named "/") and the world's camera next to it, a
+    // scene node's name, shown flag, show switch and children (the node class that starts with name "" and shown true), the
+    // children list's size and item calls, a mesh's bounds (the call before the one the hangar's drag test reads off the platform),
+    // the box class's six fields (from its two-corner setter) and a node's place (the one the hangar copies its camera points from).
+    // One missing or doubtful name skips only the pass; the camera, light and drone stay.
+    function patchLobbyPass(code: string, names: KaspLobbyNames): KaspLobbyPassNames | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the lobby picture pass ${what} in this bundle, the picture pass is skipped`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const R = String.raw;
+        const one = (pattern: string): RegExpExecArray | null => exactlyOne(code, new RegExp(pattern, 'g'));
+        // Every match gives the same names (one shape used in several places).
+        const agreed = (pattern: string): RegExpExecArray | null => {
+            const found = [...code.matchAll(new RegExp(pattern, 'g'))];
+            if (found.length === 0) return null;
+            const first = found[0].slice(1).join(' ');
+            return found.every((m) => m.slice(1).join(' ') === first) ? found[0] : null;
+        };
+        const p = asPattern;
+        const frame = one(R`\.(${N})=function\(t,n\)\{if\(this\.${N}\.${N}\(\),this\.(${N})=\(this\.\2\+1\|0\)%this\.(${N})\.length\|0,this\.\3\[this\.\2\]=1e3\*`);
+        if (frame === null) return skip('frame call');
+        const holder = one(R`\.${N}=function\(t\)\{var n,i;this\.${N}\.${N}\(\),this\.(${N})=t,this\.${N}=\(n=`);
+        if (holder === null) return skip('GL wrapper');
+        const context = one(R`function ${N}\(t\)\{var n;if\(this\.(${N})=t,[^;]{0,600}?this\.\1\.getExtension\("EXT_color_buffer_float"\)`);
+        if (context === null) return skip('GL context');
+        const matrix = one(R`this\.(${N})=3\.1415927\/3;var t=this\.\1\/2;this\.${N}=Math\.tan\(t\),this\.${N}=${N}\(\),this\.${N}=${N}\(\),this\.${N}=${N}\(\),this\.(${N})=${N}\(\)`);
+        if (matrix === null) return skip('camera matrix');
+        const root = one(R`var (${N})=new ${N};\1\.(${N})="\/",this\.(${N})=\1,this\.${N}=new ${N}\(this\.${N}\),this\.${N}=new ${N},this\.(${N})=new ${N},this\.${N}=null`);
+        if (root === null) return skip('scene root');
+        const [, , nodeName, sceneRoot, worldCamera] = root;
+        const node = one(R`\.call\(this\),this\.${p(nodeName)}="",this\.(${N})=!0,this\.${N}=1,[^}]{0,300}?this\.(${N})=new ${N}\}`);
+        if (node === null) return skip('scene node');
+        const [, shown, children] = node;
+        const show = one(R`\.(${N})=function\(t\)\{this\.${p(shown)}=t\}`);
+        const list = agreed(R`var n=this\.${p(children)},i=0,r=n\.(${N})\(\);if\(i<r\)do\{var e=i;i=i\+1\|0,n\.(${N})\(e\)\.`);
+        if (show === null || list === null) return skip('node show switch or children');
+        const getters = one(R`${N}\("cameraComponent"\)\}function (${N})\(t\)\{var n=t\.${p(names.platform)};if\(null!=n\)return n;${N}\("platformMesh"\)\}`);
+        if (getters === null) return skip('platform getter');
+        const drag = one(R`,${p(getters[1])}\(t\)\.(${N})\(\)\)>0\}`);
+        if (drag === null) return skip('platform drag test');
+        const bounds = one(R`\.(${N})=function\(\)\{return this\.(${N})\.${N}\},${N}\(${N}\)\.${p(drag[1])}=function\(\)\{return this\.\2\.${N}\}`);
+        if (bounds === null) return skip('bounds');
+        const [x, y, z] = [p(names.x), p(names.y), p(names.z)];
+        const corners = one(R`t\.${x}<n\.${x}\?\(this\.(${N})=t\.${x},this\.(${N})=n\.${x}\):\(this\.\1=n\.${x},this\.\2=t\.${x}\),t\.${y}<n\.${y}\?\(this\.(${N})=t\.${y},this\.(${N})=n\.${y}\):\(this\.\3=n\.${y},this\.\4=t\.${y}\),t\.${z}<n\.${z}\?\(this\.(${N})=t\.${z},this\.(${N})=n\.${z}\)`);
+        if (corners === null) return skip('box');
+        const place = one(R`case"cam0":t\.${p(names.cam)}\.${N}\(u\.(${N})\);break;`);
+        if (place === null) return skip('node place');
+        return {
+            frame: frame[1],
+            glHolder: holder[1],
+            glContext: context[1],
+            viewProjection: matrix[2],
+            root: sceneRoot,
+            worldCamera,
+            nodeName,
+            setShown: show[1],
+            children,
+            size: list[1],
+            at: list[2],
+            bounds: bounds[1],
+            boxMin: [corners[1], corners[3], corners[5]],
+            boxMax: [corners[2], corners[4], corners[6]],
+            position: place[1],
+        };
+    }
+
     // The drone flight (build-plan 26c). The lobby drone system's per-frame update (it copies the hangar's drone place, bobs the drone
     // with 10*Math.sin and tilts it with 5*.017453292*Math.cos, then lets a press grab and turn it) gets a call to
     // window.__kaspLobby.drone(this) as its last statement, so the turn, lean and hello tilt lobby.ts writes there come after the
@@ -1728,6 +1799,11 @@
                         names = { ...names, drone: drone.drone };
                         hooked.push('lobby-drone');
                     }
+                }
+                const pass = patchLobbyPass(result, names);
+                if (pass !== null) {
+                    names = { ...names, pass };
+                    hooked.push('lobby-pass');
                 }
                 lobbyNames = names;
             }
