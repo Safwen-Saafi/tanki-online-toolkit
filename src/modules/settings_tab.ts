@@ -245,13 +245,12 @@
     const NOTICE_SHOWN = 'kasp-waiting';
 
     const TEXT: Record<
-        'reset' | 'defaultColour' | 'afterReload' | 'reloadsOnClose' | 'notice' | 'choosePicture' | 'gameOwn' | 'making' | 'notImage' | 'tooBig' | 'noRoom' | 'lobbyGuard',
+        'reset' | 'defaultColour' | 'afterReload' | 'reloadsOnClose' | 'notice' | 'choosePicture' | 'gameOwn' | 'making' | 'notImage' | 'tooBig' | 'noRoom',
         Record<KaspLanguageCode, string>
     > = {
         reset: { EN: 'reset all', RU: 'сбросить всё' },
         defaultColour: { EN: 'Default', RU: 'Сбросить' },
         afterReload: { EN: 'Applies after a reload', RU: 'Применится после перезагрузки' },
-        lobbyGuard: { EN: "Back to the game's own look: the lobby picture was slow", RU: 'Вернулся обычный вид игры: картинка лобби тормозила' },
         reloadsOnClose: { EN: 'The game reloads by itself when you close settings', RU: 'Игра перезагрузится сама, когда вы закроете настройки' },
         notice: { EN: 'The game will reload when you close settings', RU: 'Игра перезагрузится, когда вы закроете настройки' },
         choosePicture: { EN: 'Choose picture', RU: 'Выбрать картинку' },
@@ -276,14 +275,6 @@
         return window.kaspSwitches?.set(key, on) ?? false;
     }
 
-    const LOBBY_KEY = 'kasp_lobby';
-    function lobbyGuardTripped(): boolean {
-        try {
-            return sessionStorage.getItem('kasp_lobby_guard') === '1';
-        } catch {
-            return false;
-        }
-    }
 
     // How each reload switch was when the page started, which is when its module read it.
     const atStart = new Map(SWITCHES.filter((entry) => !entry.live).map((entry) => [entry.key, isOn(entry.key)]));
@@ -672,11 +663,6 @@
                     section.appendChild(form);
                 }
                 form.appendChild(row);
-                // Set by lobby.ts when the lobby was too slow this page's life and went back to the game's own look.
-                if (entry.key === LOBBY_KEY && lobbyGuardTripped()) {
-                    section.appendChild(element('p', 'kasp-legend kasp-lobby-guard', TEXT.lobbyGuard[language]));
-                    form = null;
-                }
                 for (const choiceEntry of CHOICES) {
                     if (choiceEntry.after !== entry.key) continue;
                     const choice = makeChoice(choiceEntry, language, refreshNotice);

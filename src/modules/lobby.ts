@@ -5,16 +5,14 @@
 // kasp_lobby is on, so that the game calls window.__kaspLobby.frame(system) first thing in every lobby frame, and it hands this file
 // the game's names once (start), found in the game's own code; nothing here spells a game name.
 // On the first frame of each lobby scene the game's own values are recorded before anything is written, and every restore uses
-// that record. A slow PC keeps the game's own look (owner's rule): the light is free and always applies, the shadow numbers only
-// when the game's own shadows are on, the floor sharpness raised to 16 (the owner's call); and if the lobby draws fewer than 40 frames a
-// second over 3 seconds, everything goes back to the recorded values for the rest of the page's life, and sessionStorage
-// kasp_lobby_guard tells the settings tab. Nothing watches the page: the work happens only inside the game's own lobby frames, plus
+// that record. The look always runs at its full settings, whatever the PC (owner, 2026-11-21: a player with a low frame rate changes
+// it himself): the light always applies, the floor sharpness raised to 16, the shadow numbers when the game's own shadows are on (forcing them on failed live, 2026-11-21); there
+// is no frame-rate guard. Nothing watches the page: the work happens only inside the game's own lobby frames, plus
 // one passive mouse listener for the gentle mouse follow. With the drone flight's edit too (26c, kasp_lobbydrone), the drone flies
 // round the tank like an FPV drone and comes to say hello (see the flight section below). Nothing is printed: a game build that breaks a step just stops the look.
 (function () {
     'use strict';
 
-    const GUARD_KEY = 'kasp_lobby_guard';
     const DEG = Math.PI / 180;
     // The owner's camera "final1" (2026-11-16): near and up / aim in the game's units, orbit and turn in degrees, left and lens in %.
     const POSE = { near: 130, orbit: 26, left: 24, up: 20, aim: -40, turn: 32, lens: 66 } as const;
@@ -37,12 +35,6 @@
         sweepAmount: 5,
         sweepSpeed: 0.25,
     } as const;
-    const MIN_FPS = 40;
-    const GUARD_WINDOW_MS = 3000;
-    // The first seconds of a lobby scene (the hangar loading in) are not measured.
-    const GUARD_GRACE_MS = 2000;
-    // A longer gap between two frames is a pause (the tab hidden), not a slow picture: the measure starts again.
-    const PAUSE_MS = 1000;
     const MOUSE_EASE = 0.05;
     // The pass draws only right after a lobby frame (26f1): a game picture this long after the last one is not the lobby's.
     const LOBBY_TICK_MS = 250;
@@ -149,12 +141,9 @@
     let names: KaspLobbyNames | null = null;
     let scene: Scene | null = null;
     let frames = 0;
-    let tripped = false;
     let broken = false;
     let sweepTime = 0;
     let lastFrame = 0;
-    let windowStart = 0;
-    let windowFrames = 0;
     const mouse = { x: 0, y: 0, eased: { x: 0, y: 0 } };
     const state: Record<string, unknown> = {};
 
@@ -201,7 +190,7 @@
     }
 
     // Once per scene: the platform turned to face the camera plus the owner's turn (the player's drag turns it from there), and the
-    // renderer's shadow and sharpness by the slow-PC rules.
+    // renderer's shadow and sharpness (the full settings).
     function firstWrites(s: Scene, n: KaspLobbyNames): void {
         bag(bag(s.system, n.platform), n.rotation)[n.z] = Math.atan2(-s.want.faceX, s.want.faceY) + POSE.turn * DEG;
         const r = s.rendererRecord;
@@ -219,7 +208,7 @@
                 o[8],
             ]);
         }
-        // Raised to the owner's 16 whatever the game's own (his call, 2026-11-21); the guard puts the game's own back.
+        // Raised to the owner's 16 whatever the game's own (his call, 2026-11-21).
         setSharpness(s, n, LOOK.sharpness);
         state.shadows = r.shadowsOn ? LOOK.shadowStrength : 'the game\'s own (off)';
         state.sharpness = num(bag(s.renderer, n.state), n.sharpness);
@@ -303,32 +292,10 @@
         }
     }
 
-    // True when the last full measuring window was too slow.
-    function tooSlow(now: number): boolean {
-        if (now < windowStart) return false;
-        windowFrames++;
-        const span = now - windowStart;
-        if (span < GUARD_WINDOW_MS) return false;
-        const fps = (windowFrames * 1000) / span;
-        state.fps = Math.round(fps);
-        windowStart = now;
-        windowFrames = 0;
-        return fps < MIN_FPS;
-    }
-
-    function trip(): void {
-        tripped = true;
-        try {
-            sessionStorage.setItem(GUARD_KEY, '1');
-        } catch {
-            // the tab just does not say it
-        }
-    }
-
     function frame(system: unknown): void {
         frames++;
         const n = names;
-        if (n === null || tripped || broken || !isBag(system)) return;
+        if (n === null || broken || !isBag(system)) return;
         const now = performance.now();
         lobbyTickAt = now;
         try {
@@ -338,22 +305,11 @@
                 scene = next;
                 flight = null;
                 lastFrame = now;
-                windowStart = now + GUARD_GRACE_MS;
-                windowFrames = 0;
                 firstWrites(next, n);
                 startPass(next, n);
             }
             const gap = now - lastFrame;
-            if (gap > PAUSE_MS) {
-                windowStart = now;
-                windowFrames = 0;
-            }
             lastFrame = now;
-            if (tooSlow(now)) {
-                restore(scene, n);
-                trip();
-                return;
-            }
             const dt = Math.min(0.05, gap / 1000);
             sweepTime += dt;
             writeLook(scene, n);
@@ -397,6 +353,19 @@
         readonly road: RoadNumbers;
         readonly roadN: RoadNumbers;
         readonly hidden: readonly string[];
+        // the normal day's extras (26f3), only by day; null = off
+        readonly clouds: { readonly amount: number; readonly cover: number; readonly size: number; readonly speed: number } | null;
+        readonly leaves: LeafNumbers | null;
+        // the calm city sound, in % of its loudness (0 = off)
+        readonly city: number;
+    }
+    interface LeafNumbers {
+        readonly count: number;
+        readonly dist: number;
+        readonly inside: number;
+        readonly size: number;
+        readonly wind: number;
+        readonly gusts: number;
     }
     const DAY_NORMAL: LobbyLook = {
         time: { hour: 13, strength: 1, inside: 0.7, sunSide: 0 },
@@ -406,6 +375,9 @@
         road: { amount: 0.55, reach: 1175, line: 0, x0: -860, x1: 700, feather: 160, out: 45, bright: 1, tone: 0, fade: 0, inside: 1 },
         roadN: { amount: 1.5, reach: 1650, line: 700, x0: -1110, x1: 780, feather: 360, out: 0, bright: 1.15, tone: 0.1, fade: 1500, inside: 1 },
         hidden: ['transp1'],
+        clouds: { amount: 0.9, cover: 0.6, size: 1, speed: 1 },
+        leaves: { count: 44, dist: 2150, inside: 0, size: 4, wind: 2.9, gusts: 0.95 },
+        city: 70,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
@@ -413,6 +385,9 @@
         night: { lamps: 0.95, reach: 0.75, glow: 0, sunOff: 1, fixtures: 0, keyDown: 0.55, color: '#f9ec9a' },
         cleanWall: 1,
         hidden: ['light0', 'light1', 'light2', 'transp1', 'transp2'],
+        clouds: null,
+        leaves: null,
+        city: 0,
     };
     // The looks built so far (the settings tab's list and hangar_files.ts use the same values); any other value is the day.
     const LOOKS: Readonly<Record<string, LobbyLook>> = { 'day-normal': DAY_NORMAL, 'night-normal': NIGHT_NORMAL };
@@ -562,13 +537,13 @@
         const sky = boundsOf(parts, 'Sky0', n, p) ?? SKY_FALLBACK;
         const floor = boundsOf(parts, 'floor0', n, p);
         const sides = [
-            { side: '+x', o: [1, 0] as const, l: [0, 1] as const, wall: room.maxX, far: town.maxX, near: sky.minX },
-            { side: '-x', o: [-1, 0] as const, l: [0, -1] as const, wall: -room.minX, far: -town.minX, near: -sky.maxX },
-            { side: '+y', o: [0, 1] as const, l: [-1, 0] as const, wall: room.maxY, far: town.maxY, near: sky.minY },
-            { side: '-y', o: [0, -1] as const, l: [1, 0] as const, wall: -room.minY, far: -town.minY, near: -sky.maxY },
+            { side: '+x', o: [1, 0] as const, l: [0, 1] as const, wall: room.maxX, far: town.maxX, near: sky.minX, u: [town.minY, town.maxY] as const },
+            { side: '-x', o: [-1, 0] as const, l: [0, -1] as const, wall: -room.minX, far: -town.minX, near: -sky.maxX, u: [-town.maxY, -town.minY] as const },
+            { side: '+y', o: [0, 1] as const, l: [-1, 0] as const, wall: room.maxY, far: town.maxY, near: sky.minY, u: [-town.maxX, -town.minX] as const },
+            { side: '-y', o: [0, -1] as const, l: [1, 0] as const, wall: -room.minY, far: -town.minY, near: -sky.maxY, u: [town.minX, town.maxX] as const },
         ];
         const best = sides.reduce((a, c) => (c.far - c.wall > a.far - a.wall ? c : a));
-        return { o: best.o, l: best.l, wall: best.wall, groundZ: room.minZ, skyZ: town.maxZ, skyNear: best.near, skyLow: room.maxZ, floorZ: floor ? floor.maxZ : 0 };
+        return { o: best.o, l: best.l, wall: best.wall, groundZ: room.minZ, skyZ: town.maxZ, skyNear: best.near, skyLow: room.maxZ, floorZ: floor ? floor.maxZ : 0, u: best.u };
     }
 
     interface PassScene {
@@ -631,7 +606,7 @@
             if (w.own) w.renderer[w.name] = w.base;
             else delete w.renderer[w.name];
         } catch {
-            // a frozen object keeps our wrapper, which then does nothing (passBroken or tripped)
+            // a frozen object keeps our wrapper, which then does nothing (passBroken)
         }
     }
     function showHidden(): void {
@@ -735,6 +710,288 @@
         return true;
     }
 
+    // ---- the normal day's leaves (26f3), the probe's leaf simulation (v1.66) ----
+    // Each leaf is simulated every frame. The wind blows along the street with gusts that travel down it (a gust reaches the leaves upwind
+    // first) and a little turbulence. A leaf lying on the street stays put in a light wind, slides and skitters when the wind is strong
+    // enough for it (each leaf needs a different push), and a strong gust lifts it or flips it over. In the air it is pulled toward the
+    // wind's speed (harder when it faces the wind), falls slowly when flat and faster when edge-on, rocks to and fro and tumbles; it lands,
+    // settles flat on either side and slides to a stop. Leaves blown out at the downwind end come back at the upwind end. Street
+    // coordinates: lat = across (the wind's way), out = away from the door.
+    interface Leaf {
+        lat: number;
+        out: number;
+        z: number;
+        vl: number;
+        vo: number;
+        vz: number;
+        yaw: number;
+        pitch: number;
+        roll: number;
+        wy: number;
+        wp: number;
+        wr: number;
+        ground: boolean;
+        need: number;
+        size: number;
+        type: number;
+        hue: number;
+        phase: number;
+    }
+    const LEAF_MAX = 64;
+    const LEAVES: { list: Leaf[]; last: number; key: string } = { list: [], last: 0, key: '' };
+    const leafWind = (t: number, lat: number, out: number, K: LeafNumbers): { lat: number; out: number; up: number; gust: number } => {
+        const base = 230 * K.wind;
+        const f = t * 0.9 - lat / 700;
+        const g = Math.max(0, Math.sin(f * 0.35) * 0.65 + Math.sin(f * 0.83 + 1.3) * 0.45 + Math.sin(f * 0.17 + 4) * 0.3);
+        const gust = g * g * 520 * K.gusts * Math.max(0.3, K.wind);
+        const turb = 70 * K.wind * Math.sin(t * 1.7 + lat / 95) * Math.sin(t * 0.93 + out / 140);
+        return {
+            lat: base + gust + turb,
+            out: 0.18 * base * Math.sin(t * 0.37 + lat / 650) + 50 * K.wind * Math.sin(t * 1.3 + lat / 120 + out / 80),
+            up: (gust * 0.35 + 40 * K.wind) * Math.sin(t * 2.1 + lat / 160 + out / 110),
+            gust: g * g,
+        };
+    };
+    function newLeaf(K: LeafNumbers, box: KaspLobbyBox, lat: number, inAir: boolean): Leaf {
+        const r = Math.random;
+        return {
+            lat,
+            out: box.wall - K.inside * 0.6 + r() * Math.max(100, K.dist + K.inside * 0.6),
+            z: box.groundZ + 3 + (inAir ? 40 + r() * 200 : 0),
+            vl: 0,
+            vo: 0,
+            vz: 0,
+            yaw: r() * Math.PI * 2,
+            pitch: r() < 0.5 ? 0 : Math.PI, // which side up
+            roll: (r() - 0.5) * 0.3,
+            wy: 0,
+            wp: 0,
+            wr: 0,
+            ground: !inAir,
+            need: 160 + r() * 200, // how much wind it takes to move this leaf on the street
+            size: 0.7 + r() * 0.6,
+            type: Math.floor(r() * 3),
+            hue: r(),
+            phase: r() * 10,
+        };
+    }
+    function leavesStep(nowMs: number, box: KaspLobbyBox, K: LeafNumbers): { n: number; P: Float32Array; A: Float32Array; B: Float32Array } {
+        const n = Math.max(0, Math.min(LEAF_MAX, Math.round(K.count)));
+        const left = Math.max(box.u[0], -1700);
+        const right = Math.min(box.u[1], 1500);
+        const street = box.groundZ + 3;
+        const floor = (box.floorZ || 0) + 2;
+        const groundAt = (out: number): number => (out < box.wall ? floor : street);
+        const key = n + '|' + Math.round(K.dist) + '|' + Math.round(K.inside);
+        if (LEAVES.key !== key) {
+            LEAVES.key = key;
+            LEAVES.list = [];
+            for (let i = 0; i < n; i++) LEAVES.list.push(newLeaf(K, box, left + Math.random() * (right - left), Math.random() < 0.15));
+            LEAVES.last = 0;
+        }
+        const dt = LEAVES.last ? Math.min(0.05, Math.max(0, (nowMs - LEAVES.last) / 1000)) : 0;
+        LEAVES.last = nowMs;
+        const t = nowMs / 1000;
+        const r = Math.random;
+        const maxOut = box.wall + K.dist;
+        const minOut = box.wall - K.inside;
+        for (const L of LEAVES.list) {
+            const ground = groundAt(L.out);
+            // inside the hangar the wind is weaker (sheltered), fading in from the door
+            const shelter = Math.max(0.25, Math.min(1, 1 - (box.wall - L.out) / Math.max(1, K.inside * 1.3)));
+            const W0 = leafWind(t, L.lat, L.out, K);
+            const W = { lat: W0.lat * shelter, out: W0.out * shelter, up: W0.up * shelter, gust: W0.gust };
+            if (L.ground) {
+                const w = Math.hypot(W.lat, W.out);
+                if (w > L.need) {
+                    // skitter: pulled along at a part of the wind's speed, jerky (the street is rough), turning a little
+                    const k = Math.min(1, 2.5 * dt);
+                    const share = 0.25 + 0.25 * Math.min(1, (w - L.need) / 300);
+                    L.vl += (W.lat * share - L.vl) * k + (r() - 0.5) * 600 * dt;
+                    L.vo += (W.out * share - L.vo) * k;
+                    L.wy += ((r() - 0.5) * 6 - L.wy) * Math.min(1, 2 * dt);
+                    if (r() < dt * 1.2 * Math.max(0, (w - L.need) / 250)) {
+                        // a strong gust lifts it
+                        L.ground = false;
+                        L.vz = 60 + r() * 140 + W.gust * 200;
+                        L.wp = (r() - 0.5) * 10;
+                        L.wr = (r() - 0.5) * 8;
+                    } else if (r() < dt * 0.25 * Math.min(2, (w - L.need) / 200)) {
+                        // or it flips over
+                        L.ground = false;
+                        L.vz = 40 + r() * 50;
+                        L.wp = (r() < 0.5 ? -1 : 1) * (8 + r() * 6);
+                    }
+                } else {
+                    const fr = Math.exp(-5 * dt);
+                    L.vl *= fr;
+                    L.vo *= fr;
+                    L.wy *= fr;
+                }
+                if (L.ground) L.z = ground;
+            } else {
+                // in the air: how the leaf lies decides how hard the wind pushes it and how slowly it falls
+                const flat = Math.abs(Math.cos(L.pitch) * Math.cos(L.roll)); // 1 = broad side down, 0 = edge-on
+                const kH = 1.2 + 0.9 * (2 - flat);
+                const kV = 1.5 + 8 * flat;
+                L.vl += (W.lat - L.vl) * Math.min(1, kH * dt);
+                L.vo += (W.out - L.vo) * Math.min(1, kH * dt);
+                L.vz += -980 * dt + (W.up - L.vz) * Math.min(1, kV * dt);
+                // the falling leaf's rocking: it glides to one side, then the other
+                L.vl += Math.sin(t * 3.1 + L.phase) * 220 * flat * dt;
+                L.vo += Math.cos(t * 2.7 + L.phase) * 160 * flat * dt;
+                // tumbling, driven by the air rushing past, slowly damped
+                const rel = Math.hypot(W.lat - L.vl, W.out - L.vo, W.up - L.vz);
+                L.wp += ((r() - 0.5) * rel * 0.12 - L.wp * 0.8) * dt + Math.sin(t * 4 + L.phase) * 12 * flat * dt;
+                L.wr += ((r() - 0.5) * rel * 0.08 - L.wr * 0.8) * dt;
+                L.wy += ((r() - 0.5) * 2 - L.wy * 0.5) * dt;
+                L.pitch += L.wp * dt;
+                L.roll += L.wr * dt;
+            }
+            L.yaw += L.wy * dt;
+            L.lat += L.vl * dt;
+            L.out += L.vo * dt;
+            L.z += L.vz * dt;
+            if (!L.ground && L.z <= ground) {
+                // landing: a small bounce if it came down fast, else it settles flat on whichever side is nearer
+                L.z = ground;
+                if (L.vz < -160) {
+                    L.vz *= -0.2;
+                    L.wp *= 0.5;
+                } else {
+                    L.ground = true;
+                    L.vz = 0;
+                    L.pitch = Math.round(L.pitch / Math.PI) * Math.PI;
+                    L.roll = (r() - 0.5) * 0.25;
+                    L.wp = L.wr = 0;
+                }
+            }
+            if (L.out < minOut) {
+                L.out = minOut;
+                L.vo = Math.abs(L.vo) * 0.3;
+            }
+            if (L.out > maxOut) L.vo -= (L.out - maxOut) * 20 * dt;
+            if (L.z > ground + 900) L.vz = Math.min(L.vz, 0);
+            if (L.ground) L.z = groundAt(L.out);
+            if (L.lat > right + 100 || L.lat < left - 100) Object.assign(L, newLeaf(K, box, L.lat > right ? left - 80 : right + 80, r() < 0.3));
+        }
+        // to the GPU: place and size, the leaf's two axes (length, width) in the world with its kind, and its colour
+        const P = new Float32Array(LEAF_MAX * 4);
+        const A = new Float32Array(LEAF_MAX * 4);
+        const B = new Float32Array(LEAF_MAX * 4);
+        const o = box.o;
+        const l = box.l;
+        const toWorld = (vl: number, vo: number): number[] => [l[0] * vl + o[0] * vo, l[1] * vl + o[1] * vo];
+        LEAVES.list.forEach((L, i) => {
+            const cy = Math.cos(L.yaw);
+            const sy = Math.sin(L.yaw);
+            const cp = Math.cos(L.pitch);
+            const sp = Math.sin(L.pitch);
+            const cr = Math.cos(L.roll);
+            const sr = Math.sin(L.roll);
+            // rotation = turn (yaw) * nose up or down (roll) * over on its length (pitch); a = length axis, b = width axis, in (lat, out, up)
+            const a = [cr * cy, cr * sy, -sr];
+            const b = [sp * sr * cy - cp * sy, sp * sr * sy + cp * cy, sp * cr];
+            const pw = toWorld(L.lat, L.out);
+            const aw = toWorld(a[0], a[1]);
+            const bw = toWorld(b[0], b[1]);
+            P.set([pw[0], pw[1], L.z, L.size], i * 4);
+            A.set([aw[0], aw[1], a[2], L.type], i * 4);
+            B.set([bw[0], bw[1], b[2], L.hue], i * 4);
+        });
+        return { n: LEAVES.list.length, P, A, B };
+    }
+
+    // ---- the calm city sound (26f3): the probe's day loop (birds, far traffic), only by day, only while the lobby is drawn ----
+    // The recording (extension/hangars/day-city.mp3) is cut into a seamless loop (its last 1.5 s faded into its start) and played at
+    // its target loudness (0.015 at 100 %) times the look's %. Browsers start no sound before a click or a key on the page, so the sound
+    // waits for the first one. Any failure leaves it silent.
+    const CITY_TARGET = 0.015;
+    const city: { ctx: AudioContext | null; gain: GainNode | null; norm: number; state: 'none' | 'loading' | 'ready' | 'failed' } = {
+        ctx: null,
+        gain: null,
+        norm: 0,
+        state: 'none',
+    };
+    function loadCity(ctx: AudioContext): void {
+        const base = document.documentElement.getAttribute('data-kasp-hangar-base');
+        if (base === null) {
+            city.state = 'failed';
+            return;
+        }
+        city.state = 'loading';
+        fetch(base + 'day-city.mp3')
+            .then((r) => {
+                if (!r.ok) throw new Error('day-city.mp3 ' + r.status);
+                return r.arrayBuffer();
+            })
+            .then((data) => ctx.decodeAudioData(data))
+            .then((buf) => {
+                const rate = buf.sampleRate;
+                const len = buf.length;
+                const lap = Math.min(Math.round(rate * 1.5), Math.floor(len / 3));
+                const n = len - lap;
+                const out = ctx.createBuffer(buf.numberOfChannels, n, rate);
+                let sum = 0;
+                for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+                    const src = buf.getChannelData(ch);
+                    const dst = out.getChannelData(ch);
+                    for (let i = 0; i < n; i++) dst[i] = src[i];
+                    for (let i = 0; i < lap; i++) {
+                        const t = i / lap;
+                        dst[i] = src[n + i] * Math.cos((t * Math.PI) / 2) + src[i] * Math.sin((t * Math.PI) / 2);
+                    }
+                    for (let i = 0; i < n; i++) sum += dst[i] * dst[i];
+                }
+                const node = ctx.createBufferSource();
+                node.buffer = out;
+                node.loop = true;
+                const gain = ctx.createGain();
+                gain.gain.value = 0;
+                node.connect(gain);
+                gain.connect(ctx.destination);
+                node.start();
+                city.gain = gain;
+                city.norm = CITY_TARGET / Math.sqrt(sum / (n * buf.numberOfChannels) || 1);
+                city.state = 'ready';
+                applyCity();
+            })
+            .catch(() => {
+                city.state = 'failed';
+            });
+    }
+    // The loudness now: the look's % by day while the lobby is drawn and nothing stopped it; else silence (faded over about a second).
+    function applyCity(): void {
+        const ctx = city.ctx;
+        const want =
+            look.city > 0 && !broken && !passBroken && passScene !== null && performance.now() - lobbyTickAt < 1000;
+        if (want && ctx === null && city.state === 'none' && unlocked) {
+            try {
+                const made = new AudioContext();
+                city.ctx = made;
+                loadCity(made);
+            } catch {
+                city.state = 'failed';
+            }
+            return;
+        }
+        if (ctx === null || city.gain === null) return;
+        if (want && ctx.state === 'suspended') ctx.resume().catch(() => {});
+        city.gain.gain.setTargetAtTime(want ? (look.city / 100) * city.norm * (1 - nightAmount()) : 0, ctx.currentTime, 0.8);
+    }
+    let unlocked = false;
+    if (look.city > 0) {
+        const unlock = (): void => {
+            unlocked = true;
+            window.removeEventListener('pointerdown', unlock, true);
+            window.removeEventListener('keydown', unlock, true);
+            applyCity();
+        };
+        window.addEventListener('pointerdown', unlock, true);
+        window.addEventListener('keydown', unlock, true);
+        window.setInterval(applyCity, 500);
+    }
+
     // One frame of the pass (the probe's buildFrame, the groups of the day normal look).
     function buildFrame(vp: Float32Array, pos: KaspLobbyVector, ps: PassScene): KaspLobbyPassFrame {
         const L = look;
@@ -747,6 +1004,8 @@
         const hor = mix1(st.hor, s);
         const zen = mix1(st.zen, s);
         const night = nightAmount();
+        const outLight = [0, 1, 2].map((i) => (hor[i] * 2 + zen[i]) / 3); // how lit the outside is, for colours drawn over it
+        const lightOf = (c: readonly number[], m: number): number[] => c.map((x, i) => x * Math.max(m, outLight[i]));
         // the floor into the road: the day numbers by day, the night numbers at night
         const rd: RoadNumbers = L.road;
         const rn = L.roadN;
@@ -792,6 +1051,33 @@
                 night > 0.01 && std !== null && std.lamps.length > 0 && L.night.lamps > 0
                     ? { list: std.lamps, power: night * L.night.lamps, reach: 420 * L.night.reach, glow: night * L.night.glow, color: fromHex(L.night.color) }
                     : null,
+            ndx:
+                night < 0.99 && (L.clouds !== null || L.leaves !== null)
+                    ? {
+                          clouds:
+                              L.clouds !== null
+                                  ? {
+                                        amount: L.clouds.amount * (1 - night),
+                                        cover: L.clouds.cover,
+                                        size: L.clouds.size,
+                                        speed: L.clouds.speed,
+                                        color: lightOf([1, 1, 1], 0.4),
+                                        shade: lightOf([0.62, 0.68, 0.78], 0.4),
+                                    }
+                                  : null,
+                          leaves:
+                              L.leaves !== null && L.leaves.count > 0
+                                  ? {
+                                        ...leavesStep(performance.now(), box, L.leaves),
+                                        size: L.leaves.size,
+                                        ground: box.groundZ + 3,
+                                        floor: (box.floorZ || 0) + 2,
+                                        light: lightOf([1, 1, 1], 0.4),
+                                        sun: sunDirection(hour, box, L.time.sunSide),
+                                    }
+                                  : null,
+                      }
+                    : null,
             atmos: atmosOn
                 ? {
                       stars: st.stars * s,
@@ -815,7 +1101,7 @@
         const s = scene;
         const ps = passScene;
         const api = window.__kaspLobbyPass;
-        if (n === null || n.pass === undefined || s === null || ps === null || api === undefined || passBroken || tripped || broken) return;
+        if (n === null || n.pass === undefined || s === null || ps === null || api === undefined || passBroken || broken) return;
         if (performance.now() - lobbyTickAt > LOBBY_TICK_MS) return;
         const p = n.pass;
         try {
@@ -1392,7 +1678,7 @@
         const d = n === null ? undefined : n.drone;
         const s = scene;
         const f = flight;
-        if (n === null || d === undefined || s === null || f === null || tripped || broken || droneBroken || !isBag(system)) return;
+        if (n === null || d === undefined || s === null || f === null || broken || droneBroken || !isBag(system)) return;
         try {
             const place = readVector(bag(system, d.place), n);
             if (Math.hypot(place.x - f.pos.x, place.y - f.pos.y, place.z - f.pos.z) > DRONE_NEAR) return;
@@ -1411,19 +1697,13 @@
     // Called by hangar_files.ts as soon as the game has asked for its hangar (during the loading screen): the hangar model and the
     // night pictures are read then, so they are ready when the lobby first shows (they were started by the first lobby picture).
     function prepare(): void {
-        if (names === null || names.pass === undefined || passBroken || tripped) return;
+        if (names === null || names.pass === undefined || passBroken) return;
         ensureStandard();
     }
 
     function start(found: KaspLobbyNames): void {
         if (names !== null) return;
         names = Object.freeze({ ...found, shadowFields: Object.freeze([...found.shadowFields]) });
-        // A new page is a new start: the guard's note is only about this page.
-        try {
-            sessionStorage.removeItem(GUARD_KEY);
-        } catch {
-            // nothing to clear
-        }
         window.addEventListener(
             'mousemove',
             (event) => {
@@ -1460,10 +1740,10 @@
                 hangarModel: standard !== null ? 'ready' : standardState,
                 look: Object.keys(LOOKS).find((k) => LOOKS[k] === look) ?? 'day-normal',
                 nightPictures: nightPics !== null ? `ready in ${nightMs} ms` : nightState,
+                citySound: city.state,
+                cityLevel: city.gain === null ? 0 : city.gain.gain.value,
+                cityNorm: city.norm,
             });
-        },
-        get guard() {
-            return tripped;
         },
     };
 })();

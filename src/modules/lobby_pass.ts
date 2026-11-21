@@ -147,6 +147,83 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
         texture: string | null;
         opacityMap: string | null;
     }
+    // 26f3: the normal day's extras (the probe's CLOUDX_FS, LEAF_VS, LEAF_FS, as text)
+    const CLOUDX_FS = `#version 300 es
+${DEPTH_GLSL}
+uniform float uTime,uAmt,uCover,uSize,uSpeed,uSkyZ,uSkyNear,uSkyLow,uHasPic;uniform vec3 uCol,uShade;uniform sampler2D uPic;out vec4 o;
+void main(){
+ Px x=look();
+ bool sky=x.outside&&(x.d>=.99999||x.p.z>uSkyZ||(dot(x.p.xy,uOut)>uSkyNear-60.&&x.p.z>uSkyLow));
+ float blue=1.;
+ if(!sky&&uHasPic>.5&&x.outside&&x.dir.z>-.03&&dot(x.p.xy,uOut)>uWall+3000.){
+  vec3 c=texelFetch(uPic,ivec2(gl_FragCoord.xy),0).rgb;
+  blue=smoothstep(.04,.14,c.b-c.r)*smoothstep(.45,.6,c.b)*step(c.g,c.b+.02);
+  sky=blue>.01;}
+ if(!sky)discard;
+ vec2 q=x.dir.xy/(max(x.dir.z,0.)+.25)*uSize*.9+vec2(uTime*uSpeed*.015,0.);
+ float n=noise3(vec3(q*1.3,0.))*.55+noise3(vec3(q*2.9,5.))*.3+noise3(vec3(q*6.5,2.))*.15;
+ float c=smoothstep(1.-uCover-.06,1.-uCover+.16,n);
+ float a=c*uAmt*blue;
+ if(a<.004)discard;
+ vec3 col=mix(uShade,uCol,smoothstep(.4,.9,n));
+ o=vec4(col*a,a);}`;
+    const LEAF_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec3 uCam;uniform vec4 uP[64],uA[64],uB[64];uniform float uSize,uGround,uFloor,uWall;uniform vec2 uOut;uniform int uMode;
+out vec2 vQ;out vec3 vN;out float vType;out float vHue;out float vH;out float vDist;
+void main(){
+ int i=gl_InstanceID;vec4 P=uP[i],A=uA[i],B=uB[i];
+ int row=gl_VertexID>>1,col=gl_VertexID&1;
+ vec2 q=vec2(float(row)*.5-1.,float(col)*2.-1.);vQ=q;
+ float s=P.w*uSize*9.;vec3 a=A.xyz,b=B.xyz,n=normalize(cross(a,b));
+ float gz=dot(P.xy,uOut)<uWall?uFloor:uGround;
+ vType=A.w;vHue=B.w;vH=P.z-gz;
+ if(uMode==1){
+  vec3 af=vec3(a.xy,0.),bf=vec3(b.xy,0.);
+  float la=max(length(af),.3),lb=max(length(bf),.3);
+  af=normalize(af+vec3(1e-4,0.,0.))*la;bf=normalize(bf+vec3(0.,1e-4,0.))*lb;
+  vec3 p=vec3(P.xy,gz+.8)+(af*q.x+bf*q.y)*s*.95;
+  vDist=distance(uCam,p);vN=vec3(0.,0.,1.);gl_Position=uVP*vec4(p,1.);return;}
+ float curl=(q.y*q.y*.22+q.x*q.x*.06)*s;
+ vec3 p=P.xyz+(a*q.x+b*q.y)*s+n*curl+vec3(0.,0.,s*.1+1.5);
+ vN=n;vDist=distance(uCam,p);gl_Position=uVP*vec4(p,1.);}`;
+    const LEAF_FS = `#version 300 es
+precision highp float;precision highp int;
+uniform vec3 uLight,uSun;uniform int uMode;
+in vec2 vQ;in vec3 vN;in float vType;in float vHue;in float vH;in float vDist;out vec4 o;
+float hh(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hh(i),hh(i+vec2(1.,0.)),f.x),mix(hh(i+vec2(0.,1.)),hh(i+1.),f.x),f.y);}
+float shape(vec2 q,int ty){
+ float u=q.x,v=q.y;
+ if(ty==2){vec2 p=vec2(u+.25,v);float r=length(p),th=atan(p.y,p.x);
+  float R=.78*(.38+.62*pow(abs(cos(th*2.5)),1.6))*(1.-.25*smoothstep(2.3,3.1,abs(th)));
+  return (R-r)*1.2;}
+ float t=(u+.8)/1.75;if(t<0.||t>1.)return -1.;
+ float w;
+ if(ty==1){w=1.15*pow(t,.45)*pow(1.-t,.55);w*=.5+.5*pow(abs(sin(t*3.1416*4.5+.35)),.6);}
+ else{w=1.25*pow(t,.55)*pow(1.-t,.85);w*=1.-.08*pow(abs(sin(t*48.)),3.);}
+ return w*.95-abs(v);}
+void main(){
+ int ty=int(vType+.5);
+ float d=shape(vQ,ty);
+ float aw=fwidth(d)*1.2+1e-4;
+ float stem=(1.-smoothstep(.025,.05,abs(vQ.y)))*step(vQ.x,-.62)*step(-1.,vQ.x)*(ty==2?step(vQ.x,-.85):1.);
+ float a=max(smoothstep(0.,aw,d),stem);
+ if(uMode==1){float sh=smoothstep(-.15,.25,d)*.2*exp(-max(vH,0.)/70.);if(sh<.01)discard;o=vec4(0.,0.,0.,sh);return;}
+ if(a<.02)discard;
+ vec3 c=vHue<.25?vec3(.55,.33,.13):vHue<.5?vec3(.86,.58,.18):vHue<.72?vec3(.82,.33,.09):vHue<.9?vec3(.95,.77,.25):vec3(.56,.62,.2);
+ c*=.82+.36*vn(vQ*vec2(6.,9.)+vHue*40.);
+ c*=mix(.68,1.,smoothstep(0.,.12,d));
+ float rib=1.-smoothstep(.015,.035,abs(vQ.y));
+ if(ty!=2){c=mix(c,c*1.22+.03,rib*step(-.8,vQ.x));
+  float vv=abs(fract((vQ.x-abs(vQ.y)*1.1)*4.)-.5);c*=mix(.86,1.,smoothstep(0.,.08,vv));}
+ else{vec2 pm=vec2(vQ.x+.25,vQ.y);float th=atan(pm.y,pm.x);float rv=abs(fract(th*2.5/3.1416+.5)-.5);c*=mix(.85,1.,smoothstep(0.,.05,rv*length(pm)));}
+ if(!gl_FrontFacing)c=mix(c,vec3(dot(c,vec3(.33))),.35)*1.12;
+ c=mix(c,vec3(.25,.18,.1),stem*(1.-smoothstep(0.,aw,d)));
+ float lit=.5+.5*abs(dot(normalize(vN),normalize(uSun)));
+ c*=uLight*lit;
+ a*=1.-.4*smoothstep(4000.,9000.,vDist);
+ o=vec4(c*a,a);}`;
     interface Model {
         readonly objects: ModelObject[];
         readonly materials: Record<string, Material>;
@@ -654,6 +731,8 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
         ]);
         const lampProg = program(FULL_VS, LAMP_FS, [...DEPTH_U, 'uLamp', 'uN', 'uMode', 'uPower', 'uReach', 'uGlow', 'uCol', 'uVP']);
         const lampArray = new Float32Array(24);
+        const cloudxProg = program(FULL_VS, CLOUDX_FS, [...DEPTH_U, 'uTime', 'uAmt', 'uCover', 'uSize', 'uSpeed', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uCol', 'uShade', 'uPic', 'uHasPic']);
+        const leafProg = program(LEAF_VS, LEAF_FS, ['uVP', 'uCam', 'uP', 'uA', 'uB', 'uSize', 'uGround', 'uFloor', 'uWall', 'uOut', 'uMode', 'uLight', 'uSun']);
         const PIECE_ATTRIBS: ReadonlyArray<readonly [number, string]> = [[0, 'aP'], [1, 'aT']];
         const meshProg = program(MESH_VS, MESH_FS, ['uVP', 'uOff', 'uTex', 'uMode', 'uBright', 'uAmt', 'uAlpha', 'uXr', 'uXs', 'uXt'], PIECE_ATTRIBS);
         const mixProg = program(MIX_VS, MIX_FS, ['uVP', 'uOff', 'uMap', 'uOut', 'uLat', 'uWall', 'uDepth', 'uAmt', 'uBox', 'uTint', 'uTintIn', 'uTone', 'uLim', 'uOutR', 'uFade', 'uInside'], PIECE_ATTRIBS);
@@ -986,6 +1065,54 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
             return !depthBroken;
         }
 
+        // A copy of the picture drawn so far (the probe's copyColour), for the clouds' sky test by colour; false when it cannot be made.
+        let colTex: WebGLTexture | null = null;
+        let colFbo: WebGLFramebuffer | null = null;
+        let cW = 0;
+        let cH = 0;
+        let colReady = false;
+        let colChecked = false;
+        let colBroken = false;
+        function copyColour(W: number, H: number): boolean {
+            if (colBroken) return false;
+            if (colTex === null || cW !== W || cH !== H) {
+                if (colTex !== null) gl.deleteTexture(colTex);
+                if (colFbo !== null) gl.deleteFramebuffer(colFbo);
+                colTex = makeTexture();
+                colFbo = gl.createFramebuffer();
+                cW = W;
+                cH = H;
+                gl.activeTexture(gl.TEXTURE0 + PANO);
+                gl.bindTexture(gl.TEXTURE_2D, colTex);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                // a multisampled canvas can only be copied into the same pixel format: RGB8 when the canvas has no alpha
+                const attrs = gl.getContextAttributes();
+                gl.texStorage2D(gl.TEXTURE_2D, 1, attrs !== null && attrs.alpha === false ? gl.RGB8 : gl.RGBA8, W, H);
+                gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, colFbo);
+                gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colTex, 0);
+                colReady = gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+                gl.activeTexture(gl.TEXTURE0 + UNIT);
+            }
+            if (!colReady) {
+                colBroken = true;
+                gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+                return false;
+            }
+            if (!colChecked) for (let i = 0; i < 8 && gl.getError(); i++);
+            gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, colFbo);
+            gl.blitFramebuffer(0, 0, W, H, 0, 0, W, H, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+            if (!colChecked) {
+                colChecked = true;
+                if (gl.getError()) colBroken = true;
+            }
+            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+            return !colBroken;
+        }
+
         function draw(f: KaspLobbyPassFrame): void {
             if (gl.isContextLost()) return;
             if (!invert4(f.vp, inv)) return;
@@ -997,7 +1124,7 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
                 gl.viewport(0, 0, W, H);
                 const A = f.atmos;
                 // (0a to 0c: the seasonal outside, the night, the grey sky; with their looks)
-                const needDepth = !!(f.grade || A || f.lamps);
+                const needDepth = !!(f.ndx || f.grade || A || f.lamps);
                 const depthOk = needDepth && st.draw === null && !depthBroken && copyDepth(W, H);
                 gl.colorMask(true, true, true, false);
                 gl.depthMask(false);
@@ -1147,6 +1274,72 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
                     gl.uniform1f(uni(atmos, 'uCoverThick'), A.coverThick);
                     gl.drawArrays(gl.TRIANGLES, 0, 3);
                 }
+                // 2a3a. the normal day's extras: the white clouds (laid over the sky), then the leaves (hidden by the game's depth)
+                if (depthOk && f.ndx) {
+                    const NX = f.ndx;
+                    if (NX.clouds) {
+                        const C = NX.clouds;
+                        const hasPic = st.draw === null && copyColour(W, H);
+                        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, st.draw);
+                        gl.viewport(0, 0, W, H);
+                        gl.bindVertexArray(vao);
+                        gl.useProgram(cloudxProg.p);
+                        depthUniforms(cloudxProg, f, W, H);
+                        gl.activeTexture(gl.TEXTURE0 + PANO);
+                        gl.bindTexture(gl.TEXTURE_2D, hasPic ? colTex : null);
+                        gl.bindSampler(PANO, null);
+                        gl.uniform1i(uni(cloudxProg, 'uPic'), PANO);
+                        gl.uniform1f(uni(cloudxProg, 'uHasPic'), hasPic ? 1 : 0);
+                        gl.activeTexture(gl.TEXTURE0 + UNIT);
+                        gl.bindTexture(gl.TEXTURE_2D, depthTex);
+                        gl.uniform1f(uni(cloudxProg, 'uTime'), f.time);
+                        gl.uniform1f(uni(cloudxProg, 'uAmt'), C.amount);
+                        gl.uniform1f(uni(cloudxProg, 'uCover'), C.cover);
+                        gl.uniform1f(uni(cloudxProg, 'uSize'), C.size);
+                        gl.uniform1f(uni(cloudxProg, 'uSpeed'), C.speed);
+                        gl.uniform1f(uni(cloudxProg, 'uSkyZ'), f.box.skyZ);
+                        gl.uniform1f(uni(cloudxProg, 'uSkyNear'), f.box.skyNear);
+                        gl.uniform1f(uni(cloudxProg, 'uSkyLow'), f.box.skyLow);
+                        gl.uniform3fv(uni(cloudxProg, 'uCol'), C.color);
+                        gl.uniform3fv(uni(cloudxProg, 'uShade'), C.shade);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                        gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    }
+                    if (NX.leaves && st.draw === null && NX.leaves.n > 0) {
+                        const L = NX.leaves;
+                        gl.enable(gl.DEPTH_TEST);
+                        gl.depthFunc(gl.LEQUAL);
+                        gl.depthMask(false);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                        gl.useProgram(leafProg.p);
+                        gl.uniformMatrix4fv(uni(leafProg, 'uVP'), false, f.vp);
+                        gl.uniform3fv(uni(leafProg, 'uCam'), f.cam);
+                        gl.uniform4fv(uni(leafProg, 'uP'), L.P);
+                        gl.uniform4fv(uni(leafProg, 'uA'), L.A);
+                        gl.uniform4fv(uni(leafProg, 'uB'), L.B);
+                        gl.uniform1f(uni(leafProg, 'uSize'), L.size);
+                        gl.uniform1f(uni(leafProg, 'uGround'), L.ground);
+                        gl.uniform1f(uni(leafProg, 'uFloor'), L.floor);
+                        gl.uniform1f(uni(leafProg, 'uWall'), f.box.wall);
+                        gl.uniform2f(uni(leafProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                        gl.uniform3fv(uni(leafProg, 'uLight'), L.light);
+                        gl.uniform3fv(uni(leafProg, 'uSun'), L.sun);
+                        // the shadows on the street first, then the leaves
+                        gl.uniform1i(uni(leafProg, 'uMode'), 1);
+                        gl.enable(gl.POLYGON_OFFSET_FILL);
+                        gl.polygonOffset(-1, -4);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 10, L.n);
+                        gl.disable(gl.POLYGON_OFFSET_FILL);
+                        gl.uniform1i(uni(leafProg, 'uMode'), 0);
+                        gl.enable(gl.POLYGON_OFFSET_FILL);
+                        gl.polygonOffset(-1, -8);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 10, L.n);
+                        gl.disable(gl.POLYGON_OFFSET_FILL);
+                        gl.disable(gl.DEPTH_TEST);
+                        gl.bindVertexArray(vao);
+                    }
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                }
                 // (2a to 4: the extras, the bolt, the splashes, the falling things; with their looks)
             } finally {
                 restore(st);
@@ -1159,6 +1352,8 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
             gl.deleteVertexArray(vao);
             if (depthTex !== null) gl.deleteTexture(depthTex);
             if (depthFbo !== null) gl.deleteFramebuffer(depthFbo);
+            if (colTex !== null) gl.deleteTexture(colTex);
+            if (colFbo !== null) gl.deleteFramebuffer(colFbo);
             for (const list of pieceCache.values()) for (const p of list) gl.deleteVertexArray(p.vao);
             if (sheet !== null) gl.deleteVertexArray(sheet);
             for (const b of pieceBufs) gl.deleteBuffer(b);

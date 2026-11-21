@@ -450,6 +450,8 @@ interface KaspLobbyBox {
     readonly skyNear: number;
     readonly skyLow: number;
     readonly floorZ: number;
+    // the town's reach sideways (along l), for the leaves (26f3)
+    readonly u: readonly [number, number];
 }
 
 // Stage 1a: the hangar floor drawn again with the outside's ground mirrored in through the door line.
@@ -509,6 +511,14 @@ interface KaspLobbyPassFrame {
     readonly desun: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
     // Stage 1c (26f2): the ring lamps' light.
     readonly lamps: { readonly list: ReadonlyArray<readonly number[]>; readonly power: number; readonly reach: number; readonly glow: number; readonly color: readonly number[] } | null;
+    // Stage 2a3a (26f3): the normal day's extras, the white clouds over the sky and the leaves in the street; null at night.
+    readonly ndx: KaspLobbyDayExtras | null;
+}
+
+interface KaspLobbyDayExtras {
+    readonly clouds: { readonly amount: number; readonly cover: number; readonly size: number; readonly speed: number; readonly color: readonly number[]; readonly shade: readonly number[] } | null;
+    // n leaves; P = place and size, A = length axis and kind, B = width axis and hue (4 numbers each, 64 slots)
+    readonly leaves: { readonly n: number; readonly P: Float32Array; readonly A: Float32Array; readonly B: Float32Array; readonly size: number; readonly ground: number; readonly floor: number; readonly light: readonly number[]; readonly sun: readonly number[] } | null;
 }
 
 // One pass per GL context; draw throws when a stage breaks (the game's GL state is put back first).
@@ -546,7 +556,6 @@ interface KaspLobby {
     readonly frames: number;
     readonly game: KaspLobbyRecord | null;
     readonly state: Readonly<Record<string, unknown>>;
-    readonly guard: boolean;
 }
 
 interface Window {
