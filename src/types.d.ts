@@ -427,12 +427,16 @@ interface KaspLobbyAsset {
     readonly pics: ReadonlyMap<string, ImageBitmap>;
     readonly back?: number;
     readonly fwd?: number;
+    // The night factor pictures by picture name (26f2), once made.
+    readonly nightPics?: ReadonlyMap<string, ImageBitmap>;
 }
 
 // The game's own hangar: its room and floor, and the road's flat ground just outside the door.
 interface KaspLobbyStandard {
     readonly std: KaspLobbyAsset;
     readonly ground: KaspLobbyAsset;
+    // A point just under each ring lamp's lens (26f2).
+    readonly lamps: ReadonlyArray<readonly number[]>;
 }
 
 // The street side of the hangar: o = outward from the door, l = sideways, wall = the door line along o, the ground, the top of the
@@ -501,6 +505,10 @@ interface KaspLobbyPassFrame {
     readonly grade: { readonly inn: readonly number[]; readonly hor: readonly number[]; readonly zen: readonly number[] } | null;
     readonly atmos: KaspLobbyAtmos | null;
     readonly floorMix: KaspLobbyFloorMix | null;
+    // Stage 0b (26f2): the hangar's walls and floor multiplied by their night factor pictures.
+    readonly desun: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
+    // Stage 1c (26f2): the ring lamps' light.
+    readonly lamps: { readonly list: ReadonlyArray<readonly number[]>; readonly power: number; readonly reach: number; readonly glow: number; readonly color: readonly number[] } | null;
 }
 
 // One pass per GL context; draw throws when a stage breaks (the game's GL state is put back first).
@@ -512,6 +520,17 @@ interface KaspLobbyGpu {
 interface KaspLobbyPassApi {
     readonly make: (gl: WebGL2RenderingContext) => KaspLobbyGpu;
     readonly loadStandard: (folder: string) => Promise<KaspLobbyStandard>;
+    readonly nightPictures: (asset: KaspLobbyAsset) => Promise<ReadonlyMap<string, ImageBitmap>>;
+}
+
+// MAIN world, defined by src/modules/hangar_files.ts (26e): its two floor steps, used by lobby_pass.ts for the night floor (26f2).
+interface KaspHangarPictures {
+    readonly removeSun: (px: Uint8ClampedArray, W: number, H: number) => void;
+    readonly flattenPicture: (px: Uint8ClampedArray, W: number, H: number) => void;
+    // The saved store of made files: the saved one for name, or make it and save it (null = could not be made).
+    readonly saved: (name: string, make: () => Promise<Blob | null>) => Promise<Blob | null>;
+    // Whether the floor picture the game gets is the cleaned one (the look's choice).
+    readonly floorCleaned: boolean;
 }
 
 // MAIN world, defined by src/modules/lobby.ts (build-plan 26a). The injector calls start once its lobby edit went in; the game's
@@ -519,6 +538,8 @@ interface KaspLobbyPassApi {
 interface KaspLobby {
     readonly start: (names: KaspLobbyNames) => void;
     readonly frame: (system: unknown) => void;
+    // Called by hangar_files.ts once the game has asked for its hangar (26f2): the model and the night pictures are read at once.
+    readonly prepare: () => void;
     // Called by the game's drone system as the last thing of its own update (26c).
     readonly drone: (system: unknown) => void;
     // Read-only, for the owner's console checks.
@@ -531,6 +552,7 @@ interface KaspLobby {
 interface Window {
     __kaspLobby?: KaspLobby;
     __kaspLobbyPass?: KaspLobbyPassApi;
+    __kaspHangarPictures?: KaspHangarPictures;
     __kaspShowroom?: KaspShowroom;
     __kaspShowroomParts?: KaspShowroomParts;
     __kaspSendAction?: (className: string, obj: unknown) => void;

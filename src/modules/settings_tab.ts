@@ -118,6 +118,8 @@
         // The value shown when nothing is saved; choosing it removes the key.
         fallback: string;
         options: readonly ChoiceOption[];
+        // Read once when the game starts: a change applies at the next start (the game reloads when the settings close).
+        atStart?: true;
     }
 
     // Google's codes for the languages chat can be translated to, each named in its own language, as the game names its own, with
@@ -171,6 +173,19 @@
                 { value: 'studio', label: { EN: 'Studio', RU: 'Студия' } },
                 { value: 'showroom', label: { EN: 'Showroom', RU: 'Витрина' } },
                 { value: 'stage', label: { EN: 'Stage (moving light)', RU: 'Сцена (движущийся свет)' } },
+            ],
+        },
+        // The lobby's look (build-plan 26f), read by lobby.ts and hangar_files.ts when the game starts; only the owner's final looks,
+        // each added by its own part (the values are 26e's list, also written in those two files). Change them together.
+        {
+            key: 'kasp_lobby_look',
+            after: 'kasp_lobby',
+            title: { EN: 'Lobby look', RU: 'Вид лобби' },
+            fallback: 'day-normal',
+            atStart: true,
+            options: [
+                { value: 'day-normal', label: { EN: 'Day', RU: 'День' } },
+                { value: 'night-normal', label: { EN: 'Night', RU: 'Ночь' } },
             ],
         },
     ];
@@ -281,7 +296,11 @@
 
     // True when closing settings will reload: a reload switch, or the game colour, differs from how it was at start, so flipping
     // one off and on again waits for nothing.
+    // The dropdowns read when the game starts, as they were then.
+    const choicesAtStart = new Map(CHOICES.filter((entry) => entry.atStart === true).map((entry) => [entry.key, window.kaspSwitches?.getChoice(entry.key) ?? null]));
+
     function reloadWaiting(): boolean {
+        for (const [key, value] of choicesAtStart) if ((window.kaspSwitches?.getChoice(key) ?? null) !== value) return true;
         for (const [key, on] of atStart) if (isOn(key) !== on) return true;
         for (const [key, value] of picturesAtStart) if ((window.kaspSwitches?.getChoice(key) ?? null) !== value) return true;
         return (window.kaspSwitches?.getChoice(THEME_KEY) ?? null) !== themeAtStart;
@@ -380,7 +399,7 @@
     // A dropdown drawn like the game's own (its Language choice on the Game tab, measured 2026-11-08): the title, then a box with
     // the chosen value and an arrow. A click on the box opens the list under it; a click on a value saves it and closes the list;
     // a click anywhere else, or Escape, closes it.
-    function makeChoice(entry: ChoiceEntry, language: KaspLanguageCode): Choice {
+    function makeChoice(entry: ChoiceEntry, language: KaspLanguageCode, changed: () => void): Choice {
         const node = element('div', 'kasp-choice');
         const dropdown = element('div', 'kasp-dropdown');
         const control = element('div', 'kasp-dropdown-control');
@@ -435,6 +454,7 @@
                 // The fallback is saved as no key, so it stays the default if the default ever changes.
                 if (!(window.kaspSwitches?.setChoice(entry.key, option.value === entry.fallback ? null : option.value) ?? false)) return;
                 refresh();
+                changed();
                 close();
                 control.focus();
             });
@@ -659,7 +679,7 @@
                 }
                 for (const choiceEntry of CHOICES) {
                     if (choiceEntry.after !== entry.key) continue;
-                    const choice = makeChoice(choiceEntry, language);
+                    const choice = makeChoice(choiceEntry, language, refreshNotice);
                     choices.push([choiceEntry, choice]);
                     section.appendChild(choice.node);
                     form = null;

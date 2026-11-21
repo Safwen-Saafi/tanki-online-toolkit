@@ -364,22 +364,67 @@
         }
     }
 
-    // ---- the picture pass and the day normal look (26f1), ported from the probe (v1.87) ----
+    // ---- the picture pass and the looks (26f1 day normal, 26f2 night normal), ported from the probe (v1.87) ----
     // After the game has drawn its lobby picture, our pass (lobby_pass.ts) draws over it with the game's own depth. The game draws the
     // whole picture in one call of its renderer; that call is wrapped on the lobby's renderer object only (never the class: other
     // renderers are untouched), and the pass runs right after the game's own picture, only for the lobby world's camera and only in a
     // tick where the lobby's own frame came through. The look is the owner's final "day normal" (report of 2026-11-20 14:13) without
     // its three extras: the time of day at 13:00 (the hangar's key and fill light from the hour table, its colours over the picture),
-    // the doorway blend, the hangar floor carried into the road outside, and the lamp halo (transp1) hidden.
-    const DAY_NORMAL = {
+    // the doorway blend, the hangar floor carried into the road outside, and the lamp halo (transp1) hidden. The night is the owner's
+    // final "night normal" (report of 2026-11-20 15:21) without its extras: 23:00, the hangar's painted sunlight taken out of its walls
+    // and floor (stage 0b, clean walls), the ring lamps lighting the tank and the floor (stage 1c) with the key light turned down from
+    // them, the stars and the moon, the night floor into the road, the sunbeams and halo hidden. Each look is the probe's preset in its
+    // group shape (merged over the probe's defaults); the player picks one in the settings (kasp_lobby_look, read at start).
+    interface RoadNumbers {
+        readonly amount: number;
+        readonly reach: number;
+        readonly line: number;
+        readonly x0: number;
+        readonly x1: number;
+        readonly feather: number;
+        readonly out: number;
+        readonly bright: number;
+        readonly tone: number;
+        readonly fade: number;
+        readonly inside: number;
+    }
+    interface LobbyLook {
+        readonly time: { readonly hour: number; readonly strength: number; readonly inside: number; readonly sunSide: number };
+        readonly door: number;
+        readonly night: { readonly lamps: number; readonly reach: number; readonly glow: number; readonly sunOff: number; readonly fixtures: number; readonly keyDown: number; readonly color: string };
+        // the probe's "clean walls" (the painted sunlight taken out by day too); 0 = off
+        readonly cleanWall: number;
+        readonly road: RoadNumbers;
+        readonly roadN: RoadNumbers;
+        readonly hidden: readonly string[];
+    }
+    const DAY_NORMAL: LobbyLook = {
         time: { hour: 13, strength: 1, inside: 0.7, sunSide: 0 },
         door: 1,
         night: { lamps: 0.35, reach: 0.85, glow: 0, sunOff: 1, fixtures: 1, keyDown: 1, color: '#fff3e0' },
+        cleanWall: 0,
         road: { amount: 0.55, reach: 1175, line: 0, x0: -860, x1: 700, feather: 160, out: 45, bright: 1, tone: 0, fade: 0, inside: 1 },
         roadN: { amount: 1.5, reach: 1650, line: 700, x0: -1110, x1: 780, feather: 360, out: 0, bright: 1.15, tone: 0.1, fade: 1500, inside: 1 },
         hidden: ['transp1'],
-    } as const;
-    type RoadNumbers = (typeof DAY_NORMAL)['road'];
+    };
+    const NIGHT_NORMAL: LobbyLook = {
+        ...DAY_NORMAL,
+        time: { hour: 23, strength: 1, inside: 0.7, sunSide: 0 },
+        night: { lamps: 0.95, reach: 0.75, glow: 0, sunOff: 1, fixtures: 0, keyDown: 0.55, color: '#f9ec9a' },
+        cleanWall: 1,
+        hidden: ['light0', 'light1', 'light2', 'transp1', 'transp2'],
+    };
+    // The looks built so far (the settings tab's list and hangar_files.ts use the same values); any other value is the day.
+    const LOOKS: Readonly<Record<string, LobbyLook>> = { 'day-normal': DAY_NORMAL, 'night-normal': NIGHT_NORMAL };
+    const look: LobbyLook = (() => {
+        try {
+            return LOOKS[localStorage.getItem('kasp_lobby_look') ?? ''] ?? DAY_NORMAL;
+        } catch {
+            return DAY_NORMAL;
+        }
+    })();
+    // How dark it is at the look's hour (0 by day, 1 at night): the hangar's painted sunbeams left, turned round.
+    const nightAmount = (): number => Math.max(0, Math.min(1, 1 - timeState(look.time.hour).beams));
 
     // The time of day: a colour table by hour, read between its rows (the probe's DAY_TABLE). inn = the hangar's colour, hor / zen =
     // the outside's colour at the horizon / looking up (all multiply the game's daytime picture), key / keyS = the sun (or moon) light
@@ -556,7 +601,7 @@
                 const at = readVector(bag(room.node, p.position), n);
                 offset = [at.x, at.y, at.z];
             }
-            const hidden = parts.filter((q) => (DAY_NORMAL.hidden as readonly string[]).includes(q.name));
+            const hidden = parts.filter((q) => look.hidden.includes(q.name));
             for (const part of hidden) invoke(part.node, p.setShown, [false]);
             passScene = { parts, box: streetBox(parts, n, p), offset, hidden };
             wrapFrame(s.renderer, p);
@@ -615,6 +660,31 @@
         gpu = null;
     }
 
+    // The night factor pictures (26f2), made once in the page after the hangar model is read, only for a look that uses them.
+    let nightPics: ReadonlyMap<string, ImageBitmap> | null = null;
+    let nightState: 'none' | 'making' | 'failed' = 'none';
+    let nightAsset: KaspLobbyAsset | null = null;
+    let nightMs = 0;
+    function nightAssetOf(std: KaspLobbyStandard): KaspLobbyAsset | null {
+        if (nightAsset !== null) return nightAsset;
+        const api = window.__kaspLobbyPass;
+        const wanted = look.cleanWall > 0 || (nightAmount() > 0.01 && look.night.sunOff > 0);
+        if (!wanted || api === undefined || nightState !== 'none') return null;
+        nightState = 'making';
+        const started = performance.now();
+        api.nightPictures(std.std).then(
+            (made) => {
+                nightPics = made;
+                nightMs = Math.round(performance.now() - started);
+                nightAsset = { ...std.std, nightPics: made };
+            },
+            () => {
+                nightState = 'failed';
+            },
+        );
+        return null;
+    }
+
     // The game's own hangar model read once, as soon as hangar_files.ts has seen its folder.
     function ensureStandard(): void {
         if (standard !== null || standardState !== 'none') return;
@@ -626,6 +696,8 @@
             (got) => {
                 standard = got;
                 standardState = 'none';
+                // the night pictures at once (from the saved store after the first start), not at the next lobby frame
+                nightAssetOf(got);
             },
             () => {
                 standardState = 'failed';
@@ -638,7 +710,7 @@
     function writeTimeLights(s: Scene, n: KaspLobbyNames): boolean {
         const ps = passScene;
         if (ps === null || passBroken) return false;
-        const L = DAY_NORMAL;
+        const L = look;
         const st = timeState(L.time.hour);
         const d = sunDirection(L.time.hour, ps.box, L.time.sunSide);
         const el = Math.max(10 * DEG, Math.asin(Math.max(-1, Math.min(1, d[2]))));
@@ -665,7 +737,7 @@
 
     // One frame of the pass (the probe's buildFrame, the groups of the day normal look).
     function buildFrame(vp: Float32Array, pos: KaspLobbyVector, ps: PassScene): KaspLobbyPassFrame {
-        const L = DAY_NORMAL;
+        const L = look;
         const box = ps.box;
         const mix1 = (v: readonly number[], k: number): number[] => v.map((x) => lerp(1, x, k));
         const hour = L.time.hour;
@@ -674,7 +746,7 @@
         const inn = mix1(st.inn, s * L.time.inside);
         const hor = mix1(st.hor, s);
         const zen = mix1(st.zen, s);
-        const night = Math.max(0, Math.min(1, 1 - st.beams));
+        const night = nightAmount();
         // the floor into the road: the day numbers by day, the night numbers at night
         const rd: RoadNumbers = L.road;
         const rn = L.roadN;
@@ -686,6 +758,7 @@
         const door = Math.max(0.02, L.door);
         ensureStandard();
         const std = standard;
+        const nightAsset = std === null ? null : nightAssetOf(std);
         return {
             vp,
             cam: [pos.x, pos.y, pos.z],
@@ -711,6 +784,14 @@
                       }
                     : null,
             grade: graded ? { inn, hor, zen } : null,
+            desun:
+                ((night > 0.01 && L.night.sunOff > 0) || L.cleanWall > 0) && nightAsset !== null
+                    ? { asset: nightAsset, amount: Math.max(night * L.night.sunOff, L.cleanWall) }
+                    : null,
+            lamps:
+                night > 0.01 && std !== null && std.lamps.length > 0 && L.night.lamps > 0
+                    ? { list: std.lamps, power: night * L.night.lamps, reach: 420 * L.night.reach, glow: night * L.night.glow, color: fromHex(L.night.color) }
+                    : null,
             atmos: atmosOn
                 ? {
                       stars: st.stars * s,
@@ -1327,6 +1408,13 @@
         }
     }
 
+    // Called by hangar_files.ts as soon as the game has asked for its hangar (during the loading screen): the hangar model and the
+    // night pictures are read then, so they are ready when the lobby first shows (they were started by the first lobby picture).
+    function prepare(): void {
+        if (names === null || names.pass === undefined || passBroken || tripped) return;
+        ensureStandard();
+    }
+
     function start(found: KaspLobbyNames): void {
         if (names !== null) return;
         names = Object.freeze({ ...found, shadowFields: Object.freeze([...found.shadowFields]) });
@@ -1348,6 +1436,7 @@
 
     window.__kaspLobby = {
         start,
+        prepare,
         frame,
         drone,
         get frames() {
@@ -1369,6 +1458,8 @@
                 passBroken,
                 passParts: passScene === null ? 0 : passScene.parts.length,
                 hangarModel: standard !== null ? 'ready' : standardState,
+                look: Object.keys(LOOKS).find((k) => LOOKS[k] === look) ?? 'day-normal',
+                nightPictures: nightPics !== null ? `ready in ${nightMs} ms` : nightState,
             });
         },
         get guard() {

@@ -80,6 +80,12 @@
         if (!names.includes('gar1.webp') || !names.includes('race1.webp') || !names.includes('object.3ds')) return real;
         folder = plain(address).slice(0, -'/meta.info'.length);
         document.documentElement.setAttribute('data-kasp-hangar-folder', folder);
+        // the lobby reads the hangar now, during the loading screen, so its night pictures are ready when the lobby shows
+        try {
+            window.__kaspLobby?.prepare();
+        } catch {
+            // read at the first lobby picture instead
+        }
         return real;
     }
 
@@ -115,7 +121,7 @@
             const blob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.95 });
             wall.close();
             source.close();
-            return new Response(blob, { status: 200, headers: { 'Content-Type': 'image/webp' } });
+            return new Response(blob, { status: 200, headers: { 'Content-Type': 'image/webp', [MADE_HEADER]: '1' } });
         } catch {
             // the game keeps its own file
             return real;
@@ -341,7 +347,7 @@
             g.putImageData(image, 0, 0);
             const blob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.95 });
             bitmap.close();
-            return new Response(blob, { status: 200, headers: { 'Content-Type': 'image/webp' } });
+            return new Response(blob, { status: 200, headers: { 'Content-Type': 'image/webp', [MADE_HEADER]: '1' } });
         } catch {
             // the game keeps its own file
             return real;
@@ -532,7 +538,7 @@
                 for (const header of chain) joinedView.setUint32(header + 2, joinedView.getUint32(header + 2, true) + chunk.length - length, true);
                 output = joined.buffer;
             }
-            return new Response(output, { status: 200, headers: { 'Content-Type': real.headers.get('Content-Type') ?? 'application/octet-stream' } });
+            return new Response(output, { status: 200, headers: { 'Content-Type': real.headers.get('Content-Type') ?? 'application/octet-stream', [MADE_HEADER]: '1' } });
         } catch {
             // the game keeps its own file
             return real;
@@ -540,20 +546,102 @@
     }
     let armless: Promise<ArrayBuffer> | null = null;
 
+    // ---- the made files, saved (26f2, owner 2026-11-21: "for all of the hangar lobby textures, without exception") ----
+    // Every file the lobby makes from the game's hangar (the model without the arm, the cleaned floor, the wall with the banners, the
+    // night pictures of lobby_pass.ts, and those of the later looks) is saved in this site's IndexedDB the first time it is made, and
+    // read from there on the next starts, so it is made once. A key is the made file's name, the hangar folder's address (a game
+    // update that changes the hangar puts its files at a new address, so they are made again by themselves) and MADE_VERSION (raised
+    // when a way of making changes). Saving a file deletes the files of any other folder or version, so nothing piles up. Anything
+    // that fails (no storage, a private window, a full disk) just makes the file as before.
+    const MADE_VERSION = 1;
+    const MADE_DB = 'kasp-lobby-made';
+    const MADE_STORE = 'made';
+    // A made response carries this header, so a file the making gave up on (the game's own, unchanged) is never saved.
+    const MADE_HEADER = 'X-Kasp-Made';
+    let madeDb: Promise<IDBDatabase | null> | null = null;
+    function openMade(): Promise<IDBDatabase | null> {
+        madeDb ??= new Promise((resolve) => {
+            try {
+                const req = indexedDB.open(MADE_DB, 1);
+                req.onupgradeneeded = () => req.result.createObjectStore(MADE_STORE);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve(null);
+                req.onblocked = () => resolve(null);
+            } catch {
+                resolve(null);
+            }
+        });
+        return madeDb;
+    }
+    const madePrefix = (): string | null => (folder === null ? null : `${MADE_VERSION}|${folder}|`);
+    async function readMade(key: string): Promise<Blob | null> {
+        const db = await openMade();
+        if (db === null) return null;
+        return new Promise((resolve) => {
+            try {
+                const req = db.transaction(MADE_STORE, 'readonly').objectStore(MADE_STORE).get(key);
+                req.onsuccess = () => resolve(req.result instanceof Blob ? req.result : null);
+                req.onerror = () => resolve(null);
+            } catch {
+                resolve(null);
+            }
+        });
+    }
+    async function writeMade(key: string, prefix: string, blob: Blob): Promise<void> {
+        const db = await openMade();
+        if (db === null) return;
+        try {
+            const store = db.transaction(MADE_STORE, 'readwrite').objectStore(MADE_STORE);
+            const keys = store.getAllKeys();
+            keys.onsuccess = () => {
+                for (const old of keys.result) if (typeof old === 'string' && !old.startsWith(prefix)) store.delete(old);
+                store.put(blob, key);
+            };
+        } catch {
+            // not saved: made again next time
+        }
+    }
+    // The saved file for name, or make it (null = could not be made) and save it.
+    async function saved(name: string, make: () => Promise<Blob | null>): Promise<Blob | null> {
+        const prefix = madePrefix();
+        if (prefix === null) return make();
+        const key = prefix + name;
+        const known = await readMade(key);
+        if (known !== null) return known;
+        const blob = await make();
+        if (blob !== null) void writeMade(key, prefix, blob);
+        return blob;
+    }
+    // A hangar file answered from the saved copy, or made by run (a response marked with MADE_HEADER) and saved.
+    async function savedResponse(name: string, type: string, run: () => Promise<Response>): Promise<{ blob: Blob; type: string }> {
+        let fallback: { blob: Blob; type: string } | null = null;
+        const blob = await saved(name, async () => {
+            const r = await run();
+            const b = await r.blob();
+            if (r.headers.get(MADE_HEADER) === '1') return b;
+            fallback = { blob: b, type: r.headers.get('Content-Type') ?? type };
+            return null;
+        });
+        return blob !== null ? { blob, type } : fallback ?? { blob: new Blob(), type };
+    }
+
+    // The two floor steps and the saved store, shared with lobby_pass.ts, which makes the night pictures with them (26f2).
+    window.__kaspHangarPictures = { removeSun, flattenPicture, saved, floorCleaned: cleanFloor };
+
     window.fetch = function (this: unknown, input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
         try {
             const address = typeof input === 'string' ? input : input instanceof URL ? input.href : input instanceof Request ? input.url : '';
             if (folder === null && /^https:\/\/[^/]*tankionline\.com\/.*\/meta\.info(\?|$)/.test(address)) return answerMetaInfo(address, init);
             if (banners && folder !== null && plain(address) === folder + '/gar1.webp') {
-                painted ??= wallWithBanners(address, init).then((r) => r.blob().then((b) => ({ blob: b, type: r.headers.get('Content-Type') ?? 'image/webp' })));
+                painted ??= savedResponse('gar1-banners.webp', 'image/webp', () => wallWithBanners(address, init));
                 return painted.then(({ blob, type }) => new Response(blob, { status: 200, headers: { 'Content-Type': type } }));
             }
             if (cleanFloor && folder !== null && plain(address) === folder + '/flr1.webp') {
-                plainFloor ??= plainFloorPicture(address, init).then((r) => r.blob().then((b) => ({ blob: b, type: r.headers.get('Content-Type') ?? 'image/webp' })));
+                plainFloor ??= savedResponse('flr1-clean.webp', 'image/webp', () => plainFloorPicture(address, init));
                 return plainFloor.then(({ blob, type }) => new Response(blob, { status: 200, headers: { 'Content-Type': type } }));
             }
             if (folder !== null && plain(address) === folder + '/object.3ds') {
-                armless ??= modelWithoutArm(address, init).then((r) => r.arrayBuffer());
+                armless ??= savedResponse('object-armless.3ds', 'application/octet-stream', () => modelWithoutArm(address, init)).then((r) => r.blob.arrayBuffer());
                 return armless.then((b) => new Response(b.slice(0), { status: 200, headers: { 'Content-Type': 'application/octet-stream' } }));
             }
         } catch {

@@ -95,7 +95,27 @@ void main(){vec4 c=texture(uTex,vT);
  if(uMode==2){o=vec4(c.rgb*uBright*c.a*uAlpha,c.a*uAlpha);return;}
  if(uMode==4){float e=smoothstep(.62,.85,c.g)*smoothstep(.8,.95,c.r)*(1.-smoothstep(.35,.55,c.b));o=vec4(vec3(1.,.62,.2)*e*uAmt,0.);return;}
  o=vec4(mix(vec3(1.),c.rgb,uAmt),1.);}`;
-    const MIX_VS = `#version 300 es
+    const LAMP_FS = `#version 300 es
+${DEPTH_GLSL}
+uniform vec3 uLamp[8];uniform int uN,uMode;uniform float uPower,uReach,uGlow;uniform vec3 uCol;uniform mat4 uVP;out vec4 o;
+void main(){
+ if(uMode==0){
+  Px x=look();if(x.d>=.99999)discard;
+  vec3 n=cross(dFdx(x.p),dFdy(x.p));float ln=length(n);n=ln>0.?n/ln:vec3(0.,0.,1.);if(dot(n,uCam-x.p)<0.)n=-n;
+  float L=0.;
+  for(int i=0;i<8;i++){if(i>=uN)break;vec3 d=uLamp[i]-x.p;float dist=length(d);vec3 l=d/max(dist,1.);
+   float cone=smoothstep(.05,.6,l.z);
+   float fall=1./(1.+dist*dist/(uReach*uReach))*(1.-smoothstep(uReach*2.,uReach*4.,dist));
+   L+=cone*fall*(.35+.65*max(dot(n,l),0.));}
+  o=vec4(uCol*(L*uPower*(1.-x.k)),1.);return;}
+ vec3 acc=vec3(0.);
+ for(int i=0;i<8;i++){if(i>=uN)break;vec4 c=uVP*vec4(uLamp[i],1.);if(c.w<=1.)continue;vec3 s=c.xyz/c.w;if(abs(s.x)>1.3||abs(s.y)>1.3)continue;
+  vec2 px=(s.xy*.5+.5)*uViewport;ivec2 ip=ivec2(clamp(px,vec2(0.),uViewport-1.));
+  float vis=(s.z*.5+.5)<=texelFetch(uDepth,ip,0).r+.0004?1.:0.;
+  float r=distance(gl_FragCoord.xy,px)/max(2.,uViewport.y*45./c.w);
+  acc+=uCol*vis*(exp(-r*r*3.)*1.2+exp(-r*1.6)*.22);}
+ o=vec4(acc*uGlow,0.);}`;
+    const MIX_VS =`#version 300 es
 precision highp float;
 in vec3 aP;in vec2 aT;uniform mat4 uVP;uniform vec3 uOff;out vec3 vW;
 void main(){vW=aP+uOff;gl_Position=uVP*vec4(vW,1.);}`;
@@ -303,9 +323,213 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
         const groundBatches = batchesOf(model, ['bg0'], fileOf, (_name, _c, n, zTop) => zTop < 160 && Math.abs(n[2]) > 0.6).filter((b) => b.mode !== 2);
         const [stdPics, groundPics] = await Promise.all([pictures(stdBatches), pictures(batchesOf(model, ['bg0'], fileOf))]);
         return {
+            lamps: findLamps(model),
             std: { key: 'standard', batches: stdBatches, pics: stdPics },
             ground: { key: 'standard:ground', batches: groundBatches, pics: groundPics, back: 600, fwd: 6200 },
         };
+    }
+
+    // ---- the night pictures (26f2), the probe's makeNightPictures ----
+    // The hangar's wall and floor pictures with their painted sunlight taken out, kept as a factor per pixel (night / day, 255 =
+    // unchanged) that stage 0b multiplies the game's walls and floor by. Made once in the page from the game's own pictures (as the
+    // game got them, so the floor is the cleaned one where the look has it). The wall: the sunlit places (bright and warm over cooler
+    // shade) brought to the colour of the shade round them, detail kept (nightPicture); the floor: its sunlight removed and its light
+    // flattened by hangar_files.ts's own two steps (removeSun, flattenPicture: the same code and numbers as the probe's).
+    interface NightOptions {
+        readonly lum: readonly [number, number];
+        readonly warm: readonly [number, number];
+        readonly radius: number;
+        readonly sun?: true;
+        readonly flatten?: true;
+    }
+    const NIGHT_OPTIONS: Readonly<Record<string, NightOptions>> = {
+        'gar1.webp': { lum: [0.45, 0.75], warm: [0.05, 0.18], radius: 14 },
+        'flr1.webp': { lum: [0.26, 0.48], warm: [-0.04, 0.07], radius: 14, sun: true, flatten: true },
+    };
+
+    function nightPicture(px: Uint8ClampedArray, W: number, H: number, o: NightOptions): void {
+        const sm = (a: number, b: number, x: number): number => {
+            const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+            return t * t * (3 - 2 * t);
+        };
+        const Q = 4;
+        const w = Math.ceil(W / Q);
+        const h = Math.ceil(H / Q);
+        const bg = [px[(W - 1) * 4], px[(W - 1) * 4 + 1], px[(W - 1) * 4 + 2]];
+        const mFull = new Float32Array(W * H);
+        const L = { r: new Float32Array(w * h), g: new Float32Array(w * h), b: new Float32Array(w * h), m: new Float32Array(w * h), n: new Float32Array(w * h) };
+        for (let y = 0; y < H; y++)
+            for (let x = 0; x < W; x++) {
+                const i = (y * W + x) * 4;
+                const r = px[i] / 255;
+                const g = px[i + 1] / 255;
+                const b = px[i + 2] / 255;
+                const content = Math.abs(px[i] - bg[0]) + Math.abs(px[i + 1] - bg[1]) + Math.abs(px[i + 2] - bg[2]) > 10 ? 1 : 0;
+                const m = content * sm(o.lum[0], o.lum[1], 0.3 * r + 0.59 * g + 0.11 * b) * sm(o.warm[0], o.warm[1], r - b);
+                mFull[y * W + x] = m;
+                const j = ((y / Q) | 0) * w + ((x / Q) | 0);
+                L.r[j] += r * content;
+                L.g[j] += g * content;
+                L.b[j] += b * content;
+                L.m[j] += m;
+                L.n[j] += content;
+            }
+        for (let j = 0; j < w * h; j++) {
+            const n = L.n[j] || 1;
+            L.r[j] /= n;
+            L.g[j] /= n;
+            L.b[j] /= n;
+            L.m[j] /= Q * Q;
+            L.n[j] /= Q * Q;
+        }
+        const blur = (src: Float32Array, r: number): Float32Array => {
+            const tmp = new Float32Array(w * h);
+            const out = new Float32Array(w * h);
+            for (let y = 0; y < h; y++) {
+                let s = 0;
+                for (let x = -r; x <= r; x++) s += src[y * w + Math.min(w - 1, Math.max(0, x))];
+                for (let x = 0; x < w; x++) {
+                    tmp[y * w + x] = s / (2 * r + 1);
+                    s += src[y * w + Math.min(w - 1, x + r + 1)] - src[y * w + Math.max(0, x - r)];
+                }
+            }
+            for (let x = 0; x < w; x++) {
+                let s = 0;
+                for (let y = -r; y <= r; y++) s += tmp[Math.min(h - 1, Math.max(0, y)) * w + x];
+                for (let y = 0; y < h; y++) {
+                    out[y * w + x] = s / (2 * r + 1);
+                    s += tmp[Math.min(h - 1, y + r + 1) * w + x] - tmp[Math.max(0, y - r) * w + x];
+                }
+            }
+            return out;
+        };
+        const soft = (a: Float32Array, r: number): Float32Array => blur(blur(a, r), r);
+        const mb = soft(L.m, 2);
+        const m = new Float32Array(w * h);
+        for (let j = 0; j < w * h; j++) m[j] = Math.min(1, Math.max(L.m[j], mb[j] * 2.2)) * (L.n[j] > 0.2 ? 1 : 0);
+        const wShade = new Float32Array(w * h);
+        const wSun = new Float32Array(w * h);
+        for (let j = 0; j < w * h; j++) {
+            wShade[j] = (1 - m[j]) * L.n[j];
+            wSun[j] = m[j] * L.n[j];
+        }
+        const channels = [L.r, L.g, L.b];
+        const scale = (r: number): { ch: Array<[Float32Array, Float32Array]>; ns: Float32Array; nu: Float32Array } => {
+            const ch = channels.map((src): [Float32Array, Float32Array] => {
+                const a = new Float32Array(w * h);
+                const c = new Float32Array(w * h);
+                for (let j = 0; j < w * h; j++) {
+                    a[j] = src[j] * wShade[j];
+                    c[j] = src[j] * wSun[j];
+                }
+                return [soft(a, r), soft(c, r)];
+            });
+            return { ch, ns: soft(wShade, r), nu: soft(wSun, r) };
+        };
+        const near = scale(o.radius);
+        const far = scale(o.radius * 4);
+        const ratio = [new Float32Array(w * h), new Float32Array(w * h), new Float32Array(w * h)];
+        for (let j = 0; j < w * h; j++)
+            for (let c = 0; c < 3; c++) {
+                const pick = near.ns[j] > 0.06 ? near : far;
+                const shade = pick.ns[j] > 1e-4 ? pick.ch[c][0][j] / pick.ns[j] : 0;
+                const sun = pick.nu[j] > 1e-4 ? pick.ch[c][1][j] / pick.nu[j] : 0;
+                ratio[c][j] = sun > 1e-3 && pick.ns[j] > 0.01 ? Math.max(0.15, Math.min(1, shade / sun)) : 1;
+            }
+        const at = (a: Float32Array, fx: number, fy: number): number => {
+            const x0 = Math.max(0, Math.min(w - 1, Math.floor(fx)));
+            const y0 = Math.max(0, Math.min(h - 1, Math.floor(fy)));
+            const x1 = Math.min(w - 1, x0 + 1);
+            const y1 = Math.min(h - 1, y0 + 1);
+            const tx = Math.max(0, Math.min(1, fx - x0));
+            const ty = Math.max(0, Math.min(1, fy - y0));
+            return (a[y0 * w + x0] * (1 - tx) + a[y0 * w + x1] * tx) * (1 - ty) + (a[y1 * w + x0] * (1 - tx) + a[y1 * w + x1] * tx) * ty;
+        };
+        for (let y = 0; y < H; y++)
+            for (let x = 0; x < W; x++) {
+                const fx = (x + 0.5) / Q - 0.5;
+                const fy = (y + 0.5) / Q - 0.5;
+                const i = (y * W + x) * 4;
+                const k = Math.max(mFull[y * W + x], at(m, fx, fy));
+                if (k < 0.01) continue;
+                for (let c = 0; c < 3; c++) px[i + c] = Math.round(px[i + c] * (1 - k + k * at(ratio[c], fx, fy)));
+            }
+    }
+
+    // The factor pictures, one per picture with options; a picture the floor steps are missing for is left out.
+    async function nightPictures(asset: KaspLobbyAsset): Promise<ReadonlyMap<string, ImageBitmap>> {
+        const out = new Map<string, ImageBitmap>();
+        const floorSteps = window.__kaspHangarPictures;
+        for (const [pic, bmp] of asset.pics) {
+            const o = NIGHT_OPTIONS[pic];
+            if (o === undefined) continue;
+            if ((o.sun || o.flatten) && floorSteps === undefined) continue;
+            const make = async (): Promise<Blob | null> => {
+                const c = new OffscreenCanvas(bmp.width, bmp.height);
+                const g = c.getContext('2d', { willReadFrequently: true });
+                if (g === null) return null;
+                g.drawImage(bmp, 0, 0);
+                const img = g.getImageData(0, 0, bmp.width, bmp.height);
+                const day = new Uint8ClampedArray(img.data);
+                if (o.sun) floorSteps?.removeSun(img.data, bmp.width, bmp.height);
+                else nightPicture(img.data, bmp.width, bmp.height, o);
+                if (o.flatten) floorSteps?.flattenPicture(img.data, bmp.width, bmp.height);
+                // kept as the factor night / day (255 = unchanged); a factor can only dim: where the night picture is brighter than
+                // the game's in one colour, all three are scaled down together, so the colour stays the night picture's
+                const px = img.data;
+                for (let i = 0; i < px.length; i += 4) {
+                    const s = Math.min(1, day[i] / Math.max(px[i], 1), day[i + 1] / Math.max(px[i + 1], 1), day[i + 2] / Math.max(px[i + 2], 1));
+                    for (let k = 0; k < 3; k++) px[i + k] = day[i + k] ? Math.min(255, Math.round((255 * s * px[i + k]) / day[i + k])) : 255;
+                    px[i + 3] = 255;
+                }
+                // saved without loss (PNG), so a saved factor is the made one, byte for byte
+                g.putImageData(img, 0, 0);
+                await new Promise((r) => setTimeout(r, 0));
+                return c.convertToBlob({ type: 'image/png' });
+            };
+            // made once and saved (hangar_files.ts's store); the floor's input depends on whether the floor is the cleaned one
+            const name = `night-${pic}-${floorSteps?.floorCleaned === true ? 'clean' : 'game'}.png`;
+            const blob = floorSteps === undefined ? await make() : await floorSteps.saved(name, make);
+            if (blob === null) continue;
+            out.set(pic, await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }));
+        }
+        return out;
+    }
+
+    // The lamps under the ring: the faces of room0 that show the lamp lens (one spot of the 4096 x 4096 wall picture), grouped; a
+    // point just under each lens, where the light starts.
+    function findLamps(model: Model): number[][] {
+        const r = model.objects.find((o) => o.name === 'room0');
+        if (r === undefined || r.uv === null || r.f === null || r.v === null) return [];
+        const rf = r.f;
+        const rv = r.v;
+        const ruv = r.uv;
+        const groups: Array<{ c: number[]; n: number }> = [];
+        for (let f = 0; f < rf.length / 3; f++) {
+            let u = 0;
+            let v = 0;
+            const c = [0, 0, 0];
+            for (let k = 0; k < 3; k++) {
+                const i = rf[f * 3 + k];
+                u += ruv[i * 2] / 3;
+                v += ruv[i * 2 + 1] / 3;
+                for (let a = 0; a < 3; a++) c[a] += rv[i * 3 + a] / 3;
+            }
+            const px = u * 4096;
+            const py = (1 - v) * 4096;
+            if (px < 760 || px > 1300 || py < 3795 || py > 3895) continue;
+            let g = groups.find((q) => Math.hypot(q.c[0] / q.n - c[0], q.c[1] / q.n - c[1], q.c[2] / q.n - c[2]) < 120);
+            if (g === undefined) {
+                g = { c: [0, 0, 0], n: 0 };
+                groups.push(g);
+            }
+            for (let a = 0; a < 3; a++) g.c[a] += c[a];
+            g.n++;
+        }
+        return groups
+            .filter((g) => g.n >= 4)
+            .slice(0, 8)
+            .map((g) => [g.c[0] / g.n, g.c[1] / g.n, g.c[2] / g.n - 15]);
     }
 
     // ---- the GPU pass ----
@@ -347,6 +571,9 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
         readonly tex: WebGLTexture;
         readonly mode: number;
         readonly name: string;
+        readonly pic: string;
+        // the night factor picture, uploaded the first time the piece is drawn at night
+        ntex: WebGLTexture | null;
     }
     interface GroundMap {
         readonly tex: WebGLTexture;
@@ -425,6 +652,8 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
             'uSkyLow', 'uZones', 'uCloud', 'uCloudK', 'uCloudSpeed', 'uCloudCol', 'uFlash', 'uBolt', 'uFlashCol', 'uLatD', 'uBoltTex', 'uFogCol',
             'uSunDir', 'uSunCol', 'uCoverCol', 'uCoverThick', 'uSpark',
         ]);
+        const lampProg = program(FULL_VS, LAMP_FS, [...DEPTH_U, 'uLamp', 'uN', 'uMode', 'uPower', 'uReach', 'uGlow', 'uCol', 'uVP']);
+        const lampArray = new Float32Array(24);
         const PIECE_ATTRIBS: ReadonlyArray<readonly [number, string]> = [[0, 'aP'], [1, 'aT']];
         const meshProg = program(MESH_VS, MESH_FS, ['uVP', 'uOff', 'uTex', 'uMode', 'uBright', 'uAmt', 'uAlpha', 'uXr', 'uXs', 'uXt'], PIECE_ATTRIBS);
         const mixProg = program(MIX_VS, MIX_FS, ['uVP', 'uOff', 'uMap', 'uOut', 'uLat', 'uWall', 'uDepth', 'uAmt', 'uBox', 'uTint', 'uTintIn', 'uTone', 'uLim', 'uOutR', 'uFade', 'uInside'], PIECE_ATTRIBS);
@@ -603,15 +832,16 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
                 gl.enableVertexAttribArray(aT);
                 gl.vertexAttribPointer(aT, 2, gl.FLOAT, false, 0, 0);
                 pieceBufs.push(pb, tb);
-                list.push({ vao: v, count: b.pos.length / 3, tex: uploadPicture(bmp), mode: b.mode, name: b.name });
+                list.push({ vao: v, count: b.pos.length / 3, tex: uploadPicture(bmp), mode: b.mode, name: b.name, pic: b.pic, ntex: null });
             }
             gl.bindVertexArray(vao);
             pieceCache.set(asset.key, list);
             return list;
         }
 
-        // Draws the loaded pieces; only = 'solid' (modes 0 and 1); alpha fades the pieces in (1 = fully there).
-        function drawPieces(f: KaspLobbyPassFrame, asset: KaspLobbyAsset, only: 'solid', bright: number, amt: number, alpha: number): void {
+        // Draws the loaded pieces; only = 'solid' (modes 0 and 1) or 'sun' (every piece with a night picture, as the night
+        // multiply); alpha fades the pieces in (1 = fully there).
+        function drawPieces(f: KaspLobbyPassFrame, asset: KaspLobbyAsset, only: 'solid' | 'sun', bright: number, amt: number, alpha: number): void {
             const list = piecesOf(asset);
             gl.useProgram(meshProg.p);
             gl.uniformMatrix4fv(uni(meshProg, 'uVP'), false, f.vp);
@@ -627,8 +857,16 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
             gl.bindSampler(PANO, null);
             for (const p of list) {
                 if (only === 'solid' && p.mode === 2) continue;
-                gl.uniform1i(uni(meshProg, 'uMode'), p.mode);
-                gl.bindTexture(gl.TEXTURE_2D, p.tex);
+                if (only === 'sun') {
+                    if (p.mode === 2) continue;
+                    if (p.ntex === null) {
+                        const n = asset.nightPics?.get(p.pic);
+                        if (n === undefined) continue;
+                        p.ntex = uploadPicture(n);
+                    }
+                }
+                gl.uniform1i(uni(meshProg, 'uMode'), only === 'sun' ? 3 : p.mode);
+                gl.bindTexture(gl.TEXTURE_2D, only === 'sun' && p.ntex !== null ? p.ntex : p.tex);
                 gl.bindVertexArray(p.vao);
                 gl.drawArrays(gl.TRIANGLES, 0, p.count);
             }
@@ -759,7 +997,7 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
                 gl.viewport(0, 0, W, H);
                 const A = f.atmos;
                 // (0a to 0c: the seasonal outside, the night, the grey sky; with their looks)
-                const needDepth = !!(f.grade || A);
+                const needDepth = !!(f.grade || A || f.lamps);
                 const depthOk = needDepth && st.draw === null && !depthBroken && copyDepth(W, H);
                 gl.colorMask(true, true, true, false);
                 gl.depthMask(false);
@@ -772,6 +1010,19 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
                     gl.bindSampler(UNIT, null);
                 }
                 gl.disable(gl.DEPTH_TEST);
+                // 0b. at night: the sunlight painted in the hangar's own pictures is dimmed (multiplies the game's walls and floor, drawn
+                // again on top of themselves with the game's depth, so the tank and the drone in front are untouched)
+                if (f.desun && st.draw === null) {
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(false);
+                    gl.enable(gl.POLYGON_OFFSET_FILL);
+                    gl.polygonOffset(-1, -2);
+                    gl.blendFuncSeparate(gl.ZERO, gl.SRC_COLOR, gl.ZERO, gl.ONE);
+                    drawPieces(f, f.desun.asset, 'sun', 1, f.desun.amount, 1);
+                    gl.disable(gl.POLYGON_OFFSET_FILL);
+                    gl.disable(gl.DEPTH_TEST);
+                }
                 // 1. the time of day / heat colour: multiply the game's picture
                 if (depthOk && f.grade) {
                     gl.blendFuncSeparate(gl.ZERO, gl.SRC_COLOR, gl.ZERO, gl.ONE);
@@ -834,7 +1085,33 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
                     gl.disable(gl.POLYGON_OFFSET_FILL);
                     gl.disable(gl.DEPTH_TEST);
                 }
-                // (1b to 1e: the fixtures, the seasons' pieces, the lamps, the wet floor, the drift; with their looks)
+                // (1b, 1b2, 1b3: the fixtures and the seasons' pieces; with their looks)
+                // 1c. the lamps at night: their light on the tank, the platform and the floor (after the night colour, like real light),
+                // then (if wanted) a glow on their lenses
+                if (depthOk && f.lamps) {
+                    const L = f.lamps;
+                    const n = Math.min(8, L.list.length);
+                    lampArray.fill(0);
+                    for (let i = 0; i < n; i++) for (let a = 0; a < 3; a++) lampArray[i * 3 + a] = L.list[i][a] + f.offset[a];
+                    gl.useProgram(lampProg.p);
+                    depthUniforms(lampProg, f, W, H);
+                    gl.uniform3fv(uni(lampProg, 'uLamp'), lampArray);
+                    gl.uniform1i(uni(lampProg, 'uN'), n);
+                    gl.uniform1f(uni(lampProg, 'uPower'), L.power);
+                    gl.uniform1f(uni(lampProg, 'uReach'), L.reach);
+                    gl.uniform1f(uni(lampProg, 'uGlow'), L.glow);
+                    gl.uniform3fv(uni(lampProg, 'uCol'), L.color);
+                    gl.uniformMatrix4fv(uni(lampProg, 'uVP'), false, f.vp);
+                    gl.uniform1i(uni(lampProg, 'uMode'), 0);
+                    gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE, gl.ZERO, gl.ONE);
+                    gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    if (L.glow > 0.001) {
+                        gl.uniform1i(uni(lampProg, 'uMode'), 1);
+                        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                        gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    }
+                }
+                // (1d, 1e: the wet floor, the drift; with their looks)
                 gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                 // 2. snow lying on the ground, fog, sun glow, stars (laid over)
                 if (depthOk && A) {
@@ -892,5 +1169,5 @@ void main(){float s=dot(vW.xy,uOut);if(s>uWall+uOutR+max(uFade,0.))discard;float
         return { draw, dispose };
     }
 
-    window.__kaspLobbyPass = { make, loadStandard };
+    window.__kaspLobbyPass = { make, loadStandard, nightPictures };
 })();
