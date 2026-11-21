@@ -564,6 +564,61 @@ interface KaspLobbyPassFrame {
     readonly fogx: KaspLobbyFogExtras | null;
     // Stage 4 (26h): the dust floating in the hangar's light, n specks; null = none.
     readonly motes: { readonly n: number; readonly bright: number; readonly color: readonly number[] } | null;
+    // Stage 4 (26j): the snow outside (with its drift and gust, which move every kind of speck, and its glow near the street lamps
+    // at night) and the snow blown into the hangar; null = none.
+    readonly snow: {
+        readonly flakes: number;
+        readonly speed: number;
+        readonly size: number;
+        readonly wind: number;
+        readonly drift: number;
+        readonly glow: {
+            readonly n: number;
+            readonly start: number;
+            readonly gap: number;
+            readonly sides: readonly number[];
+            readonly z: number;
+            readonly r: number;
+            readonly amount: number;
+            readonly color: readonly number[];
+        } | null;
+        readonly gust: number;
+        readonly sway: number;
+        readonly bright: number;
+        readonly reach: number;
+        readonly color: readonly number[];
+    } | null;
+    readonly snowIn: {
+        readonly n: number;
+        readonly speed: number;
+        readonly size: number;
+        readonly wind: number;
+        readonly sway: number;
+        readonly bright: number;
+        readonly color: readonly number[];
+    } | null;
+    // Stages 1e and 4 (26j): the snowy day's icicles on the door's top edge and the snow drift on the floor inside the door.
+    readonly swx: {
+        readonly ice: {
+            readonly n: number;
+            readonly top: number;
+            readonly at: number;
+            readonly span: readonly number[];
+            readonly len: number;
+            readonly width: number;
+            readonly glint: number;
+            readonly color: readonly number[];
+        } | null;
+        readonly drift: {
+            readonly amount: number;
+            readonly depth: number;
+            readonly lim: readonly number[];
+            readonly floorZ: number;
+            readonly spark: number;
+            readonly gust: number;
+            readonly color: readonly number[];
+        } | null;
+    } | null;
     // Stage 2a3 (26i): the very sunny day's birds and heat shimmer, only by day; null = none.
     readonly sunx: {
         readonly shimmer: { readonly amount: number; readonly height: number; readonly speed: number } | null;

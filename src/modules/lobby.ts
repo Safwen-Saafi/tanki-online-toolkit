@@ -574,6 +574,41 @@
         readonly birds: { readonly count: number; readonly height: number; readonly dist: number; readonly size: number; readonly speed: number } | null;
         // the cicadas (26i, the probe's summer sounds), in % of their loudness, only by day (0 = off)
         readonly cicadas: number;
+        // the snow (26j, the probe's "Snow"); null = none. flakes = how many fall outside, speed, size, wind, sway = how far each
+        // circles as it falls, bright, cover = the snow lying on the ground (0 to 1), reach = how far out it falls, coverBright and
+        // coverThick = the lying snow's brightness and thickness, inside = how many flakes are blown into the hangar
+        readonly snow: {
+            readonly flakes: number;
+            readonly speed: number;
+            readonly size: number;
+            readonly wind: number;
+            readonly sway: number;
+            readonly bright: number;
+            readonly cover: number;
+            readonly reach: number;
+            readonly coverBright: number;
+            readonly coverThick: number;
+            readonly inside: number;
+        } | null;
+        // the snowy look's extras (26j); null / 0 = off. Icicles on the door's top edge (count, top = their height, out = past the
+        // wall line, left / right across, length, width, glint); the snow drift inside the door (amount, depth = how far in, left /
+        // right, sparkle); the lying snow's sparkle by day; the wind and snowfall sounds in %; the snow gusts (every seconds, strength,
+        // length in seconds, sound = how much louder the wind gets); the flakes glowing near the street lamps at night (amount, reach)
+        readonly icicles: {
+            readonly count: number;
+            readonly top: number;
+            readonly out: number;
+            readonly left: number;
+            readonly right: number;
+            readonly length: number;
+            readonly width: number;
+            readonly glint: number;
+        } | null;
+        readonly snowDrift: { readonly amount: number; readonly depth: number; readonly left: number; readonly right: number; readonly sparkle: number } | null;
+        readonly sparkle: number;
+        readonly snowSounds: { readonly volume: number; readonly fall: number } | null;
+        readonly snowGusts: { readonly every: number; readonly strength: number; readonly length: number; readonly sound: number } | null;
+        readonly snowGlow: { readonly amount: number; readonly reach: number } | null;
     }
     interface ShootNumbers {
         readonly every: number;
@@ -648,6 +683,13 @@
         shimmer: null,
         birds: null,
         cicadas: 0,
+        snow: null,
+        icicles: null,
+        snowDrift: null,
+        sparkle: 0,
+        snowSounds: null,
+        snowGusts: null,
+        snowGlow: null,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
@@ -740,6 +782,62 @@
         birds: { count: 4, height: 760, dist: 4200, size: 2, speed: 1 },
         cicadas: 65,
     };
+    // The owner's final "day snowy" (probe v1.74 DAY_SNOWY, report of 2026-11-20 17:13): noon with a soft, cool light, the falling
+    // snow and the snow lying on the street (with its sparkle), a little fog and floor fog, a light grey sky, clean walls, the icicles,
+    // the drift inside the door, the snow gusts and the wind and snowfall sounds; the sunbeams hidden.
+    const DAY_SNOWY: LobbyLook = {
+        ...DAY_NORMAL,
+        light: {
+            ...DAY_NORMAL.light,
+            keySide: -105,
+            keyHeight: 38,
+            keyStrength: 1.5,
+            keyColour: '#fff1e0',
+            fillColour: '#cfe0f5',
+            fillStrength: 1,
+            shadowStrength: 0.45,
+            shadowSize: 2048,
+            shadowReach: 0.55,
+            shadowBlur: 0.7,
+        },
+        time: { hour: 12, strength: 1, inside: 0.85, sunSide: 0 },
+        cleanWall: 1,
+        road: { ...DAY_NORMAL.road, inside: 1.2 },
+        hidden: ['light0', 'light1', 'light2'],
+        overcast: { sky: 0.95, contrast: 0.7, layer: 0.6, speed: 0.5, tint: '#c9d0d9', out: 0.85, beams: 0.2, dark: 0.9, lamps: 1 },
+        clouds: null,
+        leaves: null,
+        city: 0,
+        fog: { density: 0.55, start: 900, height: 140, move: 0.3, color: '#dfe6ef' },
+        floorFog: { amount: 0.6, height: 60, depth: 700, speed: 1, lumps: 0.8, out: 1000, bright: 1 },
+        snow: { flakes: 30000, speed: 1.3, size: 1.2, wind: 0.05, sway: 1.25, bright: 1, cover: 0.4, reach: 2600, coverBright: 1, coverThick: 1, inside: 100 },
+        icicles: { count: 68, top: 590, out: 25, left: -1000, right: 780, length: 240, width: 2, glint: 1 },
+        snowDrift: { amount: 0.35, depth: 610, left: -890, right: 600, sparkle: 0.1 },
+        sparkle: 0.25,
+        snowSounds: { volume: 100, fall: 80 },
+        snowGusts: { every: 10, strength: 1.25, length: 3, sound: 2.15 },
+    };
+    // The owner's final "night snowy" (probe v1.75 NIGHT_SNOWY, report of 2026-11-20 17:25): the snowy day at 23:00, less snow on
+    // the ground, door blend 0.1, a darker, warm-tinted sky, the probe's clear-night lights, street lamps, red light and lit windows,
+    // the lamps' light on the street, the flakes glowing near the street lamps, the wind louder; no drift or sparkle. The probe's own
+    // numbers throughout (owner 2026-11-21: "always follow the same numbers as in the probe"), not our Night look's later retune.
+    const NIGHT_SNOWY: LobbyLook = {
+        ...DAY_SNOWY,
+        time: { hour: 23, strength: 1, inside: 0.25, sunSide: 90 },
+        snow: { flakes: 30000, speed: 1.3, size: 1.2, wind: 0.05, sway: 1.25, bright: 1, cover: 0.35, reach: 2600, coverBright: 1, coverThick: 1, inside: 100 },
+        door: 0.1,
+        night: { lamps: 0.95, reach: 0.75, glow: 0, sunOff: 1, fixtures: 0, keyDown: 0.55, color: '#f9ec9a' },
+        hidden: ['light0', 'light1', 'light2', 'transp1', 'transp2'],
+        overcast: { sky: 0.95, contrast: 0.6, layer: 0.5, speed: 0.5, tint: '#8f7b6b', out: 0.6, beams: 0, dark: 0.8, lamps: 1 },
+        snowDrift: null,
+        sparkle: 0,
+        snowSounds: { volume: 164, fall: 80 },
+        streetLamps: { count: 3, start: 1325, gap: 500, left: -1210, right: 1040, height: 320, size: 1.35, halo: 1, bright: 2.1, color: '#ffd06b' },
+        red: { across: -500, dist: 4000, height: 400, size: 1, halo: 1.8, bright: 1, blink: 1.6 },
+        windows: { amount: 0.65, dense: 0.68, size: 1, near: 3700, far: 8200, change: 0 },
+        pools: { amount: 3.5, size: 1.6 },
+        snowGlow: { amount: 3.5, reach: 1.1 },
+    };
     // The owner's final "day foggy" (probe v1.56 DAY_FOGGY, report of 2026-11-20 09:43): the very sunny look (its key light, lamp speed,
     // door blend and road, written out here; the sunny look itself is 26i) with the heat off, the moving low fog, clean walls and every
     // sunbeam part hidden; the floor fog, the door beam and the fog banks (on at the owner's 0, so they draw nothing).
@@ -784,6 +882,8 @@
     const LOOKS: Readonly<Record<KaspLobbyLookName, LobbyLook>> = {
         'day-normal': DAY_NORMAL,
         'day-sunny': DAY_SUNNY,
+        'day-snowy': DAY_SNOWY,
+        'night-snowy': NIGHT_SNOWY,
         'night-normal': NIGHT_NORMAL,
         'day-rainy': DAY_RAINY,
         'night-rainy': NIGHT_RAINY,
@@ -1552,6 +1652,53 @@
         return GUST.level;
     }
 
+    // ---- the snow's wind (26j), the probe's SNOWG and snowGustNow ----
+    // drift = the snow's sideways travel added up frame by frame (the wind, a slow breeze, the gusts), so the flakes move exactly as
+    // fast as the wind says and never jump when it changes; one gust at a time (rise, hold, fall), the next about `every` seconds later
+    // (the first 5 s after the snowy lobby shows); level 0 = calm, 1 = the top of a strong gust. Only while the lobby is drawn.
+    const SNOWG: {
+        drift: number;
+        last: number;
+        level: number;
+        g: { t0: number; rise: number; hold: number; fall: number; peak: number } | null;
+        next: number;
+        soundAt: number;
+    } = { drift: 0, last: 0, level: 0, g: null, next: 0, soundAt: 0 };
+    function snowGustNow(now: number): number {
+        const K = look.snowGusts;
+        if (K === null || look.snow === null) {
+            SNOWG.g = null;
+            SNOWG.next = 0;
+            SNOWG.level = 0;
+            return 0;
+        }
+        if (SNOWG.next === 0) SNOWG.next = now + 5000;
+        if (SNOWG.g === null && now >= SNOWG.next) {
+            SNOWG.g = {
+                t0: now,
+                rise: 1 + Math.random() * 1.5,
+                hold: K.length * (0.6 + 0.8 * Math.random()),
+                fall: 2 + Math.random() * 2,
+                peak: 0.7 + 0.3 * Math.random(),
+            };
+        }
+        let v = 0;
+        if (SNOWG.g !== null) {
+            const g = SNOWG.g;
+            const t = (now - g.t0) / 1000;
+            if (t < g.rise) v = ease(t / g.rise);
+            else if (t < g.rise + g.hold) v = 1 - 0.15 * Math.abs(Math.sin(t * 3.1));
+            else if (t < g.rise + g.hold + g.fall) v = 1 - ease((t - g.rise - g.hold) / g.fall);
+            else {
+                SNOWG.g = null;
+                SNOWG.next = now + K.every * 1000 * (0.6 + 0.8 * Math.random());
+            }
+            v *= g.peak;
+        }
+        SNOWG.level = Math.max(0, Math.min(1, v));
+        return SNOWG.level;
+    }
+
     // ---- thunder and lightning (26g4), the probe's STORM, strike and makeBolt ----
     // A strike every `every` seconds (give or take `random` of it; the first 4 s after the stormy lobby shows): 2 to 4 flash pulses
     // (the first the strongest, each dying away fast) and a new bolt picture. door = where the doorway is seen from the camera
@@ -1748,6 +1895,16 @@
         },
         // rain on the roof (26g3): a real recording of rain drumming on a roof heard from inside (credit in RAIN-ROOF-CREDITS.txt);
         // its gain is set with the rain's sounds (rainGains), louder with the gusts
+        // the snowy looks' wind and falling snow (26j; credits in SNOW-SOUNDS-CREDITS.txt), by day and at night; the wind louder in
+        // a snow gust (set with snowGains, a few times a second)
+        wind: {
+            file: 'snow-wind.mp3',
+            target: 0.02,
+            skip: 0,
+            level: () =>
+                look.snowSounds === null ? 0 : (look.snowSounds.volume / 100) * (look.snowGusts !== null ? 1 + look.snowGusts.sound * SNOWG.level : 1),
+        },
+        snowfall: { file: 'snow-fall.mp3', target: 0.012, skip: 0, level: () => (look.snowSounds === null ? 0 : look.snowSounds.fall / 100) },
         roof: { file: 'rain-roof.webm', target: 0.14, skip: 0, level: () => (look.rain === null ? 0 : look.roof / 100) },
     };
     // the barks in the recording: [start, end] in seconds (two bark groups, each with its short tail)
@@ -1827,7 +1984,15 @@
     }
     const wantedLoops = (): string[] =>
         Object.keys(SOUND_LOOPS).filter((k) =>
-            k === 'city' ? look.city > 0 : k === 'cicada' ? look.cicadas > 0 : k === 'roof' ? look.rain !== null && look.roof > 0 : look.nightSounds !== null,
+            k === 'city'
+                ? look.city > 0
+                : k === 'cicada'
+                  ? look.cicadas > 0
+                  : k === 'roof'
+                    ? look.rain !== null && look.roof > 0
+                    : k === 'wind' || k === 'snowfall'
+                      ? look.snowSounds !== null
+                      : look.nightSounds !== null,
         );
     function loadBuffer(ctx: AudioContext, base: string, file: string): Promise<AudioBuffer> {
         return fetch(base + file)
@@ -2030,6 +2195,13 @@
         const roof = sound.loops.get('roof');
         if (roof !== undefined) roof.gain.gain.setTargetAtTime(want ? SOUND_LOOPS.roof.level() * roof.norm * swell : 0, ctx.currentTime, 0.4);
     }
+    // The snow's wind loop to its level now (26j): called a few times a second while the snow gusts, as the probe's applyDaySounds.
+    function snowGains(want: boolean): void {
+        const ctx = sound.ctx;
+        const lp = sound.loops.get('wind');
+        if (ctx === null || lp === undefined) return;
+        lp.gain.gain.setTargetAtTime(want ? SOUND_LOOPS.wind.level() * lp.norm : 0, ctx.currentTime, 0.8);
+    }
     // Every half second: each loop fades to its level while the lobby is drawn and nothing stopped it, else to silence; the far dog.
     function applySounds(): void {
         const ctx = sound.ctx;
@@ -2128,7 +2300,7 @@
         const flash = stormNow(nowMs);
         const Sm = L.storm;
         const Fg = L.fog;
-        const atmosOn = O !== null || glow > 0.01 || st.stars * s > 0.01 || flash > 0.003 || Fg !== null;
+        const atmosOn = O !== null || glow > 0.01 || st.stars * s > 0.01 || flash > 0.003 || Fg !== null || (L.snow !== null && L.snow.cover > 0);
         const door = Math.max(0.02, L.door);
         ensureStandard();
         ensureSky();
@@ -2151,6 +2323,23 @@
                 rainGains(soundWanted());
             }
         } else GUST.last = 0;
+        // the snow's wind of this moment (26j): the wind, a slow breeze (never below a third of it), and the snow gusts; the wind
+        // sound follows the gusts a few times a second
+        const sg = snowGustNow(nowMs);
+        const N = L.snow;
+        const SG = L.snowGusts;
+        if (N !== null) {
+            const t = nowMs / 1000;
+            const breeze = 1 + 0.5 * Math.sin(t * 0.23) * Math.sin(t * 0.071 + 1.3);
+            const dir = N.wind < 0 ? -1 : 1;
+            const speed = N.wind * 120 * breeze + (SG !== null ? dir * sg * SG.strength * 900 : 0);
+            if (SNOWG.last !== 0) SNOWG.drift += speed * Math.min(0.1, Math.max(0, (nowMs - SNOWG.last) / 1000));
+            SNOWG.last = nowMs;
+            if (SG !== null && nowMs - SNOWG.soundAt > 150) {
+                SNOWG.soundAt = nowMs;
+                snowGains(soundWanted());
+            }
+        } else SNOWG.last = 0;
         return {
             vp,
             cam: [pos.x, pos.y, pos.z],
@@ -2361,7 +2550,10 @@
                       fogHeight: Fg !== null ? Fg.height : 1,
                       fogMove: Fg !== null ? Fg.move : 0,
                       fogCol: Fg !== null ? lightOf(fromHex(Fg.color), 0.12) : [0, 0, 0],
-                      cover: 0, spark: 0, coverCol: [0, 0, 0], coverThick: 1,
+                      cover: N !== null ? N.cover : 0,
+                      spark: L.sparkle > 0 ? L.sparkle * (1 - night) : 0,
+                      coverCol: lightOf([0.93, 0.95, 0.98], 0.18).map((x) => x * (N !== null ? N.coverBright : 1)),
+                      coverThick: N !== null ? N.coverThick : 1,
                       groundZ: box.groundZ,
                       skyZ: box.skyZ,
                       // the lightning's flash (26g4), cold blue-white
@@ -2473,6 +2665,82 @@
                               beamCol: fromHex(Bm !== null ? Bm.color : '#fff1d6').map((x, i) => x * day * Math.min(1.3, outLight[i])),
                               beamDir,
                               door: Bm !== null ? [Bm.left, Bm.right, Bm.top] : [0, 0, 0],
+                          };
+                      })()
+                    : null,
+            // the snow (26j): outside, with the flakes near the street lamps lit by them at night, and blown into the hangar
+            snow:
+                N !== null
+                    ? {
+                          flakes: Math.max(0, Math.round(N.flakes)),
+                          speed: N.speed,
+                          size: N.size,
+                          wind: N.wind,
+                          drift: SNOWG.drift,
+                          glow:
+                              L.snowGlow !== null && L.streetLamps !== null && L.streetLamps.count > 0 && nightAmount() > 0.01
+                                  ? {
+                                        n: Math.min(24, Math.round(L.streetLamps.count) * 2),
+                                        start: box.wall + L.streetLamps.start,
+                                        gap: Math.max(100, L.streetLamps.gap),
+                                        sides: [L.streetLamps.left, L.streetLamps.right],
+                                        z: box.groundZ + L.streetLamps.height,
+                                        r: 260 * L.snowGlow.reach,
+                                        amount: L.snowGlow.amount * nightAmount(),
+                                        color: fromHex(L.streetLamps.color).map((x) => x * 0.9),
+                                    }
+                                  : null,
+                          gust: SG !== null ? SNOWG.level * SG.strength : 0,
+                          sway: N.sway,
+                          bright: N.bright,
+                          reach: N.reach,
+                          color: lightOf([0.96, 0.97, 1], 0.3),
+                      }
+                    : null,
+            snowIn:
+                N !== null && N.inside > 0
+                    ? {
+                          n: Math.round(N.inside),
+                          speed: N.speed,
+                          size: N.size,
+                          wind: N.wind,
+                          sway: N.sway,
+                          bright: N.bright,
+                          color: [0.96, 0.97, 1].map((x, i) => x * inn[i]),
+                      }
+                    : null,
+            // the snowy day's extras (26j): the icicles on the door's top edge, the snow drift on the floor inside the door
+            swx:
+                L.icicles !== null || L.snowDrift !== null
+                    ? (() => {
+                          const Ic = L.icicles;
+                          const Dr = L.snowDrift;
+                          return {
+                              ice:
+                                  Ic !== null && Ic.count > 0
+                                      ? {
+                                            n: Math.round(Ic.count),
+                                            top: Ic.top,
+                                            at: box.wall + Ic.out,
+                                            span: [Ic.left, Ic.right],
+                                            len: Ic.length,
+                                            width: Ic.width,
+                                            glint: Ic.glint,
+                                            color: lightOf([0.5, 0.74, 1], 0.4),
+                                        }
+                                      : null,
+                              drift:
+                                  Dr !== null && Dr.amount > 0
+                                      ? {
+                                            amount: Dr.amount,
+                                            depth: Dr.depth,
+                                            lim: [Dr.left - 60, Dr.right + 60, 150],
+                                            floorZ: box.floorZ,
+                                            spark: Dr.sparkle,
+                                            gust: SG !== null ? SNOWG.level * Math.min(1.5, SG.strength) : 0,
+                                            color: [0.95, 0.97, 1].map((x, i) => x * inn[i] * 1.1),
+                                        }
+                                      : null,
                           };
                       })()
                     : null,

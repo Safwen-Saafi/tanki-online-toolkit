@@ -810,6 +810,58 @@ void main(){float ax=abs(vQ.x);if(ax>1.)discard;
  a=max(a,1.-smoothstep(.1,.16,length(vQ*vec2(1.,1.6))));
  if(a<.02)discard;float far=smoothstep(2000.,11000.,vDist);
  vec3 c=mix(vec3(.07,.07,.08),uHaze,far*.7);a*=mix(1.,.55,far);o=vec4(c*a,a);}`;
+    // the snowy day's icicles hanging from the door's top edge (26j); the probe's own text
+    const ICE_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec3 uCam;uniform vec2 uOut,uLat,uSpan;uniform float uTop,uAt,uLen,uWidth,uN;
+out vec2 vQ;out float vSeed;
+${HASH_GLSL}
+void main(){
+ uint id=uint(gl_InstanceID)*5u+2711u;
+ float a=rnd(id),b=rnd(id+1u),c=rnd(id+2u);
+ float u=mix(uSpan.x,uSpan.y,(float(gl_InstanceID)+a*.9)/max(uN,1.));
+ float cl=.5+.5*abs(sin(u/230.+b*3.)*sin(u/97.+c*5.));
+ float len=uLen*mix(.2,1.,pow(b,1.6))*cl;
+ vec3 head=vec3(uOut*uAt+uLat*u,uTop+3.);
+ vec3 to=uCam-head;vec3 side=cross(vec3(0.,0.,1.),to);side=length(side)<.001?vec3(uLat,0.):normalize(side);
+ vec2 q=gl_VertexID==0?vec2(-1.,0.):(gl_VertexID==1?vec2(1.,0.):vec2(0.,1.));
+ vQ=q;vSeed=a;
+ gl_Position=uVP*vec4(head+side*q.x*uWidth*mix(7.,15.,c)-vec3(0.,0.,q.y*len),1.);}`;
+    const ICE_FS = `#version 300 es
+precision highp float;
+uniform vec3 uColor;uniform float uTime,uGlint;in vec2 vQ;in float vSeed;out vec4 o;
+void main(){
+ float sx=vQ.x/max(1.-vQ.y,.02);
+ float body=.5+.4*(1.-abs(sx))+.35*vQ.y;
+ float g=pow(max(0.,sin(uTime*1.1+vSeed*60.)),30.)*uGlint*smoothstep(.45,1.,vQ.y);
+ vec3 c=uColor*body+vec3(1.)*g;float a=.8;
+ o=vec4(c*a,a);}`;
+    // the snow blown in on the floor just inside the door (26j); the probe's own text
+    const DRIFT_FS = `#version 300 es
+${DEPTH_GLSL}
+uniform vec2 uLat;uniform vec3 uLim,uCol;
+uniform float uAmt,uDepthW,uGust,uFloorZ,uTime,uSpark;out vec4 o;
+void main(){
+ Px x=look();if(x.d>=.99999)discard;
+ float s=dot(x.p.xy,uOut);
+ if(s<uWall-uDepthW*2.4-100.||s>uWall+200.)discard;
+ if(x.p.z>uFloorZ+8.||x.p.z<uFloorZ-60.)discard;
+ vec3 n=cross(dFdx(x.p),dFdy(x.p));if(abs(n.z)/max(length(n),1e-5)<.9)discard;
+ float l=dot(x.p.xy,uLat);
+ float side=smoothstep(uLim.x,uLim.x+uLim.z,l)*(1.-smoothstep(uLim.y-uLim.z,uLim.y,l));
+ float t1=noise3(vec3(l/110.,s/520.,3.))*.6+noise3(vec3(l/38.,s/180.,8.))*.4;
+ float reach=uWall-uDepthW*(.45+.9*t1)*(1.+.5*uGust);
+ float f=clamp((s-reach)/max(uWall-reach,1.),0.,1.);
+ float cov=smoothstep(.0,.35,f)*smoothstep(.25,.55,t1*.8+f*.55);
+ cov*=1.-smoothstep(uWall-10.,uWall+200.,s);
+ float a=cov*side*uAmt;
+ if(a<.004)discard;
+ float shade=mix(.8,1.,cov)*(.9+.1*noise3(vec3(x.p.xy/14.,1.)));
+ vec2 cell=floor(x.p.xy/11.);
+ uint k=uint(int(cell.x)+70000)*73856093u^uint(int(cell.y)+70000)*19349663u;
+ float gl2=step(.975,rnd(k))*pow(max(0.,sin(uTime*(1.5+rnd(k+1u)*3.)+rnd(k+2u)*6.28)),8.);
+ vec3 col=uCol*shade+vec3(1.)*gl2*uSpark;
+ a=min(1.,a);o=vec4(col*a,a);}`;
     interface Model {
         readonly objects: ModelObject[];
         readonly materials: Record<string, Material>;
@@ -1473,6 +1525,8 @@ void main(){float ax=abs(vQ.x);if(ax>1.)discard;
         ]);
         const sunxProg = program(FULL_VS, SUNX_FS, [...DEPTH_U, 'uCol', 'uTime', 'uGroundZ', 'uSkyZ', 'uSkyNear', 'uSkyLow', 'uShAmt', 'uShH', 'uShSpeed']);
         const birdProg = program(BIRD_VS, BIRD_FS, ['uBat', 'uOne', 'uVP', 'uCam', 'uOut', 'uLat', 'uDist', 'uZ', 'uSpan', 'uTime', 'uSize', 'uSpeed', 'uHaze']);
+        const iceProg = program(ICE_VS, ICE_FS, ['uVP', 'uCam', 'uOut', 'uLat', 'uSpan', 'uTop', 'uAt', 'uLen', 'uWidth', 'uN', 'uColor', 'uTime', 'uGlint']);
+        const driftProg = program(FULL_VS, DRIFT_FS, [...DEPTH_U, 'uLat', 'uLim', 'uCol', 'uAmt', 'uDepthW', 'uGust', 'uFloorZ', 'uTime', 'uSpark']);
         const flakeProg = program(FLAKE_VS, FLAKE_FS, [
             'uDrift', 'uGust', 'uLampN', 'uLampStart', 'uLampGap', 'uLampZ', 'uLampR', 'uLampGlow', 'uLampSides', 'uLampCol', 'uVP', 'uCam', 'uViewport',
             'uTime', 'uSpeed', 'uSize', 'uWind', 'uSway', 'uBright', 'uMode', 'uOut', 'uLat', 'uRange', 'uZ', 'uRoomMin', 'uRoomMax', 'uColor', 'uAlphaMul',
@@ -2072,7 +2126,28 @@ void main(){float ax=abs(vQ.x);if(ax>1.)discard;
                     gl.bindVertexArray(vao);
                     gl.drawArrays(gl.TRIANGLES, 0, 3);
                 }
-                // (1e: the drift; with its look)
+                // 1e. the blown-in snow drift on the floor just inside the door (26j)
+                if (depthOk && f.swx && f.swx.drift && st.draw === null) {
+                    const D = f.swx.drift;
+                    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, st.draw);
+                    gl.viewport(0, 0, W, H);
+                    gl.useProgram(driftProg.p);
+                    depthUniforms(driftProg, f, W, H);
+                    gl.activeTexture(gl.TEXTURE0 + UNIT);
+                    gl.bindTexture(gl.TEXTURE_2D, depthTex);
+                    gl.uniform2f(uni(driftProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                    gl.uniform3fv(uni(driftProg, 'uLim'), D.lim);
+                    gl.uniform3fv(uni(driftProg, 'uCol'), D.color);
+                    gl.uniform1f(uni(driftProg, 'uAmt'), D.amount);
+                    gl.uniform1f(uni(driftProg, 'uDepthW'), D.depth);
+                    gl.uniform1f(uni(driftProg, 'uGust'), D.gust);
+                    gl.uniform1f(uni(driftProg, 'uFloorZ'), D.floorZ);
+                    gl.uniform1f(uni(driftProg, 'uTime'), f.time);
+                    gl.uniform1f(uni(driftProg, 'uSpark'), D.spark);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.bindVertexArray(vao);
+                    gl.drawArrays(gl.TRIANGLES, 0, 3);
+                }
                 gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                 // 2. snow lying on the ground, fog, sun glow, stars (laid over)
                 if (depthOk && A) {
@@ -2566,35 +2641,82 @@ void main(){float ax=abs(vQ.x);if(ax>1.)discard;
                     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Dp.n);
                     gl.disable(gl.POLYGON_OFFSET_FILL);
                 }
-                // (the icicles, the snow and the snow blown inside come with their looks) the dust floating in the hangar's light (26h, the
-                // probe's flakes mode 1: no fall, no wind, no lamps, see-through x 0.25, the reach of 5000)
-                if (f.motes && f.motes.n > 0) {
-                    const Mt = f.motes;
+                // the door's icicles (26j)
+                if (f.swx && f.swx.ice) {
+                    const I = f.swx.ice;
+                    gl.useProgram(iceProg.p);
+                    gl.uniformMatrix4fv(uni(iceProg, 'uVP'), false, f.vp);
+                    gl.uniform3fv(uni(iceProg, 'uCam'), f.cam);
+                    gl.uniform2f(uni(iceProg, 'uOut'), f.box.o[0], f.box.o[1]);
+                    gl.uniform2f(uni(iceProg, 'uLat'), f.box.l[0], f.box.l[1]);
+                    gl.uniform2f(uni(iceProg, 'uSpan'), I.span[0], I.span[1]);
+                    gl.uniform1f(uni(iceProg, 'uTop'), I.top);
+                    gl.uniform1f(uni(iceProg, 'uAt'), I.at);
+                    gl.uniform1f(uni(iceProg, 'uLen'), I.len);
+                    gl.uniform1f(uni(iceProg, 'uWidth'), I.width);
+                    gl.uniform1f(uni(iceProg, 'uN'), I.n);
+                    gl.uniform3fv(uni(iceProg, 'uColor'), I.color);
+                    gl.uniform1f(uni(iceProg, 'uTime'), f.time);
+                    gl.uniform1f(uni(iceProg, 'uGlint'), I.glint);
+                    const wasCull = gl.isEnabled(gl.CULL_FACE);
+                    gl.disable(gl.CULL_FACE);
+                    gl.drawArraysInstanced(gl.TRIANGLES, 0, 3, I.n);
+                    if (wasCull) gl.enable(gl.CULL_FACE);
+                }
+                // falling and floating specks, the probe's flakes(): mode 0 = the snow outside, 2 = the snow blown inside, 1 = the dust
+                // in the hangar's light (26h); the snow's drift and gust move every mode, the street lamps light only the snow outside
+                const reachEnd = (reach: number): number => Math.min(f.box.far, f.box.wall + reach);
+                const flakes = (
+                    mode: number,
+                    n: number,
+                    sp: number,
+                    size: number,
+                    wind: number,
+                    sway: number,
+                    bright: number,
+                    color: readonly number[],
+                    alphaMul: number,
+                    reach: number,
+                ): void => {
                     gl.useProgram(flakeProg.p);
                     gl.uniformMatrix4fv(uni(flakeProg, 'uVP'), false, f.vp);
                     gl.uniform3fv(uni(flakeProg, 'uCam'), f.cam);
                     gl.uniform2f(uni(flakeProg, 'uViewport'), W, H);
                     gl.uniform1f(uni(flakeProg, 'uTime'), f.time);
-                    gl.uniform1f(uni(flakeProg, 'uSpeed'), 0);
-                    gl.uniform1f(uni(flakeProg, 'uSize'), 1);
-                    gl.uniform1f(uni(flakeProg, 'uWind'), 0);
-                    gl.uniform1f(uni(flakeProg, 'uDrift'), 0);
-                    gl.uniform1f(uni(flakeProg, 'uGust'), 0);
-                    gl.uniform1i(uni(flakeProg, 'uLampN'), 0);
-                    gl.uniform3fv(uni(flakeProg, 'uLampCol'), [0, 0, 0]);
-                    gl.uniform1f(uni(flakeProg, 'uSway'), 0);
-                    gl.uniform1f(uni(flakeProg, 'uBright'), Mt.bright);
-                    gl.uniform1i(uni(flakeProg, 'uMode'), 1);
+                    gl.uniform1f(uni(flakeProg, 'uSpeed'), sp);
+                    gl.uniform1f(uni(flakeProg, 'uSize'), size);
+                    gl.uniform1f(uni(flakeProg, 'uWind'), wind);
+                    gl.uniform1f(uni(flakeProg, 'uDrift'), f.snow ? f.snow.drift : 0);
+                    gl.uniform1f(uni(flakeProg, 'uGust'), f.snow ? f.snow.gust : 0);
+                    const LG = mode === 0 && f.snow ? f.snow.glow : null;
+                    gl.uniform1i(uni(flakeProg, 'uLampN'), LG ? LG.n : 0);
+                    gl.uniform3fv(uni(flakeProg, 'uLampCol'), LG ? LG.color : [0, 0, 0]);
+                    if (LG) {
+                        gl.uniform1f(uni(flakeProg, 'uLampStart'), LG.start);
+                        gl.uniform1f(uni(flakeProg, 'uLampGap'), LG.gap);
+                        gl.uniform1f(uni(flakeProg, 'uLampZ'), LG.z);
+                        gl.uniform1f(uni(flakeProg, 'uLampR'), LG.r);
+                        gl.uniform1f(uni(flakeProg, 'uLampGlow'), LG.amount);
+                        gl.uniform2f(uni(flakeProg, 'uLampSides'), LG.sides[0], LG.sides[1]);
+                    }
+                    gl.uniform1f(uni(flakeProg, 'uSway'), sway);
+                    gl.uniform1f(uni(flakeProg, 'uBright'), bright);
+                    gl.uniform1i(uni(flakeProg, 'uMode'), mode);
                     gl.uniform2f(uni(flakeProg, 'uOut'), f.box.o[0], f.box.o[1]);
                     gl.uniform2f(uni(flakeProg, 'uLat'), f.box.l[0], f.box.l[1]);
-                    gl.uniform4f(uni(flakeProg, 'uRange'), f.box.wall, Math.min(f.box.far, f.box.wall + 5000), f.box.u[0], f.box.u[1]);
+                    gl.uniform4f(uni(flakeProg, 'uRange'), f.box.wall, reachEnd(reach || 5000), f.box.u[0], f.box.u[1]);
                     gl.uniform2f(uni(flakeProg, 'uZ'), f.box.z[0], f.box.z[1]);
                     gl.uniform3fv(uni(flakeProg, 'uRoomMin'), f.box.roomMin);
                     gl.uniform3fv(uni(flakeProg, 'uRoomMax'), f.box.roomMax);
-                    gl.uniform3fv(uni(flakeProg, 'uColor'), Mt.color);
-                    gl.uniform1f(uni(flakeProg, 'uAlphaMul'), 0.25);
-                    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Mt.n);
-                }
+                    gl.uniform3fv(uni(flakeProg, 'uColor'), color);
+                    gl.uniform1f(uni(flakeProg, 'uAlphaMul'), alphaMul);
+                    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
+                };
+                if (f.snow && f.snow.flakes > 0)
+                    flakes(0, f.snow.flakes, 160 * f.snow.speed, f.snow.size, f.snow.wind, f.snow.sway, f.snow.bright, f.snow.color, 1, f.snow.reach);
+                if (f.snowIn)
+                    flakes(2, f.snowIn.n, 160 * f.snowIn.speed, f.snowIn.size, f.snowIn.wind, f.snowIn.sway, f.snowIn.bright, f.snowIn.color, 0.8, 0);
+                if (f.motes && f.motes.n > 0) flakes(1, f.motes.n, 0, 1, 0, 0, f.motes.bright, f.motes.color, 0.25, 0);
                 gl.disable(gl.DEPTH_TEST);
             } finally {
                 restore(st);
