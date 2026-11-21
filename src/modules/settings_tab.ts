@@ -86,6 +86,8 @@
         { key: 'kasp_showroom', group: 'garage', live: false, label: { EN: 'Showroom garage', RU: 'Гараж-витрина' } },
         // Read by the injector when the game starts: the lobby's camera and the hangar's light (build-plan 26a, a change needs a reload).
         { key: 'kasp_lobby', group: 'lobby', live: false, label: { EN: 'Lobby camera and look', RU: 'Камера и вид лобби' } },
+        // Read by the injector when the game starts: the drone's flight round the tank (26c); works only with the switch above.
+        { key: 'kasp_lobbydrone', group: 'lobby', live: false, label: { EN: 'Drone flight', RU: 'Полёт дрона' } },
         // Read by the injector when the game starts: the daily offer's click buys without the success dialog (a change needs a reload).
         { key: 'kasp_shopquickbuy', group: 'shop', live: false, label: { EN: 'Daily offer quick buying', RU: 'Быстрая покупка ежедневного предложения' } },
         { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },

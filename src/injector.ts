@@ -1552,6 +1552,62 @@
         return { code: applyEdits(code, [{ at, length: 0, text: 'window.__kaspLobby&&window.__kaspLobby.frame(this);' }]), names };
     }
 
+    // The drone flight (build-plan 26c). The lobby drone system's per-frame update (it copies the hangar's drone place, bobs the drone
+    // with 10*Math.sin and tilts it with 5*.017453292*Math.cos, then lets a press grab and turn it) gets a call to
+    // window.__kaspLobby.drone(this) as its last statement, so the turn, lean and hello tilt lobby.ts writes there come after the
+    // game's own. The hangar's drone place is the one its "Drone position" debug line traces. Checked against the names patchLobby
+    // found; one missing or doubtful name skips only the drone.
+    const LOBBY_DRONE_RANGE = 4000;
+    function patchLobbyDrone(code: string, names: KaspLobbyNames): { readonly code: string; readonly drone: KaspLobbyDroneNames } | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the lobby drone ${what} in this bundle, the drone flight is skipped`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const R = String.raw;
+        const one = (pattern: string): RegExpExecArray | null => exactlyOne(code, new RegExp(pattern, 'g'));
+        const home = one(R`"Drone position",\[t\.(${N})\]`);
+        if (home === null) return skip('place');
+        const update = one(R`\.${N}=function\(t,n\)\{var i=this\.${N};null==i\|\|\(i\.${N}\(this\.(${N})\),this\.(${N})\.(${N})\(this\.\1\.${N}\)\),(${N})\(this\)\.(${N})\.\3\(this\.\2\);var r=${N}\(t\),e=10\*Math\.sin\(r\),u=\4\(this\)\.\5;u\.(${N})=u\.\6\+e;var s=\4\(this\)\.(${N}),o=${N}\(t\);if\(s\.(${N})=5\*\.017453292\*Math\.cos\(o\),this\.${N}\(\)\.${N}\.${N}\(${N}\(\)\)\)if\(this\.(${N})\)\{if\(this\.(${N})\)\{`);
+        if (update === null || update[6] !== names.z || update[7] !== names.rotation || update[8] !== names.x) return skip('update');
+        const [, , place, , getter, , , , , pressed, grabbed] = update;
+        const mesh = one(R`\{this\.${N}=t,this\.(${N})=n\.${N}\(\),${asPattern(getter)}\(this\)\.${N}=!0,`);
+        if (mesh === null) return skip('mesh');
+        const open = update.index + update[0].indexOf('{');
+        const close = closingBrace(code, open, LOBBY_DRONE_RANGE);
+        // A return inside would skip our call at the end.
+        if (close < 0 || code.slice(open, close).includes('return')) return skip('update end');
+        return {
+            code: applyEdits(code, [{ at: close, length: 0, text: ';window.__kaspLobby&&window.__kaspLobby.drone(this)' }]),
+            drone: { home: home[1], place, pressed, grabbed, mesh: mesh[1] },
+        };
+    }
+
+    // The index of the } that closes the { at open, at most limit characters on, or -1; text in quotes is skipped.
+    function closingBrace(code: string, open: number, limit: number): number {
+        let depth = 0;
+        const end = Math.min(code.length, open + limit);
+        for (let i = open; i < end; i++) {
+            const ch = code[i];
+            if (ch === '"' || ch === "'") {
+                for (i++; i < end && code[i] !== ch; i++) if (code[i] === '\\') i++;
+            } else if (ch === '{') {
+                depth++;
+            } else if (ch === '}' && --depth === 0) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    function lobbyDroneSwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_lobbydrone') === '0';
+        } catch {
+            return false;
+        }
+    }
+
     function lobbySwitchedOff(): boolean {
         try {
             return localStorage.getItem('kasp_lobby') === '0';
@@ -1663,8 +1719,17 @@
             const lobby = patchLobby(result);
             if (lobby !== null) {
                 result = lobby.code;
-                lobbyNames = lobby.names;
+                let names = lobby.names;
                 hooked.push('lobby');
+                if (!lobbyDroneSwitchedOff()) {
+                    const drone = patchLobbyDrone(result, names);
+                    if (drone !== null) {
+                        result = drone.code;
+                        names = { ...names, drone: drone.drone };
+                        hooked.push('lobby-drone');
+                    }
+                }
+                lobbyNames = names;
             }
         }
         // Last, so every other edit finds the game's code as it was.

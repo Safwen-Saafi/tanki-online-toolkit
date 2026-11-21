@@ -348,6 +348,18 @@ interface KaspLobbyNames {
     readonly shadow: string;
     readonly shadowCopy: string;
     readonly shadowFields: readonly string[];
+    // Only while the drone flight's edit went in too (26c).
+    readonly drone?: KaspLobbyDroneNames;
+}
+
+// The drone's names (build-plan 26c): the hangar's drone place (the point the drone system copies every frame), and the drone
+// system's own place, its pressed and grabbed flags (a press on the drone grabs it and a drag turns it) and its mesh.
+interface KaspLobbyDroneNames {
+    readonly home: string;
+    readonly place: string;
+    readonly pressed: string;
+    readonly grabbed: string;
+    readonly mesh: string;
 }
 
 // The game's own values in the lobby, recorded before anything is written (build-plan 26a).
@@ -378,6 +390,8 @@ interface KaspLobbyRecord {
 interface KaspLobby {
     readonly start: (names: KaspLobbyNames) => void;
     readonly frame: (system: unknown) => void;
+    // Called by the game's drone system as the last thing of its own update (26c).
+    readonly drone: (system: unknown) => void;
     // Read-only, for the owner's console checks.
     readonly frames: number;
     readonly game: KaspLobbyRecord | null;
