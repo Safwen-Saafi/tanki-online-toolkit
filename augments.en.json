@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "language": "EN",
-  "generatedAt": "2026-11-15T12:53:14Z",
+  "generatedAt": "2026-11-22T13:30:14Z",
   "items": {
     "firebird": {
       "Adrenaline": {
@@ -2557,6 +2557,17 @@
           "Damage: -25%",
           "Reload time: +100%",
           "Impact force: -50%"
+        ],
+        "rarity": "exotic"
+      },
+      "Sorted Ammunition": {
+        "name": "Sorted Ammunition",
+        "advantages": [
+          "Reload time: -50%",
+          "Second shot is guaranteed to deal critical damage."
+        ],
+        "disadvantages": [
+          "Time between two shots: +100%"
         ],
         "rarity": "exotic"
       },
