@@ -872,7 +872,8 @@
     // update that changes the hangar puts its files at a new address, so they are made again by themselves) and MADE_VERSION (raised
     // when a way of making changes). Saving a file deletes the files of any other folder or version, so nothing piles up. Anything
     // that fails (no storage, a private window, a full disk) just makes the file as before.
-    const MADE_VERSION = 1;
+    // 2: the night wall reads its light on the plain wall only; 3: its cleaned spots matched to the never-lit wall (2026-11-22)
+    const MADE_VERSION = 3;
     const MADE_DB = 'kasp-lobby-made';
     const MADE_STORE = 'made';
     // A made response carries this header, so a file the making gave up on (the game's own, unchanged) is never saved.

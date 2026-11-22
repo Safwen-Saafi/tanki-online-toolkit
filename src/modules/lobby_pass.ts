@@ -1171,7 +1171,8 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
     // The hangar's wall and floor pictures with their painted sunlight taken out, kept as a factor per pixel (night / day, 255 =
     // unchanged) that stage 0b multiplies the game's walls and floor by. Made once in the page from the game's own pictures (as the
     // game got them, so the floor is the cleaned one where the look has it). The wall: the sunlit places (bright and warm over cooler
-    // shade) brought to the colour of the shade round them, detail kept (nightPicture); the floor: its sunlight removed and its light
+    // shade) brought to the colour of the plain wall's shade round them, bricks kept orange, detail kept (nightPicture, since
+    // 2026-11-22 no longer the probe's: that one left dark spots under the screen stand); the floor: its sunlight removed and its light
     // flattened by hangar_files.ts's own two steps (removeSun, flattenPicture: the same code and numbers as the probe's).
     interface NightOptions {
         readonly lum: readonly [number, number];
@@ -1190,12 +1191,38 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
             const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
             return t * t * (3 - 2 * t);
         };
+        // Two grids: Q (4 x 4 pixels) for the sun's outline and the light, Q2 (2 x 2) for the fine match at the sun's soft edges.
         const Q = 4;
         const w = Math.ceil(W / Q);
         const h = Math.ceil(H / Q);
+        const Q2 = 2;
+        const w2 = Math.ceil(W / Q2);
+        const h2 = Math.ceil(H / Q2);
         const bg = [px[(W - 1) * 4], px[(W - 1) * 4 + 1], px[(W - 1) * 4 + 2]];
         const mFull = new Float32Array(W * H);
-        const L = { r: new Float32Array(w * h), g: new Float32Array(w * h), b: new Float32Array(w * h), m: new Float32Array(w * h), n: new Float32Array(w * h) };
+        const cells = (): Float32Array => new Float32Array(w * h);
+        const three = (): [Float32Array, Float32Array, Float32Array] => [cells(), cells(), cells()];
+        const Lm = cells();
+        const Ln = cells();
+        // The light is read on the plain wall only (owner 2026-11-22): pixels that are not dark (the stand's bars, the cables, the
+        // painted shadows, the dark strip along the wall's foot) and not strongly coloured (the bricks, rust). Shade samples: plain
+        // pixels with no sun of their own; sun samples: plain pixels in full sun. Reading the light on everything round a sun spot
+        // took in those dark things and painted the spot nearly black; reading it like with like also keeps the bricks orange.
+        const shN = cells();
+        const suN = cells();
+        const PS = three();
+        const PU = three();
+        const P2 = new Float32Array(w2 * h2);
+        const N2 = [new Float32Array(w2 * h2), new Float32Array(w2 * h2), new Float32Array(w2 * h2)];
+        // Bricks (owner 2026-11-22: a brighter orange ring was left round the dark block beside the stand): a brick in full sun is
+        // bright orange, which the brightness test above reads as only half sun. Next to a sun spot a brick's sun is read on its
+        // red instead, between the bricks in shade and the bricks in sun round it (both must be there, so an orange machine part
+        // elsewhere on the picture is never taken for a sunlit brick). Here: the red of each, summed per cell.
+        const brick = (r: number, g: number, b: number): number => (1 - sm(0.7, 0.85, g / Math.max(r, 1e-3))) * sm(0.15, 0.3, r - b);
+        const bS = cells();
+        const bSr = cells();
+        const bU = cells();
+        const bUr = cells();
         for (let y = 0; y < H; y++)
             for (let x = 0; x < W; x++) {
                 const i = (y * W + x) * 4;
@@ -1203,94 +1230,324 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
                 const g = px[i + 1] / 255;
                 const b = px[i + 2] / 255;
                 const content = Math.abs(px[i] - bg[0]) + Math.abs(px[i + 1] - bg[1]) + Math.abs(px[i + 2] - bg[2]) > 10 ? 1 : 0;
-                const m = content * sm(o.lum[0], o.lum[1], 0.3 * r + 0.59 * g + 0.11 * b) * sm(o.warm[0], o.warm[1], r - b);
+                const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+                const m = content * sm(o.lum[0], o.lum[1], lum) * sm(o.warm[0], o.warm[1], r - b);
                 mFull[y * W + x] = m;
                 const j = ((y / Q) | 0) * w + ((x / Q) | 0);
-                L.r[j] += r * content;
-                L.g[j] += g * content;
-                L.b[j] += b * content;
-                L.m[j] += m;
-                L.n[j] += content;
+                Lm[j] += m;
+                Ln[j] += content;
+                const cb = content * brick(r, g, b);
+                if (cb > 0) {
+                    const shade = cb * (1 - sm(0.45, 0.6, r));
+                    const sun = cb * sm(0.8, 0.9, r);
+                    bS[j] += shade;
+                    bSr[j] += r * shade;
+                    bU[j] += sun;
+                    bUr[j] += r * sun;
+                }
+                const p = content * sm(0.28, 0.36, lum) * sm(0.7, 0.85, g / Math.max(r, 1e-3));
+                if (p === 0) continue;
+                const sh = p * (1 - m) * (1 - m);
+                const su = p * m * m;
+                shN[j] += sh;
+                suN[j] += su;
+                PS[0][j] += r * sh;
+                PS[1][j] += g * sh;
+                PS[2][j] += b * sh;
+                PU[0][j] += r * su;
+                PU[1][j] += g * su;
+                PU[2][j] += b * su;
+                const j2 = ((y / Q2) | 0) * w2 + ((x / Q2) | 0);
+                P2[j2] += p;
+                N2[0][j2] += p / Math.max(r, 1 / 255);
+                N2[1][j2] += p / Math.max(g, 1 / 255);
+                N2[2][j2] += p / Math.max(b, 1 / 255);
             }
         for (let j = 0; j < w * h; j++) {
-            const n = L.n[j] || 1;
-            L.r[j] /= n;
-            L.g[j] /= n;
-            L.b[j] /= n;
-            L.m[j] /= Q * Q;
-            L.n[j] /= Q * Q;
+            for (let c = 0; c < 3; c++) {
+                PS[c][j] /= shN[j] || 1;
+                PU[c][j] /= suN[j] || 1;
+            }
+            shN[j] /= Q * Q;
+            suN[j] /= Q * Q;
+            Lm[j] /= Q * Q;
+            Ln[j] /= Q * Q;
         }
-        const blur = (src: Float32Array, r: number): Float32Array => {
-            const tmp = new Float32Array(w * h);
-            const out = new Float32Array(w * h);
-            for (let y = 0; y < h; y++) {
+        const blur = (src: Float32Array, gw: number, gh: number, r: number): Float32Array => {
+            const tmp = new Float32Array(gw * gh);
+            const out = new Float32Array(gw * gh);
+            for (let y = 0; y < gh; y++) {
                 let s = 0;
-                for (let x = -r; x <= r; x++) s += src[y * w + Math.min(w - 1, Math.max(0, x))];
-                for (let x = 0; x < w; x++) {
-                    tmp[y * w + x] = s / (2 * r + 1);
-                    s += src[y * w + Math.min(w - 1, x + r + 1)] - src[y * w + Math.max(0, x - r)];
+                for (let x = -r; x <= r; x++) s += src[y * gw + Math.min(gw - 1, Math.max(0, x))];
+                for (let x = 0; x < gw; x++) {
+                    tmp[y * gw + x] = s / (2 * r + 1);
+                    s += src[y * gw + Math.min(gw - 1, x + r + 1)] - src[y * gw + Math.max(0, x - r)];
                 }
             }
-            for (let x = 0; x < w; x++) {
+            for (let x = 0; x < gw; x++) {
                 let s = 0;
-                for (let y = -r; y <= r; y++) s += tmp[Math.min(h - 1, Math.max(0, y)) * w + x];
-                for (let y = 0; y < h; y++) {
-                    out[y * w + x] = s / (2 * r + 1);
-                    s += tmp[Math.min(h - 1, y + r + 1) * w + x] - tmp[Math.max(0, y - r) * w + x];
+                for (let y = -r; y <= r; y++) s += tmp[Math.min(gh - 1, Math.max(0, y)) * gw + x];
+                for (let y = 0; y < gh; y++) {
+                    out[y * gw + x] = s / (2 * r + 1);
+                    s += tmp[Math.min(gh - 1, y + r + 1) * gw + x] - tmp[Math.max(0, y - r) * gw + x];
                 }
             }
             return out;
         };
-        const soft = (a: Float32Array, r: number): Float32Array => blur(blur(a, r), r);
-        const mb = soft(L.m, 2);
-        const m = new Float32Array(w * h);
-        for (let j = 0; j < w * h; j++) m[j] = Math.min(1, Math.max(L.m[j], mb[j] * 2.2)) * (L.n[j] > 0.2 ? 1 : 0);
-        const wShade = new Float32Array(w * h);
-        const wSun = new Float32Array(w * h);
-        for (let j = 0; j < w * h; j++) {
-            wShade[j] = (1 - m[j]) * L.n[j];
-            wSun[j] = m[j] * L.n[j];
-        }
-        const channels = [L.r, L.g, L.b];
+        const soft = (a: Float32Array, r: number): Float32Array => blur(blur(a, w, h, r), w, h, r);
+        const mb = soft(Lm, 2);
+        const m = cells();
+        for (let j = 0; j < w * h; j++) m[j] = Math.min(1, Math.max(Lm[j], mb[j] * 2.2)) * (Ln[j] > 0.2 ? 1 : 0);
+        const wShade = cells();
+        for (let j = 0; j < w * h; j++) wShade[j] = (1 - m[j]) * shN[j];
         const scale = (r: number): { ch: Array<[Float32Array, Float32Array]>; ns: Float32Array; nu: Float32Array } => {
-            const ch = channels.map((src): [Float32Array, Float32Array] => {
-                const a = new Float32Array(w * h);
-                const c = new Float32Array(w * h);
+            const ch = [0, 1, 2].map((c): [Float32Array, Float32Array] => {
+                const a = cells();
+                const u = cells();
                 for (let j = 0; j < w * h; j++) {
-                    a[j] = src[j] * wShade[j];
-                    c[j] = src[j] * wSun[j];
+                    a[j] = PS[c][j] * wShade[j];
+                    u[j] = PU[c][j] * suN[j];
                 }
-                return [soft(a, r), soft(c, r)];
+                return [soft(a, r), soft(u, r)];
             });
-            return { ch, ns: soft(wShade, r), nu: soft(wSun, r) };
+            return { ch, ns: soft(wShade, r), nu: soft(suN, r) };
         };
         const near = scale(o.radius);
         const far = scale(o.radius * 4);
-        const ratio = [new Float32Array(w * h), new Float32Array(w * h), new Float32Array(w * h)];
-        for (let j = 0; j < w * h; j++)
-            for (let c = 0; c < 3; c++) {
-                const pick = near.ns[j] > 0.06 ? near : far;
-                const shade = pick.ns[j] > 1e-4 ? pick.ch[c][0][j] / pick.ns[j] : 0;
-                const sun = pick.nu[j] > 1e-4 ? pick.ch[c][1][j] / pick.nu[j] : 0;
-                ratio[c][j] = sun > 1e-3 && pick.ns[j] > 0.01 ? Math.max(0.15, Math.min(1, shade / sun)) : 1;
+        // the light over the whole picture, for a spot with no plain wall near it (a wooden plank, a lamp)
+        const whole = [0, 1, 2].map((c) => {
+            let s = 0;
+            let ws = 0;
+            let u = 0;
+            let wu = 0;
+            for (let j = 0; j < w * h; j++) {
+                s += PS[c][j] * wShade[j];
+                ws += wShade[j];
+                u += PU[c][j] * suN[j];
+                wu += suN[j];
             }
-        const at = (a: Float32Array, fx: number, fy: number): number => {
-            const x0 = Math.max(0, Math.min(w - 1, Math.floor(fx)));
-            const y0 = Math.max(0, Math.min(h - 1, Math.floor(fy)));
-            const x1 = Math.min(w - 1, x0 + 1);
-            const y1 = Math.min(h - 1, y0 + 1);
+            return ws > 0 && wu > 0 && u > 0 ? Math.min(1, s / ws / (u / wu)) : 1;
+        });
+        // per cell: the light's ratio (shade / sun), the plain wall's shade colour, and whether that colour is known
+        const LUM = [0.3, 0.59, 0.11];
+        const ratio = three();
+        const shadeCol = three();
+        const known = cells();
+        for (let j = 0; j < w * h; j++) {
+            const pick = near.ns[j] > 0.06 ? near : far;
+            const ns = pick.ns[j];
+            const nu = pick.nu[j];
+            const shade = [0, 0, 0];
+            const sun = [0, 0, 0];
+            let lumS = 0;
+            let lumU = 0;
+            for (let c = 0; c < 3; c++) {
+                shade[c] = ns > 1e-4 ? pick.ch[c][0][j] / ns : 0;
+                sun[c] = nu > 1e-4 ? pick.ch[c][1][j] / nu : 0;
+                lumS += LUM[c] * shade[c];
+                lumU += LUM[c] * sun[c];
+            }
+            const both = ns > 0.01 && nu > 0.01;
+            known[j] = both && lumU > lumS + 0.05 ? 1 : 0;
+            for (let c = 0; c < 3; c++) {
+                ratio[c][j] = both && sun[c] > 1e-3 ? Math.max(0.15, Math.min(1, shade[c] / sun[c])) : whole[c];
+                shadeCol[c][j] = known[j] * shade[c];
+            }
+        }
+        const at = (a: Float32Array, gw: number, gh: number, fx: number, fy: number): number => {
+            const x0 = Math.max(0, Math.min(gw - 1, Math.floor(fx)));
+            const y0 = Math.max(0, Math.min(gh - 1, Math.floor(fy)));
+            const x1 = Math.min(gw - 1, x0 + 1);
+            const y1 = Math.min(gh - 1, y0 + 1);
             const tx = Math.max(0, Math.min(1, fx - x0));
             const ty = Math.max(0, Math.min(1, fy - y0));
-            return (a[y0 * w + x0] * (1 - tx) + a[y0 * w + x1] * tx) * (1 - ty) + (a[y1 * w + x0] * (1 - tx) + a[y1 * w + x1] * tx) * ty;
+            return (a[y0 * gw + x0] * (1 - tx) + a[y0 * gw + x1] * tx) * (1 - ty) + (a[y1 * gw + x0] * (1 - tx) + a[y1 * gw + x1] * tx) * ty;
         };
+        // The fine match (2 x 2 cells): the gain that brings the plain wall exactly to the plain shade colour beside it, smoothed so
+        // the wall's own detail stays. It follows the sun's soft edges, where one light ratio for the whole spot left light outlines.
+        // Trusted where plain wall is near and its shade colour is known; elsewhere (inside a wide brick patch) the light ratio alone.
+        const plain2 = new Float32Array(w2 * h2);
+        const known2 = new Float32Array(w2 * h2);
+        for (let y2 = 0; y2 < h2; y2++)
+            for (let x2 = 0; x2 < w2; x2++) {
+                const j2 = y2 * w2 + x2;
+                const fx = (x2 * Q2 + Q2 / 2) / Q - 0.5;
+                const fy = (y2 * Q2 + Q2 / 2) / Q - 0.5;
+                for (let c = 0; c < 3; c++) N2[c][j2] = (N2[c][j2] * at(shadeCol[c], w, h, fx, fy)) / (Q2 * Q2);
+                plain2[j2] = P2[j2] / (Q2 * Q2);
+                known2[j2] = at(known, w, h, fx, fy);
+            }
+        const soft2 = (a: Float32Array): Float32Array => blur(blur(a, w2, h2, 2), w2, h2, 2);
+        const plainNear = soft2(plain2);
+        const gain = N2.map((n) => {
+            const s = soft2(n);
+            for (let j2 = 0; j2 < w2 * h2; j2++) s[j2] = Math.min(1, s[j2] / Math.max(plainNear[j2], 1e-6));
+            return s;
+        });
+        const trust = new Float32Array(w2 * h2);
+        for (let j2 = 0; j2 < w2 * h2; j2++) trust[j2] = Math.min(1, plainNear[j2] / 0.3) * known2[j2];
+        // the bricks' red in shade and in sun round each cell, known where both are near and clearly apart
+        const sS = soft(bS, o.radius);
+        const sU = soft(bU, o.radius);
+        const redS = soft(bSr, o.radius);
+        const redU = soft(bUr, o.radius);
+        const knownB = cells();
+        for (let j = 0; j < w * h; j++) {
+            redS[j] /= Math.max(sS[j], 1e-6);
+            redU[j] /= Math.max(sU[j], 1e-6);
+            knownB[j] = sS[j] / (Q * Q) > 0.02 && sU[j] / (Q * Q) > 0.02 && redU[j] > redS[j] + 0.3 ? 1 : 0;
+        }
         for (let y = 0; y < H; y++)
             for (let x = 0; x < W; x++) {
                 const fx = (x + 0.5) / Q - 0.5;
                 const fy = (y + 0.5) / Q - 0.5;
                 const i = (y * W + x) * 4;
-                const k = Math.max(mFull[y * W + x], at(m, fx, fy));
+                const kb = at(knownB, w, h, fx, fy);
+                // a brick's sun read on its red (kept in mFull, so the last touch below sees it too)
+                let bSun = 0;
+                if (kb > 0) {
+                    const r = px[i] / 255;
+                    const rs = at(redS, w, h, fx, fy);
+                    const sun = Math.max(0, Math.min(1, (r - rs) / Math.max(at(redU, w, h, fx, fy) - rs, 0.05)));
+                    bSun = kb * brick(r, px[i + 1] / 255, px[i + 2] / 255) * sun;
+                    if (bSun > mFull[y * W + x]) mFull[y * W + x] = bSun;
+                }
+                const k = Math.max(mFull[y * W + x], at(m, w, h, fx, fy));
                 if (k < 0.01) continue;
-                for (let c = 0; c < 3; c++) px[i + c] = Math.round(px[i + c] * (1 - k + k * at(ratio[c], fx, fy)));
+                const gx = (x + 0.5) / Q2 - 0.5;
+                const gy = (y + 0.5) / Q2 - 0.5;
+                const mix = at(trust, w2, h2, gx, gy) * Math.min(1, (k - 0.01) * 4);
+                for (let c = 0; c < 3; c++) {
+                    const R = at(ratio[c], w, h, fx, fy);
+                    let light = 1 - k + k * R;
+                    // a half-lit brick: its red grows with the light, so taking the sun out is a division (the straight line above
+                    // under-darkens it and leaves a lighter ring where the sun faded)
+                    if (bSun > 0) light = Math.min(light, R / (R + bSun * (1 - R)));
+                    px[i + c] = Math.round(px[i + c] * ((1 - mix) * light + mix * at(gain[c], w2, h2, gx, gy)));
+                }
+            }
+        // The last touch inside the old sun spots (owner 2026-11-22: no light or yellowish places at all). Everything is matched to
+        // the wall that never had sun round it (the game's own pixels there, untouched): the plaster takes the never-lit plaster's
+        // colour (its own light and dark detail kept, never more than a little lighter), and a brick gets the colour balance and
+        // brightness of the never-lit bricks (each colour scaled, so its pattern and the mortar stay). The sun's warm light left
+        // the cleaned places short of blue, which the cool night light shows as a yellow tint; the never-lit wall has no such cast.
+        const grey = (r: number, g: number): number => sm(0.7, 0.85, g / Math.max(r, 1e-3));
+        // per Q cell: never-lit plaster (nP), never-lit bricks (nB, painted shadows left out: they are darker than the wall's
+        // shade) and cleaned bricks (cB), each colour summed with its weight
+        const nPw = cells();
+        const nP = three();
+        const nBw = cells();
+        const nB = three();
+        const cBw = cells();
+        const cB = three();
+        const kAt = (x: number, y: number): number => Math.max(mFull[y * W + x], at(m, w, h, (x + 0.5) / Q - 0.5, (y + 0.5) / Q - 0.5));
+        for (let y = 0; y < H; y++)
+            for (let x = 0; x < W; x++) {
+                const i = (y * W + x) * 4;
+                const r = px[i] / 255;
+                const g = px[i + 1] / 255;
+                const b = px[i + 2] / 255;
+                const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+                const gr = grey(r, g);
+                const p = sm(0.28, 0.36, lum) * gr;
+                const q = (1 - gr) * sm(0.1, 0.15, lum);
+                if (p === 0 && q === 0) continue;
+                const j = ((y / Q) | 0) * w + ((x / Q) | 0);
+                const k = kAt(x, y);
+                const col = [r, g, b];
+                if (k < 0.01) {
+                    const n = q * sm(0.17, 0.2, lum);
+                    nPw[j] += p;
+                    nBw[j] += n;
+                    for (let c = 0; c < 3; c++) {
+                        nP[c][j] += col[c] * p;
+                        nB[c][j] += col[c] * n;
+                    }
+                } else {
+                    const cw = q * Math.min(1, (k - 0.01) * 4);
+                    cBw[j] += cw;
+                    for (let c = 0; c < 3; c++) cB[c][j] += col[c] * cw;
+                }
+            }
+        // a mean colour per cell: read near (o.radius) where enough of it is near, else far out (a sun spot can be wide); smooth,
+        // so the change has no edge of its own
+        const meanOf = (sums: Float32Array[], weight: Float32Array, min: number, farOnly = false): { col: Float32Array[]; ok: Float32Array } => {
+            const nearW = soft(weight, o.radius);
+            const farW = soft(weight, o.radius * 4);
+            const nearC = sums.map((s) => soft(s, o.radius));
+            const farC = sums.map((s) => soft(s, o.radius * 4));
+            const col = [cells(), cells(), cells()];
+            const ok = cells();
+            for (let j = 0; j < w * h; j++) {
+                const useNear = !farOnly && nearW[j] / (Q * Q) > min;
+                const wj = useNear ? nearW[j] : farW[j];
+                ok[j] = wj / (Q * Q) > min * 0.1 ? 1 : 0;
+                for (let c = 0; c < 3; c++) col[c][j] = ok[j] ? (useNear ? nearC[c][j] : farC[c][j]) / wj : 0;
+            }
+            return { col, ok };
+        };
+        const plainRef = meanOf(nP, nPw, 0.02);
+        // the bricks over one wide round each, the same for both, so the correction is even across a sun spot
+        const brickRef = meanOf(nB, nBw, 0.02, true);
+        const brickNow = meanOf(cB, cBw, 0.02, true);
+        // the never-lit bricks close by, for the yellow test below (their colour changes across the wall)
+        const brickNear = meanOf(nB, nBw, 0.02);
+        // a brick's gain per colour (never-lit / cleaned): the colour balance always, the brightness only down
+        const brickGain = three();
+        for (let j = 0; j < w * h; j++) {
+            if (!brickRef.ok[j] || !brickNow.ok[j]) {
+                for (let c = 0; c < 3; c++) brickGain[c][j] = 1;
+                continue;
+            }
+            const L = (a: Float32Array[]): number => 0.3 * a[0][j] + 0.59 * a[1][j] + 0.11 * a[2][j];
+            const down = Math.max(1, L(brickRef.col) / Math.max(L(brickNow.col), 1e-3));
+            for (let c = 0; c < 3; c++) brickGain[c][j] = brickRef.col[c][j] / Math.max(brickNow.col[c][j], 1e-3) / down;
+        }
+        const knee = (v: number, cap: number): number => (v > cap ? cap + (v - cap) * 0.25 : v);
+        for (let y = 0; y < H; y++)
+            for (let x = 0; x < W; x++) {
+                const k = kAt(x, y);
+                if (k < 0.01) continue;
+                const region = Math.min(1, (k - 0.01) * 4);
+                const fx = (x + 0.5) / Q - 0.5;
+                const fy = (y + 0.5) / Q - 0.5;
+                const i = (y * W + x) * 4;
+                const r = px[i] / 255;
+                const g = px[i + 1] / 255;
+                const b = px[i + 2] / 255;
+                const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+                const gr = grey(r, g);
+                const ref = [at(plainRef.col[0], w, h, fx, fy), at(plainRef.col[1], w, h, fx, fy), at(plainRef.col[2], w, h, fx, fy)];
+                const LL = 0.3 * ref[0] + 0.59 * ref[1] + 0.11 * ref[2];
+                const wp = LL > 0.05 ? region * gr * at(plainRef.ok, w, h, fx, fy) : 0;
+                const wb = region * (1 - gr);
+                const lumP = knee(lum, LL * 1.03);
+                const own = [r, g, b];
+                const v = [0, 0, 0];
+                for (let c = 0; c < 3; c++) {
+                    const plaster = (ref[c] * lumP) / Math.max(LL, 1e-3);
+                    const bricked = own[c] * at(brickGain[c], w, h, fx, fy);
+                    v[c] = own[c] * (1 - wp - wb) + plaster * wp + bricked * wb;
+                }
+                // No pixel yellower than the never-lit wall of its kind next to it: the excess yellow ((red + green) / 2 over blue,
+                // for its brightness) is taken out by raising the blue and lowering red and green a little, its brightness kept.
+                const yel = (c3: readonly number[]): number => ((c3[0] + c3[1]) / 2 - c3[2]) / Math.max(0.3 * c3[0] + 0.59 * c3[1] + 0.11 * c3[2], 1e-3);
+                const refB = [at(brickNear.col[0], w, h, fx, fy), at(brickNear.col[1], w, h, fx, fy), at(brickNear.col[2], w, h, fx, fy)];
+                const okP = LL > 0.05 && at(plainRef.ok, w, h, fx, fy) > 0.5;
+                const okB = at(brickNear.ok, w, h, fx, fy) > 0.5;
+                if (okP || okB) {
+                    const yRef = okP && okB ? gr * yel(ref) + (1 - gr) * yel(refB) : okP ? yel(ref) : yel(refB);
+                    const vL = 0.3 * v[0] + 0.59 * v[1] + 0.11 * v[2];
+                    const extra = yel(v) - yRef;
+                    if (extra > 0) {
+                        const s = 0.11 / 0.89;
+                        const t = (region * extra * vL) / (1 + s);
+                        v[0] -= t * s;
+                        v[1] -= t * s;
+                        v[2] += t;
+                    }
+                }
+                for (let c = 0; c < 3; c++) px[i + c] = Math.round(255 * Math.max(0, v[c]));
             }
     }
 
