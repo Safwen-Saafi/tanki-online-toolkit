@@ -654,6 +654,34 @@
         readonly webs: { readonly size: number; readonly amount: number; readonly top: number; readonly left: number; readonly right: number } | null;
         readonly haunt: { readonly every: number } | null;
         readonly spooky: { readonly owl: number; readonly wolf: number; readonly creak: number; readonly every: number } | null;
+        // the Christmas night's extras (26l); null = none. The tree: one of the Christmas hangar's two (kind > 0.5 = the slimmer Pine,
+        // else Pine_Big) moved to (x, y), turned (degrees) and sized, with `count` bulbs on a spiral (lights = their brightness, blink
+        // = how fast they twinkle), a star on top and a warm glow (pool) on the floor round it. The gifts round the tree's foot on the
+        // camera's side (count, size; they need the tree). The Christmas lights over the door and along the side wall (as the
+        // Halloween string lights, in red, green, gold and white).
+        readonly tree: {
+            readonly kind: number;
+            readonly x: number;
+            readonly y: number;
+            readonly turn: number;
+            readonly size: number;
+            readonly count: number;
+            readonly lights: number;
+            readonly blink: number;
+            readonly star: number;
+            readonly pool: number;
+        } | null;
+        readonly gifts: { readonly count: number; readonly size: number } | null;
+        readonly xmasLights: {
+            readonly door: number;
+            readonly wall: number;
+            readonly doorZ: number;
+            readonly wallZ: number;
+            readonly sag: number;
+            readonly gap: number;
+            readonly bright: number;
+            readonly blink: number;
+        } | null;
     }
     interface ShootNumbers {
         readonly every: number;
@@ -743,6 +771,9 @@
         webs: null,
         haunt: null,
         spooky: null,
+        tree: null,
+        gifts: null,
+        xmasLights: null,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
@@ -924,6 +955,36 @@
         haunt: { every: 20 },
         spooky: { owl: 80, wolf: 70, creak: 60, every: 25 },
     };
+    // The owner's final Christmas (probe v1.87 CHRISTMAS, report of 2026-11-20 21:36, "only one preset for Christmas"): the probe's
+    // snowy night at hour 24 (inside 0.8, moon side 180) with the New Year outside brighter (2.1, keeps its look 0.8, blend reach 500),
+    // warm lamps with the Halloween lamps at 0.6, heavy snow with wind (less on the ground, thinner), 33 shorter icicles, gusts every
+    // 10 s, the wind louder; the tree with 96 bulbs, its star and glow, 9 gifts, the Christmas lights. No fog, drift, glints, grey sky,
+    // flake glow, street lamps, red light, town windows or lamp light on the street.
+    const CHRISTMAS: LobbyLook = {
+        ...NIGHT_SNOWY,
+        outside: { season: 'newyear2025', bright: 2.1, own: 0.8, mix: 1, mixDepth: 500 },
+        time: { hour: 24, strength: 1, inside: 0.8, sunSide: 180 },
+        night: { lamps: 0.95, reach: 0.75, glow: 0, sunOff: 1, fixtures: 0.6, keyDown: 1, color: '#ffd9a8' },
+        door: 0.1,
+        overcast: null,
+        fog: null,
+        floorFog: null,
+        banks: null,
+        snow: { flakes: 18000, speed: 1.4, size: 1.4, wind: 1, sway: 1.25, bright: 1.2, cover: 0.35, reach: 2600, coverBright: 1.4, coverThick: 0.5, inside: 50 },
+        icicles: { count: 33, top: 590, out: 25, left: -1000, right: 780, length: 190, width: 2, glint: 0.95 },
+        snowDrift: null,
+        sparkle: 0,
+        snowGusts: { every: 10, strength: 1.25, length: 3, sound: 2.15 },
+        snowSounds: { volume: 164, fall: 80 },
+        snowGlow: null,
+        streetLamps: null,
+        red: null,
+        windows: null,
+        pools: null,
+        tree: { kind: 0, x: -1030, y: -1370, turn: 65, size: 1.4, count: 96, lights: 4, blink: 2.2, star: 2.5, pool: 4 },
+        gifts: { count: 9, size: 0.9 },
+        xmasLights: { door: 1, wall: 1, doorZ: 625, wallZ: 610, sag: 49, gap: 65, bright: 4, blink: 3.15 },
+    };
     // The owner's final "day foggy" (probe v1.56 DAY_FOGGY, report of 2026-11-20 09:43): the very sunny look (its key light, lamp speed,
     // door blend and road, written out here; the sunny look itself is 26i) with the heat off, the moving low fog, clean walls and every
     // sunbeam part hidden; the floor fog, the door beam and the fog banks (on at the owner's 0, so they draw nothing).
@@ -971,6 +1032,7 @@
         'day-snowy': DAY_SNOWY,
         'night-snowy': NIGHT_SNOWY,
         halloween: HALLOWEEN,
+        christmas: CHRISTMAS,
         'night-normal': NIGHT_NORMAL,
         'day-rainy': DAY_RAINY,
         'night-rainy': NIGHT_RAINY,
@@ -1417,6 +1479,9 @@
     let seasonState: 'none' | 'loading' | 'failed' = 'none';
     let pumpkinSet: KaspLobbyPumpkins | null = null;
     let pumpkinState: 'none' | 'loading' | 'failed' = 'none';
+    // the Christmas trees (26l), the same way
+    let treeSet: KaspLobbyTrees | null = null;
+    let treeState: 'none' | 'loading' | 'failed' = 'none';
     function ensureSeasonal(): void {
         const base = document.documentElement.getAttribute('data-kasp-hangar-base');
         const api = window.__kaspLobbyPass;
@@ -1443,6 +1508,18 @@
                 },
                 () => {
                     pumpkinState = 'failed';
+                },
+            );
+        }
+        if (look.tree !== null && treeSet === null && treeState === 'none') {
+            treeState = 'loading';
+            api.loadTrees(base).then(
+                (got) => {
+                    treeSet = got;
+                    treeState = 'none';
+                },
+                () => {
+                    treeState = 'failed';
                 },
             );
         }
@@ -2951,6 +3028,124 @@
                               beamDir,
                               door: Bm !== null ? [Bm.left, Bm.right, Bm.top] : [0, 0, 0],
                           };
+                      })()
+                    : null,
+            // the Christmas night's extras (26l): the tree with its bulbs, star and glow, the gifts, the Christmas lights
+            xm:
+                L.tree !== null || L.xmasLights !== null || L.gifts !== null
+                    ? (() => {
+                          const o = box.o;
+                          const l = box.l;
+                          const off = ps.offset;
+                          const at = (sOut: number, side: number, z: number): number[] => [o[0] * sOut + l[0] * side, o[1] * sOut + l[1] * side, z];
+                          const hash = (i: number): number => {
+                              const x = Math.sin(i * 12.9898) * 43758.5453;
+                              return x - Math.floor(x);
+                          };
+                          const T = L.tree;
+                          const TR = treeSet;
+                          const out: { -readonly [K in keyof NonNullable<KaspLobbyPassFrame['xm']>]: NonNullable<KaspLobbyPassFrame['xm']>[K] } = {
+                              tree: null,
+                              treeBulbs: null,
+                              star: null,
+                              pool: null,
+                              gifts: null,
+                              lights: null,
+                          };
+                          // the tree: one of the Christmas hangar's two trees, moved to (x, y), turned and sized; its bulbs on a spiral round it
+                          if (T !== null && TR !== null) {
+                              const k = T.kind > 0.5 ? 'pine' : 'pineBig';
+                              const bd = TR.bounds[k];
+                              const ang = (T.turn * Math.PI) / 180;
+                              const cs = Math.cos(ang);
+                              const sn = Math.sin(ang);
+                              const sz = T.size;
+                              const cx = (bd.lo[0] + bd.hi[0]) / 2;
+                              const cy = (bd.lo[1] + bd.hi[1]) / 2;
+                              out.tree = {
+                                  asset: {
+                                      ...TR[k],
+                                      xr: [cs, sn, -sn, cs],
+                                      xs: sz,
+                                      xt: [T.x - (cs * cx - sn * cy) * sz, T.y - (sn * cx + cs * cy) * sz, -bd.lo[2] * sz],
+                                  },
+                              };
+                              const Ht = (bd.hi[2] - bd.lo[2]) * sz;
+                              const R = (Math.max(bd.hi[0] - bd.lo[0], bd.hi[1] - bd.lo[1]) / 2) * sz * 0.85;
+                              const n = Math.min(96, Math.round(T.count));
+                              const pts = new Float32Array(96 * 4);
+                              for (let i = 0; i < n; i++) {
+                                  const h = 0.06 + 0.84 * (i / Math.max(1, n - 1));
+                                  const a2 = h * Math.PI * 2 * 6 + i * 0.7;
+                                  const r = R * (1 - h) * 0.92;
+                                  pts.set([T.x + Math.cos(a2) * r + off[0], T.y + Math.sin(a2) * r + off[1], h * Ht + off[2], (i % 4) + hash(i) * 0.999], i * 4);
+                              }
+                              out.treeBulbs = { pts, n, bright: T.lights * night, blink: T.blink };
+                              if (T.star > 0) {
+                                  const sp = new Float32Array(96 * 4);
+                                  sp.set([T.x + off[0], T.y + off[1], Ht + 18 * sz + off[2], 0.3], 0);
+                                  out.star = { pts: sp, n: 1, bright: T.star * night, blink: 0 };
+                              }
+                              if (T.pool > 0) {
+                                  const pp = new Float32Array(128);
+                                  pp.set([T.x + off[0], T.y + off[1], Ht * 0.3 + off[2], 0.85 + 0.15 * Math.sin(nowMs / 130)], 0);
+                                  out.pool = { pts: pp, r: R * 1.6, amount: T.pool * night, dim: Math.max(0.06, (inn[0] + inn[1] + inn[2]) / 3) };
+                              }
+                              // the gifts round the tree's foot, on the side that faces the camera
+                              const Gf = L.gifts;
+                              if (Gf !== null && Gf.count > 0) {
+                                  const g = new Float32Array(12 * 4);
+                                  const gs = new Float32Array(12 * 4);
+                                  const n2 = Math.min(12, Math.round(Gf.count));
+                                  const toCam = Math.atan2(pos.y - T.y, pos.x - T.x);
+                                  for (let i = 0; i < n2; i++) {
+                                      const a3 = toCam + (i / Math.max(1, n2 - 1) - 0.5) * 2.2 + (hash(i + 40) - 0.5) * 0.3;
+                                      const rr = R * (0.55 + 0.35 * hash(i + 7));
+                                      const w = (45 + 40 * hash(i + 3)) * Gf.size;
+                                      const d = (45 + 40 * hash(i + 5)) * Gf.size;
+                                      const ht = (35 + 45 * hash(i + 9)) * Gf.size;
+                                      g.set([T.x + Math.cos(a3) * rr + off[0], T.y + Math.sin(a3) * rr + off[1], off[2], hash(i + 11) * 3], i * 4);
+                                      gs.set([w, d, ht, i % 5], i * 4);
+                                  }
+                                  out.gifts = { g, s: gs, n: n2 };
+                              }
+                          }
+                          // Christmas lights: strings over the door and along the side wall, red, green, gold and white by turns
+                          const Lt = L.xmasLights;
+                          if (Lt !== null && night > 0.01) {
+                              const pts: number[][] = [];
+                              const string = (A: number[], B: number[], sag: number): void => {
+                                  const len = Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]);
+                                  const n = Math.max(2, Math.floor(len / Math.max(30, Lt.gap)));
+                                  for (let i = 0; i <= n && pts.length < 96; i++) {
+                                      const q = i / n;
+                                      const hook = ((q * len) / 450) % 1;
+                                      pts.push([
+                                          A[0] + (B[0] - A[0]) * q,
+                                          A[1] + (B[1] - A[1]) * q,
+                                          A[2] + (B[2] - A[2]) * q - sag * 4 * hook * (1 - hook),
+                                          (pts.length % 4) + hash(pts.length + 50) * 0.999,
+                                      ]);
+                                  }
+                              };
+                              if (Lt.door > 0.5) string(at(box.wall - 130, -1000, Lt.doorZ), at(box.wall - 130, 780, Lt.doorZ), Lt.sag);
+                              if (Lt.wall > 0.5) {
+                                  const Rm = box.room;
+                                  const latMin = Math.min(
+                                      ...[
+                                          [Rm.minX, Rm.minY],
+                                          [Rm.minX, Rm.maxY],
+                                          [Rm.maxX, Rm.minY],
+                                          [Rm.maxX, Rm.maxY],
+                                      ].map((c) => c[0] * l[0] + c[1] * l[1]),
+                                  );
+                                  string(at(box.wall - 60, latMin + 60, Lt.wallZ), at(box.wall - 2600, latMin + 60, Lt.wallZ), Lt.sag);
+                              }
+                              const arr = new Float32Array(96 * 4);
+                              pts.forEach((q, i) => arr.set([q[0] + off[0], q[1] + off[1], q[2] + off[2], q[3]], i * 4));
+                              out.lights = { pts: arr, n: pts.length, bright: Lt.bright * night, blink: Lt.blink };
+                          }
+                          return out;
                       })()
                     : null,
             // the Halloween night's extras (26k): pumpkins, string lights, webs, wisps, bats

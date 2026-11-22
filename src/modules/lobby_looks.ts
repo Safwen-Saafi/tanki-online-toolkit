@@ -16,6 +16,7 @@ const KASP_LOBBY_LOOKS = [
     { value: 'day-snowy', label: { EN: 'Day, snowy', RU: 'День, снег' }, sunlit: false },
     { value: 'night-snowy', label: { EN: 'Night, snowy', RU: 'Ночь, снег' }, sunlit: false },
     { value: 'halloween', label: { EN: 'Halloween', RU: 'Хэллоуин' }, sunlit: false },
+    { value: 'christmas', label: { EN: 'Christmas', RU: 'Рождество' }, sunlit: false },
     { value: 'day-foggy', label: { EN: 'Day, foggy', RU: 'День, туман' }, sunlit: false },
     { value: 'night-foggy', label: { EN: 'Night, foggy', RU: 'Ночь, туман' }, sunlit: false },
 ] as const;

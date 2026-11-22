@@ -48,23 +48,37 @@ void main(){Px x=look();vec3 out_=mix(uHor,uZen,smoothstep(-.02,.35,x.dir.z));o=
 ${DEPTH_GLSL}
 uniform float uTime,uStars,uFog,uFogStart,uFogHeight,uFogMove,uCover,uGlow,uGroundZ,uSkyZ,uSkyNear,uSkyLow,uZones,uCloud,uCloudK,uCloudSpeed,uFlash,uBolt,uSpark;
 uniform vec3 uFogCol,uSunDir,uSunCol,uCoverCol,uCloudCol,uFlashCol;uniform float uCoverThick;uniform vec2 uLatD;uniform sampler2D uBoltTex;out vec4 o;
+vec3 posAt(ivec2 q){q=clamp(q,ivec2(0),ivec2(uViewport)-1);float d=texelFetch(uDepth,q,0).r;vec2 n=(vec2(q)+.5)/uViewport*2.-1.;vec4 w=uInv*vec4(n,d*2.-1.,1.);return w.xyz/w.w;}
 void main(){
- Px x=look();vec3 n=cross(dFdx(x.p),dFdy(x.p));
- float flat_=x.d>=.99999?0.:abs(n.z)/max(length(n),.00001);
+ Px x=look();
  bool sky=x.outside&&(x.d>=.99999||x.p.z>uSkyZ||(dot(x.p.xy,uOut)>uSkyNear-60.&&x.p.z>uSkyLow));
  vec4 acc=vec4(0.);
  // v1.49: the old snow pattern, but near the door the pattern itself is lowered BEFORE it is turned into patches (not the patches faded
  // or cut after): a patch near the entrance narrows and ends with its own soft ragged edge like everywhere else, never a straight cut.
  // At the door line (uWall + 5) the lowering is more than the pattern can ever reach, so no snow touches the entrance; it eases off over
  // 300 units, about as slowly as the pattern itself changes, so the patch edges there stay wavy, not lined up with the door.
- if(uCover>0.&&!sky&&flat_>.7){
+ // Owner fix 2026-11-22 (jagged steps on the sidewalk's ends in the snowy looks): the surface's facing is found per pixel from its four
+ // neighbours (on each axis the one on the same surface, the smaller jump), not from the 2 x 2 block derivatives that mixed two surfaces
+ // at an edge; snow fades in over a slope range (.65 to .8) instead of a hard cut at .7; and on a real edge (a neighbour far off in
+ // depth) it is halved, as the game's own smoothed edges.
+ if(uCover>0.&&!sky&&x.d<.99999){
+  ivec2 q=ivec2(gl_FragCoord.xy);
+  vec3 pl=posAt(q-ivec2(1,0)),pr=posAt(q+ivec2(1,0)),pd=posAt(q-ivec2(0,1)),pu=posAt(q+ivec2(0,1));
+  float el=distance(x.p,pl),er=distance(pr,x.p),ed=distance(x.p,pd),eu=distance(pu,x.p);
+  // at the picture's edge the clamped neighbour is the pixel itself (0): the other side is used
+  if(el<=0.)el=er;if(er<=0.)er=el;if(ed<=0.)ed=eu;if(eu<=0.)eu=ed;
+  vec3 n=cross(er<el||x.p==pl?pr-x.p:x.p-pl,eu<ed||x.p==pd?pu-x.p:x.p-pd);
+  float flat_=abs(n.z)/max(length(n),.00001);
+  float edge=smoothstep(2.,6.,max(max(el,er)/max(min(el,er),.001),max(ed,eu)/max(min(ed,eu),.001)));
+  float ramp=smoothstep(.65,.8,flat_)*(1.-.5*edge);
+  if(ramp>0.){
   float nn=noise3(vec3(x.p.xy/180.,0.))*.65+noise3(vec3(x.p.xy/45.,3.))*.35;
   float push=1.6*(1.-smoothstep(uWall+5.,uWall+305.,dot(x.p.xy,uOut)));
   float c=smoothstep(1.-uCover,1.-uCover+.18,nn*(.75+.25*flat_)+uCover*.35-push)*(1.-smoothstep(4000.,9000.,x.dist))*.92;
-  c=min(1.,c*uCoverThick);acc=vec4(uCoverCol*c,c);
+  c=min(1.,c*uCoverThick)*ramp;acc=vec4(uCoverCol*c,c);
   if(uSpark>0.&&c>.25){vec2 cl=floor(x.p.xy/22.);uint kk=uint(int(cl.x)+70000)*73856093u^uint(int(cl.y)+70000)*19349663u;
    float tw=pow(max(0.,sin(uTime*(1.2+rnd(kk+1u)*3.)+rnd(kk+2u)*6.28)),10.);
-   acc.rgb+=vec3(1.,.98,.92)*step(.965,rnd(kk))*tw*uSpark*c*(1.-smoothstep(2000.,7000.,x.dist));}}
+   acc.rgb+=vec3(1.,.98,.92)*step(.965,rnd(kk))*tw*uSpark*c*(1.-smoothstep(2000.,7000.,x.dist));}}}
  // fogF = how much fog covers this pixel; the stars below shine only through what it leaves (owner 2026-11-21: on the foggy night the
  // stars, added after the fog, made the upper sky look clear)
  float fogF=0.;
@@ -913,6 +927,27 @@ void main(){float r=length(vU);if(r>1.)discard;float an=atan(vU.y,vU.x);
  float w=fwidth(r)*1.1+.0015,line=min(ds,dr);
  float a=(1.-smoothstep(w*.4,w*1.4,line))*uAmt*(1.-smoothstep(.85,1.,r));
  if(a<.01)discard;o=vec4(uCol*a,a);}`;
+    // the wrapped gifts under the Christmas tree (26l): a box each, a ribbon round it both ways, lit from above; the probe's own text
+    const GIFT_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec4 uG[12],uGs[12];out vec3 vL;out vec3 vN;flat out int vI;
+void main(){int f=gl_VertexID/6,k=gl_VertexID%6;int c=k==0?0:k==1?1:k==2?2:k==3?2:k==4?1:3;
+ vec2 q=vec2(float(c&1),float(c>>1))*2.-1.;vec3 n,p;
+ if(f==0){n=vec3(1.,0.,0.);p=vec3(1.,q.x,q.y);}else if(f==1){n=vec3(-1.,0.,0.);p=vec3(-1.,q.y,q.x);}
+ else if(f==2){n=vec3(0.,1.,0.);p=vec3(q.y,1.,q.x);}else if(f==3){n=vec3(0.,-1.,0.);p=vec3(q.x,-1.,q.y);}
+ else if(f==4){n=vec3(0.,0.,1.);p=vec3(q.x,q.y,1.);}else{n=vec3(0.,0.,-1.);p=vec3(q.y,q.x,-1.);}
+ vec4 G=uG[gl_InstanceID],Z=uGs[gl_InstanceID];float cs=cos(G.w),sn=sin(G.w);
+ vec3 l=p*Z.xyz*.5;l.z+=Z.z*.5;vL=p;vI=int(Z.w+.5);
+ vN=vec3(cs*n.x-sn*n.y,sn*n.x+cs*n.y,n.z);
+ gl_Position=uVP*vec4(G.xyz+vec3(cs*l.x-sn*l.y,sn*l.x+cs*l.y,l.z),1.);}`;
+    const GIFT_FS = `#version 300 es
+precision highp float;precision highp int;
+uniform vec3 uLight;in vec3 vL;in vec3 vN;flat in int vI;out vec4 o;
+void main(){vec3 pal[5]=vec3[5](vec3(.75,.08,.08),vec3(.1,.5,.18),vec3(.12,.25,.7),vec3(.85,.65,.15),vec3(.8,.82,.86));
+ vec3 c=pal[vI%5],rb=vI%5==3?vec3(.75,.1,.1):vec3(.95,.8,.3);
+ float band=max(1.-smoothstep(.1,.14,abs(vL.x)),1.-smoothstep(.1,.14,abs(vL.y)));
+ c=mix(c,rb,band);float sh=.45+.55*max(dot(normalize(vN),normalize(vec3(.3,.45,.85))),0.);
+ o=vec4(c*sh*uLight,1.);}`;
     interface Model {
         readonly objects: ModelObject[];
         readonly materials: Record<string, Material>;
@@ -1580,6 +1615,7 @@ void main(){float r=length(vU);if(r>1.)discard;float an=atan(vU.y,vU.x);
         const hwxProg = program(FULL_VS, HWX_FS, [...DEPTH_U, 'uC', 'uN', 'uR', 'uAmt', 'uDim', 'uCol']);
         const glowProg = program(GLOW_VS, GLOW_FS, ['uVP', 'uCam', 'uP', 'uSize', 'uPull', 'uC0', 'uC1', 'uBright', 'uTime', 'uBlink', 'uMode']);
         const webProg = program(WEB_VS, WEB_FS, ['uVP', 'uW', 'uLat', 'uSize', 'uCol', 'uAmt', 'uTime']);
+        const giftProg = program(GIFT_VS, GIFT_FS, ['uVP', 'uG', 'uGs', 'uLight']);
         const iceProg = program(ICE_VS, ICE_FS, ['uVP', 'uCam', 'uOut', 'uLat', 'uSpan', 'uTop', 'uAt', 'uLen', 'uWidth', 'uN', 'uColor', 'uTime', 'uGlint']);
         const driftProg = program(FULL_VS, DRIFT_FS, [...DEPTH_U, 'uLat', 'uLim', 'uCol', 'uAmt', 'uDepthW', 'uGust', 'uFloorZ', 'uTime', 'uSpark']);
         const flakeProg = program(FLAKE_VS, FLAKE_FS, [
@@ -2052,9 +2088,39 @@ void main(){float r=length(vU);if(r>1.)discard;float an=atan(vU.y,vU.x);
                     gl.depthMask(false);
                     gl.disable(gl.DEPTH_TEST);
                 }
-                // (0a3: the Christmas tree and gifts; with its look)
+                // 0a3. the Christmas tree and the gifts under the tree (26l), drawn into the game's picture and depth
+                if (f.xm && (f.xm.tree || f.xm.gifts) && st.draw === null) {
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(true);
+                    gl.colorMask(true, true, true, false);
+                    gl.disable(gl.BLEND);
+                    const wasCull = gl.isEnabled(gl.CULL_FACE);
+                    gl.disable(gl.CULL_FACE);
+                    if (f.xm.tree) drawPieces(f, f.xm.tree.asset, 'solid', 1, 0, 1);
+                    if (f.xm.gifts) {
+                        const G = f.xm.gifts;
+                        gl.useProgram(giftProg.p);
+                        gl.uniformMatrix4fv(uni(giftProg, 'uVP'), false, f.vp);
+                        gl.uniform4fv(uni(giftProg, 'uG'), G.g);
+                        gl.uniform4fv(uni(giftProg, 'uGs'), G.s);
+                        gl.uniform3fv(uni(giftProg, 'uLight'), [1, 1, 1]);
+                        gl.bindVertexArray(vao);
+                        gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, G.n);
+                    }
+                    if (wasCull) gl.enable(gl.CULL_FACE);
+                    gl.enable(gl.BLEND);
+                    gl.blendEquation(gl.FUNC_ADD);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.depthMask(false);
+                    if (f.xm.tree) drawPieces(f, f.xm.tree.asset, 'clear', 1, 0, 1);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.disable(gl.DEPTH_TEST);
+                    gl.bindVertexArray(vao);
+                }
                 const R = f.rain;
                 const needDepth = !!(
+                    f.xm ||
                     (f.hw && f.hw.pumpkins) ||
                     f.sunx ||
                     f.ndx ||
@@ -2181,7 +2247,6 @@ void main(){float r=length(vU);if(r>1.)discard;float an=atan(vU.y,vU.x);
                     gl.disable(gl.POLYGON_OFFSET_FILL);
                     gl.disable(gl.DEPTH_TEST);
                 }
-                // (1b, 1b2, 1b3: the fixtures and the seasons' pieces; with their looks)
                 // 1b. the Halloween hangar's lamp heads (night-lit lenses) over the standard ones, then their light cones, added like the
                 // game's own; after the night colour, so they keep the Halloween hangar's own brightness
                 if (f.fixtures && st.draw === null) {
@@ -2276,6 +2341,50 @@ void main(){float r=length(vU);if(r>1.)discard;float an=atan(vU.y,vU.x);
                         gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, Wb.n);
                         if (wasCull) gl.enable(gl.CULL_FACE);
                     }
+                    gl.disable(gl.DEPTH_TEST);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.bindVertexArray(vao);
+                }
+                // 1b3. the Christmas night (26l): the warm glow round the tree (multiplies), the tree's bulbs and star, the Christmas lights
+                if (f.xm && st.draw === null) {
+                    const XM = f.xm;
+                    if (depthOk && XM.pool) {
+                        gl.bindVertexArray(vao);
+                        gl.useProgram(hwxProg.p);
+                        depthUniforms(hwxProg, f, W, H);
+                        gl.activeTexture(gl.TEXTURE0 + UNIT);
+                        gl.bindTexture(gl.TEXTURE_2D, depthTex);
+                        gl.uniform4fv(uni(hwxProg, 'uC'), XM.pool.pts);
+                        gl.uniform1i(uni(hwxProg, 'uN'), 1);
+                        gl.uniform1f(uni(hwxProg, 'uR'), XM.pool.r);
+                        gl.uniform1f(uni(hwxProg, 'uAmt'), XM.pool.amount);
+                        gl.uniform1f(uni(hwxProg, 'uDim'), XM.pool.dim);
+                        gl.uniform3fv(uni(hwxProg, 'uCol'), [1, 0.7, 0.35]);
+                        gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE, gl.ZERO, gl.ONE);
+                        gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    }
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(false);
+                    gl.useProgram(glowProg.p);
+                    gl.uniformMatrix4fv(uni(glowProg, 'uVP'), false, f.vp);
+                    gl.uniform3fv(uni(glowProg, 'uCam'), f.cam);
+                    gl.uniform1f(uni(glowProg, 'uTime'), f.time);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                    const bulbs = (B: KaspLobbyBulbs, size: number, pull: number, mode: number): void => {
+                        gl.uniform4fv(uni(glowProg, 'uP'), B.pts);
+                        gl.uniform1f(uni(glowProg, 'uSize'), size);
+                        gl.uniform1f(uni(glowProg, 'uPull'), pull);
+                        gl.uniform3fv(uni(glowProg, 'uC0'), [1, 0.85, 0.4]);
+                        gl.uniform3fv(uni(glowProg, 'uC1'), [1, 0.85, 0.4]);
+                        gl.uniform1f(uni(glowProg, 'uBright'), B.bright);
+                        gl.uniform1f(uni(glowProg, 'uBlink'), B.blink);
+                        gl.uniform1i(uni(glowProg, 'uMode'), mode);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, B.n);
+                    };
+                    if (XM.treeBulbs && XM.treeBulbs.n > 0) bulbs(XM.treeBulbs, 14, 20, 2);
+                    if (XM.star) bulbs(XM.star, 45, 30, 3);
+                    if (XM.lights && XM.lights.n > 0) bulbs(XM.lights, 22, 25, 2);
                     gl.disable(gl.DEPTH_TEST);
                     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                     gl.bindVertexArray(vao);
@@ -3094,5 +3203,29 @@ void main(){float r=length(vU);if(r>1.)discard;float an=atan(vU.y,vU.x);
         return { asset, candles };
     }
 
-    window.__kaspLobbyPass = { make, loadStandard, nightPictures, loadFixtures, lensPictures, loadSky, loadSeason, loadPumpkins };
+    // The Christmas hangar's two trees (26l, the probe's ensureXmTree: its Pine and Pine_Big, made round the middle of its room, so the
+    // look moves the one it uses to the tree's spot) and how far each reaches.
+    async function loadTrees(base: string): Promise<KaspLobbyTrees> {
+        const model = await sharedModel(base + 'newyear2025-object.3ds');
+        const fileOf = (pic: string): string => base + 'newyear2025-' + encodeURIComponent(pic);
+        const piece = async (key: string, name: string): Promise<KaspLobbyAsset> => {
+            const batches = batchesOf(model, [name], fileOf);
+            return { key, batches, pics: await pictures(batches) };
+        };
+        const boundsOf = (a: KaspLobbyAsset): KaspLobbyBounds => {
+            const lo = [1e9, 1e9, 1e9];
+            const hi = [-1e9, -1e9, -1e9];
+            for (const b of a.batches)
+                for (let i = 0; i < b.pos.length; i += 3)
+                    for (let k = 0; k < 3; k++) {
+                        lo[k] = Math.min(lo[k], b.pos[i + k]);
+                        hi[k] = Math.max(hi[k], b.pos[i + k]);
+                    }
+            return { lo, hi };
+        };
+        const [pine, pineBig] = await Promise.all([piece('xmas-pine', 'Pine'), piece('xmas-pine-big', 'Pine_Big')]);
+        return { pine, pineBig, bounds: { pine: boundsOf(pine), pineBig: boundsOf(pineBig) } };
+    }
+
+    window.__kaspLobbyPass = { make, loadStandard, nightPictures, loadFixtures, lensPictures, loadSky, loadSeason, loadPumpkins, loadTrees };
 })();

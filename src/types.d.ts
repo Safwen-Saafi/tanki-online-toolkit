@@ -455,6 +455,27 @@ interface KaspLobbyPumpkins {
     readonly candles: ReadonlyArray<readonly number[]>;
 }
 
+// The lowest and highest corner of a piece (x, y, z).
+interface KaspLobbyBounds {
+    readonly lo: readonly number[];
+    readonly hi: readonly number[];
+}
+
+// The Christmas hangar's two trees (26l) and how far each reaches.
+interface KaspLobbyTrees {
+    readonly pine: KaspLobbyAsset;
+    readonly pineBig: KaspLobbyAsset;
+    readonly bounds: { readonly pine: KaspLobbyBounds; readonly pineBig: KaspLobbyBounds };
+}
+
+// Small glowing points (26l): where each is (x, y, z, its colour and phase), how many, how bright, how fast they twinkle.
+interface KaspLobbyBulbs {
+    readonly pts: Float32Array;
+    readonly n: number;
+    readonly bright: number;
+    readonly blink: number;
+}
+
 // The game's own hangar: its room and floor, and the road's flat ground just outside the door.
 interface KaspLobbyStandard {
     readonly std: KaspLobbyAsset;
@@ -594,6 +615,16 @@ interface KaspLobbyPassFrame {
             // the one bat flying inside the hangar now (where it is), or null
             readonly one: readonly number[] | null;
         } | null;
+    } | null;
+    // Stages 0a3 and 1b3 (26l): the Christmas tree (moved to its spot), its bulbs, star and warm glow, the gifts round its foot, the
+    // Christmas lights; null = none.
+    readonly xm: {
+        readonly tree: { readonly asset: KaspLobbyAsset } | null;
+        readonly treeBulbs: KaspLobbyBulbs | null;
+        readonly star: KaspLobbyBulbs | null;
+        readonly pool: { readonly pts: Float32Array; readonly r: number; readonly amount: number; readonly dim: number } | null;
+        readonly gifts: { readonly g: Float32Array; readonly s: Float32Array; readonly n: number } | null;
+        readonly lights: KaspLobbyBulbs | null;
     } | null;
     // Stage 0b (26f2): the hangar's walls and floor multiplied by their night factor pictures.
     readonly desun: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
@@ -847,6 +878,8 @@ interface KaspLobbyPassApi {
     // A seasonal outside and the Halloween pumpkins (26k), from the extension's hangars/ folder.
     readonly loadSeason: (base: string, season: string) => Promise<KaspLobbySeason>;
     readonly loadPumpkins: (base: string) => Promise<KaspLobbyPumpkins>;
+    // The Christmas hangar's two trees (26l), from the extension's hangars/ folder.
+    readonly loadTrees: (base: string) => Promise<KaspLobbyTrees>;
 }
 
 // MAIN world, defined by src/modules/hangar_files.ts (26e): its two floor steps, used by lobby_pass.ts for the night floor (26f2).
