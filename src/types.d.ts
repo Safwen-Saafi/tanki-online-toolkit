@@ -468,6 +468,15 @@ interface KaspLobbyTrees {
     readonly bounds: { readonly pine: KaspLobbyBounds; readonly pineBig: KaspLobbyBounds };
 }
 
+// The Christmas hangar's own fireplace (the probe's v1.88 ensureXmFire): pieces of its room taken by area, at their own places in that
+// room (the fireplace's back middle on the floor is pivot): the fireplace with its chimney, the log pile beside it, the rug in front.
+interface KaspLobbyFireplace {
+    readonly fire: KaspLobbyAsset;
+    readonly logs: KaspLobbyAsset;
+    readonly rug: KaspLobbyAsset;
+    readonly pivot: readonly number[];
+}
+
 // Small glowing points (26l): where each is (x, y, z, its colour and phase), how many, how bright, how fast they twinkle.
 interface KaspLobbyBulbs {
     readonly pts: Float32Array;
@@ -625,6 +634,16 @@ interface KaspLobbyPassFrame {
         readonly pool: { readonly pts: Float32Array; readonly r: number; readonly amount: number; readonly dim: number } | null;
         readonly gifts: { readonly g: Float32Array; readonly s: Float32Array; readonly n: number } | null;
         readonly lights: KaspLobbyBulbs | null;
+    } | null;
+    // Stages 0a4 and 1b4 (26l, the probe's v1.88 fireplace): the Christmas hangar's fireplace pieces (placed), then its flames, embers
+    // and sparks (P = where and a seed, Q = width, height, brightness, kind; 48 each), pulled toward the camera by pull, at bright; and
+    // its flickering light pools.
+    readonly fp: {
+        readonly pieces: readonly KaspLobbyAsset[];
+        readonly fire: { readonly P: Float32Array; readonly Q: Float32Array; readonly n: number };
+        readonly pull: number;
+        readonly bright: number;
+        readonly pools: ReadonlyArray<{ readonly pts: Float32Array; readonly r: number; readonly amount: number; readonly dim: number }>;
     } | null;
     // Stage 0b (26f2): the hangar's walls and floor multiplied by their night factor pictures.
     readonly desun: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
@@ -880,6 +899,8 @@ interface KaspLobbyPassApi {
     readonly loadPumpkins: (base: string) => Promise<KaspLobbyPumpkins>;
     // The Christmas hangar's two trees (26l), from the extension's hangars/ folder.
     readonly loadTrees: (base: string) => Promise<KaspLobbyTrees>;
+    // The Christmas hangar's own fireplace (26l), from the extension's hangars/ folder.
+    readonly loadFireplace: (base: string) => Promise<KaspLobbyFireplace>;
 }
 
 // MAIN world, defined by src/modules/hangar_files.ts (26e): its two floor steps, used by lobby_pass.ts for the night floor (26f2).
@@ -890,6 +911,9 @@ interface KaspHangarPictures {
     readonly saved: (name: string, make: () => Promise<Blob | null>) => Promise<Blob | null>;
     // Whether the floor picture the game gets is the cleaned one (the look's choice).
     readonly floorCleaned: boolean;
+    // What was changed on the wall picture the game gets ('' = nothing, '-xmas' = the Christmas screens' shadows cleaned off,
+    // '-banners' = the Birthday banners), for the saved names of pictures made from it.
+    readonly wallTag: string;
 }
 
 // MAIN world, defined by src/modules/lobby.ts (build-plan 26a). The injector calls start once its lobby edit went in; the game's

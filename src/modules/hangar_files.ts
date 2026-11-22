@@ -11,6 +11,9 @@
 //   sunlit ones (kasp_lobby_look; no key is day normal, which keeps the game's own floor). About 2 s of work while the lobby loads.
 // - The wall (gar1.webp), only when kasp_lobbybanners is 1: the Birthday hangar's four wall banners painted on; the two pictures
 //   share one layout, so each banner lands on the same wall spot.
+// - Christmas only (kasp_lobby_look christmas), to make room for the Christmas hangar's fireplace on the right wall: the three screens
+//   there, their stand and their cables are removed from the model too, and their shadows painted on the wall picture are cleaned
+//   off (see wallWithoutShadows).
 // Whatever fails, the game gets its own file. Nothing is printed.
 (function () {
     'use strict';
@@ -35,6 +38,16 @@
     // end), and removing them makes the ring look cut. So any piece with even one corner in the ring's zone is kept, whatever it is
     // (3 pieces, 82 faces; a bit of the arm's mount may stay): 295 to 345 from the room's middle line (sideways), 398 to 460 high.
     const RING_RADIUS_MIN = 295, RING_RADIUS_MAX = 345, RING_Z_MIN = 398, RING_Z_MAX = 460;
+    // Christmas: the three screens on the right wall (x -1370), their stand and their three cables, 19 loose pieces of room0. A piece is
+    // removed when ALL of its corners lie inside one of these boxes (checked on the game's model: exactly those 19, nothing else; the
+    // cable rail along the wall, its end boxes and the cabinet further along stay).
+    const SCREEN_BOXES: ReadonlyArray<readonly [readonly number[], readonly number[]]> = [
+        [[-1377, -1700, -5], [-1270, -640, 620]],
+        [[-1366, -760, 240], [-1338, -40, 620]],
+    ];
+    // Where their painted shadows lie: each point moves this far along the wall and up for every unit it stands out from the wall (the
+    // light comes almost straight at the wall; fitted to the painted shadows).
+    const SHADOW_SHIFT = [-0.05, -0.15];
 
     const read = (key: string): string | null => {
         try {
@@ -49,6 +62,7 @@
     const lookEntry = window.__kaspLobbyLooks?.find((l) => l.value === savedLook) ?? window.__kaspLobbyLooks?.[0];
     // without the list (its file did not run) the game's own floor, as the day
     const cleanFloor = lookEntry !== undefined && !lookEntry.sunlit;
+    const christmas = lookEntry?.value === 'christmas';
 
     const originalFetch = window.fetch;
     // The hangar's folder on the game's server, once its meta.info was seen.
@@ -88,42 +102,362 @@
         return real;
     }
 
-    // The standard wall picture with the Birthday banners painted on; the game's own picture if anything fails.
-    async function wallWithBanners(address: string, init?: RequestInit): Promise<Response> {
+    // The standard wall picture made for the look: (Christmas) the removed screens' shadows cleaned off, then (kasp_lobbybanners) the
+    // Birthday banners painted on. The game's own picture if anything fails.
+    async function wallPicture(address: string, init?: RequestInit): Promise<Response> {
         const real = await call(address, init);
-        const ours = base();
-        if (!real.ok || ours === null || typeof OffscreenCanvas === 'undefined') return real;
+        if (!real.ok || typeof OffscreenCanvas === 'undefined') return real;
         try {
             const options: ImageBitmapOptions = { premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
-            const birthday = await call(ours + 'birthday16-gar1.webp');
-            if (!birthday.ok) return real;
-            const [wall, source] = await Promise.all([createImageBitmap(await real.clone().blob(), options), createImageBitmap(await birthday.blob(), options)]);
+            const wall = await createImageBitmap(await real.clone().blob(), options);
             const canvas = new OffscreenCanvas(wall.width, wall.height);
-            const g = canvas.getContext('2d');
+            const g = canvas.getContext('2d', { willReadFrequently: true });
             if (g === null) return real;
             g.drawImage(wall, 0, 0);
-            const sx = wall.width / 4096, sy = wall.height / 4096;
-            g.filter = `brightness(${GAIN})`;
-            for (const [x0, y0, x1, y1, y2] of BANNERS) {
-                g.save();
-                g.beginPath();
-                g.moveTo(x0 * sx, y0 * sy);
-                g.lineTo(x1 * sx, y0 * sy);
-                g.lineTo(x1 * sx, y1 * sy);
-                g.lineTo(((x0 + x1) / 2) * sx, y2 * sy);
-                g.lineTo(x0 * sx, y1 * sy);
-                g.closePath();
-                g.clip();
-                g.drawImage(source, 0, 0, wall.width, wall.height);
-                g.restore();
+            if (christmas && folder !== null) {
+                const model = await call(folder + '/object.3ds');
+                if (!model.ok || !wallWithoutShadows(g, wall.width, wall.height, await model.arrayBuffer())) return real;
+            }
+            if (banners) {
+                const ours = base();
+                if (ours === null) return real;
+                const birthday = await call(ours + 'birthday16-gar1.webp');
+                if (!birthday.ok) return real;
+                const source = await createImageBitmap(await birthday.blob(), options);
+                const sx = wall.width / 4096, sy = wall.height / 4096;
+                g.filter = `brightness(${GAIN})`;
+                for (const [x0, y0, x1, y1, y2] of BANNERS) {
+                    g.save();
+                    g.beginPath();
+                    g.moveTo(x0 * sx, y0 * sy);
+                    g.lineTo(x1 * sx, y0 * sy);
+                    g.lineTo(x1 * sx, y1 * sy);
+                    g.lineTo(((x0 + x1) / 2) * sx, y2 * sy);
+                    g.lineTo(x0 * sx, y1 * sy);
+                    g.closePath();
+                    g.clip();
+                    g.drawImage(source, 0, 0, wall.width, wall.height);
+                    g.restore();
+                }
+                g.filter = 'none';
+                source.close();
             }
             const blob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.95 });
             wall.close();
-            source.close();
             return new Response(blob, { status: 200, headers: { 'Content-Type': 'image/webp', [MADE_HEADER]: '1' } });
         } catch {
             // the game keeps its own file
             return real;
+        }
+    }
+
+    // room0 of a model file: its points, faces (three corners each) and picture places; null if it cannot be read
+    function readRoom(buffer: ArrayBuffer): { points: Float32Array; faces: Uint16Array; uvs: Float32Array } | null {
+        const view = new DataView(buffer), bytes = new Uint8Array(buffer);
+        let found: { points: Float32Array; faces: Uint16Array; uvs: Float32Array } | null = null;
+        const mesh = (start: number, end: number): void => {
+            let points: Float32Array | null = null, faces: Uint16Array | null = null, uvs: Float32Array | null = null;
+            for (let at = start; at + 6 <= end;) {
+                const id = view.getUint16(at, true), length = view.getUint32(at + 2, true), body = at + 6;
+                if (length < 6 || at + length > end) break;
+                if (id === 0x4110) {
+                    const n = view.getUint16(body, true);
+                    points = new Float32Array(n * 3);
+                    for (let i = 0; i < n * 3; i++) points[i] = view.getFloat32(body + 2 + i * 4, true);
+                } else if (id === 0x4140) {
+                    const n = view.getUint16(body, true);
+                    uvs = new Float32Array(n * 2);
+                    for (let i = 0; i < n * 2; i++) uvs[i] = view.getFloat32(body + 2 + i * 4, true);
+                } else if (id === 0x4120) {
+                    const n = view.getUint16(body, true);
+                    faces = new Uint16Array(n * 3);
+                    for (let f = 0; f < n; f++) for (let k = 0; k < 3; k++) faces[f * 3 + k] = view.getUint16(body + 2 + f * 8 + k * 2, true);
+                }
+                at += length;
+            }
+            if (points !== null && faces !== null && uvs !== null) found = { points, faces, uvs };
+        };
+        const walk = (start: number, end: number): void => {
+            for (let at = start; at + 6 <= end;) {
+                const id = view.getUint16(at, true), length = view.getUint32(at + 2, true), body = at + 6;
+                if (length < 6 || at + length > end) break;
+                if (id === 0x4d4d || id === 0x3d3d) walk(body, at + length);
+                else if (id === 0x4000) {
+                    let nameEnd = body;
+                    while (nameEnd < bytes.length && bytes[nameEnd] !== 0) nameEnd++;
+                    if (String.fromCharCode(...bytes.subarray(body, nameEnd)) === 'room0') {
+                        for (let inner = nameEnd + 1; inner + 6 <= at + length;) {
+                            const innerId = view.getUint16(inner, true), innerLength = view.getUint32(inner + 2, true);
+                            if (innerLength < 6 || inner + innerLength > at + length) break;
+                            if (innerId === 0x4100) mesh(inner + 6, inner + innerLength);
+                            inner += innerLength;
+                        }
+                    }
+                }
+                at += length;
+            }
+        };
+        walk(0, buffer.byteLength);
+        return found;
+    }
+
+    // The loose piece of every face: vertices at the same place welded, faces that share one joined.
+    function pieceOfFaces(points: Float32Array, corner: (f: number, k: number) => number, faceCount: number): Int32Array {
+        const place = new Map<string, number>(), welded = new Int32Array(points.length / 3);
+        for (let i = 0; i < welded.length; i++) {
+            const key = `${Math.round(points[i * 3] * 10)},${Math.round(points[i * 3 + 1] * 10)},${Math.round(points[i * 3 + 2] * 10)}`;
+            let found = place.get(key);
+            if (found === undefined) {
+                found = place.size;
+                place.set(key, found);
+            }
+            welded[i] = found;
+        }
+        const parent = Array.from({ length: place.size }, (_, i) => i);
+        const root = (x: number): number => {
+            while (parent[x] !== x) {
+                parent[x] = parent[parent[x]];
+                x = parent[x];
+            }
+            return x;
+        };
+        for (let f = 0; f < faceCount; f++) {
+            const a = root(welded[corner(f, 0)]);
+            parent[root(welded[corner(f, 1)])] = a;
+            parent[root(welded[corner(f, 2)])] = a;
+        }
+        const out = new Int32Array(faceCount);
+        for (let f = 0; f < faceCount; f++) out[f] = root(welded[corner(f, 0)]);
+        return out;
+    }
+
+    // The faces of the screens' pieces (every corner of the piece inside one of SCREEN_BOXES).
+    function screenFaces(points: Float32Array, corner: (f: number, k: number) => number, faceCount: number): number[] {
+        const piece = pieceOfFaces(points, corner, faceCount);
+        const lo = new Map<number, number[]>(), hi = new Map<number, number[]>();
+        for (let f = 0; f < faceCount; f++) {
+            const p = piece[f];
+            const l = lo.get(p) ?? [Infinity, Infinity, Infinity], h = hi.get(p) ?? [-Infinity, -Infinity, -Infinity];
+            for (let k = 0; k < 3; k++)
+                for (let a = 0; a < 3; a++) {
+                    const v = points[corner(f, k) * 3 + a];
+                    l[a] = Math.min(l[a], v);
+                    h[a] = Math.max(h[a], v);
+                }
+            lo.set(p, l);
+            hi.set(p, h);
+        }
+        const inside = (p: number): boolean => {
+            const l = lo.get(p), h = hi.get(p);
+            return l !== undefined && h !== undefined && SCREEN_BOXES.some(([a, b]) => l.every((v, i) => v >= a[i]) && h.every((v, i) => v <= b[i]));
+        };
+        const out: number[] = [];
+        for (let f = 0; f < faceCount; f++) if (inside(piece[f])) out.push(f);
+        return out;
+    }
+
+    // Christmas: cleans the removed screens' painted shadows off the wall picture (drawn on g, W x H). Each face of those pieces is
+    // moved onto the wall behind them along the light (SHADOW_SHIFT), and through the wall's own picture places onto the picture: that
+    // outline is where their shadows are; cleanShadows does the rest. False if the wall or the pieces cannot be found.
+    function wallWithoutShadows(g: OffscreenCanvasRenderingContext2D, W: number, H: number, model: ArrayBuffer): boolean {
+        const room = readRoom(model);
+        if (room === null) return false;
+        const { points, faces, uvs } = room, faceCount = faces.length / 3;
+        const corner = (f: number, k: number): number => faces[f * 3 + k];
+        const removed = screenFaces(points, corner, faceCount);
+        if (removed.length === 0) return false;
+        // the wall face behind them: the largest face facing along x near their back (some of their corners reach a little into the
+        // wall) that contains their middle seen along x, not one of their own faces
+        const gone = new Set(removed);
+        let minX = Infinity, cy = 0, cz = 0, n = 0;
+        for (const f of removed)
+            for (let k = 0; k < 3; k++) {
+                const v = corner(f, k) * 3;
+                minX = Math.min(minX, points[v]);
+                cy += points[v + 1];
+                cz += points[v + 2];
+                n++;
+            }
+        cy /= n;
+        cz /= n;
+        let wall: { x: number; m: number[]; area: number } | null = null;
+        for (let f = 0; f < faceCount; f++) {
+            if (gone.has(f)) continue;
+            const P = [0, 1, 2].map((k) => corner(f, k) * 3);
+            const xs = P.map((v) => points[v]);
+            if (Math.max(...xs) - Math.min(...xs) > 0.5 || xs[0] < minX - 50 || xs[0] > minX + 20) continue;
+            const [y0, z0, y1, z1, y2, z2] = [points[P[0] + 1], points[P[0] + 2], points[P[1] + 1], points[P[1] + 2], points[P[2] + 1], points[P[2] + 2]];
+            const det = (y1 - y0) * (z2 - z0) - (y2 - y0) * (z1 - z0);
+            if (Math.abs(det) < 1) continue;
+            const b1 = ((cy - y0) * (z2 - z0) - (y2 - y0) * (cz - z0)) / det, b2 = ((y1 - y0) * (cz - z0) - (cy - y0) * (z1 - z0)) / det;
+            if (b1 < 0 || b2 < 0 || b1 + b2 > 1) continue;
+            if (wall !== null && Math.abs(det) <= wall.area) continue;
+            // the picture place as a straight function of (y, z) on this face: u = m0 + m1 y + m2 z, v = m3 + m4 y + m5 z
+            const T = [0, 1, 2].map((k) => corner(f, k) * 2);
+            const solve = (q0: number, q1: number, q2: number): number[] => {
+                const a = ((q1 - q0) * (z2 - z0) - (q2 - q0) * (z1 - z0)) / det, b = ((q2 - q0) * (y1 - y0) - (q1 - q0) * (y2 - y0)) / det;
+                return [q0 - a * y0 - b * z0, a, b];
+            };
+            wall = { x: xs[0], m: [...solve(uvs[T[0]], uvs[T[1]], uvs[T[2]]), ...solve(uvs[T[0] + 1], uvs[T[1] + 1], uvs[T[2] + 1])], area: Math.abs(det) };
+        }
+        if (wall === null) return false;
+        const { x: wallX, m } = wall;
+        const at = (v: number): [number, number] => {
+            const d = Math.abs(points[v] - wallX), y = points[v + 1] + d * SHADOW_SHIFT[0], z = points[v + 2] + d * SHADOW_SHIFT[1];
+            return [(m[0] + m[1] * y + m[2] * z) * W, (1 - (m[3] + m[4] * y + m[5] * z)) * H];
+        };
+        const shapes = removed.map((f) => [0, 1, 2].map((k) => at(corner(f, k) * 3)));
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const s of shapes)
+            for (const [x, y] of s) {
+                x0 = Math.min(x0, x);
+                y0 = Math.min(y0, y);
+                x1 = Math.max(x1, x);
+                y1 = Math.max(y1, y);
+            }
+        const MARGIN = 80;
+        x0 = Math.max(0, Math.floor(x0 - MARGIN));
+        y0 = Math.max(0, Math.floor(y0 - MARGIN));
+        x1 = Math.min(W, Math.ceil(x1 + MARGIN));
+        y1 = Math.min(H, Math.ceil(y1 + MARGIN));
+        const cw = x1 - x0, ch = y1 - y0;
+        if (cw < 8 || ch < 8 || cw * ch > 4e6) return false;
+        const maskCanvas = new OffscreenCanvas(cw, ch);
+        const mg = maskCanvas.getContext('2d', { willReadFrequently: true });
+        if (mg === null) return false;
+        mg.fillStyle = '#000';
+        mg.fillRect(0, 0, cw, ch);
+        mg.fillStyle = '#fff';
+        for (const s of shapes) {
+            mg.beginPath();
+            mg.moveTo(s[0][0] - x0, s[0][1] - y0);
+            mg.lineTo(s[1][0] - x0, s[1][1] - y0);
+            mg.lineTo(s[2][0] - x0, s[2][1] - y0);
+            mg.closePath();
+            mg.fill();
+        }
+        const maskPx = mg.getImageData(0, 0, cw, ch).data, mask = new Float32Array(cw * ch);
+        for (let i = 0; i < mask.length; i++) mask[i] = maskPx[i * 4] / 255;
+        const image = g.getImageData(x0, y0, cw, ch);
+        cleanShadows(image.data, cw, ch, mask);
+        g.putImageData(image, x0, y0);
+        return true;
+    }
+
+    // Takes painted shadows out of a picture (px, W x H, changed in place; mask = 0..1, the shadows' outline). Near the outline (grown a
+    // little), a pixel counts as shadowed by how much darker it is than the lit wall round it; there it takes the lit wall's colour
+    // (from just outside the shadow, spread smoothly into wide shadows) times its own fine detail (the bricks and cracks seen through
+    // the shadow), kept only well inside a shadow so its rim leaves no outline.
+    function cleanShadows(px: Uint8ClampedArray, W: number, H: number, mask: Float32Array): void {
+        const N = W * H;
+        const ext = (src: Float32Array, r: number, isMax: boolean): Float32Array => {
+            const f = isMax ? Math.max : Math.min, tmp = new Float32Array(N), out = new Float32Array(N);
+            for (let y = 0; y < H; y++)
+                for (let x = 0; x < W; x++) {
+                    let v = src[y * W + x];
+                    for (let d = -r; d <= r; d++) v = f(v, src[y * W + Math.min(W - 1, Math.max(0, x + d))]);
+                    tmp[y * W + x] = v;
+                }
+            for (let y = 0; y < H; y++)
+                for (let x = 0; x < W; x++) {
+                    let v = tmp[y * W + x];
+                    for (let d = -r; d <= r; d++) v = f(v, tmp[Math.min(H - 1, Math.max(0, y + d)) * W + x]);
+                    out[y * W + x] = v;
+                }
+            return out;
+        };
+        const blur = (src: Float32Array, r: number): Float32Array => blurred(src, W, H, r);
+        const lum = new Float32Array(N), bin = new Float32Array(N);
+        for (let i = 0; i < N; i++) {
+            lum[i] = 0.3 * px[i * 4] + 0.59 * px[i * 4 + 1] + 0.11 * px[i * 4 + 2];
+            bin[i] = mask[i] > 0.3 ? 1 : 0;
+        }
+        // where a shadow may be (its soft edge included); outside it is plain lit wall
+        const zone = ext(bin, 6, true), lit = new Float32Array(N);
+        for (let i = 0; i < N; i++) lit[i] = zone[i] > 0.5 ? 0 : 1;
+        // the lit wall's colour round each place: the narrowest look-around that finds enough lit wall
+        const E = [new Float32Array(N), new Float32Array(N), new Float32Array(N)], got = new Uint8Array(N);
+        for (const r of [4, 8, 16, 32, 64]) {
+            const lw = blur(lit, r);
+            const cs = [0, 1, 2].map((c) => {
+                const a = new Float32Array(N);
+                for (let i = 0; i < N; i++) a[i] = px[i * 4 + c] * lit[i];
+                return blur(a, r);
+            });
+            for (let i = 0; i < N; i++)
+                if (!got[i] && zone[i] > 0.5 && lw[i] > 0.2) {
+                    for (let c = 0; c < 3; c++) E[c][i] = cs[c][i] / lw[i];
+                    got[i] = 1;
+                }
+        }
+        const neighbours = (i: number): number[] => {
+            const x = i % W, y = (i / W) | 0;
+            return [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, y > 0 ? i - W : -1, y < H - 1 ? i + W : -1];
+        };
+        // the middles of wide shadows, out of reach: filled in from round them, ring by ring
+        const inZone: number[] = [];
+        for (let i = 0; i < N; i++) if (zone[i] > 0.5) inZone.push(i);
+        let open = inZone.filter((i) => !got[i]);
+        while (open.length) {
+            const next: number[] = [], fill: Array<[number, number[]]> = [];
+            for (const i of open) {
+                let n = 0;
+                const sum = [0, 0, 0];
+                for (const j of neighbours(i))
+                    if (j >= 0 && (got[j] || zone[j] <= 0.5)) {
+                        for (let c = 0; c < 3; c++) sum[c] += got[j] ? E[c][j] : px[j * 4 + c];
+                        n++;
+                    }
+                if (n) fill.push([i, sum.map((v) => v / n)]);
+                else next.push(i);
+            }
+            if (!fill.length) break;
+            for (const [i, col] of fill) {
+                for (let c = 0; c < 3; c++) E[c][i] = col[c];
+                got[i] = 1;
+            }
+            open = next;
+        }
+        // smoothed inside the zone, so the fill has no seams (each place's neighbours in the zone listed once)
+        const near = new Int32Array(inZone.length * 4).fill(-1);
+        inZone.forEach((i, q) => neighbours(i).forEach((j, k) => {
+            if (j >= 0 && zone[j] > 0.5) near[q * 4 + k] = j;
+        }));
+        for (let it = 0; it < 60; it++)
+            for (let q = 0; q < inZone.length; q++) {
+                const i = inZone[q];
+                for (let c = 0; c < 3; c++) {
+                    const Ec = E[c];
+                    let s = Ec[i] * 2, n = 2;
+                    for (let k = 0; k < 4; k++) {
+                        const j = near[q * 4 + k];
+                        if (j >= 0) {
+                            s += Ec[j];
+                            n++;
+                        }
+                    }
+                    Ec[i] = s / n;
+                }
+            }
+        // how shadowed each pixel is: by how much darker its neighbourhood is than the lit wall round it
+        const lumS = blur(lum, 2), w = new Float32Array(N);
+        for (const i of inZone) {
+            const e = 0.3 * E[0][i] + 0.59 * E[1][i] + 0.11 * E[2][i];
+            w[i] = Math.max(0, Math.min(1, (1 - lumS[i] / Math.max(e, 1) - 0.08) / 0.22));
+        }
+        // widened by two pixels, so the shadows' thin dark rims go too; well inside a shadow (shadow all round within 3 pixels) the
+        // fine detail is kept: the pixel's brightness against the shadowed brightness round it
+        const ws = blur(ext(w, 2, true), 1), core = ext(w, 3, false);
+        const sh = new Float32Array(N);
+        for (let i = 0; i < N; i++) sh[i] = lum[i] * core[i];
+        const shB = blur(sh, 3), shwB = blur(core, 3);
+        for (const i of inZone) {
+            const k = ws[i];
+            if (k < 0.01) continue;
+            const local = shwB[i] > 0.05 ? shB[i] / shwB[i] : lumS[i];
+            const deep = Math.max(0, Math.min(1, (core[i] - 0.6) / 0.4));
+            const d = 1 + (Math.max(0.6, Math.min(1.4, lum[i] / Math.max(local, 2))) - 1) * deep;
+            for (let c = 0; c < 3; c++) px[i * 4 + c] = Math.round(Math.min(255, px[i * 4 + c] * (1 - k) + E[c][i] * d * k));
         }
     }
 
@@ -360,6 +694,7 @@
     //    from outside it (the probe's orbit) the near half of the ring vanished. Every face of every piece in the ring zone gets a
     //    twin with the corners in the other order, in the same material, so the ring shows from both sides. This grows the face list,
     //    so the chunk lengths above it are patched.
+    // 3. Christmas only: the screens on the right wall, their stand and their cables (SCREEN_BOXES) collapsed like the arm.
     // The game's own model if anything fails.
     async function modelWithoutArm(address: string, init?: RequestInit): Promise<Response> {
         const real = await call(address, init);
@@ -381,33 +716,13 @@
                         const points = verts;
                         const faceCount = view.getUint16(body, true);
                         const corner = (f: number, k: number): number => view.getUint16(body + 2 + f * 8 + k * 2, true);
-                        const place = new Map<string, number>(), welded = new Int32Array(points.length / 3);
-                        for (let i = 0; i < welded.length; i++) {
-                            const key = `${Math.round(points[i * 3] * 10)},${Math.round(points[i * 3 + 1] * 10)},${Math.round(points[i * 3 + 2] * 10)}`;
-                            let found = place.get(key);
-                            if (found === undefined) {
-                                found = place.size;
-                                place.set(key, found);
-                            }
-                            welded[i] = found;
-                        }
-                        const parent = Array.from({ length: place.size }, (_, i) => i);
-                        const root = (x: number): number => {
-                            while (parent[x] !== x) {
-                                parent[x] = parent[parent[x]];
-                                x = parent[x];
-                            }
-                            return x;
-                        };
-                        for (let f = 0; f < faceCount; f++) {
-                            const a = root(welded[corner(f, 0)]);
-                            parent[root(welded[corner(f, 1)])] = a;
-                            parent[root(welded[corner(f, 2)])] = a;
-                        }
+                        const pieceOf = pieceOfFaces(points, corner, faceCount);
+                        // Christmas: the screens, their stand and cables, collapsed the same way (read before any face changes)
+                        const screens = christmas ? screenFaces(points, corner, faceCount) : [];
                         const total = new Map<number, number>(), inside = new Map<number, number>(), insideBox: boolean[] = [];
                         const onRing = new Map<number, boolean>();
                         for (let f = 0; f < faceCount; f++) {
-                            const piece = root(welded[corner(f, 0)]);
+                            const piece = pieceOf[f];
                             for (let k = 0; k < 3; k++) {
                                 const v = corner(f, k) * 3, radius = Math.hypot(points[v], points[v + 1]), z = points[v + 2];
                                 const here = radius >= RING_RADIUS_MIN && radius <= RING_RADIUS_MAX && z >= RING_Z_MIN && z <= RING_Z_MAX;
@@ -417,14 +732,19 @@
                         for (let f = 0; f < faceCount; f++) {
                             const centre = [0, 1, 2].map((a) => (points[corner(f, 0) * 3 + a] + points[corner(f, 1) * 3 + a] + points[corner(f, 2) * 3 + a]) / 3);
                             const inBox = centre.every((v, a) => v >= ARM_MIN[a] && v <= ARM_MAX[a]);
-                            const piece = root(welded[corner(f, 0)]);
+                            const piece = pieceOf[f];
                             insideBox.push(inBox);
                             total.set(piece, (total.get(piece) ?? 0) + 1);
                             if (inBox) inside.set(piece, (inside.get(piece) ?? 0) + 1);
                         }
+                        for (const f of screens) {
+                            const first = corner(f, 0);
+                            view.setUint16(body + 2 + f * 8 + 2, first, true);
+                            view.setUint16(body + 2 + f * 8 + 4, first, true);
+                        }
                         const twins: number[] = [];
                         for (let f = 0; f < faceCount; f++) {
-                            const piece = root(welded[corner(f, 0)]);
+                            const piece = pieceOf[f];
                             if (onRing.get(piece) === true) {
                                 twins.push(f);
                                 continue;
@@ -625,14 +945,16 @@
     }
 
     // The two floor steps and the saved store, shared with lobby_pass.ts, which makes the night pictures with them (26f2).
-    window.__kaspHangarPictures = { removeSun, flattenPicture, saved, floorCleaned: cleanFloor };
+    // the wall picture's own changes, in the saved names of anything made from it
+    const wallTag = `${christmas ? '-xmas' : ''}${banners ? '-banners' : ''}`;
+    window.__kaspHangarPictures = { removeSun, flattenPicture, saved, floorCleaned: cleanFloor, wallTag };
 
     window.fetch = function (this: unknown, input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
         try {
             const address = typeof input === 'string' ? input : input instanceof URL ? input.href : input instanceof Request ? input.url : '';
             if (folder === null && /^https:\/\/[^/]*tankionline\.com\/.*\/meta\.info(\?|$)/.test(address)) return answerMetaInfo(address, init);
-            if (banners && folder !== null && plain(address) === folder + '/gar1.webp') {
-                painted ??= savedResponse('gar1-banners.webp', 'image/webp', () => wallWithBanners(address, init));
+            if (wallTag !== '' && folder !== null && plain(address) === folder + '/gar1.webp') {
+                painted ??= savedResponse(`gar1${wallTag}.webp`, 'image/webp', () => wallPicture(address, init));
                 return painted.then(({ blob, type }) => new Response(blob, { status: 200, headers: { 'Content-Type': type } }));
             }
             if (cleanFloor && folder !== null && plain(address) === folder + '/flr1.webp') {
@@ -640,7 +962,7 @@
                 return plainFloor.then(({ blob, type }) => new Response(blob, { status: 200, headers: { 'Content-Type': type } }));
             }
             if (folder !== null && plain(address) === folder + '/object.3ds') {
-                armless ??= savedResponse('object-armless.3ds', 'application/octet-stream', () => modelWithoutArm(address, init)).then((r) => r.blob.arrayBuffer());
+                armless ??= savedResponse(christmas ? 'object-armless-xmas.3ds' : 'object-armless.3ds', 'application/octet-stream', () => modelWithoutArm(address, init)).then((r) => r.blob.arrayBuffer());
                 return armless.then((b) => new Response(b.slice(0), { status: 200, headers: { 'Content-Type': 'application/octet-stream' } }));
             }
         } catch {

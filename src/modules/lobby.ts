@@ -682,6 +682,26 @@
             readonly bright: number;
             readonly blink: number;
         } | null;
+        // The Christmas hangar's own fireplace (26l, the probe's v1.88 xmFire, owner 2026-11-22); null = none. Its back stands at (x, y),
+        // its front turned (degrees, 0 = into the room from the right wall), sized; logs = the log pile (1 = on the camera's side, -1 =
+        // on the door's side, 0 = none), rug (1 = yes); flames (how many), fire (their size), bright (their brightness), sparks (how
+        // many); light = its warm light on what is round it, reach = how far that light goes; sound = the crackling fire's loudness in %.
+        // The screens it replaces on the right wall are removed by hangar_files.ts (the Christmas look only).
+        readonly fireplace: {
+            readonly x: number;
+            readonly y: number;
+            readonly turn: number;
+            readonly size: number;
+            readonly logs: number;
+            readonly rug: number;
+            readonly flames: number;
+            readonly fire: number;
+            readonly bright: number;
+            readonly sparks: number;
+            readonly light: number;
+            readonly reach: number;
+            readonly sound: number;
+        } | null;
     }
     interface ShootNumbers {
         readonly every: number;
@@ -774,6 +794,7 @@
         tree: null,
         gifts: null,
         xmasLights: null,
+        fireplace: null,
     };
     const NIGHT_NORMAL: LobbyLook = {
         ...DAY_NORMAL,
@@ -984,6 +1005,9 @@
         tree: { kind: 0, x: -1030, y: -1370, turn: 65, size: 1.4, count: 96, lights: 4, blink: 2.2, star: 2.5, pool: 4 },
         gifts: { count: 9, size: 0.9 },
         xmasLights: { door: 1, wall: 1, doorZ: 625, wallZ: 610, sag: 49, gap: 65, bright: 4, blink: 3.15 },
+        // the fireplace (owner 2026-11-22: "on the right wall ... increase the size a bit"; the probe's v1.88 defaults, not tuned live
+        // yet): where the screens stood, a little away from the door so the tree, its gifts and the log pile do not meet
+        fireplace: { x: -1370, y: -880, turn: 0, size: 1.15, logs: 1, rug: 1, flames: 5, fire: 1, bright: 1, sparks: 14, light: 1.5, reach: 800, sound: 100 },
     };
     // The owner's final "day foggy" (probe v1.56 DAY_FOGGY, report of 2026-11-20 09:43): the very sunny look (its key light, lamp speed,
     // door blend and road, written out here; the sunny look itself is 26i) with the heat off, the moving low fog, clean walls and every
@@ -1482,6 +1506,9 @@
     // the Christmas trees (26l), the same way
     let treeSet: KaspLobbyTrees | null = null;
     let treeState: 'none' | 'loading' | 'failed' = 'none';
+    // the Christmas hangar's fireplace (26l), the same way
+    let fireSet: KaspLobbyFireplace | null = null;
+    let fireState: 'none' | 'loading' | 'failed' = 'none';
     function ensureSeasonal(): void {
         const base = document.documentElement.getAttribute('data-kasp-hangar-base');
         const api = window.__kaspLobbyPass;
@@ -1520,6 +1547,18 @@
                 },
                 () => {
                     treeState = 'failed';
+                },
+            );
+        }
+        if (look.fireplace !== null && fireSet === null && fireState === 'none') {
+            fireState = 'loading';
+            api.loadFireplace(base).then(
+                (got) => {
+                    fireSet = got;
+                    fireState = 'none';
+                },
+                () => {
+                    fireState = 'failed';
                 },
             );
         }
@@ -2233,7 +2272,12 @@
         },
         snowfall: { file: 'snow-fall.mp3', target: 0.012, skip: 0, level: () => (look.snowSounds === null ? 0 : look.snowSounds.fall / 100) },
         roof: { file: 'rain-roof.webm', target: 0.14, skip: 0, level: () => (look.rain === null ? 0 : look.roof / 100) },
+        // the Christmas fireplace's crackling fire (26l, the probe's v1.88; credit in XMAS-SOUNDS-CREDITS.txt), from its side of the
+        // picture (firePan)
+        fire: { file: 'xmas-fire.mp3', target: 0.02, skip: 0, level: () => (look.fireplace === null ? 0 : look.fireplace.sound / 100) },
     };
+    // where the fireplace's sound comes from, -0.8 (left) to 0.8 (right); set by the frame
+    let firePan = 0;
     // the barks in the recording: [start, end] in seconds (two bark groups, each with its short tail)
     const DOG = { file: 'night-dog-far.mp3', barks: [[0.6, 3.0], [4.3, 6.6]] as ReadonlyArray<readonly [number, number]> };
     const sound: {
@@ -2243,9 +2287,10 @@
         dog: { readonly buf: AudioBuffer; readonly norm: number } | null;
         dogBus: GainNode | null;
         rain: GainNode | null;
+        firePanner: StereoPannerNode | null;
         next: number;
         barks: number;
-    } = { ctx: null, state: 'none', loops: new Map(), dog: null, dogBus: null, rain: null, next: 0, barks: 0 };
+    } = { ctx: null, state: 'none', loops: new Map(), dog: null, dogBus: null, rain: null, firePanner: null, next: 0, barks: 0 };
     // The rain's hiss (the probe's rainSound, its numbers): 4 seconds of pink-ish noise per channel (its own seed, so the same every
     // time) with about 180 short ticks a second like drops, its last 0.1 s faded into its start (a seamless loop), brought to one
     // loudness, then a high-pass at 200 Hz and a low-pass at 4500 Hz, as if heard from inside the hangar. Its gain starts at 0.
@@ -2317,7 +2362,9 @@
                   ? look.cicadas > 0
                   : k === 'roof'
                     ? look.rain !== null && look.roof > 0
-                    : k === 'wind' || k === 'snowfall'
+                    : k === 'fire'
+                      ? look.fireplace !== null && look.fireplace.sound > 0
+                      : k === 'wind' || k === 'snowfall'
                       ? look.snowSounds !== null
                       : look.nightSounds !== null,
         );
@@ -2369,7 +2416,13 @@
                 const gain = ctx.createGain();
                 gain.gain.value = 0;
                 node.connect(gain);
-                gain.connect(ctx.destination);
+                if (key === 'fire') {
+                    const pan = ctx.createStereoPanner();
+                    pan.pan.value = firePan;
+                    gain.connect(pan);
+                    pan.connect(ctx.destination);
+                    sound.firePanner = pan;
+                } else gain.connect(ctx.destination);
                 node.start();
                 sound.loops.set(key, { gain, norm: SOUND_LOOPS[key].target / Math.sqrt(sum / (n * buf.numberOfChannels) || 1) });
             }),
@@ -2548,6 +2601,7 @@
         for (const [key, lp] of sound.loops) {
             if (key !== 'roof') lp.gain.gain.setTargetAtTime(want ? SOUND_LOOPS[key].level() * lp.norm : 0, ctx.currentTime, 0.8);
         }
+        if (sound.firePanner !== null) sound.firePanner.pan.setTargetAtTime(firePan, ctx.currentTime, 0.4);
         rainGains(want);
         const F = look.nightSounds;
         const now = performance.now();
@@ -3148,6 +3202,92 @@
                           return out;
                       })()
                     : null,
+            // the Christmas hangar's fireplace (26l, the probe's v1.88): its pieces moved, turned and sized onto their spot (the
+            // fireplace, the log pile on its side, the rug), then our flames, embers and sparks in its opening, its light. Local places:
+            // v = out from the wall, u = along it (the New Year room's y round the fireplace's middle), z = up, all times size.
+            fp: (() => {
+                const P = L.fireplace;
+                const FS = fireSet;
+                if (P === null || FS === null) return null;
+                const off = ps.offset;
+                const t = nowMs / 1000;
+                const s = P.size;
+                const ang = (P.turn * Math.PI) / 180;
+                const cs = Math.cos(ang);
+                const sn = Math.sin(ang);
+                const Wp = (u: number, v: number, z: number): number[] => [P.x + (cs * v - sn * u) * s + off[0], P.y + (sn * v + cs * u) * s + off[1], z * s + off[2]];
+                const hash = (i: number): number => {
+                    const x = Math.sin(i * 12.9898) * 43758.5453;
+                    return x - Math.floor(x);
+                };
+                // world = turn(piece - pivot + shift) x size + spot (the pieces' own drawing adds the hangar's offset)
+                const place = (A: KaspLobbyAsset, shift: readonly number[]): KaspLobbyAsset => {
+                    const lx = (shift[0] - FS.pivot[0]) * s;
+                    const ly = (shift[1] - FS.pivot[1]) * s;
+                    return { ...A, xr: [cs, sn, -sn, cs], xs: s, xt: [P.x + cs * lx - sn * ly, P.y + sn * lx + cs * ly, 0] };
+                };
+                const pieces = [place(FS.fire, [0, 0])];
+                // the log pile stands at -313 along the wall in the New Year room (the door's side); 1 moves it to +313 (the camera's side)
+                if (P.logs > 0.5) pieces.push(place(FS.logs, [0, 626]));
+                else if (P.logs < -0.5) pieces.push(place(FS.logs, [0, 0]));
+                if (P.rug > 0.5) pieces.push(place(FS.rug, [0, 0]));
+                // the flames, the embers under the logs and the sparks: P = where (and a seed), Q = width, height, brightness, kind
+                const FPp = new Float32Array(48 * 4);
+                const FPq = new Float32Array(48 * 4);
+                let m = 0;
+                const nF = Math.max(0, Math.min(7, Math.round(P.flames)));
+                for (let i = 0; i < nF; i++) {
+                    const u = (nF > 1 ? i / (nF - 1) - 0.5 : 0) * 130 + (hash(i + 3) - 0.5) * 14;
+                    const mid = 1 - 0.35 * Math.min(1, Math.abs(u) / 70);
+                    const w = (26 + 12 * hash(i + 5)) * P.fire * s;
+                    const h = (75 + 45 * hash(i + 9)) * P.fire * mid * s;
+                    FPp.set([...Wp(u, 62, 28), hash(i + 20)], m * 4);
+                    FPq.set([w, h, 0, 0], m * 4);
+                    m++;
+                }
+                if (nF > 0) {
+                    FPp.set([...Wp(0, 62, 10), 0.37], m * 4);
+                    FPq.set([110 * s, 32 * s, 0, 2], m * 4);
+                    m++;
+                }
+                const nS = nF > 0 ? Math.max(0, Math.min(24, Math.round(P.sparks))) : 0;
+                for (let i = 0; i < nS; i++) {
+                    const period = 1.6 + 1.4 * hash(i + 60);
+                    const ph = (t / period + hash(i + 70)) % 1;
+                    const u = (hash(i + 80) - 0.5) * 120 + Math.sin(t * 2 + i) * 12 * ph;
+                    const v = 60 + (hash(i + 90) - 0.5) * 24;
+                    const z = 35 + ph * 160 * P.fire;
+                    const b = Math.pow(1 - ph, 1.6) * (0.6 + 0.4 * Math.sin(t * 20 + i * 3));
+                    FPp.set([...Wp(u, v, z), hash(i + 99)], m * 4);
+                    FPq.set([2.2 * s, 0, b, 1], m * 4);
+                    m++;
+                }
+                // its light: one strong pool close round the fire and a wide soft one (reach) over the floor and the tank, both flickering
+                const flick = 0.82 + 0.1 * Math.sin(t * 7.3) * Math.sin(t * 3.1 + 1) + 0.06 * Math.sin(t * 17.9) + 0.04 * Math.sin(t * 31.7 + 2);
+                const lc = Wp(0, 150, 70);
+                const dim = Math.max(0.06, (inn[0] + inn[1] + inn[2]) / 3);
+                const pool = (r: number, amount: number): { pts: Float32Array; r: number; amount: number; dim: number } => {
+                    const pts = new Float32Array(128);
+                    pts.set([lc[0], lc[1], lc[2], flick], 0);
+                    return { pts, r, amount, dim };
+                };
+                // the crackling fire comes from the fireplace's side of the picture (the camera looks out of the door)
+                {
+                    const fx = box.o[0] * box.wall - box.l[0] * 50 - pos.x;
+                    const fy = box.o[1] * box.wall - box.l[1] * 50 - pos.y;
+                    const fl = Math.hypot(fx, fy) || 1;
+                    const dx = P.x - pos.x;
+                    const dy = P.y - pos.y;
+                    firePan = Math.max(-0.8, Math.min(0.8, (((dx * fy) / fl - (dy * fx) / fl) / (Math.hypot(dx, dy) || 1)) * 1.3));
+                }
+                return {
+                    pieces,
+                    fire: { P: FPp, Q: FPq, n: m },
+                    pull: 12 * s,
+                    bright: P.bright,
+                    pools: nF > 0 ? [pool(170 * s, P.light), pool(Math.max(100, P.reach), P.light * 0.45)] : [],
+                };
+            })(),
             // the Halloween night's extras (26k): pumpkins, string lights, webs, wisps, bats
             hw:
                 L.pumpkins !== null || L.wisps !== null || L.bats !== null || L.stringLights !== null || L.webs !== null

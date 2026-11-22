@@ -948,6 +948,43 @@ void main(){vec3 pal[5]=vec3[5](vec3(.75,.08,.08),vec3(.1,.5,.18),vec3(.12,.25,.
  float band=max(1.-smoothstep(.1,.14,abs(vL.x)),1.-smoothstep(.1,.14,abs(vL.y)));
  c=mix(c,rb,band);float sh=.45+.55*max(dot(normalize(vN),normalize(vec3(.3,.45,.85))),0.);
  o=vec4(c*sh*uLight,1.);}`;
+    // the fireplace's fire (26l, the probe's v1.88 FIRE, its own text): moving flames (tall soft tongues that bend and flicker,
+    // white-yellow at the heart, orange, then deep red at the edges, breaking up at the top), the glowing bed of embers under the logs
+    // and the sparks rising from it; added over the picture after the night's colours, so they glow
+    const FIRE_VS = `#version 300 es
+precision highp float;precision highp int;
+uniform mat4 uVP;uniform vec3 uCam;uniform vec4 uP[48],uQ[48];uniform float uTime,uPull;
+out vec2 vQ;flat out vec4 vD;
+void main(){vec4 P=uP[gl_InstanceID],Q=uQ[gl_InstanceID];vec3 p=P.xyz;vec3 f=uCam-p;int mode=int(Q.w+.5);
+ vec2 c=vec2(float(gl_VertexID&1)*2.-1.,float(gl_VertexID>>1));vec3 r,u;
+ if(mode==1){vec3 fn=normalize(f);r=normalize(cross(vec3(0.,0.,1.),fn));u=cross(fn,r);c.y=c.y*2.-1.;}
+ else{vec3 fh=normalize(vec3(f.xy,0.)+vec3(1e-4,0.,0.));r=normalize(cross(vec3(0.,0.,1.),fh));u=vec3(0.,0.,1.);}
+ vQ=c;vD=vec4(P.w,Q.z,Q.w,0.);
+ float h=Q.y;if(mode==0)h*=.85+.15*sin(uTime*7.+P.w*40.)+.08*sin(uTime*13.1+P.w*17.);
+ p+=normalize(f)*uPull;
+ gl_Position=uVP*vec4(p+r*c.x*Q.x+u*(mode==1?c.y*Q.x:c.y*h),1.);}`;
+    const FIRE_FS = `#version 300 es
+precision highp float;precision highp int;
+uniform float uTime,uBright;in vec2 vQ;flat in vec4 vD;out vec4 o;
+float hh(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hh(i),hh(i+vec2(1.,0.)),f.x),mix(hh(i+vec2(0.,1.)),hh(i+1.),f.x),f.y);}
+float fbm(vec2 p){return vn(p)*.55+vn(p*2.1+3.7)*.3+vn(p*4.3+1.3)*.15;}
+vec3 ramp(float t){return t<.33?mix(vec3(.25,.02,0.),vec3(.95,.25,.03),t/.33):t<.66?mix(vec3(.95,.25,.03),vec3(1.,.62,.15),(t-.33)/.33):mix(vec3(1.,.62,.15),vec3(1.,.93,.7),(t-.66)/.34);}
+void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
+ if(mode==0){float y=vQ.y,x=vQ.x;
+  float n=fbm(vec2(x*1.6+s*13.,y*2.2-t*2.4)),n2=fbm(vec2(x*3.5-s*7.,y*4.5-t*3.6));
+  float xx=x+(n-.5)*.9*y+(n2-.5)*.25*y;
+  float w=.95*pow(max(1.-y,0.),.75)*sqrt(smoothstep(-.02,.12,y));
+  float d=1.-abs(xx)/max(w,.001);
+  float top=1.-smoothstep(.35,1.,y+(n2-.5)*.5);
+  float I=smoothstep(0.,.55,d)*top;if(I<.004)discard;
+  float tmp=clamp(I*(1.15-y*.55),0.,1.);col=ramp(tmp)*(.35+1.1*tmp)*I;
+ }else if(mode==2){float y=vQ.y,x=vQ.x;
+  float e=max(1.-x*x,0.)*(1.-smoothstep(.3,1.,y))*smoothstep(0.,.15,y);
+  float n=fbm(vec2(x*6.+s*5.,y*3.+t*.25));float pulse=.6+.4*sin(t*1.7+n*9.);
+  float I=e*(.35+.9*n*pulse);if(I<.004)discard;col=ramp(clamp(I*.75,0.,.8))*I*.9;
+ }else{float r=length(vQ);if(r>1.)discard;col=vec3(1.,.6,.2)*vD.y*(exp(-r*r*12.)*2.+exp(-r*r*3.)*.3);}
+ col*=uBright;if(max(col.r,max(col.g,col.b))<.003)discard;o=vec4(col,0.);}`;
     interface Model {
         readonly objects: ModelObject[];
         readonly materials: Record<string, Material>;
@@ -1288,8 +1325,9 @@ void main(){vec3 pal[5]=vec3[5](vec3(.75,.08,.08),vec3(.1,.5,.18),vec3(.12,.25,.
                 await new Promise((r) => setTimeout(r, 0));
                 return c.convertToBlob({ type: 'image/png' });
             };
-            // made once and saved (hangar_files.ts's store); the floor's input depends on whether the floor is the cleaned one
-            const name = `night-${pic}-${floorSteps?.floorCleaned === true ? 'clean' : 'game'}.png`;
+            // made once and saved (hangar_files.ts's store); the floor's input depends on whether the floor is the cleaned one, the
+            // wall's on what was changed on it (the Christmas cleaning, the banners)
+            const name = `night-${pic}-${floorSteps?.floorCleaned === true ? 'clean' : 'game'}${pic === 'gar1.webp' ? (floorSteps?.wallTag ?? '') : ''}.png`;
             const blob = floorSteps === undefined ? await make() : await floorSteps.saved(name, make);
             if (blob === null) continue;
             out.set(pic, await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }));
@@ -1616,6 +1654,7 @@ void main(){vec3 pal[5]=vec3[5](vec3(.75,.08,.08),vec3(.1,.5,.18),vec3(.12,.25,.
         const glowProg = program(GLOW_VS, GLOW_FS, ['uVP', 'uCam', 'uP', 'uSize', 'uPull', 'uC0', 'uC1', 'uBright', 'uTime', 'uBlink', 'uMode']);
         const webProg = program(WEB_VS, WEB_FS, ['uVP', 'uW', 'uLat', 'uSize', 'uCol', 'uAmt', 'uTime']);
         const giftProg = program(GIFT_VS, GIFT_FS, ['uVP', 'uG', 'uGs', 'uLight']);
+        const fireProg = program(FIRE_VS, FIRE_FS, ['uVP', 'uCam', 'uP', 'uQ', 'uTime', 'uPull', 'uBright']);
         const iceProg = program(ICE_VS, ICE_FS, ['uVP', 'uCam', 'uOut', 'uLat', 'uSpan', 'uTop', 'uAt', 'uLen', 'uWidth', 'uN', 'uColor', 'uTime', 'uGlint']);
         const driftProg = program(FULL_VS, DRIFT_FS, [...DEPTH_U, 'uLat', 'uLim', 'uCol', 'uAmt', 'uDepthW', 'uGust', 'uFloorZ', 'uTime', 'uSpark']);
         const flakeProg = program(FLAKE_VS, FLAKE_FS, [
@@ -2118,9 +2157,31 @@ void main(){vec3 pal[5]=vec3[5](vec3(.75,.08,.08),vec3(.1,.5,.18),vec3(.12,.25,.
                     gl.disable(gl.DEPTH_TEST);
                     gl.bindVertexArray(vao);
                 }
+                // 0a4. the Christmas hangar's fireplace, its log pile and its rug (26l, the probe's v1.88), drawn into the game's picture
+                // and depth as the tree
+                if (f.fp && st.draw === null) {
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(true);
+                    gl.colorMask(true, true, true, false);
+                    gl.disable(gl.BLEND);
+                    const wasCull = gl.isEnabled(gl.CULL_FACE);
+                    gl.disable(gl.CULL_FACE);
+                    for (const A of f.fp.pieces) drawPieces(f, A, 'solid', 1, 0, 1);
+                    if (wasCull) gl.enable(gl.CULL_FACE);
+                    gl.enable(gl.BLEND);
+                    gl.blendEquation(gl.FUNC_ADD);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.depthMask(false);
+                    for (const A of f.fp.pieces) drawPieces(f, A, 'clear', 1, 0, 1);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.disable(gl.DEPTH_TEST);
+                    gl.bindVertexArray(vao);
+                }
                 const R = f.rain;
                 const needDepth = !!(
                     f.xm ||
+                    f.fp ||
                     (f.hw && f.hw.pumpkins) ||
                     f.sunx ||
                     f.ndx ||
@@ -2385,6 +2446,51 @@ void main(){vec3 pal[5]=vec3[5](vec3(.75,.08,.08),vec3(.1,.5,.18),vec3(.12,.25,.
                     if (XM.treeBulbs && XM.treeBulbs.n > 0) bulbs(XM.treeBulbs, 14, 20, 2);
                     if (XM.star) bulbs(XM.star, 45, 30, 3);
                     if (XM.lights && XM.lights.n > 0) bulbs(XM.lights, 22, 25, 2);
+                    gl.disable(gl.DEPTH_TEST);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.bindVertexArray(vao);
+                }
+                // 1b4. the fireplace (26l, the probe's v1.88): its warm flickering light on the room and the tank (multiplies), then the
+                // flames, the embers and the sparks (added, so they glow); all hidden by the game's depth
+                if (f.fp && st.draw === null) {
+                    const FP = f.fp;
+                    if (depthOk && FP.pools.length) {
+                        gl.bindVertexArray(vao);
+                        gl.useProgram(hwxProg.p);
+                        depthUniforms(hwxProg, f, W, H);
+                        gl.activeTexture(gl.TEXTURE0 + UNIT);
+                        gl.bindTexture(gl.TEXTURE_2D, depthTex);
+                        gl.uniform3fv(uni(hwxProg, 'uCol'), [1, 0.52, 0.2]);
+                        gl.uniform1i(uni(hwxProg, 'uN'), 1);
+                        gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE, gl.ZERO, gl.ONE);
+                        for (const Lp of FP.pools) {
+                            if (Lp.amount <= 0.001) continue;
+                            gl.uniform4fv(uni(hwxProg, 'uC'), Lp.pts);
+                            gl.uniform1f(uni(hwxProg, 'uR'), Lp.r);
+                            gl.uniform1f(uni(hwxProg, 'uAmt'), Lp.amount);
+                            gl.uniform1f(uni(hwxProg, 'uDim'), Lp.dim);
+                            gl.drawArrays(gl.TRIANGLES, 0, 3);
+                        }
+                    }
+                    gl.enable(gl.DEPTH_TEST);
+                    gl.depthFunc(gl.LEQUAL);
+                    gl.depthMask(false);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+                    if (FP.fire.n > 0) {
+                        gl.useProgram(fireProg.p);
+                        gl.uniformMatrix4fv(uni(fireProg, 'uVP'), false, f.vp);
+                        gl.uniform3fv(uni(fireProg, 'uCam'), f.cam);
+                        gl.uniform1f(uni(fireProg, 'uTime'), f.time);
+                        gl.uniform1f(uni(fireProg, 'uPull'), FP.pull);
+                        gl.uniform1f(uni(fireProg, 'uBright'), FP.bright);
+                        gl.uniform4fv(uni(fireProg, 'uP'), FP.fire.P);
+                        gl.uniform4fv(uni(fireProg, 'uQ'), FP.fire.Q);
+                        const wasCull = gl.isEnabled(gl.CULL_FACE);
+                        gl.disable(gl.CULL_FACE);
+                        gl.bindVertexArray(vao);
+                        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, FP.fire.n);
+                        if (wasCull) gl.enable(gl.CULL_FACE);
+                    }
                     gl.disable(gl.DEPTH_TEST);
                     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                     gl.bindVertexArray(vao);
@@ -3227,5 +3333,97 @@ void main(){vec3 pal[5]=vec3[5](vec3(.75,.08,.08),vec3(.1,.5,.18),vec3(.12,.25,.
         return { pine, pineBig, bounds: { pine: boundsOf(pine), pineBig: boundsOf(pineBig) } };
     }
 
-    window.__kaspLobbyPass = { make, loadStandard, nightPictures, loadFixtures, lensPictures, loadSky, loadSeason, loadPumpkins, loadTrees };
+    // The Christmas hangar's own fireplace (26l, the probe's v1.88 ensureXmFire): the pieces of its room (vertices welded at the same
+    // place, faces sharing one joined) lying wholly inside one of these boxes (the New Year room's own places): the fireplace with its
+    // grate, logs, stockings and mantel things, and its chimney; the log pile beside it; the rug in front. FIREPLACE_PIVOT = the
+    // fireplace's back middle on the floor.
+    const FIREPLACE_BOXES: Readonly<Record<'fire' | 'logs' | 'rug', ReadonlyArray<readonly [readonly number[], readonly number[]]>>> = {
+        fire: [
+            [[-1500, -1030, -15], [-1290, -570, 360]],
+            [[-1500, -885, 280], [-1360, -710, 1075]],
+        ],
+        logs: [[[-1510, -1245, -5], [-1295, -980, 165]]],
+        rug: [[[-1470, -1100, -12], [-930, -555, 10]]],
+    };
+    const FIREPLACE_PIVOT = [-1484, -798];
+    // skip = boxes whose pieces are left out (a log of the pile also fits the fireplace's box; it belongs to the pile)
+    function roomPieceFaces(
+        room: ModelObject,
+        boxes: ReadonlyArray<readonly [readonly number[], readonly number[]]>,
+        skip: ReadonlyArray<readonly [readonly number[], readonly number[]]> = [],
+    ): Set<number> {
+        const V = room.v;
+        const Fc = room.f;
+        const set = new Set<number>();
+        if (V === null || Fc === null) return set;
+        const nF = Fc.length / 3;
+        const place = new Map<string, number>();
+        const weld = new Int32Array(V.length / 3);
+        for (let i = 0; i < weld.length; i++) {
+            const k = `${Math.round(V[i * 3] * 10)},${Math.round(V[i * 3 + 1] * 10)},${Math.round(V[i * 3 + 2] * 10)}`;
+            let at = place.get(k);
+            if (at === undefined) {
+                at = place.size;
+                place.set(k, at);
+            }
+            weld[i] = at;
+        }
+        const par = Array.from({ length: place.size }, (_, i) => i);
+        const root = (x: number): number => {
+            while (par[x] !== x) {
+                par[x] = par[par[x]];
+                x = par[x];
+            }
+            return x;
+        };
+        for (let f = 0; f < nF; f++) {
+            const a = root(weld[Fc[f * 3]]);
+            par[root(weld[Fc[f * 3 + 1]])] = a;
+            par[root(weld[Fc[f * 3 + 2]])] = a;
+        }
+        const info = new Map<number, { faces: number[]; lo: number[]; hi: number[] }>();
+        for (let f = 0; f < nF; f++) {
+            const r = root(weld[Fc[f * 3]]);
+            let p = info.get(r);
+            if (p === undefined) {
+                p = { faces: [], lo: [1e9, 1e9, 1e9], hi: [-1e9, -1e9, -1e9] };
+                info.set(r, p);
+            }
+            p.faces.push(f);
+            for (let k = 0; k < 3; k++)
+                for (let a = 0; a < 3; a++) {
+                    const v = V[Fc[f * 3 + k] * 3 + a];
+                    p.lo[a] = Math.min(p.lo[a], v);
+                    p.hi[a] = Math.max(p.hi[a], v);
+                }
+        }
+        const within = (p: { lo: number[]; hi: number[] }, list: ReadonlyArray<readonly [readonly number[], readonly number[]]>): boolean =>
+            list.some(([a, b]) => p.lo.every((v, i) => v >= a[i]) && p.hi.every((v, i) => v <= b[i]));
+        for (const p of info.values()) if (within(p, boxes) && !within(p, skip)) for (const f of p.faces) set.add(f);
+        return set;
+    }
+    async function loadFireplace(base: string): Promise<KaspLobbyFireplace> {
+        const model = await sharedModel(base + 'newyear2025-object.3ds');
+        const fileOf = (pic: string): string => base + 'newyear2025-' + encodeURIComponent(pic);
+        const room = model.objects.find((o) => o.name === 'room0');
+        if (room === undefined) throw new Error('no room in the New Year model');
+        const asset = async (
+            key: string,
+            boxes: ReadonlyArray<readonly [readonly number[], readonly number[]]>,
+            skip: ReadonlyArray<readonly [readonly number[], readonly number[]]> = [],
+        ): Promise<KaspLobbyAsset> => {
+            const set = roomPieceFaces(room, boxes, skip);
+            const only: Model = { objects: [{ ...room, groups: room.groups.map((g) => ({ ...g, faces: g.faces.filter((f) => set.has(f)) })) }], materials: model.materials };
+            const batches = batchesOf(only, ['room0'], fileOf);
+            return { key, batches, pics: await pictures(batches) };
+        };
+        const [fire, logs, rug] = await Promise.all([
+            asset('xmas-fireplace', FIREPLACE_BOXES.fire, FIREPLACE_BOXES.logs),
+            asset('xmas-fireplace-logs', FIREPLACE_BOXES.logs),
+            asset('xmas-fireplace-rug', FIREPLACE_BOXES.rug),
+        ]);
+        return { fire, logs, rug, pivot: FIREPLACE_PIVOT };
+    }
+
+    window.__kaspLobbyPass = { make, loadStandard, nightPictures, loadFixtures, lensPictures, loadSky, loadSeason, loadPumpkins, loadTrees, loadFireplace };
 })();
