@@ -176,6 +176,11 @@
     // them off where the graphics card cannot. Without the switch's name the game's own setting is kept.
     function firstWrites(s: Scene, n: KaspLobbyNames): void {
         bag(bag(s.system, n.platform), n.rotation)[n.z] = Math.atan2(-s.want.faceX, s.want.faceY) + POSE.turn * DEG;
+        writeShadows(s, n);
+    }
+
+    // The shadows and the sharpness at the look's numbers (once per scene).
+    function writeShadows(s: Scene, n: KaspLobbyNames): void {
         const r = s.rendererRecord;
         if (n.setShadows !== undefined && !r.shadowsOn) invoke(s.renderer, n.setShadows, [true]);
         const shadowsNow = bag(s.renderer, n.state)[n.shadowsOn] === true;
@@ -613,7 +618,25 @@
         // (<season>-object.3ds and its pictures), bright = its brightness, own = how much it keeps its own colours (the time colours
         // touch it only lightly), mix / mixDepth = the hangar floor turning into its ground near the door, and how far in. The game's
         // sky, town and transp2 are hidden while it is on (the probe's automatic hiding).
-        readonly outside: { readonly season: string; readonly bright: number; readonly own: number; readonly mix: number; readonly mixDepth: number } | null;
+        // x0 / x1 / feather (owner 2026-11-22): the blend's soft side edges, as the road's door left / right and edge soft; feather 0 = none.
+        // line / out / fade / inside / tone (owner 2026-11-22, as the road's slide, cover outside, outside fade, inside bright and hangar
+        // colour): fade above 0 carries the blend out over the street and fades it into the season's own ground (0 = it stops 45 past
+        // the door line, as before)
+        readonly outside: {
+            readonly season: string;
+            readonly bright: number;
+            readonly own: number;
+            readonly mix: number;
+            readonly mixDepth: number;
+            readonly x0: number;
+            readonly x1: number;
+            readonly feather: number;
+            readonly line: number;
+            readonly out: number;
+            readonly fade: number;
+            readonly inside: number;
+            readonly tone: number;
+        } | null;
         // the Halloween night's extras (26k); null = none. Pumpkins (the Halloween hangar's own, at its places on the floor): glow =
         // their faces and candles, pool = the candle light round them, flicker. Wisps among the trees (count, from near to far out,
         // height, size, bright, speed, colour). Bats over the town (count, height, dist, size, speed; inside > 0.5 = one now and then
@@ -815,6 +838,37 @@
         flies: { count: 120, dist: 3100, height: 305, size: 1.2, bright: 3.25, speed: 2.2, color: '#d4ff6a' },
         moths: { count: 3, size: 1.1, speed: 0.25 },
     };
+    // The Day look itself: the owner's review panel report of 2026-11-22 over the day normal. Only this look: the other looks built on
+    // DAY_NORMAL keep its numbers (sun side 43, shadow map 4096 and reach 0.4, door blend 0.1, the road wider and softer, more and
+    // faster clouds, 49 leaves, the city at 84 %).
+    const DAY_LOOK: LobbyLook = {
+        ...DAY_NORMAL,
+        light: { ...DAY_NORMAL.light, shadowSize: 4096, shadowReach: 0.4 },
+        time: { hour: 13, strength: 1, inside: 0.7, sunSide: 43 },
+        door: 0.1,
+        road: { amount: 0.75, reach: 1175, line: 0, x0: -1000, x1: 700, feather: 400, out: 0, bright: 1, tone: 0, fade: 0, inside: 0.85 },
+        clouds: { amount: 1, cover: 0.45, size: 0.85, speed: 4.75 },
+        leaves: { count: 49, dist: 2150, inside: 0, size: 4, wind: 2.9, gusts: 0.95 },
+        city: 84,
+    };
+    // The Night look itself: the owner's review panel report of 2026-11-22 over the night normal. Only this look: Halloween, built on
+    // NIGHT_NORMAL, keeps its numbers (midnight, shadow map 4096, reach 0.7 and strength 0.55, lamp spin 0.38, door blend 0.1, a
+    // brighter floor pool, a new night road, more and bigger lit windows, a shooting star every 5 s, new street lamps and red light,
+    // brighter fireflies).
+    const NIGHT_LOOK: LobbyLook = {
+        ...NIGHT_NORMAL,
+        light: { ...NIGHT_NORMAL.light, shadowSize: 4096, shadowReach: 0.7, shadowStrength: 0.55, lampSpeed: 0.38 },
+        time: { hour: 24, strength: 1, inside: 0.7, sunSide: 0 },
+        door: 0.1,
+        // the owner's second report of 2026-11-22: floor pool 1.05, light from the lamps 0.5; the street lamps higher, smaller, dimmer
+        night: { lamps: 1.05, reach: 0.55, glow: 0, sunOff: 1, fixtures: 1, keyDown: 0.5, color: '#fff8cc' },
+        roadN: { amount: 3, reach: 1325, line: 45, x0: -1190, x1: 900, feather: 400, out: 0, bright: 1.15, tone: 0.15, fade: 3000, inside: 1.05 },
+        windows: { amount: 0.95, dense: 1, size: 2.25, near: 3600, far: 8200, change: 0 },
+        shoot: { every: 5, bright: 1.6, length: 0.44, speed: 1.35, width: 1.35, height: 1.6 },
+        streetLamps: { count: 3, start: 1225, gap: 350, left: -1140, right: 1020, height: 580, size: 1, halo: 2, bright: 1.7, color: '#ffd06b' },
+        red: { across: -600, dist: 4000, height: 270, size: 0.5, halo: 1.8, bright: 0.95, blink: 1.6 },
+        flies: { count: 120, dist: 3100, height: 305, size: 1.2, bright: 3.65, speed: 2.2, color: '#d4ff6a' },
+    };
     // The owner's final "day rainy" (probe v1.52 DAY_RAINY, report of 2026-11-19 21:33; its base look of 2026-11-18 20:59), every group
     // it has on (the others are off in it): noon, the grey sky, the darker inside and outside, clean walls, the rain (26g2), its gusts
     // and roof (26g3), the lightning, thunder, flicker and lightning shadow (26g4), the drips and the wet floor (26g5).
@@ -867,25 +921,41 @@
         ...DAY_RAINY,
         time: { hour: 23, strength: 1, inside: 0, sunSide: -1 },
         night: { lamps: 1.4, reach: 0.8, glow: 0, sunOff: 1, fixtures: 0.4, keyDown: 1, color: '#fff3e0' },
-        roadN: { amount: 1.5, reach: 1650, line: 700, x0: -1110, x1: 780, feather: 360, out: 0, bright: 1.15, tone: 0.1, fade: 1500, inside: 1 },
+        // the owner's review panel report of 2026-11-22: shadow map 4096, a stronger, wider night road, a darker grey rain
+        light: { ...DAY_RAINY.light, shadowSize: 4096 },
+        roadN: { amount: 3, reach: 1650, line: 700, x0: -1110, x1: 900, feather: 400, out: 0, bright: 1.15, tone: 0.1, fade: 1500, inside: 1.25 },
+        rain: { drops: 14500, speed: 1.05, length: 1.1, wind: 0.35, width: 1.4, bright: 1.25, reach: 4700, splash: 1, volume: 100, color: '#97999b' },
         // the night's wider, shinier wet floor
         wet: { amount: 1, depth: 660, puddles: 0.55, shine: 1.6, rings: 1.25 },
+    };
+    // The Day, rainy look itself: the owner's review panel report of 2026-11-22 over the rainy day. Only this look: the rainy night,
+    // built on DAY_RAINY, keeps its numbers (shadow map 4096, reach 0.4, lamp spin 0.74, a shorter, softer road, the sky fully grey with
+    // faster clouds, sunbeams 1 (every sunbeam part stays hidden, so no god rays come back), the ring lamp lenses half lit, more drops).
+    const DAY_RAINY_LOOK: LobbyLook = {
+        ...DAY_RAINY,
+        light: { ...DAY_RAINY.light, shadowSize: 4096, shadowReach: 0.4, lampSpeed: 0.74 },
+        road: { ...DAY_RAINY.road, amount: 2.35, reach: 1350 },
+        overcast: { sky: 1, contrast: 1, layer: 1, speed: 2.4, tint: '#838991', out: 0.45, beams: 1, dark: 0.55, lamps: 0.5 },
+        rain: { drops: 15500, speed: 1.05, length: 1.1, wind: 0.35, width: 1.4, bright: 1.25, reach: 4700, splash: 1, volume: 100, color: '#cfd8e2' },
     };
     // The owner's final "day very sunny" (probe v1.64 DAY_SUNNY, report of 2026-11-20 11:13; its own key light and lamp speed of v1.68):
     // the normal day with the hot sun (glare, warmth, dust in the light), door blend 3, its road, the heat shimmer, four birds, the
     // summer sounds (the city loop at 100 % and the cicadas at 65 %); no white clouds or leaves; only transp1 hidden, the game's own floor.
+    // The owner's review panel report of 2026-11-22 ("very sunny is done"): sun side 90, shadow map 4096 and reach 0.45, door blend
+    // 0.1, a new floor into the road, the shimmer up to 600, the cicadas at 90 %.
     const DAY_SUNNY: LobbyLook = {
         ...DAY_NORMAL,
-        light: { ...DAY_NORMAL.light, keySide: -44, keyHeight: 31, keyStrength: 1.95, keyColour: '#ffe9cf', lampSpeed: 0.38 },
-        door: 3,
-        road: { amount: 0.55, reach: 1175, line: 0, x0: -930, x1: 670, feather: 160, out: 45, bright: 1.05, tone: 0, fade: 0, inside: 1 },
+        light: { ...DAY_NORMAL.light, keySide: -44, keyHeight: 31, keyStrength: 1.95, keyColour: '#ffe9cf', lampSpeed: 0.38, shadowSize: 4096, shadowReach: 0.45 },
+        time: { hour: 13, strength: 1, inside: 0.7, sunSide: 90 },
+        door: 0.1,
+        road: { amount: 1.1, reach: 575, line: 30, x0: -980, x1: 670, feather: 140, out: 1000, bright: 1, tone: 0, fade: 3000, inside: 0.95 },
         clouds: null,
         leaves: null,
         city: 100,
         heat: { glare: 3, warmth: 1.5, motes: 3450 },
-        shimmer: { amount: 1.2, height: 120, speed: 1 },
+        shimmer: { amount: 1.2, height: 600, speed: 1 },
         birds: { count: 4, height: 760, dist: 4200, size: 2, speed: 1 },
-        cicadas: 65,
+        cicadas: 90,
     };
     // The owner's final "day snowy" (probe v1.74 DAY_SNOWY, report of 2026-11-20 17:13): noon with a soft, cool light, the falling
     // snow and the snow lying on the street (with its sparkle), a little fog and floor fog, a light grey sky, clean walls, the icicles,
@@ -922,6 +992,21 @@
         snowSounds: { volume: 100, fall: 80 },
         snowGusts: { every: 10, strength: 1.25, length: 3, sound: 2.15 },
     };
+    // The Day, snowy look itself: the owner's review panel report of 2026-11-22 over the snowy day. Only this look: the snowy night
+    // and Christmas, built on DAY_SNOWY, keep its numbers (sun side -1, shadow map 4096, reach 0.35, softness 0.2, a new brighter
+    // road, the fog from the eye on and drifting faster, the floor fog further onto the street, thicker lying snow and more flakes
+    // inside, icicles a little higher and thinner, the snow glints at 1.15).
+    const DAY_SNOWY_LOOK: LobbyLook = {
+        ...DAY_SNOWY,
+        time: { hour: 12, strength: 1, inside: 0.85, sunSide: -1 },
+        light: { ...DAY_SNOWY.light, shadowSize: 4096, shadowReach: 0.35, shadowBlur: 0.2 },
+        road: { amount: 0.55, reach: 825, line: 230, x0: -770, x1: 740, feather: 400, out: 0, bright: 3, tone: 0, fade: 0, inside: 2.5 },
+        fog: { density: 0.55, start: 0, height: 100, move: 2.65, color: '#dfe6ef' },
+        floorFog: { amount: 0.6, height: 60, depth: 700, speed: 1, lumps: 0.6, out: 2675, bright: 1 },
+        snow: { flakes: 30000, speed: 1.3, size: 1.2, wind: 0.05, sway: 1.25, bright: 1, cover: 0.4, reach: 2500, coverBright: 1, coverThick: 3, inside: 200 },
+        icicles: { count: 68, top: 595, out: 25, left: -1000, right: 780, length: 240, width: 1.9, glint: 1 },
+        sparkle: 1.15,
+    };
     // The owner's final "night snowy" (probe v1.75 NIGHT_SNOWY, report of 2026-11-20 17:25): the snowy day at 23:00, less snow on
     // the ground, door blend 0.1, a darker, warm-tinted sky, the probe's clear-night lights, street lamps, red light and lit windows,
     // the lamps' light on the street, the flakes glowing near the street lamps, the wind louder; no drift or sparkle. The probe's own
@@ -943,6 +1028,27 @@
         pools: { amount: 3.5, size: 1.6 },
         snowGlow: { amount: 3.5, reach: 1.1 },
     };
+    // The Night, snowy look itself: the owner's review panel report of 2026-11-22 over the snowy night. Only this look: Christmas,
+    // built on NIGHT_SNOWY, keeps its numbers (the moon from the other side, shadow map 4096, a softer floor pool, a new night road,
+    // the fog higher and thinner, the floor fog at 0, faster, brighter snow reaching further, thicker lying snow, new icicles, less
+    // flake glow, brighter, changing windows, four street lamps, a smaller lamp light on the street, the red light moved).
+    const NIGHT_SNOWY_LOOK: LobbyLook = {
+        ...NIGHT_SNOWY,
+        time: { hour: 23, strength: 1, inside: 0.25, sunSide: 180 },
+        light: { ...NIGHT_SNOWY.light, shadowSize: 4096, shadowReach: 0.4, shadowStrength: 0.55, shadowBlur: 0.4 },
+        night: { lamps: 0.4, reach: 0.75, glow: 0, sunOff: 1, fixtures: 1, keyDown: 1, color: '#fffce5' },
+        roadN: { amount: 1.55, reach: 1625, line: 55, x0: -1180, x1: 900, feather: 400, out: 0, bright: 1.4, tone: 0.15, fade: 3000, inside: 1.05 },
+        overcast: { sky: 0.95, contrast: 0.6, layer: 0.45, speed: 0.9, tint: '#8f7b6b', out: 0.6, beams: 0, dark: 0.8, lamps: 1 },
+        fog: { density: 0.35, start: 900, height: 1200, move: 3, color: '#dfe6ef' },
+        floorFog: { amount: 0, height: 60, depth: 700, speed: 1, lumps: 0.8, out: 1000, bright: 1 },
+        snow: { flakes: 23500, speed: 1.6, size: 1.2, wind: 0.05, sway: 1.25, bright: 1.2, cover: 0.35, reach: 5100, coverBright: 1, coverThick: 3, inside: 50 },
+        icicles: { count: 71, top: 615, out: -5, left: -1000, right: 780, length: 240, width: 2, glint: 0.55 },
+        snowGlow: { amount: 1.25, reach: 1.1 },
+        windows: { amount: 3, dense: 0.86, size: 1.4, near: 2500, far: 16000, change: 5 },
+        streetLamps: { count: 4, start: 1150, gap: 375, left: -1210, right: 1040, height: 460, size: 1.35, halo: 0.7, bright: 2.3, color: '#ffd06b' },
+        pools: { amount: 3.5, size: 0.45 },
+        red: { across: -725, dist: 4000, height: 400, size: 1, halo: 1.8, bright: 1, blink: 1.6 },
+    };
     // The owner's final Halloween (probe v1.79 HALLOWEEN, report of 2026-11-20 18:53 without its lightning and thunder, which the
     // owner dropped): the probe's clear night (its own numbers) with the Halloween outside, the night colour reaching fully inside, the
     // Halloween lamps off, no ground fog (on at 0), the night ambience (dog every 45 s) and a little wind, the lamp flicker every
@@ -951,9 +1057,14 @@
     const HALLOWEEN: LobbyLook = {
         ...NIGHT_NORMAL,
         time: { hour: 23, strength: 1, inside: 1.5, sunSide: 0 },
-        outside: { season: 'halloween2024', bright: 1, own: 0.75, mix: 1, mixDepth: 700 },
+        // the owner's review panel report of 2026-11-22: shadow map 4096, door blend 0.1, a brighter outside whose floor blend runs
+        // 1000 past a line slid 100 out (it covers the hard cut 40 past the door: no zig-zag line) with soft sides, closer, brighter,
+        // faster string lights, smaller webs
+        light: { ...NIGHT_NORMAL.light, shadowSize: 4096 },
+        // (the owner's second report of the same day: blend reach 1150, edge soft 30, slide 170)
+        outside: { season: 'halloween2024', bright: 1.25, own: 0.85, mix: 1, mixDepth: 1150, x0: -890, x1: 900, feather: 30, line: 170, out: 1000, fade: 0, inside: 1, tone: 0 },
         night: { lamps: 0.95, reach: 0.6, glow: 0, sunOff: 1, fixtures: 0, keyDown: 1, color: '#f9ec9a' },
-        door: 1,
+        door: 0.1,
         cleanWall: 1,
         windows: null,
         shoot: null,
@@ -971,10 +1082,11 @@
         pumpkins: { glow: 1, pool: 1, flicker: 1 },
         wisps: { count: 24, near: 900, far: 3800, height: 220, size: 1.6, bright: 1.4, speed: 0.5, color: '#9fe8d0' },
         bats: { count: 6, height: 700, dist: 3000, size: 1.6, speed: 1.2, inside: 1, every: 30 },
-        stringLights: { door: 1, wall: 1, doorZ: 610, wallZ: 600, sag: 49, gap: 110, bright: 1.7, blink: 1.25 },
-        webs: { size: 235, amount: 0.4, top: 600, left: -940, right: 690 },
+        stringLights: { door: 1, wall: 1, doorZ: 640, wallZ: 600, sag: 49, gap: 50, bright: 2.5, blink: 1.8 },
+        webs: { size: 155, amount: 0.4, top: 600, left: -940, right: 690 },
         haunt: { every: 20 },
-        spooky: { owl: 80, wolf: 70, creak: 60, every: 25 },
+        // the door creak taken out (owner 2026-11-22)
+        spooky: { owl: 80, wolf: 70, creak: 0, every: 25 },
     };
     // The owner's final Christmas (probe v1.87 CHRISTMAS, report of 2026-11-20 21:36, "only one preset for Christmas"): the probe's
     // snowy night at hour 24 (inside 0.8, moon side 180) with the New Year outside brighter (2.1, keeps its look 0.8, blend reach 500),
@@ -983,16 +1095,20 @@
     // flake glow, street lamps, red light, town windows or lamp light on the street.
     const CHRISTMAS: LobbyLook = {
         ...NIGHT_SNOWY,
-        outside: { season: 'newyear2025', bright: 2.1, own: 0.8, mix: 1, mixDepth: 500 },
-        time: { hour: 24, strength: 1, inside: 0.8, sunSide: 180 },
-        night: { lamps: 0.95, reach: 0.75, glow: 0, sunOff: 1, fixtures: 0.6, keyDown: 1, color: '#ffd9a8' },
+        // the owner's review panel report of 2026-11-22: the inside lit fully by the night colour, shadow map 4096 and stronger, softer
+        // warmer lamps, the outside dimmer keeping its own look with its blend carried out over the street and faded (no cut line),
+        // faster, dimmer snow reaching further, thinner lying snow, 49 icicles, the tree moved and bigger, the fireplace retuned
+        light: { ...NIGHT_SNOWY.light, shadowSize: 4096, shadowReach: 0.4, shadowStrength: 0.9, shadowBlur: 0.4 },
+        outside: { season: 'newyear2025', bright: 1.4, own: 1, mix: 1, mixDepth: 775, x0: -1030, x1: 830, feather: 400, line: -30, out: 1000, fade: 3000, inside: 1, tone: 0 },
+        time: { hour: 24, strength: 1, inside: 1, sunSide: 180 },
+        night: { lamps: 0.3, reach: 1, glow: 0, sunOff: 1, fixtures: 1, keyDown: 1, color: '#ffe2bd' },
         door: 0.1,
         overcast: null,
         fog: null,
         floorFog: null,
         banks: null,
-        snow: { flakes: 18000, speed: 1.4, size: 1.4, wind: 1, sway: 1.25, bright: 1.2, cover: 0.35, reach: 2600, coverBright: 1.4, coverThick: 0.5, inside: 50 },
-        icicles: { count: 33, top: 590, out: 25, left: -1000, right: 780, length: 190, width: 2, glint: 0.95 },
+        snow: { flakes: 21000, speed: 1.85, size: 1.4, wind: 1, sway: 1.25, bright: 0.75, cover: 0.35, reach: 5400, coverBright: 1.4, coverThick: 0.2, inside: 50 },
+        icicles: { count: 49, top: 590, out: 25, left: -1000, right: 780, length: 190, width: 2, glint: 0.95 },
         snowDrift: null,
         sparkle: 0,
         snowGusts: { every: 10, strength: 1.25, length: 3, sound: 2.15 },
@@ -1002,12 +1118,11 @@
         red: null,
         windows: null,
         pools: null,
-        tree: { kind: 0, x: -1030, y: -1370, turn: 65, size: 1.4, count: 96, lights: 4, blink: 2.2, star: 2.5, pool: 4 },
+        tree: { kind: 0, x: -1090, y: -1520, turn: 65, size: 1.5, count: 96, lights: 4, blink: 2.2, star: 2.5, pool: 4 },
         gifts: { count: 9, size: 0.9 },
         xmasLights: { door: 1, wall: 1, doorZ: 625, wallZ: 610, sag: 49, gap: 65, bright: 4, blink: 3.15 },
-        // the fireplace (owner 2026-11-22: "on the right wall ... increase the size a bit"; the probe's v1.88 defaults, not tuned live
-        // yet): where the screens stood, a little away from the door so the tree, its gifts and the log pile do not meet
-        fireplace: { x: -1370, y: -880, turn: 0, size: 1.15, logs: 1, rug: 1, flames: 5, fire: 1, bright: 1, sparks: 14, light: 1.5, reach: 800, sound: 100 },
+        // the fireplace (owner 2026-11-22: "on the right wall"), where the screens stood, tuned live in the review panel
+        fireplace: { x: -1310, y: -867, turn: 0, size: 1.04, logs: 1, rug: 1, flames: 7, fire: 1.85, bright: 1.25, sparks: 24, light: 1, reach: 1200, sound: 100 },
     };
     // The owner's final "day foggy" (probe v1.56 DAY_FOGGY, report of 2026-11-20 09:43): the very sunny look (its key light, lamp speed,
     // door blend and road, written out here; the sunny look itself is 26i) with the heat off, the moving low fog, clean walls and every
@@ -1027,13 +1142,31 @@
         banks: { amount: 0, size: 2450, speed: 1, gaps: 0.9, high: 250, start: 600 },
         beam: { amount: 1, down: 5, side: 12, left: -1000, right: 1000, top: 300, soft: 10, pool: 0.5, dust: 0.6, color: '#fff1d6' },
     };
+    // The Day, foggy look itself: the owner's review panel report of 2026-11-22 over the foggy day. Only this look: the foggy night,
+    // built on DAY_FOGGY, keeps its numbers (shadow map 4096, no shadows, still lamps, a stronger, shorter road, thinner fog, a
+    // lumpier, thinner floor fog, no fog banks, the door beam stronger and turned to the other side).
+    const DAY_FOGGY_LOOK: LobbyLook = {
+        ...DAY_FOGGY,
+        light: { ...DAY_FOGGY.light, shadowSize: 4096, shadowReach: 0.25, shadowStrength: 0, shadowBlur: 0, lampSpeed: 0 },
+        road: { ...DAY_FOGGY.road, amount: 1.55, reach: 725 },
+        fog: { density: 0.9, start: 1550, height: 100, move: 3, color: '#c3cad3' },
+        floorFog: { amount: 0.95, height: 80, depth: 900, speed: 2, lumps: 0.7, out: 1375, bright: 1 },
+        banks: null,
+        beam: { amount: 1.1, down: 5, side: -9, left: -940, right: 1000, top: 300, soft: 10, pool: 0.5, dust: 0.6, color: '#fff1d6' },
+    };
     // The owner's final "night foggy" (probe v1.60 NIGHT_FOGGY, report of 2026-11-20 10:35): the foggy day at 23:00 with its own
     // thicker, almost still fog, the walls not cleaned, transp2 kept, the street lamps, the red light and the night sounds. The night
     // lights are the probe's own (as the day normal's), not the clear night's later report. Its searchlight, lamp cones and floating dust.
     const NIGHT_FOGGY: LobbyLook = {
         ...DAY_FOGGY,
         time: { hour: 23, strength: 1, inside: 0.7, sunSide: 0 },
-        cleanWall: 0,
+        // the owner's review panel report of 2026-11-22: shadow map 4096, reach 0.4, softness 0.5, door blend 1.55, softer night
+        // lights reaching further, clean walls, a new night road
+        light: { ...DAY_FOGGY.light, shadowSize: 4096, shadowReach: 0.4, shadowBlur: 0.5 },
+        door: 1.55,
+        night: { lamps: 0.4, reach: 0.95, glow: 0, sunOff: 1, fixtures: 1, keyDown: 0.75, color: '#fff3e0' },
+        roadN: { amount: 1.1, reach: 1175, line: 55, x0: -1170, x1: 900, feather: 400, out: 0, bright: 1.15, tone: 0.1, fade: 1500, inside: 1.05 },
+        cleanWall: 1,
         hidden: ['light0', 'light1', 'light2', 'transp1'],
         // the owner's fog panel report of 2026-11-21 21:44 (fog, street lamps, searchlight, cones, dust)
         fog: { density: 1, start: 0, height: 100, move: 0.05, color: '#c3cad3' },
@@ -1051,16 +1184,16 @@
     // The data of every look in the shared list (lobby_looks.ts): the build fails if a listed look has none. The saved choice
     // (kasp_lobby_look) is used when it is in the list; otherwise the list's first look.
     const LOOKS: Readonly<Record<KaspLobbyLookName, LobbyLook>> = {
-        'day-normal': DAY_NORMAL,
+        'day-normal': DAY_LOOK,
         'day-sunny': DAY_SUNNY,
-        'day-snowy': DAY_SNOWY,
-        'night-snowy': NIGHT_SNOWY,
+        'day-snowy': DAY_SNOWY_LOOK,
+        'night-snowy': NIGHT_SNOWY_LOOK,
         halloween: HALLOWEEN,
         christmas: CHRISTMAS,
-        'night-normal': NIGHT_NORMAL,
-        'day-rainy': DAY_RAINY,
+        'night-normal': NIGHT_LOOK,
+        'day-rainy': DAY_RAINY_LOOK,
         'night-rainy': NIGHT_RAINY,
-        'day-foggy': DAY_FOGGY,
+        'day-foggy': DAY_FOGGY_LOOK,
         'night-foggy': NIGHT_FOGGY,
     };
     const lookName: KaspLobbyLookName = (() => {
@@ -2758,12 +2891,12 @@
                           amount: OS.mix,
                           depth: OS.mixDepth,
                           bright: OS.bright,
-                          tone: 0,
-                          fade: 0,
-                          inside: 1,
-                          wall: box.wall,
-                          outR: 45,
-                          lim: [0, 0, -1],
+                          tone: OS.tone,
+                          fade: OS.fade,
+                          inside: OS.inside,
+                          wall: box.wall + OS.line,
+                          outR: OS.out,
+                          lim: OS.feather > 0 ? [OS.x0, OS.x1, OS.feather] : [0, 0, -1],
                       }
                     : OS === null && std !== null && roadAmount > 0.01
                     ? {
