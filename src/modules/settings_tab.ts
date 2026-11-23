@@ -92,6 +92,9 @@
         { key: 'kasp_lobbydrone', group: 'lobby', live: false, label: { EN: 'Drone flight', RU: 'Полёт дрона' } },
         // Read by hangar_files.ts when the game starts: the Birthday hangar's wall banners in the lobby (26e); off unless turned on.
         { key: 'kasp_lobbybanners', group: 'lobby', live: false, offByDefault: true, label: { EN: 'Birthday banners', RU: 'Праздничные флажки' } },
+        // Read by lobby_ui.ts when the game starts: the lobby's parts on the right in glass, the 8 mode tiles and the glass top bar of the lobby and every other screen (26d1,
+        // 26d2, a change needs a reload).
+        { key: 'kasp_lobbyui', group: 'lobby', live: false, label: { EN: 'Lobby buttons', RU: 'Кнопки лобби' } },
         // Read by the injector when the game starts: the daily offer's click buys without the success dialog (a change needs a reload).
         { key: 'kasp_shopquickbuy', group: 'shop', live: false, label: { EN: 'Daily offer quick buying', RU: 'Быстрая покупка ежедневного предложения' } },
         { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },

@@ -1686,6 +1686,75 @@
         }
     }
 
+    // The lobby's mode tiles (build-plan 26d1, src/modules/lobby_ui.ts): one click starts a battle mode the way the game's own Modes
+    // screen does, without opening any screen (owner, 2026-11-23: nothing may flash). On that screen a mode card's press runs, in this
+    // build (names change per build):
+    //   function(t,n){t.aar().gaq(new xq(n,$q(),jq())),t.aar().gaq(new oq(mq()))}
+    // that is: the component's store gets the game's "search for this mode" action (the mode and two fixed values of the screen), then
+    // the step back to the lobby. The cards are made by one function (myt) called once per mode by the screen with the mode's getter:
+    //   myt(t,u,KA()),myt(t,u,YA()),...
+    // The store itself comes from one of the game's small store holders in the same module, each only the store and its getter, which
+    // the game itself calls hundreds of times (in this build):
+    //   function C2t(){af=this,this.d1iy_1=new My(Ny(PS),null)}function E2t(){return null==af&&new C2t,af}
+    //   xy(C2t).aar=function(){var t=Cy;return this.d1iy_1.e2b(this,Ey("store",1,t,function(t){return t.aar()},null))}
+    // (the first try looked for the store on the lobby's own components, which have none: probe of 2026-11-23).
+    // A small function is added to the game's code right before that card maker, in the same module, so it can reach those names:
+    // window.__kaspModeStart(names) gives the store the same action for the mode whose name (QUICK_BATTLE, TDM_ONLY ...) is in names.
+    // Only the first action: the player is in the lobby already. It never runs by itself, only from a tile's click; any error answers
+    // false, and the tile then takes the game's screens as before.
+    const MODE_PRESS = /function\(([\w$]+),([\w$]+)\)\{\1\.([\w$]+)\(\)\.([\w$]+)\(new ([\w$]+)\(\2,([\w$]+)\(\),([\w$]+)\(\)\)\),\1\.\3\(\)\.\4\(new [\w$]+\([\w$]+\(\)\)\)\}/g;
+    const MODE_MAKER_RANGE = 20000;
+    const STORE_HOLDER = /\(([\w$]+)\)\.aar=function\(\)\{var [\w$]+=[\w$]+;return this\.[\w$]+\.[\w$]+\(this,[\w$]+\("store",/g;
+    const MODULE_BORDER = /[},]\s*\d{2,6}:(?:\([\w$],[\w$],[\w$]\)=>|function\([\w$],[\w$],[\w$]\))\{/;
+
+    function patchLobbyModes(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the battle modes' ${what} in this bundle, the lobby's mode tiles go through the game's screens`);
+            return null;
+        };
+        const presses = [...code.matchAll(MODE_PRESS)];
+        if (presses.length !== 1 || presses[0].index === undefined) return skip('press');
+        const press = presses[0];
+        const pressAt = press.index ?? 0;
+        const [, , , store, dispatch, action, source, kind] = press;
+        const from = Math.max(0, pressAt - MODE_MAKER_RANGE);
+        const makers = [...code.slice(from, pressAt).matchAll(/function ([\w$]+)\([\w$]+,[\w$]+,[\w$]+\)\{/g)];
+        const maker = makers[makers.length - 1];
+        if (maker === undefined || maker.index === undefined) return skip('card maker');
+        const makerAt = from + maker.index;
+        const calls = [...code.matchAll(new RegExp(`(?<![\\w$.])${asPattern(maker[1])}\\([\\w$]+,[\\w$]+,([\\w$]+)\\(\\)\\)`, 'g'))];
+        if (calls.length < 8) return skip('list');
+        const last = Math.max(...calls.map((c) => c.index ?? 0));
+        const first = Math.min(...calls.map((c) => c.index ?? 0));
+        if (MODULE_BORDER.test(code.slice(Math.min(makerAt, first), Math.max(makerAt, last)))) return skip('module');
+        // a store holder in the same module, with its getter
+        let holder: string | null = null;
+        for (const found of code.matchAll(STORE_HOLDER)) {
+            const at = found.index ?? 0;
+            if (MODULE_BORDER.test(code.slice(Math.min(at, makerAt), Math.max(at, makerAt)))) continue;
+            const getter = new RegExp(`function ([\\w$]+)\\(\\)\\{return null==([\\w$]+)&&new ${asPattern(found[1])},\\2\\}`).exec(code);
+            if (getter !== null) {
+                holder = getter[1];
+                break;
+            }
+        }
+        if (holder === null) return skip('store');
+        const getters = calls.map((c) => `${c[1]}()`).join(',');
+        const text =
+            `window.__kaspModeStart=function(w){try{var s=${holder}().${store}(),l=[${getters}];` +
+            `for(var k=0;k<l.length;k++)if(w.indexOf(String(l[k]))>=0){s.${dispatch}(new ${action}(l[k],${source}(),${kind}()));return!0}` +
+            `}catch(e){}return!1};`;
+        return applyEdits(code, [{ at: makerAt, length: 0, text }]);
+    }
+
+    function lobbyUiSwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_lobbyui') === '0';
+        } catch {
+            return false;
+        }
+    }
+
     function lobbySwitchedOff(): boolean {
         try {
             return localStorage.getItem('kasp_lobby') === '0';
@@ -1813,6 +1882,13 @@
                     hooked.push('lobby-pass');
                 }
                 lobbyNames = names;
+            }
+        }
+        if (!lobbyUiSwitchedOff()) {
+            const modes = patchLobbyModes(result);
+            if (modes !== null) {
+                result = modes;
+                hooked.push('lobby-modes');
             }
         }
         // Last, so every other edit finds the game's code as it was.

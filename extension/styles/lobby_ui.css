@@ -1,0 +1,1538 @@
+/* The lobby interface under the top bar (build-plan 26d1, src/modules/lobby_ui.ts), the owner's first concept (2026-11-23:
+   blueprint/reference/lobby-ideas/idea-D.png), all on one page (owner 2026-11-23, his idea 2):
+   - PLAY and the battle pass (Challenges) side by side; under them the 8 battle modes in one row that glides sideways; Containers,
+     Missions, Garage, Shop as square tiles; the elite pass tile, the news slides (two tiles wide), Settings; no titles between the rows.
+     News / chat / friends / clan in a bar at the bottom left.
+   No script decides what shows: every rule waits for lobby_ui.ts's mark (data-kasp-lobby-ui on <html>, set only with the "Lobby
+   buttons" switch on), the rules alone place the game's own parts and show ours while the game's lobby PLAY is on the page (not in the
+   garage or a battle).
+   Sizes are in em: the game sets the page's font size from the window's height (14.637 px in the concept's 988 px tall window), so the
+   whole layout grows and shrinks with the game. The concept's pixels are divided by 14.637.
+   The glass is the garage's own (owner, 2026-11-23), turned to the Game colour like the garage's.
+   Fonts: the game loads Rubik under its own names, one face each and no weights: BaseFontRegular, BaseFontMedium, BaseFontBold. A bold
+   text here takes BaseFontBold at weight normal; a heavier weight asked of any of them is drawn by the browser as a smeared fake bold
+   (owner 2026-11-23). */
+html[data-kasp-lobby-ui] {
+    /* the garage's glass (showroom_panels.css; owner 2026-11-23: "the same style as the garage"), turned to the Game colour like the
+       garage's, made less see-through over the busy hangar (owner 2026-11-23: its dark part 75% instead of 38%, its light a little
+       stronger) and with softer edge lines, so the many panels read as calmer (0.16 instead of 0.22; their hover is unchanged) */
+    --kasp-lu-shade: hsl(from hsl(205 60% 5% / 0.75) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-lu-fill: hsl(from hsl(205 70% 75% / 0.1) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-lu-fill-top: hsl(from hsl(205 70% 80% / 0.16) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-lu-fill-hover: hsl(from hsl(205 70% 80% / 0.2) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-lu-cell: hsl(from hsl(205 70% 80% / 0.07) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-lu-cell-hover: hsl(from hsl(205 70% 85% / 0.16) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    --kasp-lu-edge: rgb(255 255 255 / 0.16);
+    --kasp-lu-edge-hover: rgb(255 255 255 / 0.55);
+    --kasp-lu-inner: rgb(255 255 255 / 0.12);
+    --kasp-lu-muted: rgb(205 222 245 / 0.72);
+    --kasp-lu-gold: #ffc83d;
+    --kasp-lu-glass: linear-gradient(180deg, var(--kasp-lu-fill-top), var(--kasp-lu-fill) 45%), var(--kasp-lu-shade);
+    --kasp-lu-glass-hover: linear-gradient(180deg, var(--kasp-lu-fill-hover), var(--kasp-lu-fill) 60%), var(--kasp-lu-shade);
+    --kasp-lu-radius: 1.1em;
+    /* the two gold timer badges (elite pass, news slide): one size for both */
+    --kasp-lu-badge-w: 5.2em;
+    --kasp-lu-badge-h: 1.6em;
+    /* the rectangle (the concept's x 1001 to 1849 of a 1877 x 988 window, from its y 143 down) and its grid of four columns; the rows
+       one tile gap apart (owner 2026-11-23: the titles between them gone). The modes' row (7.5 em) sits between PLAY and the menu: the
+       three other rows gave it their room, each about a fifth shorter than in the concept (16 to 13, 12 to 9.75, 17.5 to 14.24 em) */
+    --kasp-lu-right: 1.913em;
+    --kasp-lu-width: 57.94em;
+    --kasp-lu-gap: 1.025em;
+    --kasp-lu-tile: 13.72em;
+    /* centred in the room under the game's top bar (6 em tall; owner 2026-11-23): the block is 47.56 em tall, so its top is half the
+       window down, less half the block, plus half the bar: 50vh - 23.78 em + 3 em */
+    --kasp-lu-top: calc(50vh - 20.78em);
+    --kasp-lu-row1: 13em;
+    --kasp-lu-modes-top: calc(var(--kasp-lu-top) + 14.025em);
+    --kasp-lu-modes: 7.5em;
+    --kasp-lu-row2-top: calc(var(--kasp-lu-top) + 22.55em);
+    --kasp-lu-row2: 9.75em;
+    --kasp-lu-row3-top: calc(var(--kasp-lu-top) + 33.325em);
+    --kasp-lu-row3: 14.235em;
+    --kasp-lu-bottom: calc(var(--kasp-lu-top) + 47.56em);
+}
+
+/* the glass, shared by every part */
+html[data-kasp-lobby-ui] :is(.PrimaryMenuItemComponentStyle-menuItemContainer, .FooterComponentStyle-footer, .BattlePassLobbyComponentStyle-menuBattlePass, .AnnouncementHomeScreenComponentStyle-mainContainer),
+html[data-kasp-lobby-ui] .kasp-mode {
+    background: var(--kasp-lu-glass) !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    border-radius: var(--kasp-lu-radius) !important;
+    box-shadow: inset 0 0.064em 0 var(--kasp-lu-inner) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-sizing: border-box !important;
+}
+
+html[data-kasp-lobby-ui] :is(.PrimaryMenuItemComponentStyle-menuItemContainer, .BattlePassLobbyComponentStyle-menuBattlePass, .AnnouncementHomeScreenComponentStyle-mainContainer):hover,
+html[data-kasp-lobby-ui] .kasp-mode:hover {
+    background: var(--kasp-lu-glass-hover) !important;
+    border-color: var(--kasp-lu-edge-hover) !important;
+}
+
+/* ---------- the game's shades go, so the tank is clear ---------- */
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-gradientBlock,
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-gradientBlockRight {
+    display: none !important;
+}
+
+/* ---------- PLAY: the game's own button in green glass, top left of the rectangle ----------
+   The game's PLAY is one element, both its box and its button (MainScreenComponentStyle-playButtonContainer and -buttonPlay on the same
+   div, probe of 2026-11-22), with its word in a <span>. The boxes round it (not the menu's) slide in with a transform, which would carry
+   a fixed PLAY with them: they keep still. */
+html[data-kasp-lobby-ui] div:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.MainScreenComponentStyle-blockMainMenu)) {
+    transform: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    perspective: none !important;
+    contain: none !important;
+    will-change: auto !important;
+}
+
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer {
+    position: fixed !important;
+    right: 23.37em !important;
+    left: auto !important;
+    top: var(--kasp-lu-top) !important;
+    bottom: auto !important;
+    width: 36.48em !important;
+    height: var(--kasp-lu-row1) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 3 !important;
+    display: block !important;
+    border-radius: var(--kasp-lu-radius) !important;
+    overflow: hidden !important;
+    box-shadow: 0 0 0 2px hsl(100 100% 60% / 0.6) !important;
+    background: repeating-linear-gradient(115deg, transparent 0 2.92em, rgb(255 255 255 / 0.05) 2.92em 5.85em),
+        linear-gradient(135deg, hsl(100 90% 45% / 0.42), hsl(110 80% 25% / 0.3)), var(--kasp-lu-shade) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer:hover {
+    box-shadow: 0 0 0 2px #b6ff8f !important;
+    background: repeating-linear-gradient(115deg, transparent 0 2.92em, rgb(255 255 255 / 0.05) 2.92em 5.85em),
+        linear-gradient(135deg, hsl(100 90% 50% / 0.55), hsl(110 80% 30% / 0.4)), var(--kasp-lu-shade) !important;
+}
+
+/* the game's own pieces inside PLAY go (its picture, its lock); its word PLAY stays, big, at the concept's place */
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer > :not(span) {
+    display: none !important;
+}
+
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer > span {
+    position: absolute !important;
+    left: 0.44em !important;
+    /* from the bottom, so it keeps its place over ALL BATTLES whatever the row's height (3.74 em up from the foot, as it was) */
+    top: auto !important;
+    bottom: 0.763em !important;
+    margin: 0 !important;
+    z-index: 1;
+    font-size: 4.9em !important;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-weight: normal !important;
+    line-height: 1 !important;
+    letter-spacing: 0.02em !important;
+    text-transform: uppercase !important;
+    color: #76ff33 !important;
+    text-shadow: 0 0.03em 0.13em rgb(0 0 0 / 0.45) !important;
+}
+
+/* the line under PLAY */
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer::before {
+    content: 'ALL BATTLES';
+    position: absolute;
+    left: 2.7em;
+    bottom: 2.05em;
+    z-index: 2;
+    pointer-events: none;
+    /* the game's font: it loads Rubik under its own names (BaseFontRegular, -Medium, -Bold), never as "Rubik", so a "Rubik" here fell
+       back to Windows' own font (owner's friend, 2026-11-23: no defined font); those names have no weights, so the weight stays normal */
+    font: normal 0.826em BaseFontBold, FallbackFontBold, sans-serif;
+    letter-spacing: 0.14em;
+    color: #d9ffc6;
+}
+
+html:lang(ru)[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer::before {
+    content: 'ВСЕ БОИ';
+}
+
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-disabledButtonPlay {
+    background: linear-gradient(135deg, hsl(100 10% 40% / 0.3), hsl(110 10% 20% / 0.3)), var(--kasp-lu-shade) !important;
+}
+
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-disabledButtonPlay > span {
+    color: #9aa59a !important;
+}
+
+/* ---------- battle pass: the Challenges box beside PLAY ---------- */
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-menuBattlePass {
+    position: fixed !important;
+    right: var(--kasp-lu-right) !important;
+    left: auto !important;
+    top: var(--kasp-lu-top) !important;
+    bottom: auto !important;
+    width: 20.5em !important;
+    height: var(--kasp-lu-row1) !important;
+    margin: 0 !important;
+    padding: 1em 1.1em !important;
+    z-index: 3 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.6em !important;
+    /* the game's "!" for a new reward sits half outside the box's top right corner, as in the game (owner 2026-11-23: a hidden overflow
+       here cut it in half); everything else fits inside */
+    overflow: visible !important;
+}
+
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-descriptionMenuPass {
+    position: relative !important;
+    inset: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.64em !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 0 0.2em !important;
+    padding: 0 !important;
+}
+
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-descriptionMenuPass > :first-child {
+    position: static !important;
+    flex: 0 0 auto !important;
+    margin-right: auto !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* the title: instead of the game's CHALLENGES, how far the player is through the battle pass (owner 2026-11-23): the stars so far (the
+   left number of the game's "201/205") out of the 300 that complete every battle pass, in whole percent, 100% from 300 on. lobby_ui.ts
+   writes it on <html> as --kasp-lu-pass (a whole number) each time the game draws the stars: the stars' tiny animation below starts
+   then, and that start is what wakes it (no timer, nothing else). CSS shows a number through a counter. */
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-descriptionMenuPass > :first-child span {
+    display: none !important;
+}
+
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-descriptionMenuPass > :first-child {
+    counter-reset: kasp-lu-pass var(--kasp-lu-pass, 0);
+}
+
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-descriptionMenuPass > :first-child::before {
+    content: counter(kasp-lu-pass) '%';
+    font-size: 0.95em;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif;
+    font-weight: normal;
+    color: #fff;
+    white-space: nowrap;
+}
+
+html[data-kasp-lobby-ui] :is(.BattlePassLobbyComponentStyle-numberStar, .BattlePassLobbyComponentStyle-timers) {
+    position: static !important;
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.25em !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-timers span {
+    color: var(--kasp-lu-muted) !important;
+}
+
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-blockBattlePass {
+    position: relative !important;
+    inset: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.7em !important;
+    width: 100% !important;
+    height: 3.9em !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0.4em 0.7em !important;
+    box-sizing: border-box !important;
+    background: var(--kasp-lu-cell) !important;
+    border: none !important;
+    border-radius: 0.7em !important;
+}
+
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-commonDescription {
+    position: static !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+}
+
+/* the reward's picture (the game draws it as the background of its own box, fitted inside it): in the box narrower than the game's, the
+   words beside it grew and squeezed its box, so the picture came out tiny (owner's friend, 2026-11-23). Its box keeps the game's width
+   and the row's full height; the words take what is left. */
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-blockBattlePass > .BattlePassLobbyComponentStyle-imagePass {
+    flex: none !important;
+    width: 4.813em !important;
+    height: 100% !important;
+    margin: 0 !important;
+}
+
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-commonDescription > p {
+    color: var(--kasp-lu-muted) !important;
+    margin: 0 !important;
+}
+
+@keyframes kasp-lu-stars-seen {
+    from { outline-color: transparent; }
+    to { outline-color: transparent; }
+}
+
+html[data-kasp-lobby-ui] .BattlePassLobbyComponentStyle-numberStar span {
+    animation: kasp-lu-stars-seen 1ms;
+}
+
+/* ---------- MENU: Containers, Missions, Garage, Shop as square tiles; Settings at the end of the PROGRESS AND NEWS row ----------
+   The game's menu list is laid out as the rectangle's grid (four columns, the menu row and the progress row); the elite pass and the
+   news slides sit on its empty cells. The list itself takes no presses; its five buttons do. */
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-blockMainMenu {
+    position: fixed !important;
+    right: var(--kasp-lu-right) !important;
+    left: auto !important;
+    top: var(--kasp-lu-row2-top) !important;
+    bottom: auto !important;
+    width: var(--kasp-lu-width) !important;
+    height: calc(var(--kasp-lu-bottom) - var(--kasp-lu-row2-top)) !important;
+    margin: 0 !important;
+    z-index: 3 !important;
+    pointer-events: none !important;
+}
+
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-blockMainMenu ul {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-rows: var(--kasp-lu-row2) var(--kasp-lu-row3) !important;
+    column-gap: var(--kasp-lu-gap) !important;
+    row-gap: calc(var(--kasp-lu-row3-top) - var(--kasp-lu-row2-top) - var(--kasp-lu-row2)) !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+    /* the game lines its buttons up at the top (probe of 2026-11-23: each was 2 px tall); here they fill their cells */
+    align-items: stretch !important;
+    justify-items: stretch !important;
+}
+
+html[data-kasp-lobby-ui] .PrimaryMenuItemComponentStyle-menuItemContainer {
+    position: relative !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: stretch !important;
+    justify-self: stretch !important;
+    pointer-events: auto !important;
+}
+
+html[data-kasp-lobby-ui] .PrimaryMenuItemComponentStyle-menuItemContainer:last-child {
+    grid-area: 2 / 4 !important;
+}
+
+/* the menu tiles' own look (owner 2026-11-23: less alike, bigger icons): a big icon in the top right corner, the name bigger at the
+   bottom left (no glow and no moving icon: owner 2026-11-23) */
+html[data-kasp-lobby-ui] .PrimaryMenuItemComponentStyle-menuItemContainer > div:not([class*="notification"]):not([class*="Notification"]) {
+    position: absolute !important;
+    left: auto !important;
+    right: 1.1em !important;
+    top: 1.1em !important;
+    width: 5.6em !important;
+    height: 5.6em !important;
+    margin: 0 !important;
+    background-color: #fff !important;
+}
+
+/* the name at the bottom left */
+html[data-kasp-lobby-ui] .PrimaryMenuItemComponentStyle-itemName {
+    position: absolute !important;
+    left: 1.1em !important;
+    bottom: 0.95em !important;
+    margin: 0 !important;
+    font-size: 1.25em !important;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-weight: normal !important;
+    line-height: 1 !important;
+    letter-spacing: 0.02em !important;
+    color: #fff !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+}
+
+/* the game's "new" mark (an <img>, probe of 2026-11-23), in the top left corner (the icon has the right) */
+html[data-kasp-lobby-ui] .PrimaryMenuItemComponentStyle-menuItemContainer > img {
+    position: absolute !important;
+    top: 0.7em !important;
+    left: 0.7em !important;
+    right: auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+}
+
+/* the game's notification dot, in the top left corner (the icon has the right) */
+html[data-kasp-lobby-ui] .PrimaryMenuItemComponentStyle-menuItemContainer::before {
+    top: 0.9em !important;
+    left: 0.9em !important;
+    right: auto !important;
+    bottom: auto !important;
+}
+
+/* ---------- elite pass: a tile at the start of the PROGRESS AND NEWS row ----------
+   the timer at the top left, the game's level ring in the middle, ELITE PASS and the game's LEVEL REWARDS at the bottom left. Its
+   colours are the game's own (owner 2026-11-23: its purple, its ring, its text colours): only its place and size are ours. */
+html[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-buttonEventBattlePass {
+    position: fixed !important;
+    right: calc(var(--kasp-lu-right) + 3 * (var(--kasp-lu-tile) + var(--kasp-lu-gap))) !important;
+    left: auto !important;
+    top: var(--kasp-lu-row3-top) !important;
+    bottom: auto !important;
+    width: var(--kasp-lu-tile) !important;
+    height: var(--kasp-lu-row3) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    z-index: 3 !important;
+    display: block !important;
+    overflow: hidden !important;
+    border-radius: var(--kasp-lu-radius) !important;
+}
+
+/* the game's own level ring (its size, its dark disc, its ring and its yellow number), in the middle of the room between the timer
+   and the words */
+html[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-commonBlockProgressBar {
+    position: absolute !important;
+    left: 50% !important;
+    top: 6.6em !important;
+    right: auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    transform: none !important;
+    translate: -50% -50% !important;
+    /* a third bigger than the game's (owner's friend, 2026-11-23), all of it together: its disc, its ring and its number */
+    scale: 1.35 !important;
+}
+
+html[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-descriptionEventPass {
+    position: absolute !important;
+    left: 1.1em !important;
+    right: 1.1em !important;
+    bottom: 0.95em !important;
+    top: auto !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    transform: none !important;
+    display: block !important;
+    text-align: left !important;
+    line-height: 1.2 !important;
+}
+
+html[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-descriptionEventPass::before {
+    content: 'ELITE PASS';
+    display: block;
+    margin-bottom: 0.25em;
+    font-size: 1.1em;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif;
+    font-weight: normal;
+    letter-spacing: 0.02em;
+    color: #fff;
+}
+
+html:lang(ru)[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-descriptionEventPass::before {
+    content: 'ЭЛИТНЫЙ ПРОПУСК';
+}
+
+html[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-descriptionEventPass > * {
+    display: inline !important;
+    margin: 0 !important;
+    font-size: 0.75em !important;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-weight: normal !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+}
+
+html[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-descriptionEventPass > :not(:last-child)::after {
+    content: ' ';
+}
+
+/* the timer: a gold badge at the top left */
+html[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-buttonEventBattlePass > div:has(.ChallengeTimerComponentStyle-timer) {
+    position: absolute !important;
+    left: 0.9em !important;
+    top: 0.9em !important;
+    right: auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    transform: none !important;
+    z-index: 2;
+}
+
+html[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-buttonEventBattlePass .ChallengeTimerComponentStyle-timer {
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+}
+
+html[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-buttonEventBattlePass .ChallengeTimerComponentStyle-textTime {
+    /* the words in the middle of the gold badge (owner 2026-11-23). The same size as the news slide's badge (owner 2026-11-23): each was
+       as wide as its words, and the game writes the two timers differently (3d 9h here, 68 d 09 h there), so both are given the same
+       size, --kasp-lu-badge-w by --kasp-lu-badge-h, room enough for the longer form; this badge's text is 0.89 of the tile's size, so its
+       sizes are divided by 0.89 */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    min-width: calc(var(--kasp-lu-badge-w) / 0.89) !important;
+    height: calc(var(--kasp-lu-badge-h) / 0.89) !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    margin: 0 !important;
+    padding: 0 0.45em !important;
+    border-radius: 0.32em !important;
+    background: var(--kasp-lu-gold) !important;
+    color: #1b1200 !important;
+    font-size: 0.89em !important;
+    /* not bold (owner's friend, 2026-11-23: small bold letters run together) */
+    font-family: BaseFontMedium, FallbackFontMedium, sans-serif !important;
+    font-weight: normal !important;
+    white-space: nowrap !important;
+}
+
+/* the game's reward dot, in the top right corner */
+html[data-kasp-lobby-ui] .EventBattlePassLobbyComponentStyle-buttonEventBattlePass > div.-flexCenterAlignCenter {
+    position: absolute !important;
+    top: 0.9em !important;
+    right: 0.9em !important;
+    left: auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+}
+
+/* ---------- the news slides: two tiles wide, the picture on top, the title, the dots and Q / E under it ---------- */
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-mainContainer {
+    position: fixed !important;
+    right: calc(var(--kasp-lu-right) + var(--kasp-lu-tile) + var(--kasp-lu-gap)) !important;
+    left: auto !important;
+    top: var(--kasp-lu-row3-top) !important;
+    bottom: auto !important;
+    width: calc(2 * var(--kasp-lu-tile) + var(--kasp-lu-gap)) !important;
+    height: var(--kasp-lu-row3) !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 3 !important;
+    display: block !important;
+    overflow: hidden !important;
+}
+
+/* the box that holds the picture, the timer and the title fills the slide */
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-mainBackGroundContainer {
+    position: absolute !important;
+    inset: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+}
+
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-mainClickContainer {
+    position: absolute !important;
+    inset: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    z-index: 1;
+}
+
+/* the picture: the game draws it as this box's background (probe of 2026-11-22), across the top */
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceDescriptionContainer {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: auto !important;
+    width: auto !important;
+    height: 8.9em !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+}
+
+/* the title, under the picture */
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceContainer {
+    position: absolute !important;
+    left: 1.1em !important;
+    right: 1.1em !important;
+    top: 9.55em !important;
+    bottom: auto !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    z-index: 2;
+    pointer-events: none !important;
+}
+
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceContainer h3 {
+    margin: 0 !important;
+    font-size: 1em !important;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-weight: normal !important;
+    line-height: 1.25 !important;
+    color: #fff !important;
+    text-align: left !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* the timer: a gold badge on the picture's top left */
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-headerTimer {
+    position: absolute !important;
+    left: 0.9em !important;
+    top: 0.9em !important;
+    right: auto !important;
+    bottom: auto !important;
+    /* the same size as the elite pass's badge (see there) */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    width: auto !important;
+    min-width: var(--kasp-lu-badge-w) !important;
+    height: var(--kasp-lu-badge-h) !important;
+    margin: 0 !important;
+    padding: 0 0.4em !important;
+    border-radius: 0.285em !important;
+    background: var(--kasp-lu-gold) !important;
+    z-index: 2;
+    pointer-events: none !important;
+}
+
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-headerTimer span {
+    color: #1b1200 !important;
+    font-size: 0.89em !important;
+    font-family: BaseFontMedium, FallbackFontMedium, sans-serif !important;
+    font-weight: normal !important;
+}
+
+/* the dots and Q / E: a row at the foot */
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-mainContainer > :not(.AnnouncementHomeScreenComponentStyle-mainBackGroundContainer) {
+    position: absolute !important;
+    left: 1.1em !important;
+    right: 1.1em !important;
+    bottom: 0.85em !important;
+    top: auto !important;
+    width: auto !important;
+    height: 1.4em !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    border: none !important;
+    z-index: 3;
+}
+
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-navigationLabelContainer {
+    position: absolute !important;
+    left: 0 !important;
+    top: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    transform: translateY(-50%) !important;
+    display: flex !important;
+    gap: 0.38em !important;
+}
+
+html[data-kasp-lobby-ui] :is(.AnnouncementHomeScreenComponentStyle-navigationLabelPoint, .AnnouncementHomeScreenComponentStyle-selectedNavigationLabelPoint) {
+    width: 0.38em !important;
+    height: 0.38em !important;
+    margin: 0 !important;
+    border-radius: 50% !important;
+    background: rgb(255 255 255 / 0.35) !important;
+}
+
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-selectedNavigationLabelPoint {
+    background: #fff !important;
+}
+
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-navigationContainer {
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+    left: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    height: 100% !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.38em !important;
+    pointer-events: none !important;
+}
+
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-mainContainer .-buttonQE {
+    width: 1.4em !important;
+    height: 1.4em !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0.2em !important;
+    background: #fff !important;
+    pointer-events: auto !important;
+}
+
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-mainContainer .-buttonQE span {
+    color: #0b1626 !important;
+    font-size: 0.76em !important;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-weight: normal !important;
+}
+
+/* ---------- news, chat, friends, clan: one glass bar at the bottom left, as in the concept ---------- */
+html[data-kasp-lobby-ui] .FooterComponentStyle-footer {
+    position: fixed !important;
+    left: 2.05em !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: 1.9em !important;
+    width: auto !important;
+    height: 4.6em !important;
+    margin: 0 !important;
+    padding: 0.4em !important;
+    z-index: 3 !important;
+}
+
+html[data-kasp-lobby-ui] .FooterComponentStyle-footer ul {
+    display: flex !important;
+    gap: 0.3em !important;
+    width: auto !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+html[data-kasp-lobby-ui] .FooterComponentStyle-containerMenu {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 3.7em !important;
+    height: 100% !important;
+    flex: none !important;
+    margin: 0 !important;
+    border-radius: 0.7em !important;
+    background: none !important;
+}
+
+html[data-kasp-lobby-ui] .FooterComponentStyle-containerMenu:hover {
+    background: var(--kasp-lu-cell-hover) !important;
+}
+
+html[data-kasp-lobby-ui] .FooterComponentStyle-containerMenu > div {
+    width: 1.9em !important;
+    height: 1.9em !important;
+    margin: 0 !important;
+    background-color: #fff !important;
+}
+
+/* ---------- the 8 modes: one row under PLAY, four seen at a time, each as wide as a column below ----------
+   Our own scroll box, glided sideways by lobby_ui.ts (the mouse wheel over it, its two arrows).
+   The edges: a scroll box cuts what passes its edge along a straight line, so a tile half out of the row showed its glass and its
+   border cut off straight (owner, 2026-11-23). A mask fades the tiles themselves out over the last 2.5 em of the side where a tile is
+   cut: it melts away into whatever is behind it, any lobby background, and the straight cut falls where nothing is left to see. The
+   box stays exactly the rectangle (a first try reached 2.5 em past it on each side, so the tiles stuck out of it: owner, 2026-11-23),
+   and a side with no tile cut (the row at rest on whole tiles, at its start or its end) has no fade, so its tiles stay whole and
+   clear. lobby_ui.ts marks each cut side (data-cut-left, data-cut-right) as the row moves; each fade grows and shrinks in 0.2 s. */
+@property --kasp-lu-fade-left {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --kasp-lu-fade-right {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+.kasp-modes {
+    display: none;
+    position: fixed;
+    right: var(--kasp-lu-right);
+    top: var(--kasp-lu-modes-top);
+    width: var(--kasp-lu-width);
+    height: var(--kasp-lu-modes);
+    z-index: 3;
+    grid-template-rows: minmax(0, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: calc((var(--kasp-lu-width) - 3 * var(--kasp-lu-gap)) / 4);
+    gap: var(--kasp-lu-gap);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    overscroll-behavior: contain;
+    -webkit-mask: linear-gradient(90deg, transparent, #000 var(--kasp-lu-fade-left), #000 calc(100% - var(--kasp-lu-fade-right)), transparent);
+    mask: linear-gradient(90deg, transparent, #000 var(--kasp-lu-fade-left), #000 calc(100% - var(--kasp-lu-fade-right)), transparent);
+    transition: --kasp-lu-fade-left 0.2s, --kasp-lu-fade-right 0.2s;
+}
+
+.kasp-modes[data-cut-left] {
+    --kasp-lu-fade-left: 2.5em;
+}
+
+.kasp-modes[data-cut-right] {
+    --kasp-lu-fade-right: 2.5em;
+}
+
+.kasp-mode {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55em;
+    margin: 0;
+    padding: 0.4em 0.6em;
+    min-width: 0;
+    color: #fff;
+    cursor: pointer;
+    font: normal 0.9em BaseFontBold, FallbackFontBold, sans-serif;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* icons only (owner 2026-11-23: too much text; no glow, no hover name, no moving icon: they made the lobby lag over the moving looks
+   such as rain and snow). The name is not drawn but stays the tile's name for screen readers. */
+.kasp-mode {
+    position: relative;
+}
+
+.kasp-mode > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-disabledButtonPlay) .kasp-mode {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* the icon: the game's own picture as a mask, in the text colour (in the tile's own font size) */
+/* white like the menu tiles' icons, and a size below theirs (about 4 em against their 5.6): the modes come under the menu */
+.kasp-mode i {
+    width: 4.4em;
+    height: 4.4em;
+    background: currentColor;
+    -webkit-mask: var(--kasp-icon) center / contain no-repeat;
+    mask: var(--kasp-icon) center / contain no-repeat;
+}
+
+.kasp-mode[data-mode="qb"] { --kasp-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/qb_mode.svg"); }
+.kasp-mode[data-mode="tdm"] { --kasp-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/tdm_mode.svg"); }
+.kasp-mode[data-mode="cp"] { --kasp-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/cp_mode.svg"); }
+.kasp-mode[data-mode="ctf"] { --kasp-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/ctf_mode.svg"); }
+.kasp-mode[data-mode="sge"] { --kasp-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/sge_mode.svg"); }
+.kasp-mode[data-mode="jg"] { --kasp-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/jg_mode.svg"); }
+.kasp-mode[data-mode="rgb"] { --kasp-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/rgb_mode.svg"); }
+.kasp-mode[data-mode="asl"] { --kasp-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/asl_mode.svg"); }
+
+/* the names, in the game's language (English unless the game says Russian) */
+.kasp-mode[data-mode="qb"] > span::after { content: "Quick battle"; }
+.kasp-mode[data-mode="tdm"] > span::after { content: "Team deathmatch"; }
+.kasp-mode[data-mode="cp"] > span::after { content: "Control points"; }
+.kasp-mode[data-mode="ctf"] > span::after { content: "Capture the flag"; }
+.kasp-mode[data-mode="sge"] > span::after { content: "Siege"; }
+.kasp-mode[data-mode="jg"] > span::after { content: "Juggernaut"; }
+.kasp-mode[data-mode="rgb"] > span::after { content: "Rugby"; }
+.kasp-mode[data-mode="asl"] > span::after { content: "Assault"; }
+html:lang(ru) .kasp-mode[data-mode="qb"] > span::after { content: "Быстрый бой"; }
+html:lang(ru) .kasp-mode[data-mode="tdm"] > span::after { content: "Командный бой"; }
+html:lang(ru) .kasp-mode[data-mode="cp"] > span::after { content: "Контроль точек"; }
+html:lang(ru) .kasp-mode[data-mode="ctf"] > span::after { content: "Захват флага"; }
+html:lang(ru) .kasp-mode[data-mode="sge"] > span::after { content: "Осада"; }
+html:lang(ru) .kasp-mode[data-mode="jg"] > span::after { content: "Джаггернаут"; }
+html:lang(ru) .kasp-mode[data-mode="rgb"] > span::after { content: "Регби"; }
+html:lang(ru) .kasp-mode[data-mode="asl"] > span::after { content: "Штурм"; }
+
+/* the arrows: round glass buttons on the row's two ends, each gone while there is nothing more on its side */
+.kasp-modes-arrow {
+    display: none;
+    position: fixed;
+    top: calc(var(--kasp-lu-modes-top) + var(--kasp-lu-modes) / 2 - 1.1em);
+    z-index: 4;
+    width: 2.2em;
+    height: 2.2em;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border: 2px solid var(--kasp-lu-edge);
+    border-radius: 50%;
+    background: var(--kasp-lu-glass);
+    cursor: pointer;
+    transition: opacity 0.2s, border-color 0.2s;
+    /* a <button>: the browser's own stylesheet gives buttons their own font size (13.33 px) instead of the page's (the game's, 14.637 px
+       in a 988 px tall window), and every em of this rule's place (the row's 57.94 em width, its top) was measured with it, so the left
+       arrow stood about 5 em right of the row's edge and both sat a few px low (owner, 2026-11-23). The page's font size is taken here. */
+    font: inherit;
+}
+
+.kasp-modes-arrow:hover {
+    background: var(--kasp-lu-glass-hover);
+    border-color: var(--kasp-lu-edge-hover);
+}
+
+.kasp-modes-arrow::before {
+    content: '';
+    width: 0.55em;
+    height: 0.55em;
+    border-top: 2px solid #fff;
+    border-right: 2px solid #fff;
+    transform: translateX(-0.12em) rotate(45deg);
+}
+
+.kasp-modes-arrow[data-way="-1"] {
+    right: calc(var(--kasp-lu-right) + var(--kasp-lu-width) - 1.1em);
+}
+
+.kasp-modes-arrow[data-way="-1"]::before {
+    transform: translateX(0.12em) rotate(-135deg);
+}
+
+.kasp-modes-arrow[data-way="1"] {
+    right: calc(var(--kasp-lu-right) - 1.1em);
+}
+
+.kasp-modes[data-at-start] ~ .kasp-modes-arrow[data-way="-1"],
+.kasp-modes[data-at-end] ~ .kasp-modes-arrow[data-way="1"] {
+    opacity: 0;
+    pointer-events: none;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .kasp-modes-arrow,
+html[data-kasp-mode-calm][data-kasp-lobby-ui] .kasp-modes-arrow {
+    display: flex;
+}
+
+/* ours show only with the lobby's PLAY on the page; also with the news drawer open, which leaves the rest of the lobby on screen (owner
+   2026-11-23: the modes went missing beside it) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .kasp-modes {
+    display: grid;
+}
+
+/* ---------- while a tile takes the game's own way into its mode: no screen in between ----------
+   What the game does then (probe of 2026-11-23): it lays its PLAY screen over the lobby with a dark sheet (ModalStyle-shaded), leaves
+   the lobby for its Modes screen and fades its 3D picture (the lobby's canvas) out to nothing, so the page's own background, in the Game
+   colour, shows (the purple flash); back on the lobby it fades the 3D picture in again over about half a second.
+   Its PLAY and Modes screens are not all inside its main box: a rule for that box alone still let them flash (owner, 2026-11-23).
+   So, during the trip, EVERYTHING on the page is drawn invisible (still there, so the game's own buttons can be pressed) except what
+   the player was looking at and where the trip ends: the 3D picture, our mode tiles and their arrows, the game's top bar, and the game's
+   matchmaking wait (the banner in the top right). Each of those keeps the boxes round it. An invisible sheet keeps the player's own
+   clicks off the game until the matchmaking wait shows. From the trip's start to a moment after its end, the 3D picture is held fully
+   seen: the last picture of the hangar stays, never the page's background. */
+html[data-kasp-mode-trip] body *:not(canvas, .kasp-modes, .kasp-modes *, .kasp-modes-arrow, .kasp-mode-block, [class*="MatchmakingWaitComponentStyle-"], [class*="MatchmakingWaitComponentStyle-"] *, [class*="HeaderComponentStyle"], [class*="HeaderComponentStyle"] *, [class*="HeaderCommonStyle"], [class*="HeaderCommonStyle"] *, [class*="UserInfoContainerStyle"], [class*="UserInfoContainerStyle"] *, [class*="UserScoreComponentStyle"], [class*="UserScoreComponentStyle"] *):not(:has(canvas, [class*="MatchmakingWaitComponentStyle-"], [class*="HeaderComponentStyle"], [class*="HeaderCommonStyle"], [class*="UserInfoContainerStyle"], [class*="UserScoreComponentStyle"])) {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: none !important;
+    animation: none !important;
+}
+
+/* our tiles and their arrows stay through the whole trip: the game takes its lobby (and so its PLAY, which they show with) off the page for a
+   moment then (probe of 2026-11-23: about 40 ms), and without this they blinked out over an empty hangar */
+html[data-kasp-mode-calm][data-kasp-lobby-ui] .kasp-modes {
+    display: grid !important;
+}
+
+html[data-kasp-mode-calm] #app-root canvas.-visible {
+    opacity: 1 !important;
+    transition: none !important;
+}
+
+.kasp-mode-block {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    background: transparent;
+    cursor: progress;
+}
+
+/* where it stopped, if it did: a small red note at the bottom for 3 s */
+.kasp-mode-note {
+    position: fixed;
+    left: 50%;
+    bottom: 3em;
+    transform: translateX(-50%);
+    z-index: 2147483001;
+    padding: 0.6em 1.1em;
+    border: 2px solid rgb(255 140 140 / 0.6);
+    border-radius: 0.64em;
+    background: rgb(30 6 6 / 0.9);
+    color: #ffb4b4;
+    font: normal 0.95em BaseFontBold, FallbackFontBold, sans-serif;
+    pointer-events: none;
+}
+
+/* ---------- the lobby's top bar (build-plan 26d2, the owner's design A of blueprint/reference/lobby-ideas/ui-topbar.html) ----------
+   The game's own pieces (probe of 2026-11-23, lobby-probe-5), in the lobby only (the bar of every other screen is further down): the
+   logo on the left; on the right, in one row: rubies and crystals each with its own +, your name and XP numbers, the rank
+   with the XP as a ring round it (instead of the line), then P premium, T friends and exit as glass squares. F11 goes (owner).
+   Sizes in em (the design's px of a 1079 px tall window divided by 15.73), each piece placed with position: fixed from the right. */
+html[data-kasp-lobby-ui] {
+    --kasp-tb-top: 1.4em;
+    --kasp-tb-btn: 4.2em;
+    --kasp-tb-right: 2.5em;
+}
+
+/* the bar's own line and shade go: nothing behind the row, only the lobby's soft top shade */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .MainScreenComponentStyle-containerPanel::before,
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .MainScreenComponentStyle-containerPanel::after {
+    display: none !important;
+}
+
+/* no line under the bar, between its boxes, or between rubies and crystals */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) :is(.MainScreenComponentStyle-containerPanel, .UserInfoContainerStyle-blockLeftPanel, .UserInfoContainerStyle-userTitleContainer, .UserInfoContainerStyle-userTitleContainer > div, .UserScoreComponentStyle-blockRightPanel, .UserScoreComponentStyle-blockRightPanel > div, .HeaderCommonStyle-icons) {
+    border: none !important;
+    box-shadow: none !important;
+    background: none !important;
+}
+
+/* the logo on the left */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-blockForIconTankiOnline {
+    position: fixed !important;
+    left: 2.6em !important;
+    right: auto !important;
+    top: 1.5em !important;
+    bottom: auto !important;
+    width: auto !important;
+    height: auto !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    margin: 0 !important;
+    transform: none !important;
+}
+
+/* P premium, T friends and exit: glass squares, from the right: exit, friends, premium */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) :is(.UserInfoContainerStyle-userTitleContainer > div:nth-child(1), .UserInfoContainerStyle-userTitleContainer > div:nth-child(2), .BreadcrumbsComponentStyle-logout) {
+    position: fixed !important;
+    top: var(--kasp-tb-top) !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: var(--kasp-tb-btn) !important;
+    height: var(--kasp-tb-btn) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+    background: var(--kasp-lu-glass) !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    border-radius: 1em !important;
+    box-shadow: inset 0 0.064em 0 var(--kasp-lu-inner) !important;
+    z-index: 5 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) :is(.UserInfoContainerStyle-userTitleContainer > div:nth-child(1), .UserInfoContainerStyle-userTitleContainer > div:nth-child(2), .BreadcrumbsComponentStyle-logout):hover {
+    background: var(--kasp-lu-glass-hover) !important;
+    border-color: var(--kasp-lu-edge-hover) !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .BreadcrumbsComponentStyle-logout { right: var(--kasp-tb-right) !important; }
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer > div:nth-child(2) { right: calc(var(--kasp-tb-right) + var(--kasp-tb-btn) + 0.8em) !important; }
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer > div:nth-child(1) { right: calc(var(--kasp-tb-right) + 2 * (var(--kasp-tb-btn) + 0.8em)) !important; }
+
+/* their icons in the middle */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer > div:nth-child(1) > div:not(.-commonBlockForHotKey) {
+    position: static !important;
+    width: 2em !important;
+    height: 2em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserGroupTitleButtonComponentStyle-commonUserIconsBlockGroup {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    margin: 0 !important;
+}
+
+/* the keys P and T are not shown (owner, 2026-11-23); the keys themselves still work */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer .-commonBlockForHotKey {
+    display: none !important;
+}
+
+/* F11 goes (owner, 2026-11-23) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserScoreComponentStyle-blockRightPanel > div:has(> h3.-commonBlockForHotKey) {
+    display: none !important;
+}
+
+/* the rank, with the progress to the next rank as a thin ring round it (the owner's example) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-rankIconContainerClickable {
+    position: fixed !important;
+    right: calc(var(--kasp-tb-right) + 3 * (var(--kasp-tb-btn) + 0.8em) + 0.8em) !important;
+    left: auto !important;
+    top: var(--kasp-tb-top) !important;
+    width: var(--kasp-tb-btn) !important;
+    height: var(--kasp-tb-btn) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    /* the game gives this box its containerRightBorder (UserInfoContainerStyle, its code: border-right 1px white at 0.25), the line
+       between the rank and the name in its flat bar. Left on, it made the box 1 px wider on the right only: the dark disc (drawn on
+       the whole box) reached 1 px further right than the ring (drawn inside the border), and the line itself showed as a thin arc on
+       the ring's right side (owner, 2026-11-23). The garage bar's rule below already removes it. */
+    border: none !important;
+    border-radius: 50% !important;
+    background: rgb(0 0 0 / 0.35) !important;
+    z-index: 5 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-rankIconContainerClickable::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    background: conic-gradient(#76ff33 calc(var(--kasp-lu-xp, 0) * 360deg), rgb(255 255 255 / 0.15) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 0.2em - 1px), #000 calc(100% - 0.2em), #000 calc(100% - 1px), transparent 100%);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 0.2em - 1px), #000 calc(100% - 0.2em), #000 calc(100% - 1px), transparent 100%);
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-titleRankIcon {
+    width: 3em !important;
+    height: 3em !important;
+    margin: 0 !important;
+}
+
+/* the name and the XP numbers, left of the rank, 0.6 em from it, the two lines together round the rank's middle (owner's friend,
+   2026-11-23: too close to the rank, too far apart); the green line goes (the ring shows it) */
+html[data-kasp-lobby-ui] .UserInfoContainerStyle-containerProgressMainScreen > * {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-containerProgressMainScreen {
+    position: fixed !important;
+    right: calc(var(--kasp-tb-right) + 4 * (var(--kasp-tb-btn) + 0.8em) + 0.6em) !important;
+    left: auto !important;
+    top: var(--kasp-tb-top) !important;
+    width: 12em !important;
+    height: var(--kasp-tb-btn) !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: flex-end !important;
+    gap: 0.15em !important;
+    z-index: 5 !important;
+}
+
+/* the game's green line is not shown, but stays in the page with its own width, so lobby_ui.ts can measure how full it is for the ring:
+   the game fills it with the progress from the current rank's start to the next rank (the owner, 2026-11-23: not score / next) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-containerProgressMainScreen > div:nth-child(2) {
+    position: absolute !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* rubies and crystals, each with its own +, left of the name */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserScoreComponentStyle-blockRightPanel > div:has(.HeaderCommonStyle-icons) {
+    position: fixed !important;
+    right: calc(var(--kasp-tb-right) + 4 * (var(--kasp-tb-btn) + 0.8em) + 12em + 1.6em + 0.6em) !important;
+    left: auto !important;
+    top: var(--kasp-tb-top) !important;
+    width: auto !important;
+    height: var(--kasp-tb-btn) !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    gap: 0.2em !important;
+    z-index: 5 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserScoreComponentStyle-blockRightPanel .HeaderCommonStyle-icons {
+    position: relative !important;
+    width: auto !important;
+    height: 2em !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 0.5em !important;
+}
+
+/* each +: a small glass square of its own */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserScoreComponentStyle-addRubyCrystal {
+    position: static !important;
+    width: 2em !important;
+    height: 2em !important;
+    margin: 0 0 0 0.3em !important;
+    padding: 0.5em !important;
+    box-sizing: border-box !important;
+    background: var(--kasp-lu-glass) !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    border-radius: 0.6em !important;
+    cursor: pointer !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserScoreComponentStyle-addRubyCrystal:hover {
+    background: var(--kasp-lu-glass-hover) !important;
+    border-color: var(--kasp-lu-edge-hover) !important;
+}
+
+/* the XP numbers' tiny animation: its start (each time the game draws them) wakes lobby_ui.ts to read them for the ring */
+@keyframes kasp-lu-xp-seen {
+    from { outline-color: transparent; }
+    to { outline-color: transparent; }
+}
+
+html[data-kasp-lobby-ui] .UserInfoContainerStyle-progressValue {
+    animation: kasp-lu-xp-seen 1ms;
+}
+
+/* ---------- the group list, opened by T friends while in a group (owner 2026-11-23) ----------
+   The game draws it in its pop-up layer (#modal-root, the whole window) at a fixed place, 95 x 97 px from the window's top left: right
+   under where its T button stood in its own bar, never tied to the button (InvitationWindowsComponentStyle-commonItem, read in its code:
+   used only by this list, for the list and for an empty layer behind it). Both bars have their T square at the same place, so the list
+   goes right under it, its right edge on the square's, in the bars' glass; its rows split by faint lines, lit on hover. */
+html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem {
+    position: absolute !important;
+    left: auto !important;
+    right: calc(var(--kasp-tb-right) + var(--kasp-tb-btn) + 0.8em) !important;
+    top: calc(var(--kasp-tb-top) + var(--kasp-tb-btn) + 0.6em) !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    background: var(--kasp-lu-glass) !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    border-radius: var(--kasp-lu-radius) !important;
+    box-shadow: inset 0 0.064em 0 var(--kasp-lu-inner), 0 0.6em 1.6em rgb(0 0 0 / 0.35) !important;
+}
+
+html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem:empty {
+    display: none !important;
+}
+
+html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem > * {
+    background: none !important;
+    border: none !important;
+    border-bottom: 1px solid rgb(255 255 255 / 0.08) !important;
+}
+
+html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem > :last-child {
+    border-bottom: none !important;
+}
+
+html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem > :hover {
+    background: var(--kasp-lu-cell-hover) !important;
+}
+
+/* ---------- the top bar of every other screen: garage, shop, settings and the rest (26d2, owner 2026-11-23: "the same way") ----------
+   The game draws it with one component (its BreadcrumbsComponentStyle, read in its code, build of 2026-11-22):
+     headerContainer > [ a box with: backButton (arrow, key Z), the T friends button (only when the game offers groups), your rank
+                         and name with XP (the same UserInfoContainerStyle pieces as the lobby) ]
+                     > breadcrumbs (the screen's name in the middle: GARAGE, SHOP, SETTINGS ...)
+                     > rightButtonsContainer > [ coinsContainer (tankoins, the shop only), rubies and crystals, F11, exitGameButton (home) ]
+   Laid out like the lobby's bar: the back arrow a glass square on the left; on the right, from the edge: home, T friends, the rank
+   with its ring, name and XP, then the money. The screen's name and F11 go (owner). In the shop the tankoins sit left of rubies and
+   crystals, as one more line of the same look, level with the middle of the two. Every rule waits for the game's header, so it never
+   touches the lobby's bar. */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer {
+    /* the place from the right after home and T friends: two squares, or one when the game shows no friends button */
+    --kasp-tb-slots: 2;
+    border: none !important;
+    box-shadow: none !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer:not(:has([class*="UserGroupTitleButtonComponentStyle-"])) {
+    --kasp-tb-slots: 1;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer::before,
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer::after {
+    display: none !important;
+}
+
+/* no line or shade under or between the bar's boxes */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer :is(.BreadcrumbsComponentStyle-headerContainer > div, .BreadcrumbsComponentStyle-rightButtonsContainer, .BreadcrumbsComponentStyle-rightButtonsContainer > div, .HeaderCommonStyle-icons, .UserScoreComponentStyle-coinBlock, .UserInfoContainerStyle-containerRightBorder, .UserInfoContainerStyle-containerProgressMainScreen) {
+    border: none !important;
+    box-shadow: none !important;
+    background: none !important;
+}
+
+/* the screen's name in the middle goes (owner) */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-breadcrumbs {
+    display: none !important;
+}
+
+/* F11 goes (owner): the one box on the right, besides home, that holds a picture mask or a key */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer > div:not(.BreadcrumbsComponentStyle-exitGameButton, .UserScoreComponentStyle-coinsContainer):has(> [class*="-maskImage"], > .-commonBlockForHotKey) {
+    display: none !important;
+}
+
+/* the keys (Z, T) are not shown, as in the lobby; the keys themselves still work */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer .-commonBlockForHotKey,
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-backButton > :not([class*="iconBackArrow"]) {
+    display: none !important;
+}
+
+/* back (left), T friends and home (right): glass squares */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer :is(.BreadcrumbsComponentStyle-backButton, .BreadcrumbsComponentStyle-exitGameButton, div:has(> [class*="UserGroupTitleButtonComponentStyle-"])) {
+    position: fixed !important;
+    top: var(--kasp-tb-top) !important;
+    bottom: auto !important;
+    width: var(--kasp-tb-btn) !important;
+    height: var(--kasp-tb-btn) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+    background: var(--kasp-lu-glass) !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    border-radius: 1em !important;
+    box-shadow: inset 0 0.064em 0 var(--kasp-lu-inner) !important;
+    z-index: 5 !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer :is(.BreadcrumbsComponentStyle-backButton, .BreadcrumbsComponentStyle-exitGameButton, div:has(> [class*="UserGroupTitleButtonComponentStyle-"])):hover {
+    background: var(--kasp-lu-glass-hover) !important;
+    border-color: var(--kasp-lu-edge-hover) !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-backButton {
+    left: var(--kasp-tb-right) !important;
+    right: auto !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-exitGameButton {
+    right: var(--kasp-tb-right) !important;
+    left: auto !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer div:has(> [class*="UserGroupTitleButtonComponentStyle-"]) {
+    right: calc(var(--kasp-tb-right) + var(--kasp-tb-btn) + 0.8em) !important;
+    left: auto !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer [class*="UserGroupTitleButtonComponentStyle-"] {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    margin: 0 !important;
+}
+
+/* the rank, with the progress to the next rank as the same ring as the lobby's */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer :is(.UserInfoContainerStyle-rankIconContainerClickable, .UserInfoContainerStyle-rankIconContainer) {
+    position: fixed !important;
+    right: calc(var(--kasp-tb-right) + var(--kasp-tb-slots) * (var(--kasp-tb-btn) + 0.8em) + 0.8em) !important;
+    left: auto !important;
+    top: var(--kasp-tb-top) !important;
+    width: var(--kasp-tb-btn) !important;
+    height: var(--kasp-tb-btn) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: none !important;
+    border-radius: 50% !important;
+    background: rgb(0 0 0 / 0.35) !important;
+    box-shadow: none !important;
+    z-index: 5 !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer :is(.UserInfoContainerStyle-rankIconContainerClickable, .UserInfoContainerStyle-rankIconContainer)::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    background: conic-gradient(#76ff33 calc(var(--kasp-lu-xp, 0) * 360deg), rgb(255 255 255 / 0.15) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 0.2em - 1px), #000 calc(100% - 0.2em), #000 calc(100% - 1px), transparent 100%);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 0.2em - 1px), #000 calc(100% - 0.2em), #000 calc(100% - 1px), transparent 100%);
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer .UserInfoContainerStyle-titleRankIcon {
+    width: 3em !important;
+    height: 3em !important;
+    margin: 0 !important;
+}
+
+/* the name and the XP numbers, left of the rank; the green line goes (the ring shows it) but stays measurable, as in the lobby */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer .UserInfoContainerStyle-containerProgressMainScreen {
+    position: fixed !important;
+    right: calc(var(--kasp-tb-right) + (var(--kasp-tb-slots) + 1) * (var(--kasp-tb-btn) + 0.8em) + 0.6em) !important;
+    left: auto !important;
+    top: var(--kasp-tb-top) !important;
+    width: 12em !important;
+    height: var(--kasp-tb-btn) !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: flex-end !important;
+    gap: 0.15em !important;
+    z-index: 5 !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-headerContainer .UserInfoContainerStyle-containerProgressMainScreen > div:nth-child(2) {
+    position: absolute !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* the money, left of the name: the right box becomes one row (tankoins in the shop, then rubies over crystals) ending 1.6 em before
+   the name; home leaves it (placed on its own above) and F11 is gone */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer {
+    position: fixed !important;
+    right: calc(var(--kasp-tb-right) + (var(--kasp-tb-slots) + 1) * (var(--kasp-tb-btn) + 0.8em) + 12em + 1.6em + 0.6em) !important;
+    left: auto !important;
+    top: var(--kasp-tb-top) !important;
+    bottom: auto !important;
+    width: auto !important;
+    height: var(--kasp-tb-btn) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    gap: 1.6em !important;
+    z-index: 5 !important;
+}
+
+/* rubies over crystals, each with its own + */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer > div:has(> .HeaderCommonStyle-icons):not(.UserScoreComponentStyle-coinsContainer) {
+    position: relative !important;
+    width: auto !important;
+    height: 100% !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    gap: 0.2em !important;
+}
+
+/* the shop's tankoins: on the rubies' row, just left of the rubies (owner, 2026-11-23), with no line of the game's beside them (its
+   box had a line on its right and a fixed width of 9.2 em) */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer > .UserScoreComponentStyle-coinsContainer {
+    position: relative !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer > .UserScoreComponentStyle-coinsContainer::before,
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer > .UserScoreComponentStyle-coinsContainer::after,
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer > .UserScoreComponentStyle-coinsContainer > .HeaderCommonStyle-icons::before,
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer > .UserScoreComponentStyle-coinsContainer > .HeaderCommonStyle-icons::after {
+    display: none !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer > .UserScoreComponentStyle-coinsContainer > .HeaderCommonStyle-icons {
+    flex: none !important;
+    max-width: none !important;
+    overflow: visible !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer > .UserScoreComponentStyle-coinsContainer :is(.UserScoreComponentStyle-coinBlock, .UserScoreComponentStyle-addCoins) {
+    flex: none !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer .HeaderCommonStyle-icons {
+    position: relative !important;
+    width: auto !important;
+    height: 2em !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 0.5em !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer .UserScoreComponentStyle-coinBlock {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5em !important;
+}
+
+/* each +: a small glass square of its own */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer :is(.UserScoreComponentStyle-addRubyCrystal, .UserScoreComponentStyle-addCoins) {
+    position: static !important;
+    width: 2em !important;
+    height: 2em !important;
+    margin: 0 0 0 0.3em !important;
+    padding: 0.5em !important;
+    box-sizing: border-box !important;
+    background: var(--kasp-lu-glass) !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    border-radius: 0.6em !important;
+    cursor: pointer !important;
+}
+
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer :is(.UserScoreComponentStyle-addRubyCrystal, .UserScoreComponentStyle-addCoins):hover {
+    background: var(--kasp-lu-glass-hover) !important;
+    border-color: var(--kasp-lu-edge-hover) !important;
+}

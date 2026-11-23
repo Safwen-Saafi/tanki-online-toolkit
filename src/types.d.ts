@@ -933,6 +933,9 @@ interface KaspLobby {
 
 interface Window {
     __kaspLobby?: KaspLobby;
+    // Added to the game's code by the injector (26d1, the lobby's mode tiles): starts the battle mode whose game name is in names with
+    // the game's own action, given to the game's store; false when it could not.
+    __kaspModeStart?: (names: readonly string[]) => boolean;
     __kaspLobbyPass?: KaspLobbyPassApi;
     // The one lobby look list (lobby_looks.ts), in the page's world only; missing if that file did not run.
     __kaspLobbyLooks?: typeof KASP_LOBBY_LOOKS;

@@ -17,7 +17,8 @@
         "js/modules/lobby_looks.js",
         "js/modules/lobby_pass.js",
         "js/modules/lobby.js",
-        "js/modules/hangar_files.js"
+        "js/modules/hangar_files.js",
+        "js/modules/lobby_ui.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"
@@ -68,7 +69,8 @@
         "styles/showroom_protection.css",
         "styles/showroom_supplies.css",
         "styles/showroom_paints.css",
-        "styles/lobby.css"
+        "styles/lobby.css",
+        "styles/lobby_ui.css"
       ],
       "run_at": "document_start"
     }
@@ -86,7 +88,8 @@
         "sounds/*",
         "icons/*",
         "showroom/*",
-        "hangars/*"
+        "hangars/*",
+        "lobby/*"
       ],
       "matches": [
         "*://*.tankionline.com/*"
