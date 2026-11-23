@@ -1536,3 +1536,634 @@ html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer :is(.U
     background: var(--kasp-lu-glass-hover) !important;
     border-color: var(--kasp-lu-edge-hover) !important;
 }
+
+/* ---------- the news and the chat: one dock over the bottom left bar (26d3; owner 2026-11-23, idea D of lobby-ideas/ui-drawers.html) ----------
+   Both open in the same glass panel, which grows up out of the bottom left bar, with NEWS / CHAT tabs at its top (lobby_ui.ts) to
+   switch between them in one click. The game's own two windows, placed and dressed; only the tabs are ours. What the game draws (read
+   from its code, 2026-11-23):
+   - the news, drawn by the footer right after its bar while the news is open: a press-to-close sheet (NewsComponentStyle-closeArea)
+     and the window (-newsWindow: fixed at the left, 53 em wide, the whole height, slid in by its own animation, layer 30) holding its
+     title bar (-header, 2.625 em) and the list (-newsContainer, 49.25 em wide, the height less the title bar); each item
+     (-newsItemContainer) is a header (the new or read mark, the picture, the title, the date), a line (-newsItemSeparator), the text.
+   - the chat: the same sheet (ChatComponentStyle-closeArea) and the window (-chatWindow: fixed at the right through its own `right`,
+     37.5 em wide, at least that and at most 70 %, its own slide-in, layer 102), holding the resize handle on its left edge
+     (-chatResize), the channel bar (-upMenu, 3.125 em: the channel picker and the clan chat), the messages box (-messagesContainer,
+     from 3.5 em under its top to 4 em over its bottom) and the message line. A width the player dragged it to earlier is written on
+     the window's own style.
+   The game removes a window the moment it closes, so lobby_ui.ts holds the close back for the closing animation (a press off the dock
+   or Esc: it plays the shrink, then lets the same close through).
+   The resize handle goes: the dock has one size for both, and its left edge, where the handle is, is now held at the screen's left. */
+html[data-kasp-lobby-ui] {
+    /* the dock: from the bottom left bar's left edge, its top and bottom level with the tile block's (owner 2026-11-23) */
+    --kasp-dock-left: 2.05em;
+    --kasp-dock-width: 40em;
+    --kasp-dock-top: var(--kasp-lu-top);
+    /* the lobby glass made less see-through for reading (owner 2026-11-23): its dark part 92% instead of 75% */
+    --kasp-dock-glass: linear-gradient(180deg, var(--kasp-lu-fill-top), var(--kasp-lu-fill) 45%),
+        hsl(from hsl(205 60% 5% / 0.92) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+    /* the title bar: the chat's own height, given to the news too, so the tabs sit in the same place on both */
+    --kasp-dock-head: 3.125em;
+    --kasp-dock-tabs: 12.4em;
+    --kasp-dock-tabs-h: 2.3em;
+    --kasp-dock-h: calc(var(--kasp-lu-bottom) - var(--kasp-lu-top));
+    /* the tabs' top inside the dock: its edge line, then centred in the title bar */
+    --kasp-dock-tabs-y: calc(2px + (var(--kasp-dock-head) - var(--kasp-dock-tabs-h)) / 2);
+    /* the prototype's opening and closing (lobby-ideas/ui-drawers.html, idea D): 0.5 s on its easing, both ways */
+    --kasp-dock-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* How far the dock is open, 0 to 1: the one number the dock's cut and the tabs' cut both follow, so the tabs (ours, a box of their own
+   over the dock's title bar) are uncovered and covered by the very same line as the dock, as when they were inside it in the
+   prototype. Each runs the same animation of it, started in the same moment. */
+@property --kasp-dock-p {
+    syntax: '<number>';
+    inherits: false;
+    initial-value: 1;
+}
+
+html[data-kasp-lobby-ui] :is(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) {
+    position: fixed !important;
+    left: var(--kasp-dock-left) !important;
+    right: auto !important;
+    top: var(--kasp-dock-top) !important;
+    bottom: auto !important;
+    width: var(--kasp-dock-width) !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: var(--kasp-dock-h) !important;
+    box-sizing: border-box !important;
+    background: var(--kasp-dock-glass) !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    border-radius: var(--kasp-lu-radius) !important;
+    /* the edge light only, like the tiles: no shade under it (owner 2026-11-23: the dark band under the dock) */
+    box-shadow: inset 0 1px 0 var(--kasp-lu-inner) !important;
+    /* its insides stay inside its round corners (the news rows reached past them: owner 2026-11-23); the channel picker's list opens
+       in the page's top layer, so it is not cut */
+    overflow: hidden !important;
+    /* the prototype's cut: from its bottom up, as far as it is open (fully open, it is only the dock's own round corners) */
+    clip-path: inset(calc((1 - var(--kasp-dock-p)) * 100%) 0 0 0 round var(--kasp-lu-radius)) !important;
+    animation: kasp-dock-grow 0.5s var(--kasp-dock-ease) backwards !important;
+}
+
+/* its insides but the title bar fade in a quarter second after it starts (the prototype's list and message line); the title bar,
+   with the tabs, is uncovered by the cut */
+html[data-kasp-lobby-ui] :is(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) > :not(.NewsComponentStyle-header, .ChatComponentStyle-upMenu) {
+    animation: kasp-dock-fade 0.25s ease 0.25s backwards;
+}
+
+/* a tab press (lobby_ui.ts marks it for 0.6 s; the new window comes while the old one is still there, so the dock is never empty):
+   the new window stands in place at once and only its insides fade in. Only the length and the wait change, never the animation's
+   name: a new name makes the browser play the animation again from its start, so the dock vanished and grew a second time when the
+   mark came off (owner 2026-11-23). Shorter values on an animation already over leave it over. */
+html[data-kasp-dock-swap][data-kasp-lobby-ui] :is(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) {
+    animation-duration: 0s !important;
+}
+
+html[data-kasp-dock-swap][data-kasp-lobby-ui] :is(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) > :not(.NewsComponentStyle-header, .ChatComponentStyle-upMenu) {
+    animation-delay: 0s;
+}
+
+/* closing (lobby_ui.ts marks it until the game has taken the window off): the prototype's, the same cut back down into the bar over
+   0.5 s, the insides fading out over the first quarter second; the tabs go with the same cut (their rule below) */
+html[data-kasp-dock-closing][data-kasp-lobby-ui] :is(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) {
+    animation: kasp-dock-shrink 0.5s var(--kasp-dock-ease) forwards !important;
+}
+
+html[data-kasp-dock-closing][data-kasp-lobby-ui] :is(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) > :not(.NewsComponentStyle-header, .ChatComponentStyle-upMenu) {
+    animation: kasp-dock-fade-out 0.25s ease forwards;
+}
+
+@keyframes kasp-dock-grow {
+    from { --kasp-dock-p: 0; }
+    to { --kasp-dock-p: 1; }
+}
+
+@keyframes kasp-dock-shrink {
+    from { --kasp-dock-p: 1; }
+    to { --kasp-dock-p: 0; }
+}
+
+@keyframes kasp-dock-fade {
+    from { opacity: 0; }
+}
+
+@keyframes kasp-dock-fade-out {
+    to { opacity: 0; }
+}
+
+/* the press-to-close sheets stay, unseen: the lobby is not darkened, and a press anywhere off the dock still closes it */
+html[data-kasp-lobby-ui] :is(.NewsComponentStyle-closeArea, .ChatComponentStyle-closeArea) {
+    background: transparent !important;
+}
+
+/* the title bars, one height, the tabs at their left: the news title gives its place to the tabs (they say NEWS), the chat's channel
+   picker and clan chat move right of them */
+html[data-kasp-lobby-ui] :is(.NewsComponentStyle-header, .ChatComponentStyle-upMenu) {
+    height: var(--kasp-dock-head) !important;
+    box-sizing: border-box !important;
+    background: none !important;
+    border-bottom: 1px solid rgb(255 255 255 / 0.1) !important;
+}
+
+html[data-kasp-lobby-ui] .NewsComponentStyle-header > * {
+    visibility: hidden !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-upMenu {
+    padding-left: calc(var(--kasp-dock-tabs) + 1.4em) !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-chatResize {
+    display: none !important;
+}
+
+/* the channel picker (owner 2026-11-23: it kept the game's old look). The game's is the browser's own <select>
+   (-channelSelect: 17.5 em wide, its green border and words, the browser's look taken off with appearance: none) in a 17.5 em box
+   (-channelsSelect) with a drawn triangle (-channelsSelectArrow); its open list is the browser's own, which a page can dress only
+   through the browser's dressable select (appearance: base-select, Chrome 135 on). So: the box as dark as the tabs' bar, the list a
+   glass panel with rows like the tabs; the browser's own arrow in place of the triangle. An older browser keeps its plain list. */
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelsSelect {
+    width: 13em !important;
+    height: var(--kasp-dock-tabs-h) !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelsSelectArrow {
+    display: none !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelSelect {
+    appearance: base-select !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 0.8em !important;
+    box-sizing: border-box !important;
+    border: 0 !important;
+    border-radius: 0.75em !important;
+    background: rgb(0 0 0 / 0.3) !important;
+    color: #fff !important;
+    outline: none !important;
+    cursor: pointer !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelSelect:hover {
+    background: rgb(0 0 0 / 0.42) !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelSelect::picker-icon {
+    margin-left: auto;
+    color: var(--kasp-lu-muted);
+    transition: rotate 0.2s;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelSelect:open::picker-icon {
+    rotate: 180deg;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelSelect::picker(select) {
+    appearance: base-select;
+    margin-top: 0.35em;
+    padding: 0.3em;
+    border: 2px solid var(--kasp-lu-edge);
+    border-radius: 0.75em;
+    background: var(--kasp-dock-glass);
+    box-shadow: inset 0 1px 0 var(--kasp-lu-inner);
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelSelect option {
+    padding: 0.55em 0.8em;
+    border-radius: 0.55em;
+    background: none;
+    color: var(--kasp-lu-muted);
+    cursor: pointer;
+}
+
+/* a gap between the rows, so the lit row and the chosen one stand apart (owner 2026-11-23) */
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelSelect option + option {
+    margin-top: 0.3em;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelSelect option:is(:hover, :focus-visible) {
+    background: var(--kasp-lu-cell-hover);
+    color: #fff;
+    outline: none;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelSelect option:checked {
+    background: rgb(255 255 255 / 0.14);
+    color: #fff;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-channelSelect option::checkmark {
+    display: none;
+}
+
+/* the clan chat button beside it stays on one line (it broke in two beside the tabs) */
+html[data-kasp-lobby-ui] .ChatComponentStyle-clanChannel {
+    white-space: nowrap !important;
+}
+
+/* the news list fills the dock under the title bar. The game makes it 49.25 em wide for its 53 em window, with its own margins round
+   it (1.875 em left, 0.9 em right). A width of 100% is the window's whole inside without those margins, so the list and every row in it
+   reached 13.6 px past the dock's right edge and the dates were cut (owner 2026-11-23, probe 6). So it is stretched across the window
+   less its own margins instead (the window lays its parts out as a column, which lets a part stretch across it). */
+html[data-kasp-lobby-ui] .NewsComponentStyle-newsContainer {
+    width: auto !important;
+    align-self: stretch !important;
+    height: calc(100% - var(--kasp-dock-head)) !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+}
+
+/* each news item: a cell of the glass, like the battle pass rows; its border inside its width, so it is never wider than the list.
+   Never shorter than its content: the list is a column of fixed height that scrolls, and its rows may shrink (the game's flex-shrink
+   1); a row holds its height only while it shows what overflows it, so with the round corners' overflow: hidden the list squeezed every
+   row to fit its own height and cut their texts (owner 2026-11-23; probe 6: the three rows' heights added up to the list's). */
+html[data-kasp-lobby-ui] .NewsComponentStyle-newsItemContainer {
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    background: var(--kasp-lu-cell) !important;
+    border: 1px solid rgb(255 255 255 / 0.1) !important;
+    border-radius: 0.8em !important;
+    overflow: hidden !important;
+}
+
+/* a news text is the server's own page piece, made for the game's 49.25 em list: a video player (the tournament streams), a picture
+   or a table there keeps the size the server wrote for it and was cut at the dock's 40 em (owner 2026-11-23). Each is held to the
+   text's width, a video at 16:9, and a long address breaks onto the next line. */
+html[data-kasp-lobby-ui] .NewsComponentStyle-newsItemBody {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+}
+
+html[data-kasp-lobby-ui] .NewsComponentStyle-newsItemBody :is(img, video, table) {
+    max-width: 100% !important;
+    height: auto !important;
+}
+
+html[data-kasp-lobby-ui] .NewsComponentStyle-newsItemBody iframe {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16 / 9 !important;
+    border: 0 !important;
+    border-radius: 0.6em !important;
+}
+
+html[data-kasp-lobby-ui] .NewsComponentStyle-newsItemSeparator {
+    background: rgb(255 255 255 / 0.08) !important;
+}
+
+/* the open one's button in the bottom left bar stays lit */
+html[data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow) .FooterComponentStyle-newsButton,
+html[data-kasp-lobby-ui]:has(.ChatComponentStyle-chatWindow) .FooterComponentStyle-chatButton {
+    background: var(--kasp-lu-cell-hover) !important;
+    box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.5) !important;
+}
+
+/* the tabs (ours, put on the page once by lobby_ui.ts): seen only while the news or the chat is open, over its title bar, one layer
+   over the open window (the game's layers: news 30, its dialogs 60, the matchmaking wait 100, chat 102) */
+.kasp-dock-tabs {
+    display: none;
+}
+
+html[data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) .kasp-dock-tabs {
+    position: fixed;
+    left: calc(var(--kasp-dock-left) + 2px + 0.7em);
+    top: calc(var(--kasp-dock-top) + var(--kasp-dock-tabs-y));
+    z-index: 31;
+    display: flex;
+    gap: 0.25em;
+    width: var(--kasp-dock-tabs);
+    height: var(--kasp-dock-tabs-h);
+    padding: 0.25em;
+    box-sizing: border-box;
+    border-radius: 0.75em;
+    background: rgb(0 0 0 / 0.3);
+    /* the dock's own cut, moved into the tabs' place: the dock's cut line is (1 - open) of its height down from its top, the tabs sit
+       --kasp-dock-tabs-y down from it */
+    clip-path: inset(max(0px, calc((1 - var(--kasp-dock-p)) * var(--kasp-dock-h) - var(--kasp-dock-tabs-y))) 0 0 0 round 0.75em);
+    animation: kasp-dock-grow 0.5s var(--kasp-dock-ease) backwards;
+}
+
+html[data-kasp-lobby-ui]:has(.ChatComponentStyle-chatWindow) .kasp-dock-tabs {
+    z-index: 103;
+}
+
+/* closing: with the dock (owner 2026-11-23: they stayed after it; this rule was weaker than the one above, so it never took) */
+html[data-kasp-dock-closing][data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) .kasp-dock-tabs {
+    animation: kasp-dock-shrink 0.5s var(--kasp-dock-ease) forwards;
+}
+
+.kasp-dock-tab {
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0.55em;
+    background: none;
+    color: var(--kasp-lu-muted);
+    font-family: BaseFontBold, FallbackFontBold, sans-serif;
+    font-weight: normal;
+    font-size: 0.85em;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+}
+
+.kasp-dock-tab:hover {
+    color: #fff;
+}
+
+html:has(.NewsComponentStyle-newsWindow) .kasp-dock-tab[data-tab="news"],
+html:has(.ChatComponentStyle-chatWindow) .kasp-dock-tab[data-tab="chat"] {
+    color: #fff;
+    background: rgb(255 255 255 / 0.14);
+    cursor: default;
+}
+
+/* the names, in the game's language (English unless the game says Russian) */
+.kasp-dock-tab[data-tab="news"]::after { content: 'NEWS'; }
+.kasp-dock-tab[data-tab="chat"]::after { content: 'CHAT'; }
+html:lang(ru) .kasp-dock-tab[data-tab="news"]::after { content: 'НОВОСТИ'; }
+html:lang(ru) .kasp-dock-tab[data-tab="chat"]::after { content: 'ЧАТ'; }
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-kasp-lobby-ui] :is(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow, .NewsComponentStyle-newsWindow > *, .ChatComponentStyle-chatWindow > *),
+    .kasp-dock-tabs {
+        animation: none !important;
+    }
+}
+
+/* ---------- the chat's messages: bubbles like a messenger, each player with a tanker face (owner 2026-11-23, idea A of
+   lobby-ideas/ui-chat.html) ----------
+   What the game draws for one message (read from its code, 2026-11-23): a row (-messageRow: a column as wide as its content, margins
+   0.25 em top and 1.25 em left, 0.5 em corners, line height 1.25 em; tinted by -privateMessageBgColor or -directMessageBgColor when the
+   message is to the player, by -selectedUserMessageBgColor round a chosen player) holding the names (-chatUserLabelsContainer: the
+   sender's -chatUserLabel, its rank picture and its name, coloured by -chatRegularUser, -chatFriendUser, -chatClanMateUser or
+   -chatAdminUser; for a reply or a private message an arrow or an envelope and the other player's label) and the text with its time
+   (-timeContainer) after it. Notices are rows of their own (-systemMessage, -warningMessage).
+   lobby_ui.ts marks each row in the moment the game adds it, before it is drawn (it watches the game's list while the chat is open;
+   the list's 1 ms animation below, once per opened chat, starts that): the face (--kasp-face, drawn from the sender's name, the same
+   name always the same face), the player's own messages (data-kasp-chat-me: the game makes every name but the player's own
+   clickable, and that is what it reads), a message to someone (data-kasp-chat-to), and the runs of messages from one sender
+   (data-kasp-chat-cont on each after the first: no name again; data-kasp-chat-more on each before the last: no face, which stands
+   beside the last one). The names keep the game's own colours. */
+@keyframes kasp-chat-list-seen {
+    from { outline-color: transparent; }
+    to { outline-color: transparent; }
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-messagesContainer {
+    animation: kasp-chat-list-seen 1ms;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow {
+    position: relative !important;
+    box-sizing: border-box !important;
+    max-width: 82% !important;
+    /* room on the left for the face (2.4 em) and its gap */
+    margin: 0.2em 0.7em 0 3.5em !important;
+    padding: 0.45em 0.8em 0.5em !important;
+    border: 1px solid rgb(255 255 255 / 0.07) !important;
+    border-radius: 1em 1em 1em 0.35em !important;
+    background: rgb(255 255 255 / 0.08) !important;
+    line-height: 1.35em !important;
+}
+
+/* the first message of a run stands a little apart from the run before */
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow:not([data-kasp-chat-cont]) {
+    margin-top: 0.65em !important;
+}
+
+/* the face: beside the bubble's foot, on the left */
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow::before {
+    content: '';
+    position: absolute;
+    left: -3.05em;
+    bottom: 0;
+    width: 2.4em;
+    height: 2.4em;
+    border-radius: 50%;
+    background: var(--kasp-face, none) center / cover no-repeat, rgb(255 255 255 / 0.08);
+}
+
+/* a run from one sender: the name on its first bubble, the face beside its last; the corners on the face's side close up between them */
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow[data-kasp-chat-more]::before {
+    visibility: hidden;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow[data-kasp-chat-more] {
+    border-bottom-left-radius: 0.35em !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow[data-kasp-chat-cont] {
+    border-top-left-radius: 0.35em !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow[data-kasp-chat-cont]:not([data-kasp-chat-to]) .ChatComponentStyle-chatUserLabelsContainer {
+    display: none !important;
+}
+
+/* the player's own messages: on the right, green, no face and no own name (only who it is to, for a reply or a private message) */
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow[data-kasp-chat-me] {
+    margin-left: auto !important;
+    margin-right: 0.7em !important;
+    border-color: hsl(100 90% 60% / 0.3) !important;
+    border-radius: 1em 1em 0.35em 1em !important;
+    background: hsl(100 70% 45% / 0.2) !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow[data-kasp-chat-me]::before {
+    content: none;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow[data-kasp-chat-me]:not([data-kasp-chat-to]) .ChatComponentStyle-chatUserLabelsContainer,
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow[data-kasp-chat-me] .ChatComponentStyle-chatUserLabelsContainer > .ChatComponentStyle-chatUserLabel:first-child {
+    display: none !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow[data-kasp-chat-me][data-kasp-chat-more] {
+    border-bottom-right-radius: 0.35em !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow[data-kasp-chat-me][data-kasp-chat-cont] {
+    border-top-right-radius: 0.35em !important;
+}
+
+/* a message to the player (private or direct): purple */
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow:is(.ChatComponentStyle-privateMessageBgColor, .ChatComponentStyle-directMessageBgColor) {
+    border-color: hsl(275 90% 75% / 0.35) !important;
+    background: hsl(275 70% 60% / 0.2) !important;
+}
+
+/* round a player the player chose: a light edge */
+html[data-kasp-lobby-ui] .ChatComponentStyle-messageRow.ChatComponentStyle-selectedUserMessageBgColor {
+    border-color: rgb(255 255 255 / 0.55) !important;
+}
+
+/* the names line */
+html[data-kasp-lobby-ui] .ChatComponentStyle-chatUserLabelsContainer {
+    flex-wrap: wrap !important;
+    row-gap: 0.15em !important;
+    margin-bottom: 0.15em !important;
+}
+
+/* the time: small and quiet, at the end of the text, kept to the bubble's right */
+html[data-kasp-lobby-ui] .ChatComponentStyle-timeContainer {
+    float: right !important;
+    height: auto !important;
+    margin: 0.35em 0 0 0.8em !important;
+    font-size: 0.75em !important;
+    line-height: 1.4 !important;
+    color: var(--kasp-lu-muted) !important;
+}
+
+/* notices (a ban, a warning): a soft yellow note in the middle */
+html[data-kasp-lobby-ui] :is(.ChatComponentStyle-systemMessage, .ChatComponentStyle-warningMessage) {
+    box-sizing: border-box !important;
+    width: fit-content !important;
+    max-width: 92% !important;
+    margin: 0.65em auto 0.2em !important;
+    padding: 0.35em 1em !important;
+    border-radius: 999px !important;
+    background: rgb(255 200 61 / 0.08) !important;
+    color: var(--kasp-lu-gold) !important;
+    text-align: center !important;
+}
+
+/* the message line's row and the end of the messages (owner 2026-11-23: the line ran along the top of the message box, and the last
+   bubble's foot was cut). The game's row (built on the spot, no name: the chat window's child holding the input) is 3.5 em tall at the
+   window's foot, its top edge that line (15 % white, green while a private message is typed), its parts in a row but not centred in
+   it, so the 2.9 em box sat on the line. The messages end 4 em over the foot with no room after the last one, so its bubble ended on
+   the box's very edge (sizes in em, scrolling in whole pixels). Now the row is taller with its parts in its middle, and the messages end
+   at its line with room after the last bubble. */
+html[data-kasp-lobby-ui] .ChatComponentStyle-chatWindow > :has(> input) {
+    height: 4.3em !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-messagesContainer {
+    bottom: 4.3em !important;
+    padding-bottom: 0.7em !important;
+    box-sizing: border-box !important;
+    /* its scroll bar a little in from the dock's edge (owner 2026-11-23: it touched it). The game makes the box the window's whole
+       width, so its bar sat on the edge; now it ends 0.6 em short of it (the game's 0.625 em right margin, which could not move it
+       while the box was the whole width, is taken off so the gap is just this) */
+    left: 0 !important;
+    right: 0.6em !important;
+    width: auto !important;
+    margin-right: 0 !important;
+}
+
+/* its scroll bar ends level with the last message (owner 2026-11-23: it ran down to the line). The room under the last bubble is the
+   box's own inner padding, and a scroll bar runs the box's whole height, padding included; so its track keeps the same 0.7 em off the
+   box's foot (the game draws the chat's own scroll bar, which takes a track margin) */
+html[data-kasp-lobby-ui] .ChatComponentStyle-messagesContainer::-webkit-scrollbar-track {
+    margin-bottom: 0.7em;
+}
+
+/* the news list's scroll bar: the chat's own (owner 2026-11-23: "the same scrollbar colour as in the chat tab"). The game gives the
+   news a 20 % white handle with a faint border on a light grey track (188, 188, 188), the chat a 15 % white handle with 5 px round
+   ends and no track; both 0.5 em wide. The news bar also sits 0.6 em in from the dock's edge, like the chat's (its right margin). */
+html[data-kasp-lobby-ui] .NewsComponentStyle-newsContainer {
+    margin-right: 0.6em !important;
+}
+
+html[data-kasp-lobby-ui] .NewsComponentStyle-newsContainer::-webkit-scrollbar {
+    width: 0.5em !important;
+}
+
+html[data-kasp-lobby-ui] .NewsComponentStyle-newsContainer::-webkit-scrollbar-track {
+    background: none !important;
+}
+
+html[data-kasp-lobby-ui] .NewsComponentStyle-newsContainer::-webkit-scrollbar-thumb {
+    border: 0 !important;
+    border-radius: 5px !important;
+    background: rgb(255 255 255 / 0.15) !important;
+}
+
+/* the message line: a dark rounded box like the tabs' bar, the send button a green square beside it */
+html[data-kasp-lobby-ui] .ChatComponentStyle-chatWindow input {
+    /* in from the dock's edge as far as the tabs over it (0.7 em; owner 2026-11-23); the send button keeps the same on the right */
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin-left: 0.7em !important;
+    box-sizing: border-box !important;
+    height: 2.9em !important;
+    padding: 0 1em !important;
+    border: 2px solid rgb(255 255 255 / 0.1) !important;
+    border-radius: 0.9em !important;
+    background: rgb(0 0 0 / 0.3) !important;
+    color: #fff !important;
+    outline: none !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-chatWindow input:focus {
+    border-color: rgb(255 255 255 / 0.3) !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-sendButton {
+    box-sizing: border-box !important;
+    width: 2.9em !important;
+    height: 2.9em !important;
+    margin: 0 0.7em 0 0.6em !important;
+    border: 2px solid hsl(100 100% 65% / 0.35) !important;
+    border-radius: 0.9em !important;
+    background: hsl(100 90% 55% / 0.22) !important;
+}
+
+html[data-kasp-lobby-ui] .ChatComponentStyle-sendButton:hover {
+    background: hsl(100 90% 55% / 0.35) !important;
+}
+
+/* ---------- the menu a click on a name opens (owner 2026-11-23: "make its design match ours") ----------
+   The game's shared context menu (ContextMenuStyle, read from its code 2026-11-23): the menu (-menu: a blurred backdrop, a dark colour
+   at 90 %, a thin white line drawn as a 0.063 em shadow, at least 18.25 em wide, on the game's top layer), its head (-menuItemRank: the
+   rank picture and the name, with a picture of its own, -decoration), and its rows (-menuItem: 2.563 em tall, as wide as the menu, the
+   words 2.125 em in from each side, a faint tint on hover; -disabledMenuItem greyed; the red ones are the game's own warning colour,
+   kept). Every one of them in the game is dressed (the chat's, the friends list's and the rest: owner 2026-11-23) with the channel
+   picker's list's own values: the dock's glass, 0.3 em inside it, 0.75 em corners; rows with 0.55 em corners, 0.3 em apart, their words
+   0.8 em in, lit on hover; the head over a line.
+   The rows have no name of their own: the game builds a clickable row's look on the spot (its plain and its red variant), so the row
+   carries only a numbered ksc class; only a greyed row is named (-disabledMenuItem). So a row is found by its place: every child of
+   the menu but its head (a first try aimed at -menuItem, which no row carries, and its hover stayed the game's square one). */
+html[data-kasp-lobby-ui] .ContextMenuStyle-menu {
+    box-sizing: border-box !important;
+    padding: 0.3em !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    border-radius: 0.75em !important;
+    background: var(--kasp-dock-glass) !important;
+    box-shadow: inset 0 1px 0 var(--kasp-lu-inner) !important;
+    overflow: hidden !important;
+}
+
+html[data-kasp-lobby-ui] .ContextMenuStyle-menuItemRank {
+    margin: 0 0 0.3em !important;
+    padding: 0 0.3em !important;
+    border-bottom: 1px solid rgb(255 255 255 / 0.1) !important;
+}
+
+html[data-kasp-lobby-ui] .ContextMenuStyle-menu > :not(.ContextMenuStyle-menuItemRank) {
+    box-sizing: border-box !important;
+    border-radius: 0.55em !important;
+    background: none !important;
+}
+
+html[data-kasp-lobby-ui] .ContextMenuStyle-menu > :not(.ContextMenuStyle-menuItemRank) + :not(.ContextMenuStyle-menuItemRank) {
+    margin-top: 0.3em !important;
+}
+
+html[data-kasp-lobby-ui] .ContextMenuStyle-menu > :not(.ContextMenuStyle-menuItemRank, .ContextMenuStyle-disabledMenuItem):hover {
+    background: var(--kasp-lu-cell-hover) !important;
+}
+
+html[data-kasp-lobby-ui] .ContextMenuStyle-menu > :not(.ContextMenuStyle-menuItemRank) > span {
+    margin-left: 0.8em !important;
+    margin-right: 0.8em !important;
+}
