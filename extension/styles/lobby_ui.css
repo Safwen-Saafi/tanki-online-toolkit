@@ -78,6 +78,7 @@ html[data-kasp-lobby-ui] .MainScreenComponentStyle-gradientBlockRight {
 }
 
 /* ---------- PLAY: the game's own button in green glass, top left of the rectangle ----------
+   Its green (owner 2026-11-24): a dark green, nearly solid, the same as the search card that takes its place.
    The game's PLAY is one element, both its box and its button (MainScreenComponentStyle-playButtonContainer and -buttonPlay on the same
    div, probe of 2026-11-22), with its word in a <span>. The boxes round it (not the menu's) slide in with a transform, which would carry
    a fixed PLAY with them: they keep still. */
@@ -107,7 +108,7 @@ html[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer {
     overflow: hidden !important;
     box-shadow: 0 0 0 2px hsl(100 100% 60% / 0.6) !important;
     background: repeating-linear-gradient(115deg, transparent 0 2.92em, rgb(255 255 255 / 0.05) 2.92em 5.85em),
-        linear-gradient(135deg, hsl(100 90% 45% / 0.42), hsl(110 80% 25% / 0.3)), var(--kasp-lu-shade) !important;
+        linear-gradient(160deg, rgb(19 64 29 / 0.92), rgb(8 36 16 / 0.95)) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
 }
@@ -115,7 +116,7 @@ html[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer {
 html[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer:hover {
     box-shadow: 0 0 0 2px #b6ff8f !important;
     background: repeating-linear-gradient(115deg, transparent 0 2.92em, rgb(255 255 255 / 0.05) 2.92em 5.85em),
-        linear-gradient(135deg, hsl(100 90% 50% / 0.55), hsl(110 80% 30% / 0.4)), var(--kasp-lu-shade) !important;
+        linear-gradient(160deg, rgb(27 84 39 / 0.93), rgb(12 47 22 / 0.95)) !important;
 }
 
 /* the game's own pieces inside PLAY go (its picture, its lock); its word PLAY stays, big, at the concept's place */
@@ -2166,4 +2167,467 @@ html[data-kasp-lobby-ui] .ContextMenuStyle-menu > :not(.ContextMenuStyle-menuIte
 html[data-kasp-lobby-ui] .ContextMenuStyle-menu > :not(.ContextMenuStyle-menuItemRank) > span {
     margin-left: 0.8em !important;
     margin-right: 0.8em !important;
+}
+
+/* ---------- the battle search (step 8; owner 2026-11-23, idea C of blueprint/reference/lobby-ideas/ui-search.html) ----------
+   The game's own search box (MatchmakingWaitComponentStyle, probe 7 of 2026-11-23): one box, made once when the search starts and kept
+   (the same element on the lobby, the garage and back, its clock running on), on the game's layer 100, absolute in #root (no parent
+   with a transform, so a fixed place works), with no slide in or out of its own. Inside it: the mode's picture (a numbered class, its
+   first child: a faded scene of the mode, see-through on its left), -contentContainer with -battleModeLabel (the mode's name),
+   -averageTimeContainer (only when the server gives an average) and -currentTimeContainer (each a -waitingTimeLabel and a value: the
+   average in -averageWaitingTimeValue, the running wait in a span inside -waitingTimeValue, rewritten by the game every second), and
+   -cancelButton (the game's own click, no question asked).
+   In the lobby the box becomes the PLAY tile while it searches (PLAY is greyed then and does nothing): the same place and size, the
+   search line, the mode's name big, the wait and the usual wait side by side at the bottom, CANCEL in the corner, a big radar on the right (no gliding light, probe 11)
+   and no mode picture (owner). PLAY itself is unseen meanwhile (the glass would show it through).
+   On every other screen (garage, shop and the rest) and on the loading screen between two screens it is a slim capsule in the top bar,
+   centred between the back arrow and the rubies and crystals column (the capsule rules further down). */
+html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-container {
+    position: fixed !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    pointer-events: auto !important;
+    background: var(--kasp-lu-glass) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* the green dot that blinks while it searches */
+html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-container::before {
+    content: '';
+    position: absolute;
+    z-index: 2;
+    width: 0.5em;
+    height: 0.5em;
+    border-radius: 50%;
+    background: #76ff33;
+    box-shadow: 0 0 0.6em #76ff33;
+    animation: kasp-search-blink 1.2s ease-in-out infinite;
+    pointer-events: none;
+}
+
+/* No light gliding across (taken out 2026-11-24, probe 11: each of its 1.56 s sweeps, every 2.6 s for the whole search, held the lobby
+   at about 23 frames a second instead of about 175, the time lost in the game's 3D frame, the graphics card overloaded). The dot above
+   blinks with its opacity only, which the graphics card does on its own without drawing anything again. */
+
+html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-contentContainer {
+    margin: 0 !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+html[data-kasp-lobby-ui] :is(.MatchmakingWaitComponentStyle-averageTimeContainer, .MatchmakingWaitComponentStyle-currentTimeContainer) {
+    margin: 0 !important;
+    height: auto !important;
+}
+
+html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-battleModeLabel {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-weight: normal !important;
+    letter-spacing: 0.03em !important;
+    line-height: 1.15 !important;
+}
+
+html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-waitingTimeLabel {
+    font-family: BaseFontRegular, FallbackFontRegular, sans-serif !important;
+    color: var(--kasp-lu-muted) !important;
+}
+
+html[data-kasp-lobby-ui] :is(.MatchmakingWaitComponentStyle-averageWaitingTimeValue, .MatchmakingWaitComponentStyle-waitingTimeValue span) {
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-weight: normal !important;
+    line-height: 1.1 !important;
+    color: #fff !important;
+    text-shadow: none !important;
+}
+
+html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-cancelButton {
+    box-sizing: border-box !important;
+    width: auto !important;
+    margin: 0 !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    background: rgb(255 255 255 / 0.08) !important;
+    transition: background-color 0.15s, border-color 0.15s !important;
+}
+
+html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-cancelButton:hover {
+    background: rgb(255 90 90 / 0.22) !important;
+    border-color: rgb(255 90 90 / 0.7) !important;
+}
+
+html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-cancelButton span {
+    margin: 0 !important;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-weight: normal !important;
+    letter-spacing: 0.1em !important;
+    color: #fff !important;
+}
+
+/* --- in the lobby: the PLAY tile --- */
+html[data-kasp-lobby-ui]:has(.MatchmakingWaitComponentStyle-container) .MainScreenComponentStyle-playButtonContainer {
+    visibility: hidden !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-container {
+    display: block !important;
+    right: 23.37em !important;
+    left: auto !important;
+    top: var(--kasp-lu-top) !important;
+    width: 36.48em !important;
+    height: var(--kasp-lu-row1) !important;
+    border: 0 !important;
+    border-radius: var(--kasp-lu-radius) !important;
+    /* PLAY's own green (owner 2026-11-24): darker than the lobby glass and less see-through, the same as the PLAY tile */
+    background: linear-gradient(160deg, rgb(19 64 29 / 0.92), rgb(8 36 16 / 0.95)) !important;
+    /* PLAY's own ring, so the card's edge is exactly where PLAY's was */
+    box-shadow: 0 0 0 2px hsl(100 100% 60% / 0.55), inset 0 0.064em 0 var(--kasp-lu-inner) !important;
+    animation: kasp-search-card-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-container::before {
+    left: 1.6em;
+    top: 1.62em;
+}
+
+/* The mode's own picture (the game's faded scene, the box's first child) is not shown anywhere (owner 2026-11-24): the radar below
+   takes the card's right part. */
+html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-container > :first-child:not(.MatchmakingWaitComponentStyle-contentContainer) {
+    display: none !important;
+}
+
+/* The radar (owner 2026-11-24, in place of the gliding light; idea D of lobby-ideas/ui-search.html, then the owner's drawings and his
+   example picture): a big radar disc seen at a slant, in perspective, filling the card's right part and running off its edges. The
+   disc is 36 em across, its middle 10.5 em from the card's right (owner: 3 em further right than first) and 4.3 em from its top; laid back 62 degrees (seen from 45 em away,
+   so its far side is smaller and its near side runs off the card's bottom), then turned 12 degrees so it rises to the right. On it:
+   rings every 4.7 em, three lines through the middle, a bright middle and a green glow; a wide bright beam sweeping round it in its
+   own plane every 2.4 s; three blips that light up as the beam passes them, then fade. The text and CANCEL stay over it.
+   Where each part is drawn: the text box (contentContainer) covers the whole card (its old insets are its padding) and cuts everything
+   at the card's edge and round corners (overflow: hidden). The disc is the name's ::before, the beam the text box's ::after, the blips
+   three other free pseudo-elements, all placed in card units inside the text box, behind the text (the name and the time boxes are
+   made plain, so their pseudo-elements are placed in the text box).
+   For the frame rate (probe 11: the gliding light cost the lobby most of its frames; probe 12: the first radar cost nothing): the disc
+   is drawn once and never changes, the beam is one layer whose only change is its turn, the blips only fade; the turn and the fades
+   are done by the graphics card alone. The blips' places were worked out from points on the flat disc put through the same slant. */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-container {
+    overflow: visible !important;
+    --kasp-radar-green: 118 255 51;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-contentContainer {
+    overflow: hidden !important;
+    border-radius: var(--kasp-lu-radius) !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) :is(.MatchmakingWaitComponentStyle-currentTimeContainer, .MatchmakingWaitComponentStyle-battleModeLabel) {
+    position: static !important;
+}
+
+/* the disc (its text size set back to the card's: the name it hangs on is 1.875 times bigger, and every size here is in em) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-battleModeLabel::before {
+    content: '';
+    position: absolute;
+    z-index: -3;
+    font-size: calc(1em / 1.875);
+    top: -13.7em;
+    right: -7.5em;
+    width: 36em;
+    height: 36em;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle, rgb(190 255 160 / 0.6) 0 0.3em, rgb(var(--kasp-radar-green) / 0.35) 0.4em, transparent 0.9em),
+        linear-gradient(0deg, transparent calc(50% - 1px), rgb(var(--kasp-radar-green) / 0.2) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(60deg, transparent calc(50% - 1px), rgb(var(--kasp-radar-green) / 0.2) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(120deg, transparent calc(50% - 1px), rgb(var(--kasp-radar-green) / 0.2) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+        repeating-radial-gradient(circle, transparent 0 calc(4.7em - 2px), rgb(var(--kasp-radar-green) / 0.25) calc(4.7em - 2px) 4.7em),
+        radial-gradient(circle, rgb(var(--kasp-radar-green) / 0.12), rgb(var(--kasp-radar-green) / 0.05) 30%, rgb(var(--kasp-radar-green) / 0.015) 60%, transparent 71%);
+    transform: rotate(-12deg) perspective(45em) rotateX(62deg);
+    pointer-events: none;
+}
+
+/* the beam: a wide soft green wedge brightening to a pale leading edge, turning clockwise in the disc's plane */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-contentContainer::after {
+    content: '';
+    position: absolute;
+    z-index: -2;
+    top: -13.7em;
+    right: -7.5em;
+    width: 36em;
+    height: 36em;
+    border-radius: 50%;
+    background: conic-gradient(transparent 0 68%, rgb(var(--kasp-radar-green) / 0.03) 68%, rgb(var(--kasp-radar-green) / 0.13) 92%, rgb(var(--kasp-radar-green) / 0.3) 99.3%, rgb(200 255 170 / 0.55) 99.3% 100%);
+    transform: rotate(-12deg) perspective(45em) rotateX(62deg) rotate(0deg);
+    animation: kasp-search-radar 2.4s linear infinite;
+    pointer-events: none;
+}
+
+/* three blips, each lit the moment the beam passes it (its angle from the top of the disc, clockwise, as a share of the 2.4 s turn) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) :is(.MatchmakingWaitComponentStyle-currentTimeContainer::before, .MatchmakingWaitComponentStyle-currentTimeContainer::after, .MatchmakingWaitComponentStyle-battleModeLabel::after) {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    width: 0.42em;
+    height: 0.42em;
+    border-radius: 50%;
+    background: rgb(200 255 170 / 0.7);
+    box-shadow: 0 0 0.5em rgb(var(--kasp-radar-green) / 0.5);
+    opacity: 0;
+    animation: kasp-search-blip 2.4s linear infinite;
+    pointer-events: none;
+}
+
+/* 7 em out at 60 degrees */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-currentTimeContainer::before {
+    top: 1.41em;
+    right: 5.06em;
+    animation-delay: 0.4s;
+}
+
+/* 5.5 em out at 140 degrees */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-currentTimeContainer::after {
+    top: 5.4em;
+    right: 6.07em;
+    animation-delay: 0.933s;
+}
+
+/* 8 em out at 250 degrees (on the name: its text size set back to the card's, like the disc) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-battleModeLabel::after {
+    font-size: calc(1em / 1.875);
+    top: 7.07em;
+    right: 17.78em;
+    animation-delay: 1.667s;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-contentContainer {
+    position: absolute !important;
+    inset: 0 !important;
+    box-sizing: border-box !important;
+    padding: 1.4em 1.5em 1.25em 1.6em !important;
+    z-index: 1 !important;
+    display: grid !important;
+    grid-template-columns: max-content max-content 1fr;
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas: "cap cap cap" "name name name" ". . ." "cur avg .";
+    column-gap: 2.1em;
+    pointer-events: none !important;
+}
+
+/* the search line over the name, in the game's language */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-contentContainer::before {
+    content: 'SEARCHING FOR A BATTLE';
+    grid-area: cap;
+    padding-left: 1.4em;
+    font: normal 0.75em/1.2 BaseFontBold, FallbackFontBold, sans-serif;
+    letter-spacing: 0.14em;
+    color: #76ff33;
+}
+
+html:lang(ru)[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .MatchmakingWaitComponentStyle-contentContainer::before {
+    content: 'ПОИСК БОЯ';
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-battleModeLabel {
+    grid-area: name;
+    margin-top: 0.27em !important;
+    font-size: 1.875em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) :is(.MatchmakingWaitComponentStyle-averageTimeContainer, .MatchmakingWaitComponentStyle-currentTimeContainer) {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-end !important;
+    gap: 0.15em;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-currentTimeContainer {
+    grid-area: cur;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-averageTimeContainer {
+    grid-area: avg;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-waitingTimeLabel {
+    font-size: 0.8125em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) :is(.MatchmakingWaitComponentStyle-averageWaitingTimeValue, .MatchmakingWaitComponentStyle-waitingTimeValue span) {
+    font-size: 1.625em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-cancelButton {
+    position: absolute !important;
+    right: 1.4em !important;
+    bottom: 1.25em !important;
+    z-index: 2 !important;
+    height: 2.75em !important;
+    padding: 0 1.4em !important;
+    border-radius: 0.75em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-cancelButton span {
+    font-size: 0.875em !important;
+}
+
+/* --- on every other screen: the capsule in the top bar (owner 2026-11-23: in the bar, never under it where it covered the screen's
+   titles; 2026-11-24: in the true centre between the back arrow and the rubies and crystals column, and in that same place on the
+   loading screen between two screens) ---
+   Its span: from 1.2 em after the back arrow's square (2.5 em + 4.2 em from the left, fixed by the bar rules above) to 1.2 em before
+   the rubies and crystals column, whose right end is fixed by the bar rules (the home and friends squares, or home only when the game
+   shows no friends button, then the rank and the 12 em name) and whose width lobby_ui.ts measures (--kasp-tb-money-w, the same in
+   the lobby and the other bars, so known before the next screen is there). The capsule's own width is its content and the auto margins
+   centre it in the span; when the span is narrower, the mode name shortens with "...". The shop's tankoins, left of the rubies, are
+   outside the span's count (the same place on every screen). CSS anchor positioning was tried first: probe 9 showed the browser never
+   found the bar's pieces in the game's page, so the place is worked out from these numbers instead. */
+html[data-kasp-lobby-ui] :is(.BreadcrumbsComponentStyle-rightButtonsContainer > div:has(> .HeaderCommonStyle-icons):not(.UserScoreComponentStyle-coinsContainer), .UserScoreComponentStyle-blockRightPanel > div:has(.HeaderCommonStyle-icons)) {
+    animation: kasp-lu-money-seen 1ms;
+}
+
+@keyframes kasp-lu-money-seen {
+    from { outline-color: transparent; }
+    to { outline-color: transparent; }
+}
+
+html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-container {
+    --kasp-cap-slots: 2;
+}
+
+html[data-kasp-lobby-ui]:not(:has([class*="UserGroupTitleButtonComponentStyle-"])) .MatchmakingWaitComponentStyle-container {
+    --kasp-cap-slots: 1;
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-container {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 1.2em;
+    top: var(--kasp-tb-top) !important;
+    left: calc(var(--kasp-tb-right) + var(--kasp-tb-btn) + 1.2em) !important;
+    right: calc(var(--kasp-tb-right) + (var(--kasp-cap-slots) + 1) * (var(--kasp-tb-btn) + 0.8em) + 12em + 1.6em + 0.6em + var(--kasp-tb-money-w, 11em) + 1.2em) !important;
+    translate: none;
+    margin: 0 auto !important;
+    width: fit-content !important;
+    min-width: 0 !important;
+    max-width: 34em !important;
+    height: var(--kasp-tb-btn) !important;
+    padding: 0 0.55em 0 2.2em !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    border-radius: 2.1em !important;
+    box-shadow: inset 0 0.064em 0 var(--kasp-lu-inner) !important;
+    animation: kasp-search-pill-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both !important;
+}
+
+/* the loading screen between two screens (owner 2026-11-23, the big card showed on it; probe 8): the game's LobbyLoaderComponentStyle,
+   a full-screen layer (z-index 100, before the search box in the page, so the box stays on top) that fades in over the screen being
+   left and out over the next one. Leaving the lobby, the lobby and its PLAY tile stay in the page under it (up to about 3 s for slow
+   screens like the shop and the garage), so every lobby card rule above also waits for no loading screen, and the capsule rules take
+   it, in the same place as on the next screen. */
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-container::before {
+    left: 1em;
+    top: calc(50% - 0.25em);
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-contentContainer {
+    position: relative !important;
+    z-index: 1 !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "name name" "cur avg";
+    align-content: center;
+    /* the wait and "/ the usual wait" on one text line (owner 2026-11-24: they sat at two heights; the running wait is a span
+       inside the game's own value box, the usual wait plain text, so their boxes differ but their text baselines line up) */
+    align-items: baseline;
+    column-gap: 0.4em;
+    row-gap: 0.1em;
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-battleModeLabel {
+    grid-area: name;
+    min-width: 0;
+    max-width: 20em;
+    white-space: nowrap !important;
+    font-size: 1.0625em !important;
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) :is(.MatchmakingWaitComponentStyle-averageTimeContainer, .MatchmakingWaitComponentStyle-currentTimeContainer) {
+    display: flex !important;
+    align-items: baseline !important;
+    justify-content: flex-start !important;
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-currentTimeContainer {
+    grid-area: cur;
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-averageTimeContainer {
+    grid-area: avg;
+}
+
+/* the words go (no room): the wait, then "/ the usual wait" in grey */
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-waitingTimeLabel {
+    display: none !important;
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-averageTimeContainer::before {
+    content: '/';
+    margin-right: 0.4em;
+    font: normal 0.875em BaseFontRegular, FallbackFontRegular, sans-serif;
+    color: var(--kasp-lu-muted);
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) :is(.MatchmakingWaitComponentStyle-averageWaitingTimeValue, .MatchmakingWaitComponentStyle-waitingTimeValue span) {
+    font-size: 0.875em !important;
+}
+
+/* the running wait's own box: no height or line of its own, so the span inside it sits on the same line as the usual wait */
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-waitingTimeValue {
+    display: inline !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.1 !important;
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-averageWaitingTimeValue {
+    color: var(--kasp-lu-muted) !important;
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-cancelButton {
+    position: relative !important;
+    z-index: 2 !important;
+    flex: none !important;
+    height: 2.9em !important;
+    padding: 0 1.1em !important;
+    border-radius: 1.45em !important;
+}
+
+html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContainer)), :has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-cancelButton span {
+    font-size: 0.8em !important;
+}
+
+@keyframes kasp-search-blink {
+    50% { opacity: 0.25; }
+}
+
+@keyframes kasp-search-radar {
+    from { transform: rotate(-12deg) perspective(45em) rotateX(62deg) rotate(0deg); }
+    to { transform: rotate(-12deg) perspective(45em) rotateX(62deg) rotate(1turn); }
+}
+
+@keyframes kasp-search-blip {
+    0% { opacity: 1; }
+    40%, 100% { opacity: 0; }
+}
+
+@keyframes kasp-search-card-in {
+    from { opacity: 0; scale: 0.97; }
+}
+
+@keyframes kasp-search-pill-in {
+    from { opacity: 0; scale: 0.9; }
 }

@@ -388,7 +388,28 @@
         if (listFrame && event.target instanceof Element && event.target.closest(DOCK_LISTS)) listStop();
     }
 
+    // The battle search capsule (26d step 8, owner 2026-11-24): centred between the back arrow and the rubies and crystals column of the
+    // top bar. Everything in that span is a fixed size of the stylesheet except the column's width, which grows with the numbers, so it
+    // is measured here, in em, into --kasp-tb-money-w on <html>. When: only at a tiny animation's start, of the column itself (each time
+    // a screen's bar is drawn) and of the search box (its card or capsule appearing, leaving the lobby included), so nothing runs between.
+    // The lobby's column is the same as the other bars' (the same pieces and sizes, probe 9: 160.1 px both), so measured in the lobby it
+    // already gives the next screen's place, shown on the loading screen in between.
+    const MONEY = '.BreadcrumbsComponentStyle-rightButtonsContainer > div:has(> .HeaderCommonStyle-icons):not(.UserScoreComponentStyle-coinsContainer), .UserScoreComponentStyle-blockRightPanel > div:has(.HeaderCommonStyle-icons)';
+    const MONEY_MOMENTS = new Set(['kasp-lu-money-seen', 'kasp-search-card-in', 'kasp-search-pill-in']);
+
+    function measureMoney(): void {
+        const column = document.querySelector(MONEY);
+        if (column === null) return;
+        const width = column.getBoundingClientRect().width;
+        const em = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        if (width > 0 && em > 0) document.documentElement.style.setProperty('--kasp-tb-money-w', `${(width / em).toFixed(3)}em`);
+    }
+
     function onStars(event: AnimationEvent): void {
+        if (MONEY_MOMENTS.has(event.animationName)) {
+            measureMoney();
+            return;
+        }
         if (event.animationName === 'kasp-chat-list-seen' && event.target instanceof HTMLElement) {
             watchChat(event.target);
             return;
