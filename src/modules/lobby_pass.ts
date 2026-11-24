@@ -165,8 +165,9 @@ void main(){
     // border, a ring with amber lights, the tank's soft shadow, a red light strip on its sides. The floor: grating, hazard stripes
     // along the walls, the stand's shadow. The crates: olive, framed, each corner its own white symbol (a cross, a shield, a double
     // arrow, a lightning bolt). The walls: olive steel panels with rivets, grime streaks, rust, scorch marks, bullet dents, two
-    // pipes, and on the wall behind the tank only (where the line from the camera through the tank meets it) the Tanki logo (uLogo,
-    // its shape painted in bone white) in a ring with three chevrons beside (every 3200, between two girders), a girder every 800
+    // pipes, and on the wall behind the tank only (where the line from the camera through the tank meets it) the Tanki logo alone
+    // (uLogo, its shape painted in bone white; owner 2026-11-24: no ring, no chevrons), in the middle of that wall (u 0: clear of the
+    // rails at 0.55 and the pipes at 0.78 of uW), every 3200 up (between two girders, sliding down with the wall), a girder every 800
     // (warning stripes on every other one), two guide rails, a row of work lamps under each
     // girder (every fourth a red warning lamp) lighting the walls round them, darker corners; all sliding down by uRise (the lift
     // rising). A dark pit below, the bright way out far above, the beacon's beam on everything; the lift brighter by uRow (a lamp row
@@ -232,11 +233,7 @@ vec3 wall(float u,float v,float side,float back){
  col=mix(col,vec3(.07,.08,.07)*(.45+.9*sqrt(max(0.,1.-pu*pu/900.))),pipe);
  if(side==back){
   float k=floor(v/3200.);float ev=v-3200.*k-432.;
-  vec2 ep=vec2(u-(mod(side,2.)<1.?-uW*.32:uW*.32),ev);
-  float ring=abs(length(ep)-250.)-14.;
-  vec2 cp=vec2(ep.x-430.,ep.y);float chev=1e9;
-  for(int i=0;i<3;i++){vec2 c=vec2(abs(cp.x),cp.y+float(i-1)*80.);chev=min(chev,max(abs(c.y-c.x*.55)-16.,c.x-110.));}
-  float paint=max(1.-smoothstep(-2.,2.,min(ring,chev)),logo(ep,170.));
+  float paint=logo(vec2(u,ev),170.);
   col=mix(col,INK*(.55+.45*gr),paint*.55);}
  float g=fract(v/800.);float band=smoothstep(0.,.01,g)*(1.-smoothstep(.07,.08,g));
  col=mix(col,vec3(.14,.15,.14)*(1.-.5*smoothstep(0.,.075,g)),band);

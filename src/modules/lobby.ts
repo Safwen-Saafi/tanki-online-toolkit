@@ -65,8 +65,8 @@
     // out) and the drone (a ball round it, droneKeep wide) fades out to a tall square steel shaft round it, and back on cancel. The
     // lift fills the shaft from wall to wall: its floor floorDepth under the tank, and on it the tank's stand (deck from the tank each
     // way) on four steel legs round a hydraulic ram, with supply crates in the four corners. The walls (olive steel, rivets, grime,
-    // rust, scorch marks, bullet dents, pipes, on the wall behind the tank only the Tanki logo painted in a ring with chevrons between
-    // the girders (extension/lobby/tanki-logo.png, only its shape is used), girders with
+    // rust, scorch marks, bullet dents, pipes, on the wall behind the tank only the Tanki logo alone, in the middle of that wall,
+    // between the girders (extension/lobby/tanki-logo.png, only its shape is used), girders with
     // warning stripes, rows of work lamps under each girder, every fourth a red warning lamp) slide down at speed units a second
     // (easing in and out over ease seconds), a dark pit below, the bright way out far above; the beacon's beam sweeps everything. The
     // tank's light is the lift's own whatever the weather (liftLight), brighter with each lamp row it passes. The shaft is at least
