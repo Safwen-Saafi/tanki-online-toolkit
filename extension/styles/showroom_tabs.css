@@ -195,6 +195,38 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
         background: var(--kasp-showroom-tab-lit-icon) !important;
     }
 
+    /* the yellow "something new" dot (owner 2026-11-24: a new turret augment lit the Hulls tab, and so on down). The game does not put
+       it inside a tab: it adds it as the tab's next neighbour in the row (read in its code, build main.01433a16: after each tab whose
+       item says showNotifier, a 0.4 em yellow round box, pushed back over the tab by its own offsets). That works in the game's row;
+       in our column the neighbour stands between two tabs and its offsets put it on the tab below. So each tab is named by place, and
+       its dot is pinned to the top right of that tab, out of the column's flow (so it no longer adds a gap either). */
+    & .MenuComponentStyle-mainMenuItem:nth-child(1 of .MenuComponentStyle-mainMenuItem) { anchor-name: --kasp-showroom-tab-1; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(2 of .MenuComponentStyle-mainMenuItem) { anchor-name: --kasp-showroom-tab-2; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(3 of .MenuComponentStyle-mainMenuItem) { anchor-name: --kasp-showroom-tab-3; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(4 of .MenuComponentStyle-mainMenuItem) { anchor-name: --kasp-showroom-tab-4; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(5 of .MenuComponentStyle-mainMenuItem) { anchor-name: --kasp-showroom-tab-5; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(6 of .MenuComponentStyle-mainMenuItem) { anchor-name: --kasp-showroom-tab-6; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem) { anchor-name: --kasp-showroom-tab-7; }
+
+    & .MenuComponentStyle-mainMenuItem:nth-child(1 of .MenuComponentStyle-mainMenuItem) + :not(.MenuComponentStyle-mainMenuItem, .MenuComponentStyle-commonBlock) { position-anchor: --kasp-showroom-tab-1; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(2 of .MenuComponentStyle-mainMenuItem) + :not(.MenuComponentStyle-mainMenuItem, .MenuComponentStyle-commonBlock) { position-anchor: --kasp-showroom-tab-2; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(3 of .MenuComponentStyle-mainMenuItem) + :not(.MenuComponentStyle-mainMenuItem, .MenuComponentStyle-commonBlock) { position-anchor: --kasp-showroom-tab-3; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(4 of .MenuComponentStyle-mainMenuItem) + :not(.MenuComponentStyle-mainMenuItem, .MenuComponentStyle-commonBlock) { position-anchor: --kasp-showroom-tab-4; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(5 of .MenuComponentStyle-mainMenuItem) + :not(.MenuComponentStyle-mainMenuItem, .MenuComponentStyle-commonBlock) { position-anchor: --kasp-showroom-tab-5; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(6 of .MenuComponentStyle-mainMenuItem) + :not(.MenuComponentStyle-mainMenuItem, .MenuComponentStyle-commonBlock) { position-anchor: --kasp-showroom-tab-6; }
+    & .MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem) + :not(.MenuComponentStyle-mainMenuItem, .MenuComponentStyle-commonBlock) { position-anchor: --kasp-showroom-tab-7; }
+
+    & .MenuComponentStyle-mainMenuItem + :not(.MenuComponentStyle-mainMenuItem, .MenuComponentStyle-commonBlock) {
+        position: absolute !important;
+        top: calc(anchor(top) + 0.55em) !important;
+        left: calc(anchor(right) - 0.95em) !important;
+        right: auto !important;
+        bottom: auto !important;
+        margin: 0 !important;
+        z-index: 1 !important;
+        pointer-events: none !important;
+    }
+
     /* a key dims when there is no tab further that way */
     &:has(.MenuComponentStyle-mainMenuItem:nth-child(1 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) > :first-child:not(:has(.MenuComponentStyle-mainMenuItem)),
     &:has(.MenuComponentStyle-mainMenuItem:nth-last-child(1 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) > :last-child:not(:has(.MenuComponentStyle-mainMenuItem)) {
