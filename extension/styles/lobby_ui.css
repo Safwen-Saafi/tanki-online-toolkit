@@ -1081,11 +1081,45 @@ html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .Bre
 html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer > div:nth-child(2) { right: calc(var(--kasp-tb-right) + var(--kasp-tb-btn) + 0.8em) !important; }
 html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer > div:nth-child(1) { right: calc(var(--kasp-tb-right) + 2 * (var(--kasp-tb-btn) + 0.8em)) !important; }
 
-/* their icons in the middle */
-html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer > div:nth-child(1) > div:not(.-commonBlockForHotKey) {
+/* P premium is a square like the others, and only grows to the left when its days need more room (probe of 2026-11-24: the square's
+   inside is 57 px, "3000 D" is 58 px, "12345 D" 64 px): its right edge stays put, and the 1.6 em between it and the rank ring takes
+   the extra width */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer > div:nth-child(1) {
+    width: auto !important;
+    min-width: var(--kasp-tb-btn) !important;
+    padding: 0 0.25em !important;
+}
+
+/* P premium: the crown with the days left under it (owner 2026-11-24: the crown was gone, only the days showed, low in the square).
+   The game's box (read in its code, build main.01433a16): [ the P key, the crown (-backgroundImageCover, 2 x 2 em, an empty box with
+   the picture as its background), then a box that holds the days (UserInfoContainerStyle-tooltipTimer) only while premium is on ],
+   a column 6 em (96 px) tall, with the days in a tall line under the crown. Our square is 4.2 em, so the column did not fit, and the
+   crown, as the one part with nothing inside, was the part that gave way (a flex column shrinks what it can). So: the crown keeps its
+   2 em, and the days take one plain line under it, never broken in two (probe of 2026-11-24, lobby-premium-days-probe.js: "3000 D"
+   reached the square's 57 px inside and broke onto a second line, 33 px tall, out at the bottom; "999 D" is 46 px). */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer > div:nth-child(1) > .-backgroundImageCover {
     position: static !important;
+    flex: none !important;
     width: 2em !important;
     height: 2em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer > div:nth-child(1) > :not(.-commonBlockForHotKey, .-backgroundImageCover) {
+    position: static !important;
+    flex: none !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0.15em 0 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserInfoContainerStyle-userTitleContainer > div:nth-child(1) :is(.UserInfoContainerStyle-tooltipTimer, .UserInfoContainerStyle-tooltipTimer *) {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
 }
 
 html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .UserGroupTitleButtonComponentStyle-commonUserIconsBlockGroup {
