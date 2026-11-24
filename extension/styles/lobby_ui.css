@@ -1272,7 +1272,12 @@ html[data-kasp-lobby-ui] .UserInfoContainerStyle-progressValue {
    The game draws it in its pop-up layer (#modal-root, the whole window) at a fixed place, 95 x 97 px from the window's top left: right
    under where its T button stood in its own bar, never tied to the button (InvitationWindowsComponentStyle-commonItem, read in its code:
    used only by this list, for the list and for an empty layer behind it). Both bars have their T square at the same place, so the list
-   goes right under it, its right edge on the square's, in the bars' glass; its rows split by faint lines, lit on hover. */
+   goes right under it, its right edge on the square's, in the bars' glass; its rows split by faint lines, lit on hover.
+   It opens over the search box (owner 2026-11-24: it showed under it) because that box is on the tiles' layer in the lobby (see the
+   PLAY tile rules of the battle search): the list sits in the game's pop-up box (ModalStyle-transparent, the whole window, on layer
+   60, a closed group: probe of 2026-11-24, lobby-group-list-layer-probe.js), which was under the game's 100 for the search box.
+   Its glass is darker than the bars' (owner 2026-11-24: too see-through over the busy lobby): the same colours, its dark under-layer
+   at 0.92 instead of 0.75. */
 html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem {
     position: absolute !important;
     left: auto !important;
@@ -1280,7 +1285,9 @@ html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem {
     top: calc(var(--kasp-tb-top) + var(--kasp-tb-btn) + 0.6em) !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
-    background: var(--kasp-lu-glass) !important;
+    background:
+        linear-gradient(180deg, var(--kasp-lu-fill-top), var(--kasp-lu-fill) 45%),
+        hsl(from hsl(205 60% 5% / 0.92) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha) !important;
     border: 2px solid var(--kasp-lu-edge) !important;
     border-radius: var(--kasp-lu-radius) !important;
     box-shadow: inset 0 0.064em 0 var(--kasp-lu-inner), 0 0.6em 1.6em rgb(0 0 0 / 0.35) !important;
@@ -2318,6 +2325,11 @@ html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(
     /* PLAY's own ring, so the card's edge is exactly where PLAY's was */
     box-shadow: 0 0 0 2px hsl(100 100% 60% / 0.55), inset 0 0.064em 0 var(--kasp-lu-inner) !important;
     animation: kasp-search-card-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both !important;
+    /* on the tiles' layer, like Containers or Settings (owner 2026-11-24: it showed over the premium and ruby exchange windows and
+       over the group list). The game keeps its search box on layer 100, over its pop-ups (60), news (30) and the rest, which suits a
+       small box at the screen's edge; as the PLAY tile it is a tile, so every window opens over it, as over the other tiles. On the
+       other screens and the loading screen it stays a capsule on the game's 100. */
+    z-index: 3 !important;
 }
 
 html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-container::before {
