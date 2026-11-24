@@ -2194,7 +2194,7 @@ html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-container {
     -webkit-backdrop-filter: none !important;
 }
 
-/* the green dot that blinks while it searches */
+/* the green dot while it searches (steady: see the note at the mode icon below) */
 html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-container::before {
     content: '';
     position: absolute;
@@ -2204,13 +2204,11 @@ html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-container::before {
     border-radius: 50%;
     background: #76ff33;
     box-shadow: 0 0 0.6em #76ff33;
-    animation: kasp-search-blink 1.2s ease-in-out infinite;
     pointer-events: none;
 }
 
 /* No light gliding across (taken out 2026-11-24, probe 11: each of its 1.56 s sweeps, every 2.6 s for the whole search, held the lobby
-   at about 23 frames a second instead of about 175, the time lost in the game's 3D frame, the graphics card overloaded). The dot above
-   blinks with its opacity only, which the graphics card does on its own without drawing anything again. */
+   at about 23 frames a second instead of about 175, the time lost in the game's 3D frame, the graphics card overloaded). */
 
 html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-contentContainer {
     margin: 0 !important;
@@ -2293,28 +2291,20 @@ html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(
     top: 1.62em;
 }
 
-/* The mode's own picture (the game's faded scene, the box's first child) is not shown anywhere (owner 2026-11-24): the radar below
+/* The mode's own picture (the game's faded scene, the box's first child) is not shown anywhere (owner 2026-11-24): our mode icon below
    takes the card's right part. */
 html[data-kasp-lobby-ui] .MatchmakingWaitComponentStyle-container > :first-child:not(.MatchmakingWaitComponentStyle-contentContainer) {
     display: none !important;
 }
 
-/* The radar (owner 2026-11-24, in place of the gliding light; idea D of lobby-ideas/ui-search.html, then the owner's drawings and his
-   example picture): a big radar disc seen at a slant, in perspective, filling the card's right part and running off its edges. The
-   disc is 36 em across, its middle 10.5 em from the card's right (owner: 3 em further right than first) and 4.3 em from its top; laid back 62 degrees (seen from 45 em away,
-   so its far side is smaller and its near side runs off the card's bottom), then turned 12 degrees so it rises to the right. On it:
-   rings every 4.7 em, three lines through the middle, a bright middle and a green glow; a wide bright beam sweeping round it in its
-   own plane every 2.4 s; three blips that light up as the beam passes them, then fade. The text and CANCEL stay over it.
-   Where each part is drawn: the text box (contentContainer) covers the whole card (its old insets are its padding) and cuts everything
-   at the card's edge and round corners (overflow: hidden). The disc is the name's ::before, the beam the text box's ::after, the blips
-   three other free pseudo-elements, all placed in card units inside the text box, behind the text (the name and the time boxes are
-   made plain, so their pseudo-elements are placed in the text box).
-   For the frame rate (probe 11: the gliding light cost the lobby most of its frames; probe 12: the first radar cost nothing): the disc
-   is drawn once and never changes, the beam is one layer whose only change is its turn, the blips only fade; the turn and the fades
-   are done by the graphics card alone. The blips' places were worked out from points on the flat disc put through the same slant. */
+/* The mode's icon (owner 2026-11-24, in place of the radar, which made the lobby stutter in some sessions, probes 15 and 16; as idea C
+   of lobby-ideas/ui-search.html): the searched mode's own tile icon, big and faded, on the card's right part, running off its bottom
+   and right edges. Nothing on the card moves (the dot is steady too: in those sessions any running animation on the card, even the
+   dot's blink alone, held the lobby at 40-120 frames a second instead of about 175). lobby_ui.ts names the mode on <html>
+   (data-kasp-search-mode) when the card appears; with no mode found the card has no icon. The text box (contentContainer) covers
+   the whole card (its old insets are its padding) and cuts the icon at the card's edge and round corners (overflow: hidden). */
 html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-container {
     overflow: visible !important;
-    --kasp-radar-green: 118 255 51;
 }
 
 html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-contentContainer {
@@ -2326,80 +2316,31 @@ html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(
     position: static !important;
 }
 
-/* the disc (its text size set back to the card's: the name it hangs on is 1.875 times bigger, and every size here is in em) */
-html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-battleModeLabel::before {
-    content: '';
-    position: absolute;
-    z-index: -3;
-    font-size: calc(1em / 1.875);
-    top: -13.7em;
-    right: -7.5em;
-    width: 36em;
-    height: 36em;
-    border-radius: 50%;
-    background:
-        radial-gradient(circle, rgb(190 255 160 / 0.6) 0 0.3em, rgb(var(--kasp-radar-green) / 0.35) 0.4em, transparent 0.9em),
-        linear-gradient(0deg, transparent calc(50% - 1px), rgb(var(--kasp-radar-green) / 0.2) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
-        linear-gradient(60deg, transparent calc(50% - 1px), rgb(var(--kasp-radar-green) / 0.2) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
-        linear-gradient(120deg, transparent calc(50% - 1px), rgb(var(--kasp-radar-green) / 0.2) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
-        repeating-radial-gradient(circle, transparent 0 calc(4.7em - 2px), rgb(var(--kasp-radar-green) / 0.25) calc(4.7em - 2px) 4.7em),
-        radial-gradient(circle, rgb(var(--kasp-radar-green) / 0.12), rgb(var(--kasp-radar-green) / 0.05) 30%, rgb(var(--kasp-radar-green) / 0.015) 60%, transparent 71%);
-    transform: rotate(-12deg) perspective(45em) rotateX(62deg);
-    pointer-events: none;
-}
-
-/* the beam: a wide soft green wedge brightening to a pale leading edge, turning clockwise in the disc's plane */
-html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-contentContainer::after {
-    content: '';
-    position: absolute;
-    z-index: -2;
-    top: -13.7em;
-    right: -7.5em;
-    width: 36em;
-    height: 36em;
-    border-radius: 50%;
-    background: conic-gradient(transparent 0 68%, rgb(var(--kasp-radar-green) / 0.03) 68%, rgb(var(--kasp-radar-green) / 0.13) 92%, rgb(var(--kasp-radar-green) / 0.3) 99.3%, rgb(200 255 170 / 0.55) 99.3% 100%);
-    transform: rotate(-12deg) perspective(45em) rotateX(62deg) rotate(0deg);
-    animation: kasp-search-radar 2.4s linear infinite;
-    pointer-events: none;
-}
-
-/* three blips, each lit the moment the beam passes it (its angle from the top of the disc, clockwise, as a share of the 2.4 s turn) */
-html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) :is(.MatchmakingWaitComponentStyle-currentTimeContainer::before, .MatchmakingWaitComponentStyle-currentTimeContainer::after, .MatchmakingWaitComponentStyle-battleModeLabel::after) {
+/* the icon, white like the tiles' icons (the game's picture as a mask), at the prototype's size and place (16.2 x 15.2 em, 1.25 em
+   past the card's right, 0.62 em from its top) and its faintness */
+html[data-kasp-lobby-ui][data-kasp-search-mode]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-contentContainer::after {
     content: '';
     position: absolute;
     z-index: -1;
-    width: 0.42em;
-    height: 0.42em;
-    border-radius: 50%;
-    background: rgb(200 255 170 / 0.7);
-    box-shadow: 0 0 0.5em rgb(var(--kasp-radar-green) / 0.5);
-    opacity: 0;
-    animation: kasp-search-blip 2.4s linear infinite;
+    top: 0.62em;
+    right: -1.25em;
+    width: 16.2em;
+    height: 15.2em;
+    background: #fff;
+    -webkit-mask: var(--kasp-search-icon) center / contain no-repeat;
+    mask: var(--kasp-search-icon) center / contain no-repeat;
+    opacity: 0.08;
     pointer-events: none;
 }
 
-/* 7 em out at 60 degrees */
-html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-currentTimeContainer::before {
-    top: 1.41em;
-    right: 5.06em;
-    animation-delay: 0.4s;
-}
-
-/* 5.5 em out at 140 degrees */
-html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-currentTimeContainer::after {
-    top: 5.4em;
-    right: 6.07em;
-    animation-delay: 0.933s;
-}
-
-/* 8 em out at 250 degrees (on the name: its text size set back to the card's, like the disc) */
-html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-battleModeLabel::after {
-    font-size: calc(1em / 1.875);
-    top: 7.07em;
-    right: 17.78em;
-    animation-delay: 1.667s;
-}
+html[data-kasp-search-mode="qb"] { --kasp-search-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/qb_mode.svg"); }
+html[data-kasp-search-mode="tdm"] { --kasp-search-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/tdm_mode.svg"); }
+html[data-kasp-search-mode="cp"] { --kasp-search-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/cp_mode.svg"); }
+html[data-kasp-search-mode="ctf"] { --kasp-search-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/ctf_mode.svg"); }
+html[data-kasp-search-mode="sge"] { --kasp-search-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/sge_mode.svg"); }
+html[data-kasp-search-mode="jg"] { --kasp-search-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/jg_mode.svg"); }
+html[data-kasp-search-mode="rgb"] { --kasp-search-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/rgb_mode.svg"); }
+html[data-kasp-search-mode="asl"] { --kasp-search-icon: url("chrome-extension://__MSG_@@extension_id__/lobby/asl_mode.svg"); }
 
 html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(:has(.LobbyLoaderComponentStyle-container)) .MatchmakingWaitComponentStyle-contentContainer {
     position: absolute !important;
@@ -2610,24 +2551,32 @@ html[data-kasp-lobby-ui]:is(:not(:has(.MainScreenComponentStyle-playButtonContai
     font-size: 0.8em !important;
 }
 
-@keyframes kasp-search-blink {
-    50% { opacity: 0.25; }
-}
-
-@keyframes kasp-search-radar {
-    from { transform: rotate(-12deg) perspective(45em) rotateX(62deg) rotate(0deg); }
-    to { transform: rotate(-12deg) perspective(45em) rotateX(62deg) rotate(1turn); }
-}
-
-@keyframes kasp-search-blip {
-    0% { opacity: 1; }
-    40%, 100% { opacity: 0; }
-}
-
 @keyframes kasp-search-card-in {
     from { opacity: 0; scale: 0.97; }
 }
 
 @keyframes kasp-search-pill-in {
     from { opacity: 0; scale: 0.9; }
+}
+
+/* ---------- THE BATTLE SEARCH MOMENT (26d step 9): when the search starts and stops ----------
+   A 1 ms animation on <body> that changes its name when the game's search box comes or goes, on every screen and whatever the
+   "Lobby buttons" switch: each change starts the new one, and its start tells lobby_search.ts (the search's sounds, and through it
+   lobby.ts: the camera, the drone, the hangar light). Nothing runs between. The body has no outline, so nothing is seen. */
+html:has(.MatchmakingWaitComponentStyle-container) body {
+    animation: kasp-search-on 1ms;
+}
+
+html:not(:has(.MatchmakingWaitComponentStyle-container)) body {
+    animation: kasp-search-off 1ms;
+}
+
+@keyframes kasp-search-on {
+    from { outline-color: transparent; }
+    to { outline-color: transparent; }
+}
+
+@keyframes kasp-search-off {
+    from { outline-color: transparent; }
+    to { outline-color: transparent; }
 }

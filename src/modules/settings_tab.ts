@@ -27,7 +27,7 @@
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
     const DIVIDER_BLOCK_CLASS = 'SettingsComponentStyle-commonBlock';
 
-    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'lobby' | 'shop' | 'interface' | 'colour' | 'tabColours' | 'loading';
+    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'lobby' | 'search' | 'shop' | 'interface' | 'colour' | 'tabColours' | 'loading';
 
     interface SwitchEntry {
         // The localStorage key the feature's module reads.
@@ -49,6 +49,7 @@
         { id: 'chat', heading: { EN: 'Chat', RU: 'Чат' } },
         { id: 'garage', heading: { EN: 'Garage', RU: 'Гараж' } },
         { id: 'lobby', heading: { EN: 'Lobby', RU: 'Лобби' } },
+        { id: 'search', heading: { EN: 'Battle search', RU: 'Поиск боя' } },
         { id: 'shop', heading: { EN: 'Shop', RU: 'Магазин' } },
         { id: 'interface', heading: { EN: 'Interface', RU: 'Интерфейс' } },
         // No switch: its row of colour circles (THEME_COLOURS).
@@ -95,6 +96,16 @@
         // Read by lobby_ui.ts when the game starts: the lobby's parts on the right in glass, the 8 mode tiles and the glass top bar of the lobby and every other screen (26d1,
         // 26d2, a change needs a reload).
         { key: 'kasp_lobbyui', group: 'lobby', live: false, label: { EN: 'Lobby buttons', RU: 'Кнопки лобби' } },
+        // Read by lobby_search.ts at each search start (26d step 9): the camera, drone and light need "Lobby camera and look" (and the
+        // drone "Drone flight"), the sonar's pings with the radar "Lobby buttons" (the radar is on its PLAY card).
+        { key: 'kasp_searchcamera', group: 'search', live: true, label: { EN: 'Ready camera', RU: 'Камера готовности' } },
+        // the one sound picked in its dropdown below (owner 2026-11-24: a sonar and an alarm never together)
+        { key: 'kasp_searchsound', group: 'search', live: true, label: { EN: 'Search sound', RU: 'Звук поиска' } },
+        { key: 'kasp_searchdrone', group: 'search', live: true, label: { EN: 'Drone escort', RU: 'Дрон рядом с танком' } },
+        // a new key (owner 2026-11-24: no sirens seen; the old "Hangar on alert" switch may have been left off from the green try)
+        { key: 'kasp_searchsiren', group: 'search', live: true, label: { EN: 'Emergency lights', RU: 'Аварийные огни' } },
+        // 26d step 10: the hangar fades out to the waiting room round the tank while searching (needs "Lobby camera and look")
+        { key: 'kasp_searchroom', group: 'search', live: true, label: { EN: 'Waiting room', RU: 'Комната ожидания' } },
         // Read by the injector when the game starts: the daily offer's click buys without the success dialog (a change needs a reload).
         { key: 'kasp_shopquickbuy', group: 'shop', live: false, label: { EN: 'Daily offer quick buying', RU: 'Быстрая покупка ежедневного предложения' } },
         { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },
@@ -176,6 +187,19 @@
                 { value: 'studio', label: { EN: 'Studio', RU: 'Студия' } },
                 { value: 'showroom', label: { EN: 'Showroom', RU: 'Витрина' } },
                 { value: 'stage', label: { EN: 'Stage (moving light)', RU: 'Сцена (движущийся свет)' } },
+            ],
+        },
+        // The battle search's sound (26d step 9), read by lobby_search.ts at each search start; its fallback is also written there
+        // (SOUNDS' first). Change both together.
+        {
+            key: 'kasp_searchsoundpick',
+            after: 'kasp_searchsound',
+            title: { EN: 'Sound', RU: 'Звук' },
+            fallback: 'sonar',
+            options: [
+                { value: 'sonar', label: { EN: 'Sonar (with the radar)', RU: 'Сонар (с радаром)' } },
+                { value: 'alarm', label: { EN: 'Alarm siren', RU: 'Сирена тревоги' } },
+                { value: 'redalert', label: { EN: 'Red alert buzzer', RU: 'Красная тревога' } },
             ],
         },
         // The lobby's look (build-plan 26f), read by lobby.ts and hangar_files.ts when the game starts: the one list of lobby_looks.ts,

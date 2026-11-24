@@ -574,6 +574,42 @@ interface KaspLobbyAtmos {
 }
 
 // Everything one frame of the pass reads (the probe's buildFrame result); a later part adds its stage's field.
+// The warning beacon (26d step 9): per light (up to 8, now one) its turning beam's colour x strength (rot, 3 each), its glow all
+// round (stb, 3 each) and the beam's direction on the ground (dir, 2 each); reach = the glow's reach, beamReach the beam's, beam =
+// how narrow the beam is.
+interface KaspLobbySiren {
+    readonly lamps: ReadonlyArray<readonly number[]>;
+    readonly rot: Float32Array;
+    readonly stb: Float32Array;
+    readonly dir: Float32Array;
+    readonly reach: number;
+    readonly beamReach: number;
+    readonly beam: number;
+}
+
+// The waiting room, the launch lift (26d step 10): how far it has faded in (amount), the tank base, the cylinder round it that is
+// kept (radius, the floor height it starts over, the top, soft edges), the stand's half size, the drone's place and the ball
+// round it that is kept (x, y, z, radius; radius 0 = none), how near the tank is to a lamp row
+// (row, 0 to 1); the shaft's half width, how far the lift has risen (the walls' slide), and the beacon's beam (its colour x strength,
+// 0 without it, and its direction on the ground).
+interface KaspLobbyRoom {
+    readonly amount: number;
+    readonly base: readonly number[];
+    readonly radius: number;
+    readonly floor: number;
+    readonly top: number;
+    readonly soft: number;
+    readonly deck: number;
+    readonly drone: readonly number[];
+    readonly row: number;
+    readonly width: number;
+    readonly rise: number;
+    readonly beamCol: readonly number[];
+    readonly beamDir: readonly number[];
+    // the Tanki logo's picture (only its shape is used), null until it is read
+    readonly logo: ImageBitmap | null;
+}
+
 interface KaspLobbyPassFrame {
     readonly vp: Float32Array;
     readonly cam: readonly [number, number, number];
@@ -658,6 +694,10 @@ interface KaspLobbyPassFrame {
     readonly fixtures: { readonly asset: KaspLobbyAsset; readonly alpha: number; readonly cones: number } | null;
     // Stage 1c (26f2): the ring lamps' light.
     readonly lamps: { readonly list: ReadonlyArray<readonly number[]>; readonly power: number; readonly reach: number; readonly glow: number; readonly color: readonly number[] } | null;
+    // Stage 1c2 (26d step 9): the emergency lights on the ring lamps while the game searches; null otherwise.
+    readonly siren: KaspLobbySiren | null;
+    // Stage 5 (26d step 10): the waiting room while the game searches, laid over everything but the tank; null otherwise.
+    readonly room: KaspLobbyRoom | null;
     // Stage 2a2 (26f4b): the night's lights out on the street, the street lamps and the red warning light; null by day.
     readonly nightx: KaspLobbyStreetLights | null;
     // Stage 2a2b (26f4a): the clear night's extras, the town's lit windows and the shooting star; null by day.
@@ -883,6 +923,8 @@ interface KaspLobbyDayExtras {
 interface KaspLobbyGpu {
     readonly draw: (frame: KaspLobbyPassFrame) => void;
     readonly dispose: () => void;
+    // For the owner's console checks (26d step 9): the emergency lights' program (made, or why not) and how often they were drawn.
+    readonly siren: () => { readonly program: string; readonly drawn: number };
 }
 
 interface KaspLobbyPassApi {
@@ -931,8 +973,21 @@ interface KaspLobby {
     readonly state: Readonly<Record<string, unknown>>;
 }
 
+// The battle search moment (26d step 9, src/modules/lobby_search.ts), read by lobby.ts in its lobby frames: on while the game
+// searches; the other four are the switches as they were at the search's start .
+interface KaspSearch {
+    on: boolean;
+    camera: boolean;
+    drone: boolean;
+    alert: boolean;
+    room: boolean;
+}
+
 interface Window {
     __kaspLobby?: KaspLobby;
+    __kaspSearch?: KaspSearch;
+    // For the owner's console checks (26d step 10, lobby_search.ts): stop or start the search's sound.
+    __kaspSearchSound?: { readonly stop: () => void; readonly play: () => void };
     // Added to the game's code by the injector (26d1, the lobby's mode tiles): starts the battle mode whose game name is in names with
     // the game's own action, given to the game's store; false when it could not.
     __kaspModeStart?: (names: readonly string[]) => boolean;

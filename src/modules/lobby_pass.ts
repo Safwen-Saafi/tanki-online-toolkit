@@ -137,6 +137,246 @@ void main(){
   float r=distance(gl_FragCoord.xy,px)/max(2.,uViewport.y*45./c.w);
   acc+=uCol*vis*(exp(-r*r*3.)*1.2+exp(-r*1.6)*.22);}
  o=vec4(acc*uGlow,0.);}`;
+    // 26d step 9: the rotating warning beacon while the game searches (ours, not a probe's), multiplied like the lamps' light: its
+    // turning beam, a narrow wedge sweeping the ground and the walls round it, reaching far, plus its faint glow all round, nearer.
+    const SIREN_FS = `#version 300 es
+${DEPTH_GLSL}
+uniform vec3 uLamp[8];uniform vec3 uRot[8];uniform vec3 uStb[8];uniform vec2 uDir[8];uniform int uN;
+uniform float uReach,uBeamReach,uBeam;out vec4 o;
+void main(){
+ Px x=look();if(x.d>=.99999)discard;
+ vec3 n=cross(dFdx(x.p),dFdy(x.p));float ln=length(n);n=ln>0.?n/ln:vec3(0.,0.,1.);if(dot(n,uCam-x.p)<0.)n=-n;
+ vec3 L=vec3(0.);
+ for(int i=0;i<8;i++){if(i>=uN)break;vec3 d=uLamp[i]-x.p;float dist=length(d);vec3 l=d/max(dist,1.);
+  float face=.3+.7*max(dot(n,l),0.);
+  float nr=1./(1.+dist*dist/(uReach*uReach));
+  float fr=1./(1.+dist*dist/(uBeamReach*uBeamReach));
+  vec2 h=x.p.xy-uLamp[i].xy;float hl=length(h);
+  float beam=hl>1.?pow(max(dot(h/hl,uDir[i]),0.),uBeam)*smoothstep(20.,140.,hl):0.;
+  L+=(uRot[i]*(beam*fr)+uStb[i]*nr)*face;}
+ o=vec4(L*(1.-x.k),1.);}`;
+    // 26d step 10: the waiting room, the launch lift. Every pixel that is not the tank (a cylinder round the tank base over the floor,
+    // from the game's depth) or the drone (a ball round it) shows, as far as the room has faded in, what the pixel's own line of
+    // sight from the camera meets first in our lift: the tall square shaft (along the hangar's two ways, uW from the tank each way),
+    // the lift's floor filling it from wall to wall 320 under the tank, and on it the tank's stand (uDeck from the tank each way, 40
+    // deep) on four steel legs round a hydraulic ram, military steel stairs from the stand down to the floor on its side to the
+    // screen's right, going down towards the player (a landing, seven grating treads with yellow edges, side plates, yellow rails),
+    // and a supply crate stack in each corner. The stand: tread plate, a hazard
+    // border, a ring with amber lights, the tank's soft shadow, a red light strip on its sides. The floor: grating, hazard stripes
+    // along the walls, the stand's shadow. The crates: olive, framed, each corner its own white symbol (a cross, a shield, a double
+    // arrow, a lightning bolt). The walls: olive steel panels with rivets, grime streaks, rust, scorch marks, bullet dents, two
+    // pipes, and on the wall behind the tank only (where the line from the camera through the tank meets it) the Tanki logo (uLogo,
+    // its shape painted in bone white) in a ring with three chevrons beside (every 3200, between two girders), a girder every 800
+    // (warning stripes on every other one), two guide rails, a row of work lamps under each
+    // girder (every fourth a red warning lamp) lighting the walls round them, darker corners; all sliding down by uRise (the lift
+    // rising). A dark pit below, the bright way out far above, the beacon's beam on everything; the lift brighter by uRow (a lamp row
+    // near).
+    const ROOM_FS = `#version 300 es
+${DEPTH_GLSL}
+uniform vec3 uBase,uBeamCol;uniform vec2 uBeamDir;uniform vec4 uDrone;uniform float uR,uFloor,uTop,uSoft,uAmt,uW,uRise,uRow,uDeck,uHasLogo;
+uniform highp sampler2D uLogo;out vec4 o;
+const float FD=320.;const vec3 INK=vec3(.8,.76,.62);
+// the stairs: SR up each step, SG along, SW wide, their first tread SS along the stand's side (their landing just before)
+// (owner 2026-11-24: the landing at the far end of the stand's side, so SS = -460 + SW; the stand is 460 each way)
+const float SR=40.,SG=58.,SW=170.,SS=-290.;
+// world units a pixel covers where the ray hits (for the logo's sharpness)
+float gPx=1.;
+float hs(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float vn(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.-2.*f);
+ return mix(mix(hs(i),hs(i+vec2(1.,0.)),f.x),mix(hs(i+vec2(0.,1.)),hs(i+vec2(1.,1.)),f.x),f.y);}
+// the Tanki logo's paint (0..1) at q from its middle (y up), hh = half its height; the picture is 400 x 388
+float logo(vec2 q,float hh){
+ if(uHasLogo<.5)return 0.;
+ vec2 uv=vec2(q.x/(hh*2.0619)+.5,.5-q.y/(hh*2.));
+ if(uv.x<0.||uv.x>1.||uv.y<0.||uv.y>1.)return 0.;
+ return textureLod(uLogo,uv,log2(max(194./hh*gPx,1.))).a;}
+// a capsule (a hand rail) from pa to pb, r thick (worked in hundredths so the numbers stay small)
+float cap(vec3 ro,vec3 rd,vec3 pa,vec3 pb,float r,out vec3 nr){
+ const float K=.01;vec3 ba=(pb-pa)*K;vec3 oa=(ro-pa)*K;r*=K;nr=vec3(0.,0.,1.);
+ float baba=dot(ba,ba),bard=dot(ba,rd),baoa=dot(ba,oa),rdoa=dot(rd,oa),oaoa=dot(oa,oa);
+ float aa=baba-bard*bard,bb=baba*rdoa-baoa*bard,cc=baba*oaoa-baoa*baoa-r*r*baba,h=bb*bb-aa*cc;
+ if(h<0.||aa<1e-7)return 1e9;
+ float t=(-bb-sqrt(h))/aa;float y=baoa+t*bard;
+ if(y<0.||y>baba){vec3 oc=y<=0.?oa:oa-ba;bb=dot(rd,oc);cc=dot(oc,oc)-r*r;h=bb*bb-cc;if(h<0.)return 1e9;t=-bb-sqrt(h);}
+ if(t<=0.)return 1e9;
+ vec3 p=oa+rd*t;nr=normalize(p-ba*clamp(dot(p,ba)/baba,0.,1.));return t/K;}
+float box(vec3 ro,vec3 rd,vec3 lo,vec3 hi,out vec3 nr){
+ vec3 r2=mix(rd,vec3(1e-6),step(abs(rd),vec3(1e-6)));
+ vec3 t0=(lo-ro)/r2;vec3 t1=(hi-ro)/r2;vec3 tn=min(t0,t1);vec3 tf=max(t0,t1);
+ float a=max(max(tn.x,tn.y),tn.z);float b=min(min(tf.x,tf.y),tf.z);
+ nr=vec3(0.,0.,1.);if(b<a||a<=0.)return 1e9;
+ nr=a==tn.x?vec3(-sign(rd.x),0.,0.):a==tn.y?vec3(0.,-sign(rd.y),0.):vec3(0.,0.,-sign(rd.z));return a;}
+float cyl(vec3 ro,vec3 rd,vec2 c,float r,float z0,float z1,out vec3 nr){
+ vec2 oc=ro.xy-c;float a=dot(rd.xy,rd.xy);float b=dot(oc,rd.xy);float cc=dot(oc,oc)-r*r;float h=b*b-a*cc;
+ nr=vec3(0.,0.,1.);if(a<1e-8||h<0.)return 1e9;
+ float t=(-b-sqrt(h))/a;if(t<=0.)return 1e9;
+ float z=ro.z+rd.z*t;if(z<z0||z>z1)return 1e9;
+ nr=vec3((oc+rd.xy*t)/r,0.);return t;}
+float hazard(float s){return step(.5,fract(s/90.));}
+vec3 stripes(float s){return mix(vec3(.02),vec3(.85,.62,.05)*.6,hazard(s));}
+vec3 wall(float u,float v,float side,float back){
+ vec2 q=vec2(u/300.,v/400.);vec2 cell=floor(q);vec2 f=fract(q);
+ float pan=.6+.3*hs(cell+side*17.);
+ float seam=smoothstep(0.,.012,f.x)*smoothstep(0.,.012,1.-f.x)*smoothstep(0.,.01,f.y)*smoothstep(0.,.01,1.-f.y);
+ vec3 col=vec3(.085,.1,.085)*pan*(.55+.45*seam);
+ vec2 rc=(f-.5)*vec2(300.,400.);
+ col+=(1.-smoothstep(5.,8.,length(abs(rc)-vec2(135.,185.))))*.035;
+ float gr=vn(vec2(u/70.,v/900.)+side*7.);float sc=vn(vec2(u/520.,v/520.)+side*3.);
+ col*=.65+.45*gr;
+ col=mix(col,vec3(.13,.07,.03)*.8,smoothstep(.7,.95,gr)*.5);
+ col*=1.-.6*smoothstep(.62,.85,sc);
+ vec2 dc=floor(vec2(u,v)/120.);vec2 dp=vec2(u,v)-dc*120.-60.-(vec2(hs(dc+3.1),hs(dc+7.7))-.5)*70.;
+ float dent=step(hs(dc+side)*1.,.07)*(1.-smoothstep(5.,8.,length(dp)));
+ col=mix(col,vec3(.015),dent);
+ float pu=abs(abs(u)-uW*.78);float pipe=1.-smoothstep(26.,30.,pu);
+ col=mix(col,vec3(.07,.08,.07)*(.45+.9*sqrt(max(0.,1.-pu*pu/900.))),pipe);
+ if(side==back){
+  float k=floor(v/3200.);float ev=v-3200.*k-432.;
+  vec2 ep=vec2(u-(mod(side,2.)<1.?-uW*.32:uW*.32),ev);
+  float ring=abs(length(ep)-250.)-14.;
+  vec2 cp=vec2(ep.x-430.,ep.y);float chev=1e9;
+  for(int i=0;i<3;i++){vec2 c=vec2(abs(cp.x),cp.y+float(i-1)*80.);chev=min(chev,max(abs(c.y-c.x*.55)-16.,c.x-110.));}
+  float paint=max(1.-smoothstep(-2.,2.,min(ring,chev)),logo(ep,170.));
+  col=mix(col,INK*(.55+.45*gr),paint*.55);}
+ float g=fract(v/800.);float band=smoothstep(0.,.01,g)*(1.-smoothstep(.07,.08,g));
+ col=mix(col,vec3(.14,.15,.14)*(1.-.5*smoothstep(0.,.075,g)),band);
+ if(mod(floor(v/800.),2.)<1.)col=mix(col,stripes(u+v),band);
+ float rail=1.-smoothstep(18.,26.,abs(abs(u)-uW*.55));col=mix(col,vec3(.045,.05,.045),rail);
+ col*=.45+.55*smoothstep(0.,uW*.35,uW-abs(u));
+ float lv=v-740.-floor((v-740.)/800.+.5)*800.;
+ float li=floor(u/260.+.5);float lu=u-li*260.;
+ float lamp=exp(-(lu*lu+lv*lv*4.)/180.);
+ float wash=exp(-lv*lv/(260.*260.));
+ vec3 lc=mod(li,4.)<1.?vec3(1.,.08,.04)*2.6:vec3(1.,.85,.6)*2.2;
+ return col*(.35+1.1*wash)+lc*lamp;}
+vec3 stand(vec3 p,vec3 nr){
+ vec3 col;
+ if(nr.z>.5){
+  float r=length(p.xy);
+  vec2 dq=fract(vec2(p.x+p.y,p.x-p.y)/46.)-.5;
+  col=vec3(.12,.125,.12)*(.85+.25*smoothstep(.2,.08,abs(dq.x)+abs(dq.y)));
+  col*=.75+.35*vn(p.xy/90.);
+  float e=uDeck-max(abs(p.x),abs(p.y));
+  col=mix(col,stripes(p.x+p.y),smoothstep(0.,3.,e)*(1.-smoothstep(50.,54.,e)));
+  float seg=step(.35,fract(atan(p.y,p.x)/6.2831853*32.));
+  col+=vec3(1.,.55,.08)*(1.-smoothstep(6.,10.,abs(r-uDeck+85.)))*seg*1.4;
+  col*=mix(.3,1.,smoothstep(160.,uDeck-40.,r));
+ } else {
+  float s=abs(nr.x)>.5?p.y:p.x;
+  col=vec3(.06,.065,.06)*(.8+.3*step(.5,fract(s/40.)));
+  col+=vec3(1.,.06,.03)*(1.-smoothstep(3.,6.,abs(p.z+20.)))*1.8;
+ }
+ return col;}
+// a tread or the landing of the stairs: steel grating, a yellow edge where it steps down (l = along the stand's side)
+vec3 tread(vec3 p,vec3 nr,float l){
+ vec2 g=abs(fract(p.xy/22.)-.5);
+ vec3 c=vec3(.1,.105,.1)*(.55+.45*smoothstep(.3,.4,max(g.x,g.y)));
+ float nose=nr.z<.5?1.:l>SS?smoothstep(.8,.83,fract((l-SS)/SG)):smoothstep(-22.,-19.,l-SS);
+ return mix(c,vec3(.85,.62,.05)*.7,nose);}
+// a box of the stairs from l0 to l1 along the stand's side (st), n0 to n1 out from it (sn), z0 to z1 high
+float sbox(vec3 ro,vec3 rd,vec2 st,vec2 sn,vec4 ln,vec2 z,out vec3 nr){
+ vec2 c0=st*ln.x+sn*(uDeck+ln.z);vec2 c1=st*ln.y+sn*(uDeck+ln.w);
+ return box(ro,rd,vec3(min(c0,c1),z.x),vec3(max(c0,c1),z.y),nr);}
+vec3 floorCol(vec3 p){
+ vec2 g=abs(fract(p.xy/60.)-.5);
+ vec3 col=vec3(.07,.075,.07)*(.6+.4*smoothstep(.42,.46,max(g.x,g.y)));
+ col*=.8+.3*vn(p.xy/150.);
+ float e=uW-max(abs(p.x),abs(p.y));
+ col=mix(col,stripes(p.x+p.y),1.-smoothstep(80.,84.,e));
+ float sh=max(abs(p.x),abs(p.y))-uDeck;
+ col*=mix(.25,1.,smoothstep(-40.,140.,sh));
+ return col;}
+vec3 crate(vec3 p,vec3 nr,vec3 c,vec3 hb,float kind){
+ vec3 q=p-c;
+ vec2 uv=abs(nr.z)>.5?q.xy:(abs(nr.x)>.5?q.yz:q.xz);
+ vec2 hsz=abs(nr.z)>.5?hb.xy:(abs(nr.x)>.5?hb.yz:hb.xz);
+ vec2 e=hsz-abs(uv);
+ vec3 col=vec3(.16,.18,.1)*(.8+.3*vn(p.xy/40.+p.z/40.));
+ col=mix(col,vec3(.07,.08,.05),1.-smoothstep(10.,13.,min(e.x,e.y)));
+ if(abs(nr.z)<.5){
+  vec2 s=uv/min(hsz.x,hsz.y);float d;
+  if(kind<.5)d=min(max(abs(s.x)-.45,abs(s.y)-.13),max(abs(s.x)-.13,abs(s.y)-.45));
+  else if(kind<1.5)d=max(length(vec2(s.x,max(s.y,0.)))-.42,max(abs(s.x)+max(-s.y,0.)*.9-.42,-s.y-.5));
+  else if(kind<2.5){vec2 a=vec2(abs(s.x),s.y);d=min(max(abs(a.y-.15-(.4-a.x)*.9)-.08,a.x-.4),max(abs(a.y+.25-(.4-a.x)*.9)-.08,a.x-.4));}
+  else{d=max(abs(s.x+s.y*.35-(s.y>0.?.1:-.1))-.1,abs(s.y)-.5);}
+  col=mix(col,vec3(.8,.8,.72),1.-smoothstep(-.02,.02,d));}
+ return col;}
+void main(){
+ Px x=look();
+ float keep=0.;
+ if(x.d<.99999){
+  float r=length(x.p.xy-uBase.xy);
+  keep=(1.-smoothstep(uR-uSoft,uR,r))*smoothstep(uFloor,uFloor+uSoft*.4,x.p.z)*(1.-smoothstep(uTop-uSoft,uTop,x.p.z));
+  if(uDrone.w>0.)keep=max(keep,1.-smoothstep(uDrone.w-20.,uDrone.w,distance(x.p,uDrone.xyz)));}
+ float a=uAmt*(1.-keep);
+ if(a<.002)discard;
+ vec2 ax=normalize(uOut);vec2 ay=vec2(-ax.y,ax.x);
+ vec3 ro=vec3(dot(uCam.xy-uBase.xy,ax),dot(uCam.xy-uBase.xy,ay),uCam.z-uBase.z);
+ vec3 rd=vec3(dot(x.dir.xy,ax),dot(x.dir.xy,ay),x.dir.z);
+ vec3 L=normalize(vec3(normalize(ro.xy+vec2(.001))*.5,1.));
+ float tx=abs(rd.x)>1e-5?((rd.x>0.?uW:-uW)-ro.x)/rd.x:1e9;
+ float ty=abs(rd.y)>1e-5?((rd.y>0.?uW:-uW)-ro.y)/rd.y:1e9;
+ float t=max(min(tx,ty),0.);int what=0;vec3 nr=vec3(0.,0.,1.);
+ if(rd.z<0.){float tf=(-FD-ro.z)/rd.z;if(tf>0.&&tf<t){t=tf;what=1;nr=vec3(0.,0.,1.);}}
+ vec3 n4;float t4;
+ t4=box(ro,rd,vec3(-uDeck,-uDeck,-40.),vec3(uDeck,uDeck,0.),n4);if(t4<t){t=t4;what=2;nr=n4;}
+ t4=cyl(ro,rd,vec2(0.),95.,-FD,-40.,n4);if(t4<t){t=t4;what=3;nr=n4;}
+ for(int i=0;i<4;i++){vec2 c=vec2(i<2?1.:-1.,mod(float(i),2.)<1.?1.:-1.)*(uDeck-70.);
+  t4=cyl(ro,rd,c,34.,-FD,-40.,n4);if(t4<t){t=t4;what=4;nr=n4;}}
+ // the stairs (owner 2026-11-24, drawn on his screenshot), on the stand's side to the screen's right (sn out of it, from the camera),
+ // going down along it towards the player (st): a landing at the stand's top, seven treads, two side plates, yellow hand rails (high
+ // and middle) on the outer side and at the landing's end, on posts
+ vec4 ra=uInv*vec4(1.,0.,0.,1.),rb=uInv*vec4(-1.,0.,0.,1.);vec3 rw=ra.xyz/ra.w-rb.xyz/rb.w;
+ vec2 st=abs(ro.x)>abs(ro.y)?vec2(sign(ro.x),0.):vec2(0.,sign(ro.y));
+ vec2 sn=vec2(-st.y,st.x);if(dot(sn,vec2(dot(rw.xy,ax),dot(rw.xy,ay)))<0.)sn=-sn;
+ t4=sbox(ro,rd,st,sn,vec4(SS-SW,SS,0.,SW),vec2(-14.,0.),n4);if(t4<t){t=t4;what=6;nr=n4;}
+ for(int i=0;i<7;i++){
+  t4=sbox(ro,rd,st,sn,vec4(SS+float(i)*SG-3.,SS+float(i+1)*SG+3.,6.,SW-6.),vec2(-float(i+1)*SR-8.,-float(i+1)*SR),n4);
+  if(t4<t){t=t4;what=6;nr=n4;}}
+ float dn=dot(rd.xy,sn);
+ if(abs(dn)>1e-5)for(int j=0;j<2;j++){
+  float tp=(uDeck+(j==0?4.:SW)-dot(ro.xy,sn))/dn;
+  if(tp>0.&&tp<t){vec3 pp=ro+rd*tp;float l=dot(pp.xy,st);float zl=-(l-SS)*SR/SG;
+   if(l>SS+4.&&l<SS+7.6*SG&&pp.z<zl+10.&&pp.z>max(zl-80.,-FD)){t=tp;what=7;nr=vec3(-sign(dn)*sn,0.);}}}
+ vec3 rA=vec3(st*SS+sn*(uDeck+SW-8.),0.);vec3 rB=vec3(st*(SS+7.*SG)+sn*(uDeck+SW-8.),-7.*SR);
+ vec3 rC=vec3(st*(SS-SW+8.)+sn*(uDeck+SW-8.),0.);vec3 rD=vec3(st*(SS-SW+8.)+sn*(uDeck+8.),0.);
+ for(int j=0;j<2;j++){vec3 h=vec3(0.,0.,j==0?95.:50.);
+  t4=cap(ro,rd,rA+h,rB+h,5.,n4);if(t4<t){t=t4;what=8;nr=n4;}
+  t4=cap(ro,rd,rC+h,rA+h,5.,n4);if(t4<t){t=t4;what=8;nr=n4;}
+  t4=cap(ro,rd,rD+h,rC+h,5.,n4);if(t4<t){t=t4;what=8;nr=n4;}}
+ for(int j=0;j<5;j++){vec3 b=j==0?rD:j==1?rC:j==2?rA:j==3?mix(rA,rB,.5):rB;
+  t4=cyl(ro,rd,b.xy,6.,b.z,b.z+95.,n4);if(t4<t){t=t4;what=8;nr=n4;}}
+ float kind=0.;vec3 cc=vec3(0.);vec3 ch=vec3(0.);
+ for(int i=0;i<4;i++){vec2 s=vec2(i<2?1.:-1.,mod(float(i),2.)<1.?1.:-1.);
+  vec3 c0=vec3(s*(uW-170.),-FD+75.);vec3 h0=vec3(110.,110.,75.);
+  t4=box(ro,rd,c0-h0,c0+h0,n4);if(t4<t){t=t4;what=5;nr=n4;kind=float(i);cc=c0;ch=h0;}
+  vec3 c1=vec3(s*(uW-190.)+s.yx*vec2(-25.,20.),-FD+150.+60.);vec3 h1=vec3(80.,80.,60.);
+  t4=box(ro,rd,c1-h1,c1+h1,n4);if(t4<t){t=t4;what=5;nr=n4;kind=float(3-i);cc=c1;ch=h1;}}
+ vec3 hp=ro+rd*t;vec3 col;
+ gPx=t*1.2/uViewport.y;
+ float lit=.45+.75*max(dot(nr,L),0.);
+ if(what==0){
+  bool onX=tx<ty;
+  float u=onX?hp.y*sign(rd.x):-hp.x*sign(rd.y);
+  float side=onX?(rd.x>0.?0.:2.):(rd.y>0.?1.:3.);
+  // the wall behind the tank: the one the line from the camera through the tank meets (only it has the logo)
+  vec2 fb=-ro.xy;float back=abs(fb.x)>abs(fb.y)?(fb.x>0.?0.:2.):(fb.y>0.?1.:3.);
+  col=wall(u,hp.z+uRise,side,back);
+  col=mix(col,vec3(0.),1.-smoothstep(-4500.,-600.,hp.z));
+  col=mix(col,vec3(.75,.8,.85),smoothstep(3000.,14000.,hp.z));}
+ else if(what==1)col=floorCol(hp)*(.6+.8*uRow);
+ else if(what==2)col=stand(hp,nr)*(.6+.8*uRow);
+ else if(what==3){float band=step(.5,fract((hp.z+FD)/120.));col=mix(vec3(.5,.52,.55),vec3(.2,.21,.22),band*.6)*lit*(.6+.8*uRow);
+  col+=vec3(.9)*pow(max(dot(reflect(rd,nr),L),0.),30.)*.4;}
+ else if(what==4){col=vec3(.09,.1,.09)*lit;col=mix(col,stripes(hp.z*2.),step(hp.z,-FD+70.));col*=.6+.8*uRow;}
+ else if(what==5)col=crate(hp,nr,cc,ch,kind)*lit*(.6+.8*uRow);
+ else if(what==6)col=tread(hp,nr,dot(hp.xy,st))*lit*(.6+.8*uRow);
+ else if(what==7)col=vec3(.07,.075,.07)*(.85+.3*step(.5,fract(dot(hp.xy,st)/60.)))*lit*(.6+.8*uRow);
+ else{col=vec3(.8,.58,.06)*.75*lit*(.6+.8*uRow);col+=vec3(.9)*pow(max(dot(reflect(rd,nr),L),0.),24.)*.3;}
+ vec2 bd=vec2(dot(uBeamDir,ax),dot(uBeamDir,ay));float hl=length(hp.xy);
+ float bm=hl>1.?pow(max(dot(hp.xy/hl,bd),0.),10.)*exp(-abs(hp.z)/1800.):0.;
+ col+=uBeamCol*bm*(col*3.+.05);
+ o=vec4(col*a,a);}`;
     const MIX_VS = `#version 300 es
 precision highp float;
 in vec3 aP;in vec2 aT;uniform mat4 uVP;uniform vec3 uOff;out vec3 vW;
@@ -1872,6 +2112,27 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
         ]);
         const lampProg = program(FULL_VS, LAMP_FS, [...DEPTH_U, 'uLamp', 'uN', 'uMode', 'uPower', 'uReach', 'uGlow', 'uCol', 'uVP']);
         const lampArray = new Float32Array(24);
+        // The emergency lights (26d step 9): made on their own, so a graphics card that refuses them leaves only them out.
+        let sirenProg: Program | null = null;
+        let sirenState = 'made';
+        let sirenDrawn = 0;
+        try {
+            sirenProg = program(FULL_VS, SIREN_FS, [...DEPTH_U, 'uLamp', 'uRot', 'uStb', 'uDir', 'uN', 'uReach', 'uBeamReach', 'uBeam']);
+        } catch (e) {
+            sirenProg = null;
+            sirenState = 'refused: ' + String(e instanceof Error ? e.message : e).slice(0, 300);
+        }
+        const sirenLamps = new Float32Array(24);
+        // The waiting room (26d step 10), made on its own the same way.
+        let roomProg: Program | null = null;
+        try {
+            roomProg = program(FULL_VS, ROOM_FS, [...DEPTH_U, 'uBase', 'uBeamCol', 'uBeamDir', 'uDrone', 'uR', 'uFloor', 'uTop', 'uSoft', 'uAmt', 'uW', 'uRise', 'uRow', 'uDeck', 'uLogo', 'uHasLogo']);
+        } catch {
+            roomProg = null;
+        }
+        // the Tanki logo's texture for the room, made once from its picture
+        let logoTex: WebGLTexture | null = null;
+        let logoPic: ImageBitmap | null = null;
         const nightxProg = program(NIGHTX_VS, NIGHTX_FS, [
             'uVP', 'uCam', 'uOut', 'uLat', 'uMode', 'uStart', 'uGap', 'uH', 'uGround', 'uSize', 'uRedSize', 'uSides', 'uRed', 'uCol', 'uPostCol',
             'uFogCol', 'uBright', 'uFog', 'uFogStart', 'uHalo',
@@ -2448,6 +2709,8 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
                     f.grade ||
                     A ||
                     f.lamps ||
+                    (f.siren && sirenProg) ||
+                    (f.room && roomProg) ||
                     f.wet ||
                     f.fogx
                 );
@@ -2776,6 +3039,28 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
                         gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
                         gl.drawArrays(gl.TRIANGLES, 0, 3);
                     }
+                }
+                // 1c2. the warning beacon while the game searches (26d step 9): its light on everything (multiplies)
+                if (depthOk && f.siren && sirenProg) {
+                    const Sr = f.siren;
+                    const pr = sirenProg;
+                    sirenDrawn++;
+                    const n = Math.min(8, Sr.lamps.length);
+                    sirenLamps.fill(0);
+                    for (let i = 0; i < n; i++) for (let a = 0; a < 3; a++) sirenLamps[i * 3 + a] = Sr.lamps[i][a] + f.offset[a];
+                    gl.useProgram(pr.p);
+                    depthUniforms(pr, f, W, H);
+                    gl.uniform3fv(uni(pr, 'uLamp'), sirenLamps);
+                    gl.uniform3fv(uni(pr, 'uRot'), Sr.rot);
+                    gl.uniform3fv(uni(pr, 'uStb'), Sr.stb);
+                    gl.uniform2fv(uni(pr, 'uDir'), Sr.dir);
+                    gl.uniform1i(uni(pr, 'uN'), n);
+                    gl.uniform1f(uni(pr, 'uReach'), Sr.reach);
+                    gl.uniform1f(uni(pr, 'uBeamReach'), Sr.beamReach);
+                    gl.uniform1f(uni(pr, 'uBeam'), Sr.beam);
+                    gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE, gl.ZERO, gl.ONE);
+                    gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
                 }
                 // 1d. the wet floor by the door (26g5): darker, puddles mirroring the picture drawn so far (copied first), bright in a flash
                 if (depthOk && f.wet) {
@@ -3456,6 +3741,44 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
                     flakes(2, f.snowIn.n, 160 * f.snowIn.speed, f.snowIn.size, f.snowIn.wind, f.snowIn.sway, f.snowIn.bright, f.snowIn.color, 0.8, 0);
                 if (f.motes && f.motes.n > 0) flakes(1, f.motes.n, 0, 1, 0, 0, f.motes.bright, f.motes.color, 0.25, 0);
                 gl.disable(gl.DEPTH_TEST);
+                // 5. the waiting room, the launch lift, while the game searches (26d step 10), last, over everything but the tank and its
+                // platform
+                if (depthOk && f.room && roomProg) {
+                    const Rm = f.room;
+                    const pr = roomProg;
+                    gl.bindVertexArray(vao);
+                    gl.activeTexture(gl.TEXTURE0 + UNIT);
+                    gl.bindTexture(gl.TEXTURE_2D, depthTex);
+                    gl.bindSampler(UNIT, null);
+                    gl.useProgram(pr.p);
+                    depthUniforms(pr, f, W, H);
+                    gl.uniform3fv(uni(pr, 'uBase'), Rm.base);
+                    gl.uniform3fv(uni(pr, 'uBeamCol'), Rm.beamCol);
+                    gl.uniform2fv(uni(pr, 'uBeamDir'), Rm.beamDir);
+                    gl.uniform1f(uni(pr, 'uW'), Rm.width);
+                    gl.uniform1f(uni(pr, 'uRise'), Rm.rise);
+                    gl.uniform1f(uni(pr, 'uR'), Rm.radius);
+                    gl.uniform1f(uni(pr, 'uFloor'), Rm.floor);
+                    gl.uniform1f(uni(pr, 'uRow'), Rm.row);
+                    gl.uniform1f(uni(pr, 'uDeck'), Rm.deck);
+                    gl.uniform4fv(uni(pr, 'uDrone'), Rm.drone);
+                    gl.uniform1f(uni(pr, 'uTop'), Rm.top);
+                    gl.uniform1f(uni(pr, 'uSoft'), Rm.soft);
+                    gl.uniform1f(uni(pr, 'uAmt'), Rm.amount);
+                    if (Rm.logo !== null && Rm.logo !== logoPic) {
+                        logoTex = uploadPicture(Rm.logo);
+                        logoPic = Rm.logo;
+                        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                    }
+                    gl.activeTexture(gl.TEXTURE0 + PANO);
+                    gl.bindTexture(gl.TEXTURE_2D, logoTex);
+                    gl.bindSampler(PANO, null);
+                    gl.uniform1i(uni(pr, 'uLogo'), PANO);
+                    gl.uniform1f(uni(pr, 'uHasLogo'), logoTex !== null ? 1 : 0);
+                    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+                    gl.drawArrays(gl.TRIANGLES, 0, 3);
+                }
             } finally {
                 restore(st);
             }
@@ -3477,7 +3800,7 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
             for (const m of groundMaps.values()) gl.deleteTexture(m.tex);
         }
 
-        return { draw, dispose };
+        return { draw, dispose, siren: () => ({ program: sirenState, drawn: sirenDrawn }) };
     }
 
     // The Halloween hangar's lamp heads (its room0 faces round the four ring lamp spots) and their light cones (transp1), as the probe's

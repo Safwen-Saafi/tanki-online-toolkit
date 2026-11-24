@@ -18,7 +18,8 @@
         "js/modules/lobby_pass.js",
         "js/modules/lobby.js",
         "js/modules/hangar_files.js",
-        "js/modules/lobby_ui.js"
+        "js/modules/lobby_ui.js",
+        "js/modules/lobby_search.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"

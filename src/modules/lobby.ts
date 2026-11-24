@@ -15,7 +15,89 @@
 
     const DEG = Math.PI / 180;
     // The owner's camera "final1" (2026-11-16): near and up / aim in the game's units, orbit and turn in degrees, left and lens in %.
-    const POSE = { near: 130, orbit: 26, left: 24, up: 20, aim: -40, turn: 32, lens: 66 } as const;
+    interface Pose {
+        readonly near: number;
+        readonly orbit: number;
+        readonly left: number;
+        readonly up: number;
+        readonly aim: number;
+        readonly turn: number;
+        readonly lens: number;
+    }
+    const POSE: Pose = { near: 130, orbit: 26, left: 24, up: 20, aim: -40, turn: 32, lens: 66 };
+    // The battle search moment (26d step 9, lobby_search.ts sets window.__kaspSearch): while the game searches, the camera glides to
+    // this closer, lower "ready" shot and holds still there (owner 2026-11-24: no sway, no mouse follow, no breathing; the tank turned
+    // to face the player, faceTime seconds to turn); the hangar on alert: the key light dimmer, the fill dimmer, the ring lamps turning
+    // faster; the hangar sounds silent. glideIn / glideOut = seconds to go there and back.
+    const SEARCH_POSE: Pose = { near: 115, orbit: 20, left: 24, up: 4, aim: -32, turn: 32, lens: 62 };
+    const SEARCH_FX = {
+        glideIn: 1.6,
+        glideOut: 1.2,
+        faceTime: 0.35,
+        keyDim: 0.3,
+        fillDim: 0.25,
+        lampsFaster: 2,
+    } as const;
+    // The warning beacon (owner 2026-11-24: first "like the sirens of an ambulance", red and blue strobes; then "the orange warning
+    // siren inside hangars in films, that circles"; then red, ONE light in the very middle of the ring of lamps, its light making a 360
+    // on the ground, and no glow on the lamps), only on the dark looks: the night ones, the rainy, the foggy, Halloween and Christmas.
+    // One red beam (a mirror turning round the bulb) sweeps a full circle spin times a second over the floor, the walls and the tank,
+    // with a faint red glow all round it (dome); the hangar's warm lamp light and lamp head cones fade back meanwhile, and the fog
+    // cones turn red.
+    const SIREN_LOOKS: ReadonlySet<KaspLobbyLookName> = new Set(['night-normal', 'night-snowy', 'day-rainy', 'night-rainy', 'day-foggy', 'night-foggy', 'halloween', 'christmas']);
+    const SIREN = {
+        color: [1, 0.06, 0.03],
+        spin: 1.5,
+        beam: 12,
+        rot: 8,
+        dome: 0.3,
+        // the game's own key light on the tank, red and brighter each time the beam turns toward the player (owner 2026-11-24: the
+        // red light on the tank more noticeable): facing = how narrow that moment is
+        keyColour: 0.85,
+        keyFlash: 1.2,
+        facing: 4,
+        reach: 480,
+        beamReach: 1600,
+        warmOff: 0.8,
+    } as const;
+    // The waiting room (26d step 10, owner 2026-11-24, idea A "the launch lift"): while the game searches, everything but the tank
+    // (a cylinder round the tank base, radius wide, from floorCut over the base to top, soft edges; the game's round platform is left
+    // out) and the drone (a ball round it, droneKeep wide) fades out to a tall square steel shaft round it, and back on cancel. The
+    // lift fills the shaft from wall to wall: its floor floorDepth under the tank, and on it the tank's stand (deck from the tank each
+    // way) on four steel legs round a hydraulic ram, with supply crates in the four corners. The walls (olive steel, rivets, grime,
+    // rust, scorch marks, bullet dents, pipes, on the wall behind the tank only the Tanki logo painted in a ring with chevrons between
+    // the girders (extension/lobby/tanki-logo.png, only its shape is used), girders with
+    // warning stripes, rows of work lamps under each girder, every fourth a red warning lamp) slide down at speed units a second
+    // (easing in and out over ease seconds), a dark pit below, the bright way out far above; the beacon's beam sweeps everything. The
+    // tank's light is the lift's own whatever the weather (liftLight), brighter with each lamp row it passes. The shaft is at least
+    // minWidth across each way from the tank and wider than the camera's distance.
+    const ROOM = {
+        radius: 380,
+        floorCut: 8,
+        top: 380,
+        soft: 25,
+        deck: 460,
+        droneKeep: 120,
+        speed: 650,
+        ease: 1.5,
+        minWidth: 1300,
+        // the lamp rows: 800 apart, 740 over each girder, just under the next (the shader's numbers), their light on the tank (it
+        // stands about 120 up)
+        rowGap: 800,
+        rowAt: 740,
+        tankH: 120,
+        rowReach: 260,
+        rowColour: [1, 0.86, 0.62],
+        keyLow: 0.6,
+        keyRow: 0.8,
+        // the lift's own light on the tank: a key from high up (the way out above) a little from the player's side, and a fill
+        key: [1, 0.95, 0.9],
+        keyStrength: 1.7,
+        keyTilt: 0.35,
+        fill: [0.3, 0.32, 0.36],
+    } as const;
+    // A lobby frame this long after the last one (back from a battle, say) puts the search moment straight where it should be.
+    const SEARCH_SNAP_MS = 500;
     const MOUSE_EASE = 0.05;
     // The pass draws only right after a lobby frame (26f1): a game picture this long after the last one is not the lobby's.
     const LOBBY_TICK_MS = 250;
@@ -70,12 +152,12 @@
         readonly rightY: number;
     }
 
-    function computeCamera(game: KaspLobbyRecord): Want {
-        const k = POSE.near / 100;
+    function computeCamera(game: KaspLobbyRecord, pose: Pose): Want {
+        const k = pose.near / 100;
         const B = game.base;
-        const c = { x: B.x + (game.cam.x - B.x) * k, y: B.y + (game.cam.y - B.y) * k, z: B.z + (game.cam.z - B.z) * k + POSE.up };
-        const t = { x: B.x + (game.target.x - B.x) * k, y: B.y + (game.target.y - B.y) * k, z: B.z + (game.target.z - B.z) * k + POSE.aim };
-        const a = POSE.orbit * DEG;
+        const c = { x: B.x + (game.cam.x - B.x) * k, y: B.y + (game.cam.y - B.y) * k, z: B.z + (game.cam.z - B.z) * k + pose.up };
+        const t = { x: B.x + (game.target.x - B.x) * k, y: B.y + (game.target.y - B.y) * k, z: B.z + (game.target.z - B.z) * k + pose.aim };
+        const a = pose.orbit * DEG;
         const ca = Math.cos(a);
         const sa = Math.sin(a);
         for (const p of [c, t]) {
@@ -89,7 +171,7 @@
         const dx = t.x - c.x;
         const dy = t.y - c.y;
         const flat = Math.hypot(dx, dy) || 1;
-        const side = (POSE.left / 100) * Math.hypot(game.cam.x - B.x, game.cam.y - B.y) * k;
+        const side = (pose.left / 100) * Math.hypot(game.cam.x - B.x, game.cam.y - B.y) * k;
         const rightX = dy / flat;
         const rightY = -dx / flat;
         c.x += rightX * side;
@@ -115,6 +197,8 @@
         readonly record: KaspLobbyRecord;
         readonly rendererRecord: RendererRecord;
         readonly want: Want;
+        // The search's ready shot (26d step 9).
+        readonly searchWant: Want;
         // The hangar's own drone place (26c), null without the drone flight.
         readonly droneHome: KaspLobbyVector | null;
     }
@@ -167,7 +251,7 @@
             sharpness: rendererRecord.sharpness,
         });
         const droneHome = n.drone === undefined ? null : Object.freeze(readVector(bag(system, n.drone.home), n));
-        return { system, renderer, record, rendererRecord, want: computeCamera(record), droneHome };
+        return { system, renderer, record, rendererRecord, want: computeCamera(record, POSE), searchWant: computeCamera(record, SEARCH_POSE), droneHome };
     }
 
     // Once per scene: the platform turned to face the camera plus the owner's turn (the player's drag turns it from there), and the
@@ -215,15 +299,17 @@
         mouse.eased.y += (mouse.y - mouse.eased.y) * MOUSE_EASE;
         // The game puts the camera at our point plus its own breathing, so ours adds the part of the breathing it does not have.
         const wobble = readVector(bag(s.system, n.wobble), n);
-        const more = look.light.breathing - 1;
-        const follow = look.light.follow;
+        // while the game searches the breathing is held still (owner 2026-11-24): ours takes the game's own away
+        const more = lerp(look.light.breathing - 1, -1, searchFx.still);
+        const follow = look.light.follow * (1 - searchFx.still);
+        const { c, t } = searchShot(s);
         writeVector(bag(s.system, n.cam), n, {
-            x: w.c.x + w.rightX * mouse.eased.x * follow + more * wobble.x,
-            y: w.c.y + w.rightY * mouse.eased.x * follow + more * wobble.y,
-            z: w.c.z - mouse.eased.y * follow * 0.5 + more * wobble.z,
+            x: c.x + w.rightX * mouse.eased.x * follow + more * wobble.x,
+            y: c.y + w.rightY * mouse.eased.x * follow + more * wobble.y,
+            z: c.z - mouse.eased.y * follow * 0.5 + more * wobble.z,
         });
-        writeVector(bag(s.system, n.target), n, w.t);
-        bag(s.system, n.cameraComponent)[n.fov] = s.record.fov * (POSE.lens / 100);
+        writeVector(bag(s.system, n.target), n, t);
+        bag(s.system, n.cameraComponent)[n.fov] = s.record.fov * (lerp(POSE.lens, SEARCH_POSE.lens, searchFx.cam) / 100);
         // With the picture pass's look the key and fill come from the hour table (26f1). Without it: the key light comes from keySide
         // degrees round from the camera's side and keyHeight degrees up, swinging slowly; the game copies the system's light direction
         // into its key light every frame.
@@ -240,6 +326,251 @@
         }
         flashLight(s, n);
         s.system[n.lampSpeed] = look.light.lampSpeed;
+        alertLight(s, n);
+        liftLight(s, n);
+        beaconKey(s, n);
+    }
+
+    // ---- the battle search moment (26d step 9) ----
+    // How far each part is from the lobby's own (0) to the search's (1), eased.
+    // lift = the lift's speed now (units a second), rise = how far it has risen (the walls' slide)
+    // still = how far the camera is held still (any search: no breathing, no mouse follow)
+    const searchFx = { camGo: 0, cam: 0, alertGo: 0, alert: 0, roomGo: 0, room: 0, lift: 0, rise: 0, stillGo: 0, still: 0 };
+    const smooth01 = (x: number): number => x * x * (3 - 2 * x);
+    function searchStep(dt: number, snap: boolean): void {
+        const S = window.__kaspSearch;
+        const on = S !== undefined && S.on;
+        const go = (from: number, want: boolean): number => {
+            if (snap) return want ? 1 : 0;
+            const step = dt / (want ? SEARCH_FX.glideIn : SEARCH_FX.glideOut);
+            return Math.max(0, Math.min(1, from + (want ? step : -step)));
+        };
+        searchFx.camGo = go(searchFx.camGo, on && S.camera);
+        searchFx.alertGo = go(searchFx.alertGo, on && S.alert);
+        searchFx.roomGo = go(searchFx.roomGo, on && S.room);
+        searchFx.stillGo = go(searchFx.stillGo, on);
+        searchFx.still = smooth01(searchFx.stillGo);
+        searchFx.room = smooth01(searchFx.roomGo);
+        const liftTo = on && S.room ? ROOM.speed : 0;
+        searchFx.lift = snap ? liftTo : searchFx.lift + (liftTo - searchFx.lift) * Math.min(1, dt / ROOM.ease);
+        // wrapped at 16000, a whole number of the walls' patterns (1600), so the slide never jumps and the shader's numbers stay small
+        searchFx.rise = (searchFx.rise + searchFx.lift * dt) % 16000;
+        searchFx.cam = smooth01(searchFx.camGo);
+        searchFx.alert = smooth01(searchFx.alertGo);
+    }
+
+    // The camera point and look-at of this frame: the lobby's own shot, glided toward the ready shot.
+    function searchShot(s: Scene): { readonly c: KaspLobbyVector; readonly t: KaspLobbyVector } {
+        const k = searchFx.cam;
+        const a = s.want;
+        if (k <= 0) return { c: a.c, t: a.t };
+        const b = s.searchWant;
+        const place = (p: KaspLobbyVector, q: KaspLobbyVector): KaspLobbyVector => ({ x: lerp(p.x, q.x, k), y: lerp(p.y, q.y, k), z: lerp(p.z, q.z, k) });
+        return { c: place(a.c, b.c), t: place(a.t, b.t) };
+    }
+
+    // While the game searches the tank turns to face the player head on and stays so (the drag cannot turn it then); after the
+    // search it turns back to where it was. Its turn is the platform's, as the drag's.
+    let faceSaved: number | null = null;
+    function faceTank(s: Scene, n: KaspLobbyNames, dt: number): void {
+        const S = window.__kaspSearch;
+        const on = S !== undefined && S.on;
+        if (!on && faceSaved === null) return;
+        const rot = bag(bag(s.system, n.platform), n.rotation);
+        const now = num(rot, n.z);
+        let target: number;
+        if (on) {
+            if (faceSaved === null) faceSaved = now;
+            const c = searchShot(s).c;
+            target = Math.atan2(-(c.x - s.record.base.x), c.y - s.record.base.y);
+        } else {
+            target = faceSaved as number;
+        }
+        const step = wrapAngle(target - now);
+        if (!on && Math.abs(step) < 0.002) {
+            rot[n.z] = target;
+            faceSaved = null;
+            return;
+        }
+        rot[n.z] = now + step * (1 - Math.exp(-dt / SEARCH_FX.faceTime));
+    }
+
+    // on the dark looks, and in the lift on every look (the lift looks the same whatever the weather)
+    const sirenOn = (): number => searchFx.alert * (SIREN_LOOKS.has(lookName) ? 1 : searchFx.room);
+
+    // The hangar on alert, laid over the light written just before it in the same tick (so it goes back by itself): dimmer, the
+    // ring lamps turning faster.
+    function alertLight(s: Scene, n: KaspLobbyNames): void {
+        const k = searchFx.alert;
+        if (k <= 0) return;
+        const F = SEARCH_FX;
+        const lighting = bag(s.renderer, n.lighting);
+        const key = bag(lighting, n.key);
+        key[n.keyStrength] = num(key, n.keyStrength) * (1 - F.keyDim * k);
+        const ambient = bag(lighting, n.ambient);
+        const dim = 1 - F.fillDim * k;
+        writeColour(ambient, n, [...readColour(ambient, n).slice(0, 3).map((v) => v * dim), 1]);
+        s.system[n.lampSpeed] = num(s.system, n.lampSpeed) * (1 + F.lampsFaster * k);
+    }
+
+    // The beacon of this frame for the pass, or null (not a beacon look, not searching, no lamps): one light in the middle of the
+    // ring of lamps (their average place). Made once, filled each frame (the pass reads them in the same frame).
+    const SIREN_ROT = new Float32Array(3);
+    const SIREN_STB = new Float32Array(3);
+    const SIREN_DIR = new Float32Array(2);
+    const SIREN_AT = [0, 0, 0];
+    const SIREN_LIST: ReadonlyArray<readonly number[]> = [SIREN_AT];
+    // Why the last frame had no beacon, or 'on' (for the owner's console checks).
+    let sirenWhy = 'not yet';
+    function sirenFrame(lamps: ReadonlyArray<readonly number[]>): KaspLobbySiren | null {
+        const k = sirenOn();
+        const s = scene;
+        sirenWhy = k <= 0.001 ? (SIREN_LOOKS.has(lookName) || searchFx.room > 0 ? 'not searching (or the switch off)' : 'not a siren look') : s === null ? 'no scene' : lamps.length === 0 ? 'no lamps' : 'on';
+        if (sirenWhy !== 'on') return null;
+        SIREN_AT.fill(0);
+        for (const lamp of lamps) for (let c = 0; c < 3; c++) SIREN_AT[c] += lamp[c] / lamps.length;
+        const a = (performance.now() / 1000) * SIREN.spin * 2 * Math.PI;
+        SIREN_DIR[0] = Math.cos(a);
+        SIREN_DIR[1] = Math.sin(a);
+        for (let c = 0; c < 3; c++) {
+            SIREN_ROT[c] = SIREN.color[c] * SIREN.rot * k;
+            SIREN_STB[c] = SIREN.color[c] * SIREN.dome * k;
+        }
+        return { lamps: SIREN_LIST, rot: SIREN_ROT, stb: SIREN_STB, dir: SIREN_DIR, reach: SIREN.reach, beamReach: SIREN.beamReach, beam: SIREN.beam };
+    }
+
+    // With the waiting room in, the tank's light is the lift's whatever the weather: the look's colour over the picture and its night
+    // lamps fade out with the room. And nothing of the hangar's air may show over the tank (owner 2026-11-24: the snowy look's flakes
+    // stayed in front of the tank, since the room keeps every pixel the tank covers): from half way in, the falling and floating
+    // things and the fog low in the room are left out (the hangar is half dark by then); once it is all in, every other part of the
+    // look is left out too (all of it is behind the room, so the picture loses nothing and the graphics card does less).
+    function roomStrip(f: KaspLobbyPassFrame): KaspLobbyPassFrame {
+        const k = searchFx.room;
+        if (k <= 0.001) return f;
+        const toOne = (c: readonly number[]): number[] => c.map((x) => lerp(x, 1, k));
+        const g = f.grade;
+        const lit = {
+            ...f,
+            grade: g === null ? null : { inn: toOne(g.inn), hor: toOne(g.hor), zen: toOne(g.zen) },
+            lamps: f.lamps === null ? null : { ...f.lamps, power: f.lamps.power * (1 - k) },
+        };
+        if (k < 0.5) return lit;
+        const air = { ...lit, rain: null, drips: null, motes: null, snow: null, snowIn: null, swx: null, sunx: null, ndx: null, ncx: null, fogx: null };
+        if (k < 0.999) return air;
+        return { ...air, atmos: null, floorMix: null, outside: null, hw: null, xm: null, fp: null, desun: null, lensOff: null, sky: null, boltSky: null, fixtures: null, nightx: null, wet: null };
+    }
+
+    // The waiting room of this frame for the pass, or null (not searching, or the switch off). The shaft's width from the camera's
+    // place: wider than the camera is far from the tank, along the hangar's two ways (the box's o and l).
+    function roomFrame(box: KaspLobbyBox, cam: KaspLobbyVector): KaspLobbyRoom | null {
+        const s = scene;
+        if (searchFx.room <= 0.001 || s === null) return null;
+        const B = s.record.base;
+        const dx = cam.x - B.x;
+        const dy = cam.y - B.y;
+        const far = Math.max(Math.abs(dx * box.o[0] + dy * box.o[1]), Math.abs(dx * box.l[0] + dy * box.l[1]));
+        const beam = sirenOn();
+        return {
+            amount: searchFx.room,
+            base: [B.x, B.y, B.z],
+            radius: ROOM.radius,
+            floor: B.z + ROOM.floorCut,
+            top: B.z + ROOM.top,
+            soft: ROOM.soft,
+            deck: ROOM.deck,
+            drone: droneKeep(s),
+            row: rowPulse(),
+            width: Math.max(ROOM.minWidth, far * 1.35),
+            rise: searchFx.rise,
+            beamCol: SIREN.color.map((c) => c * beam),
+            beamDir: [SIREN_DIR[0], SIREN_DIR[1]],
+            logo: liftLogo(),
+        };
+    }
+
+    // The Tanki logo for the waiting room's walls, read once at the first search (it is ready long before the room has faded in);
+    // until then, or if the file cannot be read, the walls have no logo.
+    let logoPic: ImageBitmap | null = null;
+    let logoAsked = false;
+    function liftLogo(): ImageBitmap | null {
+        if (!logoAsked) {
+            logoAsked = true;
+            const base = document.documentElement.getAttribute('data-kasp-lobby-base');
+            if (base !== null)
+                fetch(base + 'tanki-logo.png')
+                    .then((r) => {
+                        if (!r.ok) throw new Error('tanki-logo.png');
+                        return r.blob();
+                    })
+                    .then((b) => createImageBitmap(b, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }))
+                    .then(
+                        (bmp) => {
+                            logoPic = bmp;
+                        },
+                        () => {},
+                    );
+        }
+        return logoPic;
+    }
+
+    // Where the drone is (its flight, else the hangar's drone place) and how wide a ball round it the room keeps; none: radius 0.
+    function droneKeep(s: Scene): number[] {
+        const p = flight !== null ? flight.pos : s.droneHome;
+        return p === null ? [0, 0, 0, 0] : [p.x, p.y, p.z, ROOM.droneKeep];
+    }
+
+    // How near the tank is to a lamp row now (1 = level with it, falling off over rowReach).
+    function rowPulse(): number {
+        const R = ROOM;
+        const v = R.tankH + searchFx.rise - R.rowAt;
+        const d = v - Math.round(v / R.rowGap) * R.rowGap;
+        return Math.exp(-(d * d) / (R.rowReach * R.rowReach));
+    }
+
+    // The lift's own light on the tank, laid over the light written just before it in the same tick, as far as the room is in: the
+    // key from high up and a little from the player's side, brighter and warmer by each lamp row it passes, and the fill.
+    function liftLight(s: Scene, n: KaspLobbyNames): void {
+        const k = searchFx.room;
+        if (k <= 0) return;
+        const R = ROOM;
+        const pulse = rowPulse();
+        const dirBag = bag(s.system, n.lightDir);
+        const d = readVector(dirBag, n);
+        const fx = s.record.base.x - s.want.c.x;
+        const fy = s.record.base.y - s.want.c.y;
+        const fl = Math.hypot(fx, fy) || 1;
+        const to = [(fx / fl) * R.keyTilt, (fy / fl) * R.keyTilt, -1];
+        const v = [lerp(d.x, to[0], k), lerp(d.y, to[1], k), lerp(d.z, to[2], k)];
+        const vl = Math.hypot(v[0], v[1], v[2]) || 1;
+        writeVector(dirBag, n, { x: v[0] / vl, y: v[1] / vl, z: v[2] / vl });
+        const lighting = bag(s.renderer, n.lighting);
+        const key = bag(lighting, n.key);
+        const colour = bag(key, n.keyColour);
+        writeColour(colour, n, lerp3(lerp3(readColour(colour, n), R.key, k), R.rowColour, 0.5 * k * pulse));
+        key[n.keyStrength] = lerp(num(key, n.keyStrength), R.keyStrength, k) * lerp(1, R.keyLow + R.keyRow * pulse, k);
+        const ambient = bag(lighting, n.ambient);
+        writeColour(ambient, n, [...lerp3(readColour(ambient, n), R.fill, k), 1]);
+    }
+
+    // The beacon's red on the tank: the game's own key light turns red and brighter each time the beam turns toward the player.
+    function beaconKey(s: Scene, n: KaspLobbyNames): void {
+        const sk = sirenOn();
+        if (sk <= 0) return;
+        const dx = s.want.c.x - s.record.base.x;
+        const dy = s.want.c.y - s.record.base.y;
+        const dl = Math.hypot(dx, dy) || 1;
+        const f = Math.pow(Math.max(0, (SIREN_DIR[0] * dx + SIREN_DIR[1] * dy) / dl), SIREN.facing) * sk;
+        if (f <= 0.001) return;
+        const key = bag(bag(s.renderer, n.lighting), n.key);
+        const colour = bag(key, n.keyColour);
+        writeColour(colour, n, lerp3(readColour(colour, n), SIREN.color, SIREN.keyColour * f));
+        key[n.keyStrength] = num(key, n.keyStrength) * (1 + SIREN.keyFlash * f);
+    }
+
+    // The hangar sounds' share: none while the game searches (owner 2026-11-24: silent), all of it after.
+    function duckLevel(): number {
+        const S = window.__kaspSearch;
+        return S !== undefined && S.on ? 0 : 1;
     }
 
     // The lightning shadow (26g4c, the probe's flashLight): while a flash lasts (its pulses held longer), the game's key light swings
@@ -322,12 +653,14 @@
         const now = performance.now();
         lobbyTickAt = now;
         try {
+            let fresh = false;
             if (scene === null || scene.system !== system) {
                 const next = bind(system, n);
                 if (next === null) return;
                 scene = next;
                 flight = null;
                 lastFrame = now;
+                fresh = true;
                 firstWrites(next, n);
                 startPass(next, n);
             }
@@ -335,6 +668,8 @@
             lastFrame = now;
             const dt = Math.min(0.05, gap / 1000);
             sweepTime += dt;
+            searchStep(dt, fresh || gap > SEARCH_SNAP_MS);
+            faceTank(scene, n, dt);
             if (now - partsCheckAt > 1000) {
                 partsCheckAt = now;
                 checkParts(scene, n);
@@ -2193,7 +2528,7 @@
             pan.pan.value = (Math.random() * 2 - 1) * 0.7;
             src.connect(g);
             g.connect(pan);
-            pan.connect(ctx.destination);
+            pan.connect(busOf(ctx));
             src.start();
         }
     }
@@ -2483,7 +2818,7 @@
         src.connect(hp);
         hp.connect(lp);
         lp.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(busOf(ctx));
         src.start();
         return gain;
     }
@@ -2553,9 +2888,9 @@
                     const pan = ctx.createStereoPanner();
                     pan.pan.value = firePan;
                     gain.connect(pan);
-                    pan.connect(ctx.destination);
+                    pan.connect(busOf(ctx));
                     sound.firePanner = pan;
-                } else gain.connect(ctx.destination);
+                } else gain.connect(busOf(ctx));
                 node.start();
                 sound.loops.set(key, { gain, norm: SOUND_LOOPS[key].target / Math.sqrt(sum / (n * buf.numberOfChannels) || 1) });
             }),
@@ -2584,13 +2919,13 @@
                       dark.type = 'lowpass';
                       dark.frequency.value = 1300;
                       wet.gain.value = 0.45;
-                      bus.connect(ctx.destination);
+                      bus.connect(busOf(ctx));
                       bus.connect(echo);
                       echo.connect(dark);
                       dark.connect(back);
                       back.connect(echo);
                       dark.connect(wet);
-                      wet.connect(ctx.destination);
+                      wet.connect(busOf(ctx));
                       sound.dogBus = bus;
                   })
                 : Promise.resolve();
@@ -2659,7 +2994,7 @@
         gain.gain.setValueAtTime(v, now + T.dur - T.fade);
         gain.gain.linearRampToValueAtTime(0.0001, now + T.dur);
         src.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(busOf(ctx));
         src.start(now, T.start, T.dur);
         thunder.played++;
     }
@@ -2715,6 +3050,17 @@
         if (ctx === null || lp === undefined) return;
         lp.gain.gain.setTargetAtTime(want ? SOUND_LOOPS.wind.level() * lp.norm : 0, ctx.currentTime, 0.8);
     }
+    // Every sound of the lobby goes out through one gain (26d step 9), turned down while the game searches (duckLevel), so the
+    // loops, the rain, the thunder, the dog and the spooky sounds all go quieter together.
+    let bus: { readonly ctx: AudioContext; readonly gain: GainNode } | null = null;
+    function busOf(ctx: AudioContext): GainNode {
+        if (bus === null || bus.ctx !== ctx) {
+            const gain = ctx.createGain();
+            gain.connect(ctx.destination);
+            bus = { ctx, gain };
+        }
+        return bus.gain;
+    }
     // Every half second: each loop fades to its level while the lobby is drawn and nothing stopped it, else to silence; the far dog.
     function applySounds(): void {
         const ctx = sound.ctx;
@@ -2731,6 +3077,7 @@
         }
         if (ctx === null) return;
         if (want && ctx.state === 'suspended') ctx.resume().catch(() => {});
+        busOf(ctx).gain.setTargetAtTime(duckLevel(), ctx.currentTime, 0.3);
         for (const [key, lp] of sound.loops) {
             if (key !== 'roof') lp.gain.gain.setTargetAtTime(want ? SOUND_LOOPS[key].level() * lp.norm : 0, ctx.currentTime, 0.8);
         }
@@ -2830,6 +3177,9 @@
         const std = standard;
         const nightAsset = std === null ? null : nightAssetOf(std);
         const lenses = std === null ? null : lensAssetOf(std);
+        // the emergency lights while searching (26d step 9): the warm lamp light fades back under them
+        const sirenK = sirenOn();
+        const warmK = 1 - SIREN.warmOff * sirenK;
         const time = (nowMs % 3600000) / 1000;
         const R = L.rain;
         // the gusts (26g3): the wind of this moment (the extra slant with the wind's own sign), the sideways travel added up from it
@@ -2872,7 +3222,7 @@
             }
         } else HAUNT.next = 0;
         spookyTick(nowMs);
-        return {
+        return roomStrip({
             vp,
             cam: [pos.x, pos.y, pos.z],
             time,
@@ -2929,13 +3279,23 @@
                 L.night !== null && night > 0.01 && L.night.fixtures > 0 && std !== null
                     ? ((NL) => {
                           ensureFixtures(std);
-                          return fixtures === null ? null : { asset: fixtures, alpha: Math.min(1, night * NL.fixtures), cones: night * NL.fixtures };
+                          return fixtures === null
+                              ? null
+                              : { asset: fixtures, alpha: Math.min(1, night * NL.fixtures), cones: night * NL.fixtures * warmK };
                       })(L.night)
                     : null,
             lamps:
                 L.night !== null && night > 0.01 && std !== null && std.lamps.length > 0 && L.night.lamps > 0
-                    ? { list: std.lamps, power: night * L.night.lamps * fk, reach: 420 * L.night.reach, glow: night * L.night.glow, color: fromHex(L.night.color) }
+                    ? {
+                          list: std.lamps,
+                          power: night * L.night.lamps * fk * warmK,
+                          reach: 420 * L.night.reach,
+                          glow: night * L.night.glow,
+                          color: fromHex(L.night.color),
+                      }
                     : null,
+            siren: std === null ? ((sirenWhy = 'no hangar model'), null) : sirenFrame(std.lamps),
+            room: roomFrame(box, pos),
             nightx:
                 night > 0.01 && (L.streetLamps !== null || L.search !== null || L.cones !== null || L.red !== null)
                     ? (() => {
@@ -3000,7 +3360,14 @@
                                       : null,
                               cones:
                                   Cn !== null && std !== null && std.lamps.length > 0
-                                      ? { amount: Cn.amount * night, lamps: std.lamps, angle: Cn.angle, reach: 420 * Cn.reach, dust: Cn.dust, color: fromHex(Cn.color) }
+                                      ? {
+                                            amount: Cn.amount * night,
+                                            lamps: std.lamps,
+                                            angle: Cn.angle,
+                                            reach: 420 * Cn.reach,
+                                            dust: Cn.dust,
+                                            color: sirenK > 0 ? lerp3(fromHex(Cn.color), SIREN.color, sirenK).map((v) => v * (1 + 1.5 * sirenK)) : fromHex(Cn.color),
+                                        }
                                       : null,
                           };
                       })()
@@ -3644,7 +4011,7 @@
                     : null,
             // the dust floating in the hangar's light (26h, the hot sun's motes)
             motes: H !== null ? { n: Math.max(0, Math.round(H.motes)), bright: 1, color: [1, 0.86, 0.6].map((x, i) => x * inn[i]) } : null,
-        };
+        });
     }
 
     // Right after the game's own picture: our pass, for the lobby world's camera only, in a tick where the lobby frame came through.
@@ -3710,7 +4077,8 @@
         y: number;
         z: number;
     }
-    type Look = 'scan' | 'tank' | 'camera';
+    // home = the escort (26d step 9): at the game's own drone place, turned as the game has it
+    type Look = 'scan' | 'tank' | 'camera' | 'home';
     interface PointCommon {
         readonly dwell: number;
         readonly look?: Look;
@@ -3775,6 +4143,8 @@
         carrot: Vec | null;
         carrotDir: Vec | null;
         off: Vec;
+        // flying to or hovering at the escort place (26d step 9)
+        escort: boolean;
     }
 
     const wrapAngle = (a: number): number => {
@@ -3814,7 +4184,7 @@
 
     function waypointWorld(s: Scene, n: KaspLobbyNames, w: Waypoint): Vec {
         const B = s.record.base;
-        if (w.kind === 'world') return { x: w.x, y: w.y, z: Math.min(w.z, B.z + FLIGHT.ceiling - 20) };
+        if (w.kind === 'world') return { x: w.x, y: w.y, z: w.look === 'home' ? w.z : Math.min(w.z, B.z + FLIGHT.ceiling - 20) };
         if (w.kind === 'screen') {
             const c = s.want.c;
             const t = s.want.t;
@@ -3976,6 +4346,7 @@
             carrot: null,
             carrotDir: null,
             off: { x: 0, y: 0, z: 0 },
+            escort: false,
         };
         refill(f);
         maybeDetour(s, n, f);
@@ -3988,7 +4359,8 @@
         f.prevPrevPt = f.prevPt;
         const reached = f.queue.shift();
         if (reached !== undefined) f.prevPt = { wp: reached };
-        if (FLIGHT.greet > 0 && f.greetTimer <= 0) {
+        // no greeting while it escorts the tank (26d step 9: a waypoint on the way there must not let one jump the queue)
+        if (FLIGHT.greet > 0 && f.greetTimer <= 0 && !f.escort) {
             f.queue = greetPath(f);
             f.greetTimer = FLIGHT.greet * (0.8 + Math.random() * 0.4);
         }
@@ -4094,9 +4466,11 @@
             f.pendingAdvance = true;
             f.state = 'fly';
         }
-        // Where the drone is drawn to: the carrot (or the waypoint it hovers at), kept in view, clear of the tank, under the ceiling.
+        // Where the drone is drawn to: the carrot (or the waypoint it hovers at), kept in view, clear of the tank, under the ceiling;
+        // at the game's own drone place (the escort, 26d step 9) exactly there, none of those rules.
+        const atHome = f.state === 'hover' && cur.look === 'home';
         const tpRaw = f.state === 'hover' ? P2 : hermite(Math.min(1, f.u), P1, P2, m1, m2).p;
-        const tv = keepInView(s, n, tpRaw);
+        const tv = atHome ? tpRaw : keepInView(s, n, tpRaw);
         f.carrot = { ...tv };
         const cap = B.z + FLIGHT.ceiling;
         const hx = tv.x - B.x;
@@ -4107,7 +4481,7 @@
         let wox = 0;
         let woy = 0;
         let woz = 0;
-        if (hr < 360 && zFade > 0) {
+        if (!atHome && hr < 360 && zFade > 0) {
             const push = ((360 - hr) / 360) * zFade;
             wox = (hx / (hr || 1)) * 230 * push;
             woy = (hy / (hr || 1)) * 230 * push;
@@ -4120,8 +4494,8 @@
         const tx = tv.x + f.off.x;
         const ty = tv.y + f.off.y;
         let tz = tv.z + f.off.z;
-        if (tz > cap - 60) tz = cap - 60 + 60 * Math.tanh((tz - (cap - 60)) / 60);
-        if (tz < B.z + 70) tz = B.z + 70;
+        if (!atHome && tz > cap - 60) tz = cap - 60 + 60 * Math.tanh((tz - (cap - 60)) / 60);
+        if (!atHome && tz < B.z + 70) tz = B.z + 70;
         // The body: a critically damped spring after the target (smooth by construction).
         const w = 2 / tau;
         f.vel.x += (w * w * (tx - f.pos.x) - 2 * w * f.vel.x) * dt;
@@ -4130,12 +4504,12 @@
         f.pos.x += f.vel.x * dt;
         f.pos.y += f.vel.y * dt;
         f.pos.z += f.vel.z * dt;
-        if (f.pos.z > cap) {
+        if (!atHome && f.pos.z > cap) {
             f.pos.z = cap;
             if (f.vel.z > 0) f.vel.z = 0;
         }
         // The body itself also stays in view (it trails its target a little): a gentle pull back in.
-        {
+        if (!atHome) {
             const pv = keepInView(s, n, f.pos);
             const k = Math.min(1, 10 * dt);
             f.pos.x += (pv.x - f.pos.x) * k;
@@ -4160,6 +4534,9 @@
             yawWant = headingOf(e1.x - f.pos.x, e1.y - f.pos.y);
         } else if (cur.look === 'tank') {
             yawWant = headingOf(B.x - f.pos.x, B.y - f.pos.y);
+        } else if (cur.look === 'home') {
+            const own = lastDrone === null ? undefined : droneTurns.get(lastDrone);
+            if (own !== undefined) yawWant = own.z - FLIGHT.facing * DEG;
         } else if (cur.look === 'scan') {
             yawWant = f.scanBase + 0.6 * Math.sin(((now - f.hoverStart) / 1000) * 2.2);
         }
@@ -4211,12 +4588,50 @@
         flight = null;
     }
 
+    // The drone escort (26d step 9): while the game searches, the drone leaves its tour (and its greetings) and flies back to the
+    // game's own drone place, its vanilla spot, and holds still there turned as the game has it, until the search ends (owner
+    // 2026-11-24: first a place beside the tank, then "back to its original vanilla spot"); then the tour goes on. Its dwell is
+    // ended by hand when the search ends.
+    const ESCORT_GREET_S = 8;
+    const escortPoint = (home: KaspLobbyVector): WorldPoint => ({ kind: 'world', x: home.x, y: home.y, z: home.z, dwell: 1e6, look: 'home', detour: true });
+    const isEscort = (w: Waypoint | undefined): boolean => w !== undefined && w.look === 'home';
+
+    // A new way from where the carrot is now (a smooth join: the drone's body follows the carrot like a spring).
+    function retarget(s: Scene, n: KaspLobbyNames, f: Flight, queue: Waypoint[]): void {
+        f.prevPrevPt = f.prevPt;
+        f.prevPt = { fixed: { ...(f.carrot ?? f.pos) } };
+        f.startDir = f.state === 'fly' && f.carrotDir !== null ? { ...f.carrotDir } : null;
+        f.queue = queue;
+        refill(f);
+        maybeDetour(s, n, f);
+        f.state = 'fly';
+        f.u = 0;
+        f.pendingAdvance = false;
+    }
+
+    function escortStep(s: Scene, n: KaspLobbyNames, f: Flight): void {
+        const S = window.__kaspSearch;
+        const want = S !== undefined && S.on && S.drone;
+        if (want === f.escort) return;
+        f.escort = want;
+        if (want) {
+            if (s.droneHome !== null) retarget(s, n, f, [escortPoint(s.droneHome)]);
+            return;
+        }
+        f.greetTimer = Math.max(f.greetTimer, ESCORT_GREET_S);
+        if (!f.queue.some(isEscort)) return;
+        // hovering there: its dwell ends now and the tour goes on; still on the way: a new way into the tour
+        if (isEscort(f.queue[0]) && f.state === 'hover') f.dwell = 0;
+        else retarget(s, n, f, []);
+    }
+
     // Each lobby frame, after the camera and light: one step of the flight.
     function flyDrone(s: Scene, n: KaspLobbyNames, now: number, dt: number): void {
         const d = n.drone;
         if (d === undefined || droneBroken || s.droneHome === null) return;
         try {
             if (flight === null) flight = startFlight(s, n, s.droneHome);
+            escortStep(s, n, flight);
             flightStep(s, n, d, flight, now, dt);
         } catch {
             stopDrone(s, n);
@@ -4303,6 +4718,10 @@
                 thunder: thunder.state,
                 thunders: thunder.played,
                 barks: sound.barks,
+                search: window.__kaspSearch === undefined ? 'no search script' : { ...window.__kaspSearch },
+                searchFx: { ...searchFx },
+                siren: sirenWhy,
+                sirenPass: gpu === null ? 'no pass' : gpu.siren(),
             });
         },
     };

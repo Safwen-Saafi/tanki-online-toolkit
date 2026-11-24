@@ -136,6 +136,7 @@
     async function go(key: Key): Promise<void> {
         const playBox = document.getElementsByClassName(PLAY_BOX)[0];
         if (busy || !(playBox instanceof HTMLElement) || document.getElementsByClassName(PLAY_OFF).length > 0) return;
+        lastTile = { key, at: performance.now() };
         // First the direct start (owner, 2026-11-23: nothing may flash): the game's own "search for this mode" action, the one its Modes
         // screen sends, given to the game's store through the injector's hook (window.__kaspModeStart). No screen opens: only the
         // game's searching banner appears. If the hook is not in this game build, or cannot start it, the game's screens below are taken.
@@ -405,9 +406,36 @@
         if (width > 0 && em > 0) document.documentElement.style.setProperty('--kasp-tb-money-w', `${(width / em).toFixed(3)}em`);
     }
 
+    // The searched mode, named on <html> for the card's big faded icon (data-kasp-search-mode, lobby_ui.css), each time the search
+    // card or capsule appears: by the game's own data on the search box, else by its written name (the longest of our titles in it,
+    // so SOLO JUGGERNAUT is the juggernaut), else the tile clicked last, if it was clicked just before. None found: no icon.
+    const SEARCH_MODE = 'data-kasp-search-mode';
+    const TILE_MS = 15000;
+    let lastTile: { readonly key: Key; readonly at: number } | null = null;
+    function markMode(box: Element): void {
+        const names = dataNames(box);
+        let key = KEYS.find((k) => MODES[k].data.some((n) => names.has(n)));
+        if (key === undefined) {
+            const label = (box.getElementsByClassName('MatchmakingWaitComponentStyle-battleModeLabel')[0]?.textContent ?? '').toUpperCase();
+            let best = 0;
+            for (const k of KEYS) {
+                for (const title of MODES[k].titles) {
+                    if (title.length > best && label.includes(title)) {
+                        key = k;
+                        best = title.length;
+                    }
+                }
+            }
+        }
+        if (key === undefined && lastTile !== null && performance.now() - lastTile.at < TILE_MS) key = lastTile.key;
+        if (key === undefined) document.documentElement.removeAttribute(SEARCH_MODE);
+        else document.documentElement.setAttribute(SEARCH_MODE, key);
+    }
+
     function onStars(event: AnimationEvent): void {
         if (MONEY_MOMENTS.has(event.animationName)) {
             measureMoney();
+            if (event.animationName !== 'kasp-lu-money-seen' && event.target instanceof Element) markMode(event.target);
             return;
         }
         if (event.animationName === 'kasp-chat-list-seen' && event.target instanceof HTMLElement) {
