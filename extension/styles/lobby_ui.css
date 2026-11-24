@@ -161,12 +161,23 @@ html:lang(ru)[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer:
     content: 'ВСЕ БОИ';
 }
 
-html[data-kasp-lobby-ui] .MainScreenComponentStyle-disabledButtonPlay {
-    background: linear-gradient(135deg, hsl(100 10% 40% / 0.3), hsl(110 10% 20% / 0.3)), var(--kasp-lu-shade) !important;
+/* PLAY greyed out (in a group the leader starts the search, so PLAY does nothing): one look, the same under the mouse or not (owner
+   2026-11-24: the grey glass with a green ring looked bad, and turned into the lit PLAY under the mouse). The lit PLAY's green and
+   stripes, with its ring and its words dimmed. */
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer.MainScreenComponentStyle-disabledButtonPlay,
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-playButtonContainer.MainScreenComponentStyle-disabledButtonPlay:hover {
+    box-shadow: 0 0 0 2px hsl(100 100% 78% / 0.3) !important;
+    background: repeating-linear-gradient(115deg, transparent 0 2.92em, rgb(255 255 255 / 0.05) 2.92em 5.85em),
+        linear-gradient(160deg, rgb(27 84 39 / 0.93), rgb(12 47 22 / 0.95)) !important;
+    cursor: default !important;
 }
 
 html[data-kasp-lobby-ui] .MainScreenComponentStyle-disabledButtonPlay > span {
-    color: #9aa59a !important;
+    color: rgb(118 255 51 / 0.4) !important;
+}
+
+html[data-kasp-lobby-ui] .MainScreenComponentStyle-disabledButtonPlay::before {
+    color: rgb(217 255 198 / 0.4);
 }
 
 /* ---------- battle pass: the Challenges box beside PLAY ---------- */
