@@ -74,7 +74,10 @@
     const ROOM = {
         radius: 380,
         floorCut: 8,
-        top: 380,
+        // 330, under the hangar's lamp ring (owner 2026-11-25: at 380 its pipe showed faded in the lift, in the top's soft last 25;
+        // proven with blueprint/reference/lobby-lift-keep-probe.js: gone with the cylinder off, there with the drone's ball or the
+        // gun strip off); still over the tallest tank
+        top: 330,
         soft: 25,
         deck: 460,
         droneKeep: 120,
@@ -470,7 +473,11 @@
         const dy = cam.y - B.y;
         const far = Math.max(Math.abs(dx * box.o[0] + dy * box.o[1]), Math.abs(dx * box.l[0] + dy * box.l[1]));
         const beam = sirenOn();
+        // the platform's turn (the search's face turn or the player's drag): its front is (-sin, cos), as faceTank aims it
+        const n = names;
+        const turn = n === null ? 0 : num(bag(bag(s.system, n.platform), n.rotation), n.z);
         return {
+            face: [-Math.sin(turn), Math.cos(turn)],
             amount: searchFx.room,
             base: [B.x, B.y, B.z],
             radius: ROOM.radius,
@@ -1244,7 +1251,7 @@
         rain: { drops: 14500, speed: 1.05, length: 1.1, wind: 0.35, width: 1.4, bright: 1.25, reach: 4700, splash: 1, volume: 100, color: '#cfd8e2' },
         gusts: { every: 14, heavier: 0.8, slant: 0.7, louder: 0.6 },
         roof: 80,
-        storm: { every: 20, random: 0.3, flash: 1.35, bolt: 1, volume: 80, delay: 1.8 },
+        storm: { every: 20, random: 0.3, flash: 1.35, bolt: 1, volume: 100, delay: 1.8 },
         flicker: { dark: 0.65, length: 1.3, chance: 1 },
         flashShadow: { power: 1.5, low: 16, spread: 30, hold: 2.5 },
         drips: { count: 90, top: 1330, out: 25, left: -1000, right: 780, speed: 1, bright: 1.9, size: 1.8, splash: 1.8 },
@@ -2606,6 +2613,9 @@
         }
         return c;
     }
+    // A strike's thunder is on its way (between the flash and the sound); with thunderPlaying it holds the next strike (stormNow).
+    let thunderPending = false;
+    const THUNDER_GAP = 4;
     // One strike: the flash pulses and a new bolt picture (a picture that cannot be made leaves only the bolt out).
     function strike(): void {
         const n = 2 + Math.floor(Math.random() * 3);
@@ -2636,7 +2646,9 @@
         STORM.seq = (STORM.seq + 1) % THUNDERS.length;
         const idx = STORM.seq;
         const delay = Math.max(0.2, K.delay * THUNDERS[idx].delayK * (0.8 + 0.4 * Math.random()));
+        thunderPending = true;
         window.setTimeout(() => {
+            thunderPending = false;
             playThunder(idx);
             maybeFlicker(THUNDERS[idx].level);
         }, delay * 1000);
@@ -2693,7 +2705,12 @@
             return 0;
         }
         if (STORM.next === 0) STORM.next = now + 4000;
-        if (now >= STORM.next) {
+        // one thunder at a time (owner 2026-11-25: they played on top of each other, thunder-medium.mp3 lasting a minute): while the
+        // last strike's thunder is still to come or still sounding, the next strike (its flash and its thunder) waits, and comes
+        // THUNDER_GAP seconds after that thunder has ended
+        if (thunderPending || thunderPlaying.size > 0) {
+            STORM.next = Math.max(STORM.next, now + THUNDER_GAP * 1000);
+        } else if (now >= STORM.next) {
             strike();
             STORM.next = now + K.every * 1000 * (1 + (Math.random() * 2 - 1) * K.random);
         }
@@ -2940,63 +2957,85 @@
         );
     }
     // The thunder (26g4b, the probe's THUNDERS): three real recordings (credits in THUNDER-CREDITS.txt), played in turn, soft and far,
-    // medium, loud and near. start / dur = the part played (seconds), level = how loud against the others, delayK = how long after the
-    // flash (x the look's delay), fade = the fade out at its end. Each is decoded once; its loudness from its peak in that part. A file
-    // that cannot be loaded leaves the thunder silent (the lightning and the flicker go on).
-    const THUNDERS: ReadonlyArray<{ readonly file: string; readonly start: number; readonly dur: number; readonly level: number; readonly delayK: number; readonly fade: number }> = [
-        { file: 'thunder-soft.ogg', start: 0.8, dur: 8, level: 0.5, delayK: 1.8, fade: 2 },
-        { file: 'thunder-medium.ogg', start: 10, dur: 14, level: 0.8, delayK: 1, fade: 3 },
+    // medium, loud and near. start / dur = the part played (seconds), level = how loud against the others (and how near: the lamps'
+    // flicker), delayK = how long after the flash (x the look's delay), fade = the fade out at its end. Each is decoded once; its
+    // loudness from its peak in that part. asIs (owner 2026-11-25, his own soft and medium files): the whole file, at 100%, nothing
+    // changed (no part, no fade, no loudness match). A file that cannot be loaded leaves only its own thunder silent (the lightning and the
+    // flicker go on).
+    const THUNDERS: ReadonlyArray<{ readonly file: string; readonly start: number; readonly dur: number; readonly level: number; readonly delayK: number; readonly fade: number; readonly asIs?: boolean }> = [
+        { file: 'thunder-soft.mp3', start: 0, dur: 0, level: 0.5, delayK: 1.8, fade: 0, asIs: true },
+        { file: 'thunder-medium.mp3', start: 0, dur: 0, level: 0.8, delayK: 1, fade: 0, asIs: true },
         { file: 'thunder-loud.ogg', start: 3.2, dur: 14, level: 1, delayK: 0.55, fade: 3 },
     ];
-    const thunder: { state: 'none' | 'loading' | 'ready' | 'failed'; bufs: Array<{ readonly buf: AudioBuffer; readonly norm: number }>; played: number } = {
+    const thunder: { state: 'none' | 'loading' | 'ready' | 'failed'; bufs: Array<{ readonly buf: AudioBuffer; readonly norm: number } | null>; played: number } = {
         state: 'none',
         bufs: [],
         played: 0,
     };
+    // Each file on its own: one that cannot be read or decoded stays silent, the others still play.
     function loadThunder(ctx: AudioContext, base: string): void {
         thunder.state = 'loading';
-        Promise.all(
+        Promise.allSettled(
             THUNDERS.map((t) =>
                 loadBuffer(ctx, base, t.file).then((buf) => {
                     const d = buf.getChannelData(0);
-                    const r0 = Math.floor(t.start * buf.sampleRate);
-                    const r1 = Math.min(d.length, Math.floor((t.start + t.dur) * buf.sampleRate));
+                    const r0 = t.asIs === true ? 0 : Math.floor(t.start * buf.sampleRate);
+                    const r1 = t.asIs === true ? d.length : Math.min(d.length, Math.floor((t.start + t.dur) * buf.sampleRate));
                     let pk = 0;
                     for (let i = r0; i < r1; i++) pk = Math.max(pk, Math.abs(d[i]));
                     return { buf, norm: 0.9 / (pk || 1) };
                 }),
             ),
-        ).then(
-            (bufs) => {
-                thunder.bufs = bufs;
-                thunder.state = 'ready';
-            },
-            () => {
-                thunder.state = 'failed';
-            },
-        );
+        ).then((results) => {
+            thunder.bufs = results.map((r) => (r.status === 'fulfilled' ? r.value : null));
+            thunder.state = thunder.bufs.some((b) => b !== null) ? 'ready' : 'failed';
+        });
     }
-    // One thunder (the probe's thunderSample): its part at the look's % x its level x its loudness, held, then faded out; only while
-    // the lobby is drawn.
+    // One thunder (the probe's thunderSample): asIs files whole, straight out at 100% (owner 2026-11-25: played as they are); the others
+    // their part at the look's % x its level x its loudness, held, then faded out; only while the lobby is drawn.
     function playThunder(idx: number): void {
         const ctx = sound.ctx;
         const K = look.storm;
         const T = THUNDERS[idx];
         const B = thunder.bufs[idx];
-        if (ctx === null || K === null || B === undefined || !soundWanted()) return;
+        if (ctx === null || K === null || B === undefined || B === null || !soundWanted()) return;
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
         const src = ctx.createBufferSource();
         src.buffer = B.buf;
-        const gain = ctx.createGain();
         const now = ctx.currentTime;
-        const v = (K.volume / 100) * T.level * B.norm;
-        gain.gain.setValueAtTime(v, now);
-        gain.gain.setValueAtTime(v, now + T.dur - T.fade);
-        gain.gain.linearRampToValueAtTime(0.0001, now + T.dur);
+        // its own volume knob, so leaving the lobby can fade it out (at 1 an asIs file plays exactly as it is)
+        const gain = ctx.createGain();
         src.connect(gain);
         gain.connect(busOf(ctx));
-        src.start(now, T.start, T.dur);
+        const playing = { src, gain };
+        thunderPlaying.add(playing);
+        src.onended = () => thunderPlaying.delete(playing);
+        if (T.asIs === true) {
+            src.start(now);
+        } else {
+            const v = (K.volume / 100) * T.level * B.norm;
+            gain.gain.setValueAtTime(v, now);
+            gain.gain.setValueAtTime(v, now + T.dur - T.fade);
+            gain.gain.linearRampToValueAtTime(0.0001, now + T.dur);
+            src.start(now, T.start, T.dur);
+        }
         thunder.played++;
+    }
+    // The thunders still sounding (owner 2026-11-25: thunder-medium.mp3 is a whole minute, its rain went on in the loading screen and
+    // into the battle, because a thunder played to its end; the old parts were 8 to 14 s): when the lobby is no longer drawn they
+    // fade out with the rain and the other loops (applySounds) and stop.
+    const thunderPlaying = new Set<{ readonly src: AudioBufferSourceNode; readonly gain: GainNode }>();
+    function stopThunders(ctx: AudioContext): void {
+        for (const p of thunderPlaying) {
+            p.gain.gain.cancelScheduledValues(ctx.currentTime);
+            p.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+            try {
+                p.src.stop(ctx.currentTime + 1.5);
+            } catch {
+                // already stopped
+            }
+            thunderPlaying.delete(p);
+        }
     }
     // one bark: a part of the recording, faded in and out, muffled by distance, to one side
     function playBark(side: number): void {
@@ -3083,6 +3122,7 @@
         }
         if (sound.firePanner !== null) sound.firePanner.pan.setTargetAtTime(firePan, ctx.currentTime, 0.4);
         rainGains(want);
+        if (!want) stopThunders(ctx);
         const F = look.nightSounds;
         const now = performance.now();
         if (!want || F === null || !(F.dogs > 0) || sound.state !== 'ready' || nightAmount() <= 0.02) {

@@ -16,7 +16,6 @@
     'use strict';
 
     const SWITCH_KEY = 'kasp_showroom';
-    const BATTLE_ATTRIBUTE = 'data-kasp-showroom-battle';
     // the card row (ListItems, on every item screen): scrolled sideways by the game
     const CARD_ROW = '.GarageCommonStyle-garageContainer .ListItemsComponentStyle-itemsListContainer';
     // the Augments, Skins and Shot colour lists: up-and-down scrollers, scrolled by the browser
@@ -90,9 +89,10 @@
         return null;
     }
 
-    // the card row: taken on the window before the game's own handler, which would jump the row
+    // the card row: taken on the window before the game's own handler, which would jump the row; in battle too (owner 2026-11-24:
+    // the garage opened in a battle glides like the lobby's; a wheel away from the card row only costs one closest() and goes on)
     window.addEventListener('wheel', (event) => {
-        if (event.ctrlKey || document.documentElement.hasAttribute(BATTLE_ATTRIBUTE)) return;
+        if (event.ctrlKey) return;
         const row = cardRowScroller(event.target);
         if (!row) return;
         event.stopPropagation();

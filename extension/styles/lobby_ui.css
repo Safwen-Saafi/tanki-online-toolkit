@@ -597,34 +597,97 @@ html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceDescripti
     background-repeat: no-repeat !important;
 }
 
-/* the title, under the picture */
+/* the title, under the picture, in at most two lines (owner 2026-11-25): the first line under the picture across the whole slide,
+   the rest in the row of the dots and Q / E, centred between them, and "..." at the end of that second line when the title is longer
+   still. Both lines are centred. The two lines are one text block whose line height is the distance between the first line's
+   middle (10.85em from the slide's top; owner 2026-11-25: lower than the first 10.175em, the two lines closer) and the dots
+   row's middle (1.55em above the slide's foot); the box starts half a line above the first line's middle. Two floats keep the second line clear of the dots (left) and
+   of Q / E (right); their shape starts one line down, so the first line is never shortened. The game puts the title in its own
+   markup (an h3 in a box), so the left float hangs on our box and the right one on the box's first child, both before the text.
+   Display -webkit-box with a vertical line clamp is laid out by the browser as a normal block (floats work in it) that stops after
+   two lines with the "...". */
 html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceContainer {
+    --kasp-news-line: calc(var(--kasp-lu-row3) - 1.55em - 10.85em);
     position: absolute !important;
     left: 1.1em !important;
     right: 1.1em !important;
-    top: 9.55em !important;
+    /* less 0.233em: the font draws its capitals that far under the middle of each line (owner's screenshot of 2026-11-25, measured:
+       the second line's capitals 3.4px under the middle of the dots and Q / E at a 14.6px letter size), so the capitals' middles
+       land on the two spots */
+    top: calc(10.85em - var(--kasp-news-line) / 2 - 0.233em) !important;
     bottom: auto !important;
     width: auto !important;
     height: auto !important;
+    max-height: calc(2 * var(--kasp-news-line)) !important;
     margin: 0 !important;
     padding: 0 !important;
     background: none !important;
     z-index: 2;
     pointer-events: none !important;
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    overflow: hidden !important;
+    font-size: 1em !important;
+    line-height: var(--kasp-news-line) !important;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-weight: normal !important;
+    text-align: center !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+}
+
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceContainer > *,
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceContainer h3 {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: none !important;
+}
+
+/* one font and one baseline for everything inside: a part in another font or raised or lowered made the line taller than its line
+   height, which pushed the second line under the dots row (owner 2026-11-25) */
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceContainer * {
+    font-size: inherit !important;
+    font-family: inherit !important;
+    font-weight: inherit !important;
+    font-style: inherit !important;
+    vertical-align: baseline !important;
+    line-height: inherit !important;
+    text-align: inherit !important;
+    white-space: inherit !important;
+    text-overflow: clip !important;
 }
 
 html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceContainer h3 {
-    margin: 0 !important;
-    font-size: 1em !important;
     font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
     font-weight: normal !important;
-    line-height: 1.25 !important;
     color: #fff !important;
-    text-align: left !important;
     text-transform: uppercase !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+}
+
+/* the two floats: the dots' room on the left (7 dots, 4.94em, and a gap), Q / E's room on the right (3.18em and a gap) */
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceContainer::before,
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceContainer > :first-child::before {
+    content: '' !important;
+    display: block !important;
+    float: left !important;
+    width: 5.6em !important;
+    height: calc(2 * var(--kasp-news-line)) !important;
+    /* 2px past the first line's bottom: with a line height that is not a whole number of pixels the browser rounded the shape's top
+       into the first line and shortened it (owner 2026-11-25) */
+    shape-outside: inset(calc(var(--kasp-news-line) + 2px) 0 0 0) !important;
+}
+
+html[data-kasp-lobby-ui] .AnnouncementHomeScreenComponentStyle-announceContainer > :first-child::before {
+    float: right !important;
+    width: 3.8em !important;
 }
 
 /* the timer: a gold badge on the picture's top left */
@@ -1288,7 +1351,8 @@ html[data-kasp-lobby-ui] .UserInfoContainerStyle-progressValue {
    PLAY tile rules of the battle search): the list sits in the game's pop-up box (ModalStyle-transparent, the whole window, on layer
    60, a closed group: probe of 2026-11-24, lobby-group-list-layer-probe.js), which was under the game's 100 for the search box.
    Its glass is darker than the bars' (owner 2026-11-24: too see-through over the busy lobby): the same colours, its dark under-layer
-   at 0.92 instead of 0.75. */
+   at 0.92 instead of 0.75. One flat, even glass (owner 2026-11-24: no vignette): no lighter top fading down and no dark shadow
+   spread round it. */
 html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem {
     position: absolute !important;
     left: auto !important;
@@ -1297,11 +1361,11 @@ html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem {
     box-sizing: border-box !important;
     overflow: hidden !important;
     background:
-        linear-gradient(180deg, var(--kasp-lu-fill-top), var(--kasp-lu-fill) 45%),
+        linear-gradient(var(--kasp-lu-fill), var(--kasp-lu-fill)),
         hsl(from hsl(205 60% 5% / 0.92) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha) !important;
     border: 2px solid var(--kasp-lu-edge) !important;
     border-radius: var(--kasp-lu-radius) !important;
-    box-shadow: inset 0 0.064em 0 var(--kasp-lu-inner), 0 0.6em 1.6em rgb(0 0 0 / 0.35) !important;
+    box-shadow: none !important;
 }
 
 html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem:empty {

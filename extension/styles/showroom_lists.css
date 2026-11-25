@@ -61,6 +61,39 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonS
     transform: rotate(-90deg) scaleX(-1) !important;
 }
 
+/* each card less see-through (owner 2026-11-25: too transparent over the garage's 3D): a dark glass layer under the card's own
+   background, its rank glow, picture and name. The card is turned (a transform), so the layer at z-index -1 stays inside the card,
+   above whatever is behind it and under everything the card holds; the game's own hover and selected colours stay on top of it.
+   Not black (owner 2026-11-25: too black): a dark shade of the card's own rank colour (the colours of the game's rank glow: rare
+   #00D4FF, epic #D47FFF, legendary #FFEE00, exotic, the game's SPECIAL, #FF3333), read from the rank the card reader writes on the
+   card (data-kasp-card, src/injector.ts); a card without one (common, Standard settings, or before the reader's first pass) gets a
+   dark glass in the game colour. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu > .SkinsAndAlterationsStyle-SkinsVerticalComponent > *::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: -1 !important;
+    border-radius: inherit !important;
+    background: hsl(from hsl(212 40% 15% / 0.5) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha) !important;
+    pointer-events: none !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu > .SkinsAndAlterationsStyle-SkinsVerticalComponent > [data-kasp-card*='"rarity":"RARE"']::before {
+    background: hsl(193 75% 15% / 0.55) !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu > .SkinsAndAlterationsStyle-SkinsVerticalComponent > [data-kasp-card*='"rarity":"EPIC"']::before {
+    background: hsl(280 50% 18% / 0.55) !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu > .SkinsAndAlterationsStyle-SkinsVerticalComponent > [data-kasp-card*='"rarity":"LEGENDARY"']::before {
+    background: hsl(52 65% 14% / 0.55) !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu > .SkinsAndAlterationsStyle-SkinsVerticalComponent > [data-kasp-card*='"rarity":"SPECIAL"']::before {
+    background: hsl(0 55% 17% / 0.55) !important;
+}
+
 /* the left panel: no background, no line; its last child (the Equip/Unequip button) on the scroll bar's line */
 html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageCommonStyle-subMenu:has(> .SkinsAndAlterationsStyle-SkinsVerticalComponent) > :first-child {
     background: none !important;

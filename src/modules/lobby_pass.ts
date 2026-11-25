@@ -156,13 +156,13 @@ void main(){
   L+=(uRot[i]*(beam*fr)+uStb[i]*nr)*face;}
  o=vec4(L*(1.-x.k),1.);}`;
     // 26d step 10: the waiting room, the launch lift. Every pixel that is not the tank (a cylinder round the tank base over the floor,
-    // from the game's depth) or the drone (a ball round it) shows, as far as the room has faded in, what the pixel's own line of
+    // from the game's depth, and a band from it along the way its front points, for a long gun) or the drone (a ball round it) shows, as far as the room has faded in, what the pixel's own line of
     // sight from the camera meets first in our lift: the tall square shaft (along the hangar's two ways, uW from the tank each way),
-    // the lift's floor filling it from wall to wall 320 under the tank, and on it the tank's stand (uDeck from the tank each way, 40
+    // the lift's floor filling it from wall to wall 320 under the tank, and on it the tank's stand (uDeck from the tank each way, ST
     // deep) on four steel legs round a hydraulic ram, military steel stairs from the stand down to the floor on its side to the
     // screen's right, going down towards the player (a landing, seven grating treads with yellow edges, side plates, yellow rails),
     // and a supply crate stack in each corner. The stand: tread plate, a hazard
-    // border, a ring with amber lights, the tank's soft shadow, a red light strip on its sides. The floor: grating, hazard stripes
+    // border, a ring with amber lights, the tank's soft shadow, hazard stripes on its sides. The floor: grating, hazard stripes
     // along the walls, the stand's shadow. The crates: olive, framed, each corner its own white symbol (a cross, a shield, a double
     // arrow, a lightning bolt). The walls: olive steel panels with rivets, grime streaks, rust, scorch marks, bullet dents, two
     // pipes, and on the wall behind the tank only (where the line from the camera through the tank meets it) the Tanki logo alone
@@ -174,9 +174,11 @@ void main(){
     // near).
     const ROOM_FS = `#version 300 es
 ${DEPTH_GLSL}
-uniform vec3 uBase,uBeamCol;uniform vec2 uBeamDir;uniform vec4 uDrone;uniform float uR,uFloor,uTop,uSoft,uAmt,uW,uRise,uRow,uDeck,uHasLogo;
+uniform vec3 uBase,uBeamCol;uniform vec2 uBeamDir,uFace;uniform vec4 uDrone;uniform float uR,uFloor,uTop,uSoft,uAmt,uW,uRise,uRow,uDeck,uHasLogo;
 uniform highp sampler2D uLogo;out vec4 o;
-const float FD=320.;const vec3 INK=vec3(.8,.76,.62);
+const float FD=320.;const vec3 INK=vec3(.8,.76,.62);const float GUN_W=90.,GUN_Z=40.,GUN_L=750.;
+// the stand's thickness (owner 2026-11-25: its side as tall on screen as the striped band on its top looks; it was 40)
+const float ST=26.;
 // the stairs: SR up each step, SG along, SW wide, their first tread SS along the stand's side (their landing just before)
 // (owner 2026-11-24: the landing at the far end of the stand's side, so SS = -460 + SW; the stand is 460 each way)
 const float SR=40.,SG=58.,SW=170.,SS=-290.;
@@ -259,9 +261,10 @@ vec3 stand(vec3 p,vec3 nr){
   col+=vec3(1.,.55,.08)*(1.-smoothstep(6.,10.,abs(r-uDeck+85.)))*seg*1.4;
   col*=mix(.3,1.,smoothstep(160.,uDeck-40.,r));
  } else {
-  float s=abs(nr.x)>.5?p.y:p.x;
-  col=vec3(.06,.065,.06)*(.8+.3*step(.5,fract(s/40.)));
-  col+=vec3(1.,.06,.03)*(1.-smoothstep(3.,6.,abs(p.z+20.)))*1.8;
+  // the stand's sides, top to bottom: the yellow and black hazard stripes of its top border (owner 2026-11-25: no red light strip),
+  // slanting the other way (minus the height), and at the top edge (height 0) the same value as the top's p.x+p.y there, so every
+  // stripe goes on round the edge in the same colour
+  col=stripes(p.x+p.y-p.z);
  }
  return col;}
 // a tread or the landing of the stairs: steel grating, a yellow edge where it steps down (l = along the stand's side)
@@ -304,6 +307,12 @@ void main(){
  if(x.d<.99999){
   float r=length(x.p.xy-uBase.xy);
   keep=(1.-smoothstep(uR-uSoft,uR,r))*smoothstep(uFloor,uFloor+uSoft*.4,x.p.z)*(1.-smoothstep(uTop-uSoft,uTop,x.p.z));
+  // the gun: a long gun reaches out of the cylinder (owner 2026-11-25: facing the camera in the search, and turned by the drag,
+  // its front was painted over by the lift); a band from the tank along the way its front points (uFace), GUN_W each side, out to
+  // GUN_L, GUN_Z above the floor cut, keeps it whichever way the tank turns
+  vec2 rel=x.p.xy-uBase.xy;
+  float across=abs(rel.x*uFace.y-rel.y*uFace.x),along=dot(rel,uFace);
+  keep=max(keep,(1.-smoothstep(GUN_W-uSoft,GUN_W,across))*step(0.,along)*(1.-smoothstep(GUN_L-uSoft,GUN_L,along))*smoothstep(uFloor+GUN_Z,uFloor+GUN_Z+uSoft*.4,x.p.z)*(1.-smoothstep(uTop-uSoft,uTop,x.p.z)));
   if(uDrone.w>0.)keep=max(keep,1.-smoothstep(uDrone.w-20.,uDrone.w,distance(x.p,uDrone.xyz)));}
  float a=uAmt*(1.-keep);
  if(a<.002)discard;
@@ -316,10 +325,10 @@ void main(){
  float t=max(min(tx,ty),0.);int what=0;vec3 nr=vec3(0.,0.,1.);
  if(rd.z<0.){float tf=(-FD-ro.z)/rd.z;if(tf>0.&&tf<t){t=tf;what=1;nr=vec3(0.,0.,1.);}}
  vec3 n4;float t4;
- t4=box(ro,rd,vec3(-uDeck,-uDeck,-40.),vec3(uDeck,uDeck,0.),n4);if(t4<t){t=t4;what=2;nr=n4;}
- t4=cyl(ro,rd,vec2(0.),95.,-FD,-40.,n4);if(t4<t){t=t4;what=3;nr=n4;}
+ t4=box(ro,rd,vec3(-uDeck,-uDeck,-ST),vec3(uDeck,uDeck,0.),n4);if(t4<t){t=t4;what=2;nr=n4;}
+ t4=cyl(ro,rd,vec2(0.),95.,-FD,-ST,n4);if(t4<t){t=t4;what=3;nr=n4;}
  for(int i=0;i<4;i++){vec2 c=vec2(i<2?1.:-1.,mod(float(i),2.)<1.?1.:-1.)*(uDeck-70.);
-  t4=cyl(ro,rd,c,34.,-FD,-40.,n4);if(t4<t){t=t4;what=4;nr=n4;}}
+  t4=cyl(ro,rd,c,34.,-FD,-ST,n4);if(t4<t){t=t4;what=4;nr=n4;}}
  // the stairs (owner 2026-11-24, drawn on his screenshot), on the stand's side to the screen's right (sn out of it, from the camera),
  // going down along it towards the player (st): a landing at the stand's top, seven treads, two side plates, yellow hand rails (high
  // and middle) on the outer side and at the landing's end, on posts
@@ -2123,7 +2132,7 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
         // The waiting room (26d step 10), made on its own the same way.
         let roomProg: Program | null = null;
         try {
-            roomProg = program(FULL_VS, ROOM_FS, [...DEPTH_U, 'uBase', 'uBeamCol', 'uBeamDir', 'uDrone', 'uR', 'uFloor', 'uTop', 'uSoft', 'uAmt', 'uW', 'uRise', 'uRow', 'uDeck', 'uLogo', 'uHasLogo']);
+            roomProg = program(FULL_VS, ROOM_FS, [...DEPTH_U, 'uBase', 'uBeamCol', 'uBeamDir', 'uFace', 'uDrone', 'uR', 'uFloor', 'uTop', 'uSoft', 'uAmt', 'uW', 'uRise', 'uRow', 'uDeck', 'uLogo', 'uHasLogo']);
         } catch {
             roomProg = null;
         }
@@ -3752,6 +3761,7 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
                     gl.uniform3fv(uni(pr, 'uBase'), Rm.base);
                     gl.uniform3fv(uni(pr, 'uBeamCol'), Rm.beamCol);
                     gl.uniform2fv(uni(pr, 'uBeamDir'), Rm.beamDir);
+                    gl.uniform2fv(uni(pr, 'uFace'), Rm.face);
                     gl.uniform1f(uni(pr, 'uW'), Rm.width);
                     gl.uniform1f(uni(pr, 'uRise'), Rm.rise);
                     gl.uniform1f(uni(pr, 'uR'), Rm.radius);

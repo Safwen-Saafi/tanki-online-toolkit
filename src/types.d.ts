@@ -606,6 +606,8 @@ interface KaspLobbyRoom {
     readonly rise: number;
     readonly beamCol: readonly number[];
     readonly beamDir: readonly number[];
+    // the way the tank's front (its gun) points on the ground, a unit x, y
+    readonly face: readonly number[];
     // the Tanki logo's picture (only its shape is used), null until it is read
     readonly logo: ImageBitmap | null;
 }
