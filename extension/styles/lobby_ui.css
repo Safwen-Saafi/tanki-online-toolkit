@@ -1393,6 +1393,22 @@ html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-commonItem > :hover {
     background: var(--kasp-lu-cell-hover) !important;
 }
 
+/* ---------- the answer box on the right: a friend joins or refuses the group, and the game's other short notices ----------
+   The game's own box, its own colours and size (owner 2026-11-25: our colours were wrong for it); only its inner corners rounded like
+   the lobby's, the two on the left: the box stands against the window's right edge, and its two corners there stay square (owner
+   2026-11-25). The card (NotificationViewStyle-commonBlockNotification, read in the game's code, build of 2026-11-22), its frame inside
+   (-positionBlock, the game's thin white line) and its buttons (the boxes in -commonBlockButtonYesNo). The card hides what passes its
+   corners (the title band, the timer). */
+html[data-kasp-lobby-ui] .NotificationViewStyle-commonBlockNotification,
+html[data-kasp-lobby-ui] .NotificationViewStyle-positionBlock {
+    border-radius: var(--kasp-lu-radius) 0 0 var(--kasp-lu-radius) !important;
+    overflow: hidden !important;
+}
+
+html[data-kasp-lobby-ui] .NotificationViewStyle-commonBlockButtonYesNo > * {
+    border-radius: 0.55em !important;
+}
+
 /* ---------- the top bar of every other screen: garage, shop, settings and the rest (26d2, owner 2026-11-23: "the same way") ----------
    The game draws it with one component (its BreadcrumbsComponentStyle, read in its code, build of 2026-11-22):
      headerContainer > [ a box with: backButton (arrow, key Z), the T friends button (only when the game offers groups), your rank

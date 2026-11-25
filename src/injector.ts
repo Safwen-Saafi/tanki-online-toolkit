@@ -1803,6 +1803,101 @@
         ]);
     }
 
+    // Invite a friend to the group from the friends list (owner 2026-11-25, option 1). A press on a friend opens the game's player
+    // menu, to which the friends screen adds its own item, "Remove friend" (read in its code, build of 2026-11-22). The game invites
+    // only from its group's invite window: there a friend is ticked (one action to the store with the player's id) and INVITE sends
+    // the invites to every ticked player and clears the ticks; the window's close clears them too; and the window, as it opens, first
+    // asks the server to start a group when the player has none. So one more item, the game's own word INVITE, only for a friend who
+    // is online: it starts the group if there is none, clears the ticks, ticks that friend and sends, the very same actions of the
+    // game, then closes the menu the way the menu closes. The game refuses an invite it would not allow (a search on, the group
+    // full) as from its own window. Every name is read from the game's code; one missing skips only this item.
+    function patchFriendsInvite(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the friends invite's ${what} in this bundle, the friends menu stays the game's own`);
+            return null;
+        };
+        const R = String.raw;
+        const N = '[\\w$]+';
+        const one = (pattern: string): RegExpExecArray | null => exactlyOne(code, new RegExp(pattern, 'g'));
+        // the friends menu's own list of items ("Remove friend"), in the friend row's code
+        const menu = one(R`if\(t\.(${N})\.(${N})\)\{var i=(${N})\(\),r=t\.(${N})\(\(null==(${N})&&new (${N}),\5\)\.(${N})\(\)\);i\.(${N})\(new (${N})\(r,\(u=t,function\(\)\{var t=u\.\1,n=u\.\1\.(${N});return u\.(${N})\(t\.(${N})\((${N}),n,\13,\13,\13,\13,!0\)\),(${N})\}\),!0\)\);`);
+        if (menu === null || menu.index === undefined) return skip('menu');
+        const [, pas, , , mat, , , , add, item, friend, setState, newState, unset] = menu;
+        const near = code.slice(menu.index, menu.index + 3000);
+        const online = new RegExp(R`var r=t\.${asPattern(pas)}\.${asPattern(friend)}\.(${N}),e=null==r\?null:r\.(${N});return i\.isOnline=null!=e&&e`).exec(near);
+        if (online === null) return skip('online state');
+        // the group's invite window: the tick (by the player's id field), the clear, the send, the word INVITE
+        const tick = one(R`t\.state\.selectedUsersSendInvite\.${N}\(r\.(${N})\)[^]{0,2500}?\(a=r,function\(t\)\{return (${N})\(\)\.(${N})\(\)\.(${N})\(new (${N})\(a\.\1\)\)`);
+        if (tick === null || tick.index === undefined) return skip('tick');
+        const [, idField, store, getStore, dispatch, tickClass] = tick;
+        const clear = one(R`t\.props\.onSendInviteHandler\(\),(${N})\(\),`);
+        const send = one(R`\.onSendInviteHandler=function\(t\)\{return function\(\)\{return t\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\((${N})\(\)\),${N}\}\}`);
+        const words = [...code.matchAll(new RegExp(R`\.text=i\.${asPattern(mat)}\((${N})\(\)\.(${N})\(\)\),r\.buttonKey=${N}\(\),r\.onClick=function\(t\)\{return function\(\)\{return t\.props\.onSendInviteHandler\(\),`, 'g'))];
+        if (clear === null || send === null || words.length === 0 || words.some((w) => w[1] !== words[0][1] || w[2] !== words[0][2])) return skip('invite window');
+        // the window's own first step, when it opens: "no group yet (no members): ask the server to start one" (owner 2026-11-25:
+        // the invite to a free player did nothing, lobby-friends-invite-probe.js: the player had no group, members=[]; the server
+        // takes no invite without one). The action is the window's, sent the moment it is put on the page, right before its page.
+        const open = one(R`\.${N}=function\(\)\{this\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\((${N})\)\},${N}\(${N}\)\.${N}=function\(t\)\{[^]{0,600}?\.onSendInviteHandler=function\(t\)\{return function\(\)\{return t\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\(${asPattern(send[1])}\(\)\)`);
+        if (open === null || open.index === undefined) return skip('window open');
+        // the group itself: the T button, pressed with no group, first sends "start a group if there is none" and only then opens the
+        // window; with no group the server takes no invite (owner 2026-11-25, lobby-friends-invite-probe.js comparing the game's
+        // invite with ours: the game's sent that start and its invite was accepted, ours did not and nothing came).
+        // Everything is sent at once, the invite right behind the start, never after the group has come: the game watches a new
+        // group with one rule, "the invite window closed, the player alone and no invite pending: close the group", and a group that
+        // came before our invite was pending was closed the moment it came (the probe: the new group, then gW and kW at once). The
+        // invite is pending in the game the moment it is sent, so the group stays; the server gets the start, then the invite.
+        const start = one(R`function\(t\)\{t\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\((${N})\(\)\),t\.${asPattern(getStore)}\(\)\.${N}\.${N}\.${N} instanceof ${N}\|\|t\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\(new ${N}\(${N}\(\)\)\)\}\(t\)`);
+        if (start === null || start.index === undefined) return skip('group start');
+        // all in the friends menu's module, so the names reach it
+        for (const at of [tick.index, clear.index ?? 0, send.index ?? 0, words[0].index ?? 0, open.index, start.index]) {
+            if (MODULE_BORDER.test(code.slice(Math.min(at, menu.index), Math.max(at, menu.index)))) return skip('module');
+        }
+        // The player menu draws its own items first and the screen's extra items ("Remove friend") last, after its other parts. The
+        // invite goes first (owner 2026-11-25): it is marked (__kaspFirst), the menu draws marked items right after the player's name
+        // and skips them in its last loop. Its word is the game's own, as a sentence (Invite, Пригласить), like the menu's others.
+        const loop = one(R`function\(t,n\)\{var i=t\.props\.additionalItems;if\(null==i\);else for\(var r=i\.(${N})\(\);r\.(${N})\(\);\)\{var e=r\.(${N})\(\),u=(${N})\((${N})\);n\.(${N})\(u,(${N})\(e\)\)\}\}\(this,t\)`);
+        if (loop === null || loop.index === undefined) return skip('menu items');
+        const [loopText, iter, hasNext, next, element, itemView, addChild, itemProps] = loop;
+        const menuStart = code.lastIndexOf('.jap=function(t){', loop.index);
+        const afterName = code.indexOf(')(this,t),', menuStart);
+        if (menuStart < 0 || afterName < 0 || afterName > loop.index) return skip('menu name');
+        const firstItems =
+            `(function(t,n){var i=t.props.additionalItems;if(null!=i)for(var r=i.${iter}();r.${hasNext}();){var e=r.${next}();` +
+            `e.__kaspFirst&&n.${addChild}(${element}(${itemView}),${itemProps}(e))}})(this,t),`;
+        const lastItems = loopText.replace(`{var e=r.${next}(),`, `{var e=r.${next}();if(e.__kaspFirst)continue;var `);
+        const text =
+            `(function(){try{var f=t.${pas}.${friend},o=f.${online[1]};if(null!=o&&o.${online[2]}){` +
+            `var w=String(t.${mat}(${words[0][1]}().${words[0][2]}())),g=new ${item}(w.charAt(0).toUpperCase()+w.slice(1).toLowerCase(),function(){` +
+            `try{var s=${store}().${getStore}();s.${dispatch}(${start[1]}());s.${dispatch}(${open[1]});` +
+            `${clear[1]}();s.${dispatch}(new ${tickClass}(f.${idField}));s.${dispatch}(${send[1]}())}catch(e){}` +
+            `t.${setState}(t.${pas}.${newState}(${unset},${unset},${unset},!1,null))},!1);g.__kaspFirst=!0;i.${add}(g)}}catch(e){}})();`;
+        return applyEdits(code, [
+            { at: menu.index + menu[0].length, length: 0, text },
+            { at: afterName + ')(this,t),'.length, length: 0, text: firstItems },
+            { at: loop.index, length: loopText.length, text: lastItems },
+        ]);
+    }
+
+    // The answer box on the right (a friend joins or refuses the group, read in the game's code, build of 2026-11-22): each time its
+    // part is drawn again it gives the box a new key from a counter that goes up by one on every drawing, so React throws the box away
+    // and builds it again, and its slide-in plays again. That part is drawn again whenever the data of the player in the box changes,
+    // which happens right after a friend accepts (they join the group, their state changes: lobby-invite-answer-probe.js, 2026-11-25,
+    // one answer, one box, both changes within 25 ms), so the box came in twice (owner 2026-11-25). The box now keeps its key for as
+    // long as it shows the same answer (the key is kept on the answer itself); a new answer still gets a new one and comes in.
+    function patchAnswerBoxKey(code: string): string | null {
+        const N = '[\\w$]+';
+        const found = exactlyOne(code, new RegExp(String.raw`\((${N})=this,(${N})=r,function\(t\)\{var r=(${N})\.(${N});return \3\.\4=r\+1\|0,t\.(${N})\(r\.toString\(\)\),`, 'g'));
+        if (found === null || found.index === undefined) {
+            warn(`${LOG} could not find the answer box's key in this bundle, it keeps the game's own`);
+            return null;
+        }
+        const [whole, self, answer, counter, field, setKey] = found;
+        const text =
+            `(${self}=this,${answer}=r,function(t){var r=${answer}.__kaspKey;null==r&&(r=${counter}.${field},${counter}.${field}=r+1|0,${answer}.__kaspKey=r);` +
+            `return t.${setKey}(r.toString()),`;
+        return applyEdits(code, [{ at: found.index, length: whole.length, text }]);
+    }
+
     function lobbyUiSwitchedOff(): boolean {
         try {
             return localStorage.getItem('kasp_lobbyui') === '0';
@@ -1950,6 +2045,16 @@
             if (friends !== null) {
                 result = friends;
                 hooked.push('friends-over-lobby');
+            }
+            const invite = patchFriendsInvite(result);
+            if (invite !== null) {
+                result = invite;
+                hooked.push('friends-invite');
+            }
+            const answerKey = patchAnswerBoxKey(result);
+            if (answerKey !== null) {
+                result = answerKey;
+                hooked.push('answer-box-key');
             }
         }
         // Last, so every other edit finds the game's code as it was.
