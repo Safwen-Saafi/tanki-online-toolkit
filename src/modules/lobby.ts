@@ -1726,27 +1726,32 @@
     let passFrames = 0;
     let lobbyTickAt = 0;
     let partsCheckAt = 0;
-    // Once a second while the lobby is drawn: the pass starts on the lobby's first frame, sometimes before the game has put all of the
-    // hangar's parts in its scene, so a part added later (a sunbeam, the lamps' halo) would never be hidden or faded. If the parts
-    // changed, the pass starts again (it first gives back what it hid); otherwise every part the look hides is hidden again, in case
-    // the game showed it again.
+    // The look is read once at start and stays for the whole session (a new one applies after a restart), so the pieces it turns off
+    // are taken out of the hangar's model when the game loads it (hangar_files.ts asks removesPart, piece by piece): the game never
+    // has them, from the first frame and after every battle (owner 2026-11-25: they were hidden once a second here, after the game had
+    // drawn them again on coming back from a battle, so they flashed). What is left here: the pass may start on the lobby's first
+    // frame before the game has put the hangar in its scene (no room0 yet); until it has, the parts are read again once a second, and
+    // never again after (the street box and the sunny looks' faded sunbeams need the whole hangar).
     function checkParts(s: Scene, n: KaspLobbyNames): void {
         const p = n.pass;
         const ps = passScene;
-        if (p === undefined || ps === null || passBroken) return;
+        if (p === undefined || ps === null || passBroken || ps.parts.some((q) => q.name === 'room0')) return;
         try {
-            const now = readParts(s, n, p);
-            const known = new Set(ps.parts.map((q) => q.node));
-            const same = now.length === ps.parts.length && now.every((q) => known.has(q.node));
-            if (!same) {
-                startPass(s, n);
-                return;
-            }
-            for (const part of ps.hidden) invoke(part.node, p.setShown, [false]);
+            if (readParts(s, n, p).some((q) => q.name === 'room0')) startPass(s, n);
         } catch {
             // the parts stay as they are
         }
     }
+    // Whether this look takes a piece of the hangar's model out (its hidden parts, and the sunbeams where they are too weak to show);
+    // the same rule as startPass and sunbeams below.
+    function removesPart(name: string): boolean {
+        if (hiddenNames().includes(name)) return true;
+        return isSunbeam(name) && timeState(look.time.hour).beams * (look.overcast?.beams ?? 1) < 0.03;
+    }
+    const removedTag = (): string => {
+        const weak = timeState(look.time.hour).beams * (look.overcast?.beams ?? 1) < 0.03;
+        return [...hiddenNames()].sort().join('+') + (weak ? '+beams' : '');
+    };
     let gpu: KaspLobbyGpu | null = null;
     let gpuGl: WebGL2RenderingContext | null = null;
     // The renderer object whose frame call is wrapped, the game's own call, and whether it was the object's own property.
@@ -2629,6 +2634,9 @@
         STORM.pulses = pulses;
         STORM.strikes++;
         STORM.side = (Math.random() * 2 - 1) * (look.flashShadow?.spread ?? 0);
+        // the last strike's bolt goes at once: its new picture is made a frame or two later, and the sky never shows the old one meanwhile
+        STORM.bolt?.close();
+        STORM.bolt = null;
         try {
             createImageBitmap(makeBolt()).then(
                 (bmp) => {
@@ -2697,14 +2705,19 @@
         if (K === null || K.dark <= 0) return;
         if (Math.random() < K.chance * Math.max(0, Math.min(1, (lvl - 0.4) / 0.6))) startFlicker(lvl);
     }
-    // The strike timer and how bright the flash is now (0 = none, at most 1.4 x the look's flash).
+    // The strike timer and how bright the flash is now (0 = none, at most 1.4 x the look's flash). The timer runs only while the lobby
+    // is drawn, but its next strike is a clock time: after a pause (a battle, the page out of sight) that time had passed, so a strike
+    // came the very moment the lobby showed again, a full flash in the player's face (owner 2026-11-25). So after a pause of more than
+    // a second the next strike is booked again from that moment, as when the stormy lobby first shows (4 s).
+    let stormSeenAt = 0;
     function stormNow(now: number): number {
         const K = look.storm;
         if (K === null) {
             STORM.next = 0;
             return 0;
         }
-        if (STORM.next === 0) STORM.next = now + 4000;
+        if (STORM.next === 0 || now - stormSeenAt > 1000) STORM.next = now + 4000;
+        stormSeenAt = now;
         // one thunder at a time (owner 2026-11-25: they played on top of each other, thunder-medium.mp3 lasting a minute): while the
         // last strike's thunder is still to come or still sounding, the next strike (its flash and its thunder) waits, and comes
         // THUNDER_GAP seconds after that thunder has ended
@@ -4725,6 +4738,8 @@
     window.__kaspLobby = {
         start,
         prepare,
+        removesPart,
+        removedTag,
         frame,
         drone,
         get frames() {

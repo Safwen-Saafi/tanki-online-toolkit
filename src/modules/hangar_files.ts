@@ -695,6 +695,10 @@
     //    twin with the corners in the other order, in the same material, so the ring shows from both sides. This grows the face list,
     //    so the chunk lengths above it are patched.
     // 3. Christmas only: the screens on the right wall, their stand and their cables (SCREEN_BOXES) collapsed like the arm.
+    // 4. The pieces the look turns off for the whole session (lobby.ts removesPart: its hidden parts, as the beacon lamps' sunbeams
+    //    light0 to light2 or the lamps' halo transp1, and the sunbeams where they are too weak to show), every face collapsed: the
+    //    game never draws them, from the first frame and after every battle (owner 2026-11-25: hidden later by lobby.ts, they flashed
+    //    when coming back from a battle). The look is read once at start, so the model is made for it once.
     // The game's own model if anything fails.
     async function modelWithoutArm(address: string, init?: RequestInit): Promise<Response> {
         const real = await call(address, init);
@@ -702,6 +706,24 @@
         try {
             const buffer = await real.clone().arrayBuffer();
             const view = new DataView(buffer), bytes = new Uint8Array(buffer);
+            // every face of one piece's mesh (0x4100) collapsed in place: its three corners the first one, drawn as nothing
+            const removes = window.__kaspLobby?.removesPart;
+            const collapse = (mesh: number, meshEnd: number): void => {
+                for (let at = mesh; at + 6 <= meshEnd;) {
+                    const id = view.getUint16(at, true), length = view.getUint32(at + 2, true), body = at + 6;
+                    if (length < 6 || at + length > meshEnd) return;
+                    if (id === 0x4120) {
+                        const faceCount = view.getUint16(body, true);
+                        for (let f = 0; f < faceCount; f++) {
+                            const first = view.getUint16(body + 2 + f * 8, true);
+                            view.setUint16(body + 2 + f * 8 + 2, first, true);
+                            view.setUint16(body + 2 + f * 8 + 4, first, true);
+                        }
+                        return;
+                    }
+                    at += length;
+                }
+            };
             // Reads room0's mesh; collapses the arm's faces in place; returns the rebuilt face chunk when the ring needs twins.
             const room = (mesh: number, meshEnd: number): { at: number; length: number; chunk: Uint8Array } | null => {
                 let verts: Float32Array | null = null;
@@ -827,7 +849,16 @@
                     else if (id === 0x4000) {
                         let nameEnd = body;
                         while (nameEnd < bytes.length && bytes[nameEnd] !== 0) nameEnd++;
-                        if (String.fromCharCode(...bytes.subarray(body, nameEnd)) === 'room0') {
+                        const name = String.fromCharCode(...bytes.subarray(body, nameEnd));
+                        if (name !== 'room0' && removes !== undefined && removes(name)) {
+                            for (let inner = nameEnd + 1; inner + 6 <= at + length;) {
+                                const innerId = view.getUint16(inner, true), innerLength = view.getUint32(inner + 2, true);
+                                if (innerLength < 6 || inner + innerLength > at + length) break;
+                                if (innerId === 0x4100) collapse(inner + 6, inner + innerLength);
+                                inner += innerLength;
+                            }
+                        }
+                        if (name === 'room0') {
                             for (let inner = nameEnd + 1; inner + 6 <= at + length;) {
                                 const innerId = view.getUint16(inner, true), innerLength = view.getUint32(inner + 2, true);
                                 if (innerLength < 6 || inner + innerLength > at + length) break;
@@ -963,7 +994,10 @@
                 return plainFloor.then(({ blob, type }) => new Response(blob, { status: 200, headers: { 'Content-Type': type } }));
             }
             if (folder !== null && plain(address) === folder + '/object.3ds') {
-                armless ??= savedResponse(christmas ? 'object-armless-xmas.3ds' : 'object-armless.3ds', 'application/octet-stream', () => modelWithoutArm(address, init)).then((r) => r.blob.arrayBuffer());
+                // saved under a name that says which pieces the look took out, so another look never gets this one's model
+                const removed = window.__kaspLobby?.removedTag() ?? '';
+                const name = `object-armless${christmas ? '-xmas' : ''}${removed !== '' ? '-' + removed : ''}.3ds`;
+                armless ??= savedResponse(name, 'application/octet-stream', () => modelWithoutArm(address, init)).then((r) => r.blob.arrayBuffer());
                 return armless.then((b) => new Response(b.slice(0), { status: 200, headers: { 'Content-Type': 'application/octet-stream' } }));
             }
         } catch {

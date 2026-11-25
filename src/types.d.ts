@@ -967,6 +967,11 @@ interface KaspLobby {
     readonly frame: (system: unknown) => void;
     // Called by hangar_files.ts once the game has asked for its hangar (26f2): the model and the night pictures are read at once.
     readonly prepare: () => void;
+    // Asked by hangar_files.ts when the hangar's model arrives (owner 2026-11-25), piece by piece of the model: whether this look turns
+    // that piece off for the whole session (its hidden parts and, where the hour's sunbeams are too weak, the sunbeams); those pieces
+    // are removed from the model itself. The look's tag says which pieces, for the name the made model is saved under.
+    readonly removesPart: (name: string) => boolean;
+    readonly removedTag: () => string;
     // Called by the game's drone system as the last thing of its own update (26c).
     readonly drone: (system: unknown) => void;
     // Read-only, for the owner's console checks.
