@@ -325,6 +325,37 @@
         markChat(list);
     }
 
+    // The friends' rows in the dock (owner 2026-11-25): the game writes an online friend's state as one line, "ONLINE" or
+    // "ONLINE (IN GROUP)" in the game's language, in the same class either way, and the stylesheet shows only the group part. So each
+    // row's line gets the word in its brackets as data-kasp-group (or none). The rows are marked when the list is drawn (the list's
+    // 1 ms animation, lobby_ui.css) and again whenever the game changes the list or a row's words (a friend joins a group), only
+    // while the list is on the page; our own attribute is not watched, so marking never wakes the watcher.
+    let friendsWatch: MutationObserver | null = null;
+
+    function markFriends(list: HTMLElement): void {
+        for (const line of Array.from(list.getElementsByClassName('FriendListComponentStyle-greenTextOnline'))) {
+            const group = /\(([^)]*)\)/.exec(line.textContent ?? '')?.[1]?.trim();
+            if (group) {
+                if (line.getAttribute('data-kasp-group') !== group) line.setAttribute('data-kasp-group', group);
+            } else if (line.hasAttribute('data-kasp-group')) {
+                line.removeAttribute('data-kasp-group');
+            }
+        }
+    }
+
+    function watchFriends(list: HTMLElement): void {
+        friendsWatch?.disconnect();
+        friendsWatch = new MutationObserver(() => {
+            if (list.isConnected) markFriends(list);
+            else {
+                friendsWatch?.disconnect();
+                friendsWatch = null;
+            }
+        });
+        friendsWatch.observe(list, { childList: true, subtree: true, characterData: true });
+        markFriends(list);
+    }
+
     // The news list and the chat's messages glide under the mouse wheel like the garage's Augments, Skins and Shot colour lists (owner
     // 2026-11-23; showroom_glide.ts, the same numbers and the same way, copied: that file runs in the extension's own world and only
     // with the Showroom garage switch). A notch adds its step to a goal and every frame the list covers part of the way, the same feel
@@ -332,6 +363,9 @@
     // only, the first time the mouse comes over it; nothing runs while a list is still. A press on a list (the scroll bar, a drag)
     // stops the glide; so does any other move of the list meanwhile (the game's jump to a new message at the chat's foot), so that
     // move wins.
+    // Not the friends list (owner 2026-11-25: its scrolling felt heavy): the glide moves a list on the page's main thread, the one the
+    // lobby's 3D hangar keeps busy every frame, so its steps came late; the browser's own scrolling, smooth by itself and run apart
+    // from that thread, is left to it.
     const DOCK_LISTS = '.NewsComponentStyle-newsContainer, .ChatComponentStyle-messagesContainer';
     const hookedDockLists = new WeakSet<Element>();
     let listBox: HTMLElement | null = null;
@@ -440,6 +474,10 @@
         }
         if (event.animationName === 'kasp-chat-list-seen' && event.target instanceof HTMLElement) {
             watchChat(event.target);
+            return;
+        }
+        if (event.animationName === 'kasp-friends-list-seen' && event.target instanceof HTMLElement) {
+            watchFriends(event.target);
             return;
         }
         // The top bar's rank ring (26d2): the progress from the current rank's start to the next rank (owner 2026-11-23). The game's own
@@ -556,9 +594,15 @@
     // is open and lights the open one). A press on the other tab presses the game's own footer button of the other, then closes the
     // open one the way a press off it does (its own close sheet); both are the game's plain click handlers, read from its code. The new
     // one comes first, so the dock is never empty; the swap mark makes it stand in place at once with only its insides fading in.
+    // Friends is the third (owner 2026-11-25): not a window but one of the game's screens, drawn over the lobby since src/injector.ts
+    // patchFriendsOverLobby (the lobby and its 3D hangar stay). Its box is the game's -container holding the garage's tab bar and the
+    // friends list or the requests; it has no close sheet, so it is closed through its own back button (its top bar is hidden by
+    // the stylesheet, a press on the hidden button still runs the game's handler), and a press off it is caught below.
+    const FRIENDS_BOX = '.-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"])';
     const DOCK = {
         news: { window: 'NewsComponentStyle-newsWindow', close: 'NewsComponentStyle-closeArea', button: 'FooterComponentStyle-newsButton' },
         chat: { window: 'ChatComponentStyle-chatWindow', close: 'ChatComponentStyle-closeArea', button: 'FooterComponentStyle-chatButton' },
+        friends: { window: '', close: '', button: 'FooterComponentStyle-friendButton' },
     } as const;
     type DockKey = keyof typeof DOCK;
     const DOCK_KEYS = Object.keys(DOCK) as DockKey[];
@@ -568,7 +612,13 @@
     // our own presses on the game's close sheets, let through by the closing below
     let passing = false;
 
-    const isOpen = (key: DockKey): boolean => document.getElementsByClassName(DOCK[key].window).length > 0;
+    const friendsBox = (): Element | null => document.querySelector(FRIENDS_BOX);
+    const isOpen = (key: DockKey): boolean => (key === 'friends' ? friendsBox() !== null : document.getElementsByClassName(DOCK[key].window).length > 0);
+    // what closes it: the close sheet, or for friends its back button
+    function closerOf(key: DockKey): HTMLElement | null {
+        const el = key === 'friends' ? friendsBox()?.querySelector('.BreadcrumbsComponentStyle-backButton') : document.getElementsByClassName(DOCK[key].close)[0];
+        return el instanceof HTMLElement ? el : null;
+    }
 
     function passClick(el: HTMLElement): void {
         passing = true;
@@ -581,13 +631,14 @@
 
     function swapTo(key: DockKey): void {
         if (closing !== null || isOpen(key)) return;
-        const close = document.getElementsByClassName(DOCK[key === 'news' ? 'chat' : 'news'].close)[0];
+        const open = DOCK_KEYS.find((k) => k !== key && isOpen(k));
+        const close = open === undefined ? null : closerOf(open);
         const button = document.getElementsByClassName(DOCK[key].button)[0];
-        if (!(close instanceof HTMLElement) || !(button instanceof HTMLElement)) return;
+        if (close === null || !(button instanceof HTMLElement)) return;
         window.clearTimeout(swapTimer);
         document.documentElement.setAttribute(SWAP_MARK, '');
         swapTimer = window.setTimeout(() => document.documentElement.removeAttribute(SWAP_MARK), SWAP_MS);
-        button.click();
+        passClick(button);
         passClick(close);
     }
 
@@ -624,20 +675,31 @@
 
     function onDockClick(event: MouseEvent): void {
         if (passing || !(event.target instanceof Element)) return;
-        const key = DOCK_KEYS.find((k) => (event.target as Element).classList.contains(DOCK[k].close));
-        if (key === undefined) return;
+        const target = event.target;
+        const key = DOCK_KEYS.find((k) => k !== 'friends' && target.classList.contains(DOCK[k].close));
+        if (key !== undefined) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            if (closing === null && target instanceof HTMLElement) closeAnimated(key, target);
+            return;
+        }
+        // friends has no close sheet: a press off it (not in its box, not on our tabs, not in a pop-up of the game) closes it the same
+        // way and goes no further, as the news' and chat's sheets take every press off them
+        const box = friendsBox();
+        if (box === null || box.contains(target) || target.closest('.kasp-dock-tabs, #modal-root') !== null) return;
         event.stopImmediatePropagation();
         event.preventDefault();
-        if (closing === null && event.target instanceof HTMLElement) closeAnimated(key, event.target);
+        const back = closerOf('friends');
+        if (closing === null && back !== null) closeAnimated('friends', back);
     }
 
     function onDockKey(event: KeyboardEvent): void {
         if (event.key !== 'Escape' || passing) return;
         // the chat lies over the news (the game's layers), so it is the one Esc closes first
-        const key = (['chat', 'news'] as const).find(isOpen);
+        const key = (['chat', 'news', 'friends'] as const).find(isOpen);
         if (key === undefined) return;
-        const sheet = document.getElementsByClassName(DOCK[key].close)[0];
-        if (!(sheet instanceof HTMLElement)) return;
+        const sheet = closerOf(key);
+        if (sheet === null) return;
         event.stopImmediatePropagation();
         event.preventDefault();
         if (closing === null) closeAnimated(key, sheet);
@@ -646,12 +708,12 @@
     function addDockTabs(): void {
         const tabs = document.createElement('div');
         tabs.className = 'kasp-dock-tabs';
-        for (const key of DOCK_KEYS) {
+        for (const name of DOCK_KEYS) {
             const tab = document.createElement('button');
             tab.type = 'button';
             tab.className = 'kasp-dock-tab';
-            tab.dataset.tab = key;
-            tab.addEventListener('click', () => swapTo(key));
+            tab.dataset.tab = name;
+            tab.addEventListener('click', () => swapTo(name));
             tabs.append(tab);
         }
         document.body.append(tabs);

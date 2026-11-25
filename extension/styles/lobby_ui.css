@@ -1675,12 +1675,14 @@ html[data-kasp-lobby-ui] {
     --kasp-dock-left: 2.05em;
     --kasp-dock-width: 40em;
     --kasp-dock-top: var(--kasp-lu-top);
-    /* the lobby glass made less see-through for reading (owner 2026-11-23): its dark part 92% instead of 75% */
+    /* the lobby glass made less see-through for reading (owner 2026-11-23: its dark part 92% instead of 75%; 2026-11-25: still too
+       see-through, 98%) */
     --kasp-dock-glass: linear-gradient(180deg, var(--kasp-lu-fill-top), var(--kasp-lu-fill) 45%),
-        hsl(from hsl(205 60% 5% / 0.92) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
+        hsl(from hsl(205 60% 5% / 0.98) var(--kasp-theme-hue, h) calc(s * var(--kasp-theme-strength, 1)) l / alpha);
     /* the title bar: the chat's own height, given to the news too, so the tabs sit in the same place on both */
     --kasp-dock-head: 3.125em;
-    --kasp-dock-tabs: 12.4em;
+    /* three tabs: NEWS, CHAT, FRIENDS */
+    --kasp-dock-tabs: 18.6em;
     --kasp-dock-tabs-h: 2.3em;
     --kasp-dock-h: calc(var(--kasp-lu-bottom) - var(--kasp-lu-top));
     /* the tabs' top inside the dock: its edge line, then centred in the title bar */
@@ -1799,8 +1801,10 @@ html[data-kasp-lobby-ui] .ChatComponentStyle-chatResize {
    (-channelsSelect) with a drawn triangle (-channelsSelectArrow); its open list is the browser's own, which a page can dress only
    through the browser's dressable select (appearance: base-select, Chrome 135 on). So: the box as dark as the tabs' bar, the list a
    glass panel with rows like the tabs; the browser's own arrow in place of the triangle. An older browser keeps its plain list. */
+/* 10.5em (was 13em): beside three tabs the channel picker and the clan chat still fit the title bar (owner 2026-11-25: CLAN CHAT
+   was cut) */
 html[data-kasp-lobby-ui] .ChatComponentStyle-channelsSelect {
-    width: 13em !important;
+    width: 10.5em !important;
     height: var(--kasp-dock-tabs-h) !important;
 }
 
@@ -1947,7 +1951,7 @@ html[data-kasp-lobby-ui]:has(.ChatComponentStyle-chatWindow) .FooterComponentSty
     display: none;
 }
 
-html[data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) .kasp-dock-tabs {
+html[data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow, .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-dock-tabs {
     position: fixed;
     left: calc(var(--kasp-dock-left) + 2px + 0.7em);
     top: calc(var(--kasp-dock-top) + var(--kasp-dock-tabs-y));
@@ -1966,12 +1970,14 @@ html[data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle
     animation: kasp-dock-grow 0.5s var(--kasp-dock-ease) backwards;
 }
 
+/* over the chat (the game's layer 102); !important, as the rule above is stronger (its friends part) and kept it at 31 under the chat
+   window (owner 2026-11-25: the tabs went dim behind the chat) */
 html[data-kasp-lobby-ui]:has(.ChatComponentStyle-chatWindow) .kasp-dock-tabs {
-    z-index: 103;
+    z-index: 103 !important;
 }
 
 /* closing: with the dock (owner 2026-11-23: they stayed after it; this rule was weaker than the one above, so it never took) */
-html[data-kasp-dock-closing][data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) .kasp-dock-tabs {
+html[data-kasp-dock-closing][data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow, .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-dock-tabs {
     animation: kasp-dock-shrink 0.5s var(--kasp-dock-ease) forwards;
 }
 
@@ -1995,7 +2001,8 @@ html[data-kasp-dock-closing][data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWin
 }
 
 html:has(.NewsComponentStyle-newsWindow) .kasp-dock-tab[data-tab="news"],
-html:has(.ChatComponentStyle-chatWindow) .kasp-dock-tab[data-tab="chat"] {
+html:has(.ChatComponentStyle-chatWindow) .kasp-dock-tab[data-tab="chat"],
+html:has(.GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-dock-tab[data-tab="friends"] {
     color: #fff;
     background: rgb(255 255 255 / 0.14);
     cursor: default;
@@ -2004,8 +2011,685 @@ html:has(.ChatComponentStyle-chatWindow) .kasp-dock-tab[data-tab="chat"] {
 /* the names, in the game's language (English unless the game says Russian) */
 .kasp-dock-tab[data-tab="news"]::after { content: 'NEWS'; }
 .kasp-dock-tab[data-tab="chat"]::after { content: 'CHAT'; }
+.kasp-dock-tab[data-tab="friends"]::after { content: 'FRIENDS'; }
 html:lang(ru) .kasp-dock-tab[data-tab="news"]::after { content: 'НОВОСТИ'; }
 html:lang(ru) .kasp-dock-tab[data-tab="chat"]::after { content: 'ЧАТ'; }
+html:lang(ru) .kasp-dock-tab[data-tab="friends"]::after { content: 'ДРУЗЬЯ'; }
+
+/* ---------- friends, the dock's third tab (owner 2026-11-25) ----------
+   Friends is one of the game's screens, not a window: src/injector.ts patchFriendsOverLobby draws it over the lobby, which stays on
+   the page with its 3D hangar (proven live: lobby-friends-over-probe.js). What the game draws for it (probe of 2026-11-25):
+     -container > [ its own top bar (BreadcrumbsComponentStyle-headerContainer: back arrow, group button, rank, name, money, home,
+                    pinned to the window's top, over the lobby's own bar),
+                    the garage's tab bar (GarageMenuComponentStyle-garageMenuContainer: arrows, Q, FRIENDS [online/total] and REQUEST, E,
+                    a line under it),
+                    the friends list (FriendListComponentStyle-containerFriends: a bar with the search box, FRIENDS ONLINE n and the add
+                    button, then the rows box -scrollCommunity, each row -stringCommunity holding two friends -blockList side by side,
+                    1079 px wide whatever the window) or the requests (FriendRequestComponentStyle-...) ]
+   In the dock: the same glass, place and size, grow and shrink as the news and the chat; its top bar goes (the dock closes it:
+   lobby_ui.ts presses its back button); the tab bar is the dock's title bar, the game's two tabs right of our three; one friend a
+   row, each a glass cell like the news rows. Every rule waits for the lobby (the PLAY tile), so the game's own friends screen is
+   never touched where it is drawn alone. */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) {
+    position: fixed !important;
+    left: var(--kasp-dock-left) !important;
+    top: var(--kasp-dock-top) !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: var(--kasp-dock-width) !important;
+    height: var(--kasp-dock-h) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 30 !important;
+    overflow: hidden !important;
+    background: var(--kasp-dock-glass) !important;
+    border: 2px solid var(--kasp-lu-edge) !important;
+    border-radius: var(--kasp-lu-radius) !important;
+    box-shadow: inset 0 1px 0 var(--kasp-lu-inner) !important;
+    clip-path: inset(calc((1 - var(--kasp-dock-p)) * 100%) 0 0 0 round var(--kasp-lu-radius)) !important;
+    animation: kasp-dock-grow 0.5s var(--kasp-dock-ease) backwards !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > :not(.GarageMenuComponentStyle-garageMenuContainer, .BreadcrumbsComponentStyle-headerContainer) {
+    animation: kasp-dock-fade 0.25s ease 0.25s backwards;
+}
+
+html[data-kasp-dock-swap][data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) {
+    animation-duration: 0s !important;
+}
+
+html[data-kasp-dock-swap][data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > * {
+    animation-delay: 0s;
+}
+
+html[data-kasp-dock-closing][data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) {
+    animation: kasp-dock-shrink 0.5s var(--kasp-dock-ease) forwards !important;
+}
+
+html[data-kasp-dock-closing][data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > :not(.GarageMenuComponentStyle-garageMenuContainer) {
+    animation: kasp-dock-fade-out 0.25s ease forwards;
+}
+
+/* the glass itself, as a layer of our own over the box's background and under everything in it (owner 2026-11-25: the panel was
+   lighter and greener than the news and chat; lobby-friends-glass-probe.js: the box kept the game's own background picture, an
+   image of the game's code, which our background above does not replace though the rest of that rule applies). The box is a
+   layer group of its own (fixed, layer 30), so this layer at -1 stays inside it, over its own background. */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"])::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: -1 !important;
+    border-radius: inherit !important;
+    background: var(--kasp-dock-glass) !important;
+    pointer-events: none !important;
+}
+
+/* its own top bar goes: the lobby's stays the only one (owner 2026-11-25: two bars on each other) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .BreadcrumbsComponentStyle-headerContainer {
+    display: none !important;
+}
+
+/* the dock's title bar: an empty strip of the dock's height (our tabs lie over it), its line under it */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"])::before {
+    content: '' !important;
+    display: block !important;
+    flex: none !important;
+    height: var(--kasp-dock-head) !important;
+    box-sizing: border-box !important;
+    border-bottom: 1px solid rgb(255 255 255 / 0.1) !important;
+}
+
+/* nothing inside paints the game's own screen background over the dock's glass (owner 2026-11-25: it still showed the friends
+   page's background): the list's and the requests' boxes are see-through, only the rows are cells */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) :is(.FriendListComponentStyle-containerFriends, .FriendListComponentStyle-scrollCommunity, .FriendListComponentStyle-stringCommunity, .FriendRequestComponentStyle-blockInformationCommunity, .FriendRequestComponentStyle-blockInformationCommunityNoSearch, [class*="TableComponentStyle-table"], .TableComponentStyle-thead, .TableComponentStyle-tBody),
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > :last-child {
+    background: none !important;
+    box-shadow: none !important;
+}
+
+/* FRIENDS / REQUEST: the game's own tab bar with its own Q and E, moved into the panel under the title bar (owner 2026-11-25: the
+   dock's title bar is for the three tabs), centred, the two tabs a dark pill like ours */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer {
+    position: relative !important;
+    flex: none !important;
+    width: auto !important;
+    height: var(--kasp-dock-tabs-h) !important;
+    margin: 0.8em 0.9em 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: none !important;
+    border: 0 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer :is(.-arrowLeft, .-arrowRight, .MenuComponentStyle-decorLineMenu, .-menuItemActive) {
+    display: none !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer > *,
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer .MenuComponentStyle-blockButtonsQECommunity {
+    width: auto !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 0.35em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer .MenuComponentStyle-battleTitleCommunity {
+    width: 18em !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0.25em !important;
+    box-sizing: border-box !important;
+    border-radius: 0.75em !important;
+    background: rgb(0 0 0 / 0.3) !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer .MenuComponentStyle-battleTitleCommunity > * {
+    width: 100% !important;
+    height: 100% !important;
+    gap: 0.25em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer .MenuComponentStyle-mainMenuItem {
+    flex: 1 !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 0.6em !important;
+    justify-content: center !important;
+    border-radius: 0.55em !important;
+    color: var(--kasp-lu-muted) !important;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-size: 0.85em !important;
+    letter-spacing: 0.08em !important;
+    cursor: pointer !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer .MenuComponentStyle-mainMenuItem:hover {
+    color: #fff !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer .MenuComponentStyle-mainMenuItem.-activeMenu {
+    background: rgb(255 255 255 / 0.14) !important;
+    color: #fff !important;
+    cursor: default !important;
+}
+
+/* the game's Q and E boxes: white key boxes like the news tile's */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer .-buttonQE {
+    width: 1.4em !important;
+    height: 1.4em !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0.2em !important;
+    background: #fff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > .GarageMenuComponentStyle-garageMenuContainer .-buttonQE span {
+    color: #0b1626 !important;
+    font-size: 0.76em !important;
+    font-family: BaseFontBold, FallbackFontBold, sans-serif !important;
+    font-weight: normal !important;
+}
+
+/* the panel lays its parts out stretched across: the game's own box centres them, which made the requests' box as wide as the game's
+   table (971 px in the 585 px dock, both sides cut: lobby-friends-requests-probe.js, 2026-11-25) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer):has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) {
+    align-items: stretch !important;
+}
+
+/* the list (or the requests): the rest of the dock under the switch, never wider than it, everything in it stretched across */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has([class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]) > :last-child {
+    position: relative !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0.8em 0 0 !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+}
+
+/* the bar over the list: the search box, FRIENDS ONLINE n and the add button (the requests: the search when there are many, and
+   DECLINE ALL) in one row across the dock */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) :is(.FriendRequestComponentStyle-blockInformationCommunity, .FriendRequestComponentStyle-blockInformationCommunityNoSearch) {
+    flex: none !important;
+    align-self: stretch !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 2.6em !important;
+    margin: 0 0.9em 0.1em !important;
+    padding: 0 !important;
+    display: flex !important;
+    gap: 0.6em !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+
+/* the search box: the game's input in the dock's look, a dark field like the chat's channel picker */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .SearchInputComponentStyle-search {
+    flex: 0 1 13em !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 100% !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .SearchInputComponentStyle-searchInput {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .SearchInputComponentStyle-searchInput input {
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 2.2em 0 0.9em !important;
+    box-sizing: border-box !important;
+    border: 1px solid rgb(255 255 255 / 0.12) !important;
+    border-radius: 0.75em !important;
+    background: rgb(0 0 0 / 0.3) !important;
+    color: #fff !important;
+    outline: none !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .SearchInputComponentStyle-searchInput input:focus {
+    border-color: rgb(255 255 255 / 0.3) !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-friendsOnline {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    font-size: 0.9em !important;
+}
+
+/* the add button: kept green, a rounded square the bar's height, always at the bar's right (owner 2026-11-25: opened, the add box
+   with its name field went to the middle) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-containerButtonFriends {
+    flex: none !important;
+    width: auto !important;
+    height: 100% !important;
+    margin: 0 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-buttonAddFriends {
+    width: 3.4em !important;
+    height: 100% !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    border-radius: 0.75em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-buttonAddFriends img {
+    width: 1.9em !important;
+    height: auto !important;
+    margin: 0 !important;
+}
+
+/* the add form, opened (the game's containerForm: X, the name field, the add button's box): at the bar's right, in the order name
+   field, X, add button (owner 2026-11-25: the X between the field and the button, easier to reach), no room between them */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-containerForm {
+    flex: none !important;
+    width: auto !important;
+    height: 100% !important;
+    margin: 0 0 0 auto !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-containerForm > .FriendListComponentStyle-friendSearchInput {
+    order: 1 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-containerForm > .FriendListComponentStyle-buttonCloseAddFriends {
+    order: 2 !important;
+    flex: none !important;
+    width: auto !important;
+    height: 100% !important;
+    aspect-ratio: 1 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    border-radius: 0.75em !important;
+    background-size: 45% !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-containerForm > .FriendListComponentStyle-containerButtonFriends {
+    order: 3 !important;
+    margin: 0 !important;
+}
+
+/* DECLINE ALL (the requests): a glass button like the chat's channel picker, at the bar's right */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendRequestComponentStyle-buttonDeclineAll {
+    flex: none !important;
+    width: auto !important;
+    height: 100% !important;
+    margin: 0 0 0 auto !important;
+    padding: 0 1em !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    border: 1px solid rgb(255 255 255 / 0.12) !important;
+    border-radius: 0.75em !important;
+    background: rgb(0 0 0 / 0.3) !important;
+    color: #fff !important;
+    font-size: 0.85em !important;
+    letter-spacing: 0.06em !important;
+    cursor: pointer !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendRequestComponentStyle-buttonDeclineAll:hover {
+    background: rgb(0 0 0 / 0.42) !important;
+    border-color: rgb(255 255 255 / 0.25) !important;
+}
+
+/* The two scrolling lists (the friends' rows box and the requests' table body) end 0.9em over the dock's bottom (owner 2026-11-25:
+   the rows were glued to it) and fade out at their top and bottom edges instead of being cut by a straight line, as the garage's
+   lists and the battle modes' row do. The fade is fixed and the list's own padding is its size, so a row at rest is never in it: the
+   first one starts under the top fade, the last one ends over the bottom fade once scrolled down. (A fade that followed the scroll
+   made the browser repaint the whole list every frame: owner 2026-11-25, the scrolling felt heavy.) */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) :is(.FriendListComponentStyle-scrollCommunity, .TableComponentStyle-tBody) {
+    flex: 1 1 auto !important;
+    align-self: stretch !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 0 0.9em !important;
+    padding: 0.8em 0.9em 1.6em !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+/* the fade: on the requests' table body itself (a short list), and for the friends on the box round their list, which does not
+   scroll (owner 2026-11-25: the scrolling felt heavy; a list that scrolls plainly, with nothing on it, is scrolled by the browser
+   apart from the page's busy main thread). That box holds the bar (its top padding 0.8em, the bar 2.6em, 0.1em under it) over the
+   list, and 0.9em of the dock under it: the fade's stops are there. */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .TableComponentStyle-tBody {
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 0.8em, #000 calc(100% - 1.6em), transparent 100%) !important;
+    mask-image: linear-gradient(180deg, transparent 0, #000 0.8em, #000 calc(100% - 1.6em), transparent 100%) !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) > .FriendListComponentStyle-containerFriends:has(> .FriendListComponentStyle-scrollCommunity) {
+    -webkit-mask-image: linear-gradient(180deg, #000 0, #000 3.5em, transparent 3.5em, #000 4.3em, #000 calc(100% - 2.5em), transparent calc(100% - 0.9em)) !important;
+    mask-image: linear-gradient(180deg, #000 0, #000 3.5em, transparent 3.5em, #000 4.3em, #000 calc(100% - 2.5em), transparent calc(100% - 0.9em)) !important;
+}
+
+/* the friends' rows box tells lobby_ui.ts when it is drawn (a 1 ms animation), which marks the rows of friends in a group */
+@keyframes kasp-friends-list-seen {
+    from { outline-color: transparent; }
+    to { outline-color: transparent; }
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-scrollCommunity {
+    animation: kasp-friends-list-seen 1ms;
+}
+
+/* the friends: two a row (owner 2026-11-25), the game's two-friend rows opened up into one grid */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-scrollCommunity {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-rows: 3.6em !important;
+    align-content: start !important;
+    gap: 0.4em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-stringCommunity {
+    display: contents !important;
+}
+
+/* the cell's own letter size, as a length every element inside inherits (the group line's own size is 0, its word is not) */
+@property --kasp-fr-em {
+    syntax: '<length>';
+    inherits: true;
+    initial-value: 16px;
+}
+
+/* each friend: a glass cell like the news rows (owner 2026-11-25: less words, more room): its rank on the left, its name in the
+   middle of the cell (green online, grey offline: the game's own colours say it, so the ONLINE / OFFLINE words go), the battle it
+   is in (MM, PRO ...) at the far right; in a group, the name moves up and the group word (lobby_ui.ts reads it from the game's
+   "ONLINE (IN GROUP)") stands under it. The game's state box is opened up (display: contents) so its two lines are the cell's. */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-blockList {
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0.3em 0.9em 0.3em 0.35em !important;
+    box-sizing: border-box !important;
+    display: grid !important;
+    grid-template-columns: 2.6em minmax(0, 1fr) auto !important;
+    --kasp-fr-em: 1em;
+    grid-template-rows: 1fr 1fr !important;
+    column-gap: 0.55em !important;
+    row-gap: 0 !important;
+    background: var(--kasp-lu-cell) !important;
+    border: 1px solid rgb(255 255 255 / 0.1) !important;
+    border-radius: 0.8em !important;
+    cursor: pointer !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-blockList:hover {
+    background: var(--kasp-lu-cell-hover) !important;
+}
+
+/* the rank: the game's picture alone, without its diamond behind */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-blockImage {
+    grid-row: 1 / span 2 !important;
+    grid-column: 1 !important;
+    align-self: center !important;
+    width: 2.6em !important;
+    height: 2.6em !important;
+    margin: 0 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-substrateRhombus {
+    display: none !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-rangFriends {
+    position: static !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+}
+
+/* the name: across both lines, in the middle; in a group, on the top line */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-containerNickName {
+    grid-row: 1 / span 2 !important;
+    grid-column: 2 !important;
+    align-self: center !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-blockList:has([data-kasp-group]) .FriendListComponentStyle-containerNickName {
+    grid-row: 1 !important;
+    align-self: end !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-nickName {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 0.95em !important;
+    line-height: 1.25 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-blockOnline {
+    display: contents !important;
+}
+
+/* ONLINE / OFFLINE: not written; a group's word only, on the line under the name */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-offline {
+    display: none !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-greenTextOnline {
+    grid-row: 2 !important;
+    grid-column: 2 !important;
+    align-self: start !important;
+    justify-self: start !important;
+    text-align: left !important;
+    min-width: 0 !important;
+    margin: 0.1em 0 0 !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-greenTextOnline[data-kasp-group]::after {
+    content: '(' attr(data-kasp-group) ')';
+    font-size: calc(var(--kasp-fr-em) * 0.62);
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* the battle it is in: at the cell's far right, in the middle */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendListComponentStyle-opacityText {
+    grid-row: 1 / span 2 !important;
+    grid-column: 3 !important;
+    align-self: center !important;
+    justify-self: end !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    white-space: nowrap !important;
+}
+
+/* the requests: the game's table laid out as the dock's list, its header a small line, each request a glass cell with the name on
+   the left and accept / decline at the right */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) [class*="TableComponentStyle-table"] {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border: 0 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .TableComponentStyle-thead {
+    flex: none !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 0.9em 0.4em !important;
+    padding: 0 0.6em !important;
+    display: block !important;
+    border: 0 !important;
+    color: var(--kasp-lu-muted) !important;
+    font-size: 0.8em !important;
+    letter-spacing: 0.06em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .TableComponentStyle-thead > * {
+    width: auto !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    background: none !important;
+    border: 0 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .TableComponentStyle-thead > * > * {
+    width: auto !important;
+    padding: 0 !important;
+    background: none !important;
+    border: 0 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .TableComponentStyle-tBody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.4em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .TableComponentStyle-tBody .TableComponentStyle-row {
+    flex: none !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 3.6em !important;
+    margin: 0 !important;
+    padding: 0 0.6em 0 0.35em !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.6em !important;
+    background: var(--kasp-lu-cell) !important;
+    border: 1px solid rgb(255 255 255 / 0.1) !important;
+    border-radius: 0.8em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .TableComponentStyle-tBody .TableComponentStyle-row:hover {
+    background: var(--kasp-lu-cell-hover) !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .TableComponentStyle-tBody .TableComponentStyle-td {
+    width: auto !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    background: none !important;
+    border: 0 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendRequestComponentStyle-cellName,
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendRequestComponentStyle-cellName > .FriendRequestComponentStyle-commonBlock {
+    width: auto !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    justify-content: flex-start !important;
+    gap: 0.55em !important;
+    overflow: hidden !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendRequestComponentStyle-cellName * {
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendRequestComponentStyle-cellName .InviteUsersComponentStyle-rangContainer {
+    flex: none !important;
+    width: 2.6em !important;
+    height: 2.6em !important;
+    margin: 0 !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) .FriendRequestComponentStyle-cellActions {
+    flex: none !important;
+    justify-content: flex-end !important;
+    gap: 0.4em !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) :is(.FriendRequestComponentStyle-buttonAccept, .FriendRequestComponentStyle-buttonDecline) {
+    flex: none !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 2.3em !important;
+    margin: 0 !important;
+    padding: 0 0.9em !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    border: 1px solid rgb(255 255 255 / 0.12) !important;
+    border-radius: 0.7em !important;
+    background: rgb(0 0 0 / 0.3) !important;
+    cursor: pointer !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) :is(.FriendRequestComponentStyle-buttonAccept, .FriendRequestComponentStyle-buttonDecline):hover {
+    background: rgb(0 0 0 / 0.45) !important;
+    border-color: rgb(255 255 255 / 0.25) !important;
+}
+
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer) .-container:has(> .GarageMenuComponentStyle-garageMenuContainer) :is(.FriendRequestComponentStyle-buttonAccept, .FriendRequestComponentStyle-buttonDecline) > span {
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 0.8em !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+}
+
+/* the open one's button in the bottom left bar stays lit, as the news' and the chat's */
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):has(.GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .FooterComponentStyle-friendButton {
+    background: var(--kasp-lu-cell-hover) !important;
+    box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.5) !important;
+}
 
 @media (prefers-reduced-motion: reduce) {
     html[data-kasp-lobby-ui] :is(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow, .NewsComponentStyle-newsWindow > *, .ChatComponentStyle-chatWindow > *),

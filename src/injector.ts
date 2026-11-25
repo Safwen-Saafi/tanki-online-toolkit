@@ -1747,6 +1747,62 @@
         return applyEdits(code, [{ at: makerAt, length: 0, text }]);
     }
 
+    // Friends over the lobby (26d, owner 2026-11-25, step 1, a TEST: friends to go in the lobby's dock with the news and the chat).
+    // The game draws one screen at a time (read in its code, build of 2026-11-22): its root draws either the lobby (w2n: the main menu,
+    // PLAY, the tiles, the bottom bar) or the screen switcher (R2n), which draws exactly one other screen from the store's current
+    // screen (t.faq_1.ppu_1.xpz_1): garage, shop, settings, friends (mIn, its own header, the FRIENDS and FRIEND REQUESTS tabs, the
+    // list), and so on. Going to friends took the lobby off the page. Two edits:
+    // 1. beside the switcher, in its module: window.__kaspFriendsScreen() says whether the store's current screen is the friends one;
+    // 2. in the root, where it draws the switcher: while that is true, the lobby first, so it is the root's same child in the same place
+    //    as in the lobby and the game keeps it on the page (never built again), the friends screen drawn after it.
+    // Every other screen is drawn as before. The switcher's friends branch is told by the component it draws, the one whose page shows
+    // the friends count as " [online/total]".
+    function patchFriendsOverLobby(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the friends screen's ${what} in this bundle, friends stays its own screen`);
+            return null;
+        };
+        const R = String.raw;
+        const N = '[\\w$]+';
+        const one = (pattern: string): RegExpExecArray | null => exactlyOne(code, new RegExp(pattern, 'g'));
+        // the friends screen component: its page writes the count as " [online/total]"
+        const friends = one(R`${N}\((${N})\)\.(${N})=function\(t\)\{var n=${N},i=${N}\.${N}\(n\);[^]{0,1600}?return" \["\+`);
+        if (friends === null) return skip('component');
+        // the switcher: its page picks one component by the class of its current screen; the friends branch draws that component
+        const switcher = one(R`${N}\((${N})\)\.${asPattern(friends[2])}=function\(t\)\{var n,i=this\.${N}\.${N};if\(i instanceof ${N}\)\{[^]{0,1500}?else if\(i instanceof (${N})\)\{var ${N}=${N}\(${asPattern(friends[1])}\);`);
+        if (switcher === null || switcher.index === undefined) return skip('switcher');
+        const [, switcherClass, friendsScreen] = switcher;
+        // where the switcher reads the store's current screen
+        const mapper = one(R`function ${asPattern(switcherClass)}\(\)\{${N}\.call\(this,(${N})\)\}`);
+        if (mapper === null) return skip('switcher state');
+        const path = one(R`function ${asPattern(mapper[1])}\(t,n,i\)\{return new ${N}\(t\.(${N})\.(${N})\.(${N})\)\}`);
+        if (path === null) return skip('current screen');
+        // the store, through the getter the switcher's module uses (the bottom bar's buttons: E2t().aar().gaq(...))
+        const switcherAt = switcher.index;
+        let holder: string | null = null;
+        for (const found of code.slice(Math.max(0, switcherAt - 2000000), switcherAt).matchAll(/([\w$]+)\(\)\.aar\(\)\.gaq\(/g)) holder = found[1];
+        if (holder === null) return skip('store');
+        const holderAt = code.lastIndexOf(`${holder}().aar().gaq(`, switcherAt);
+        if (MODULE_BORDER.test(code.slice(holderAt, switcherAt))) return skip('store module');
+        // the root, where it draws the lobby (St(Rt) with Mu) or the switcher (St(It) with Du)
+        const root = one(R`var (${N})=(${N})\((${N})\);n\.(${N})\(\1,(${N})\)\}\}else if\(function\(t,n\)\{return!!\(n instanceof ${N}(?:\|\|n instanceof ${N})*\)\|\|n instanceof ${N}\}\(0,i\)\)if\(t\.${N}\.${N}\)\{var ${N}=\2\(${N}\);n\.\4\(${N},${N}\)\}else\{`);
+        if (root === null || root.index === undefined) return skip('root');
+        const [, , make, lobby, add, lobbyProps] = root;
+        // 3. the 3D view shows its canvas and runs its scene only on the screens it lists (the lobby's and the garage's: probe of
+        //    2026-11-25, lobby-friends-over-probe.js, the hangar's frames 181 a second, then 0 and the canvas hidden with friends
+        //    open); the friends screen is added to that list, so the hangar stays alive under it
+        const view = one(R`var r=t\.${asPattern(path[1])}\.${asPattern(path[2])}\.${asPattern(path[3])},[^;]{0,200}?,o=r instanceof ${N}\|\|r instanceof ${N}`);
+        if (view === null || view.index === undefined) return skip('3D view');
+        const check =
+            `window.__kaspFriendsScreen=function(){try{return ${holder}().aar().${path[1]}.${path[2]}.${path[3]} instanceof ${friendsScreen}}catch(e){return!1}},`;
+        const draw = `if(window.__kaspFriendsScreen&&window.__kaspFriendsScreen()){var kaspLobby=${make}(${lobby});n.${add}(kaspLobby,${lobbyProps})}`;
+        return applyEdits(code, [
+            { at: switcherAt, length: 0, text: check },
+            { at: root.index + root[0].length, length: 0, text: draw },
+            { at: view.index + view[0].length, length: 0, text: `||r instanceof ${friendsScreen}` },
+        ]);
+    }
+
     function lobbyUiSwitchedOff(): boolean {
         try {
             return localStorage.getItem('kasp_lobbyui') === '0';
@@ -1889,6 +1945,11 @@
             if (modes !== null) {
                 result = modes;
                 hooked.push('lobby-modes');
+            }
+            const friends = patchFriendsOverLobby(result);
+            if (friends !== null) {
+                result = friends;
+                hooked.push('friends-over-lobby');
             }
         }
         // Last, so every other edit finds the game's code as it was.
