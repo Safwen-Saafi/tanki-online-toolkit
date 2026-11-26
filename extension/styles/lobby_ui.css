@@ -3408,3 +3408,40 @@ html:not(:has(.MatchmakingWaitComponentStyle-container)) body {
     from { outline-color: transparent; }
     to { outline-color: transparent; }
 }
+
+/* ---------- The game's invite-friends screen (top bar friends button; owner 2026-11-26: "just make the tiles style match our ui
+   style"): each friend tile in the friends tiles' look (the glass cell, a thin light edge, rounded corners, lighter under the
+   mouse), measured 2026-11-26 (blueprint/reference/lobby-invite-window-probe.js). The tile has only the game's changing ksc-
+   classes, so it is found by its place: usersScroll > row > tile. A ticked tile keeps the game's own green (its fill and edge, and
+   its tick over the rank), rounded the same way; a friend already in a group (no nickNameClass: it cannot be ticked) gets no hover.
+   The rank's square behind it goes, as on the friends tiles. Nothing else on the screen changes. */
+html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-usersScroll > * > * {
+    background: var(--kasp-lu-cell) !important;
+    border: 1px solid rgb(255 255 255 / 0.1) !important;
+    border-radius: 0.8em !important;
+    box-sizing: border-box !important;
+}
+
+html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-usersScroll > * > .nickNameClass:hover {
+    background: var(--kasp-lu-cell-hover) !important;
+}
+
+html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-usersScroll > * > :has(> .InvitationWindowsComponentStyle-selectedIcon) {
+    background: rgb(116 186 61 / 0.2) !important;
+    border-color: rgb(116 186 61) !important;
+}
+
+html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-usersScroll > * > :has(> .InvitationWindowsComponentStyle-selectedIcon):hover {
+    background: rgb(116 186 61 / 0.3) !important;
+}
+
+html[data-kasp-lobby-ui] .InvitationWindowsComponentStyle-usersScroll .InvitationWindowsComponentStyle-substrateRank {
+    display: none !important;
+}
+
+/* BACK and INVITE under the list: only their corners rounded, like our dock's buttons (owner 2026-11-26: "rounded borders only");
+   anything the game draws inside them is cut to the same corners */
+html[data-kasp-lobby-ui] :is(.InvitationWindowsComponentStyle-backButton, .InvitationWindowsComponentStyle-inviteButton) {
+    border-radius: 0.75em !important;
+    overflow: hidden !important;
+}
