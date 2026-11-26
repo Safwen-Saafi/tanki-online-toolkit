@@ -93,5 +93,8 @@
         listen(choiceActions, key, action);
     }
 
-    window.kaspSwitches = { isOn, set, onChange, getChoice, setChoice, onChoice };
+    // a switch's value on a fresh profile and after the settings tab's RESET ALL (the one list of off-by-default switches is here)
+    const onByDefault = (key: string): boolean => !OFF_BY_DEFAULT.has(key);
+
+    window.kaspSwitches = { isOn, set, onChange, getChoice, setChoice, onChoice, onByDefault };
 })();

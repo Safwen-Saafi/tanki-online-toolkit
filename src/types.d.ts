@@ -236,6 +236,8 @@ interface KaspSwitches {
     readonly getChoice: (key: string) => string | null;
     readonly setChoice: (key: string, value: string | null) => boolean;
     readonly onChoice: (key: string, action: (value: string | null) => void) => void;
+    // false only for the few switches that are off on a fresh profile (switches.ts OFF_BY_DEFAULT)
+    readonly onByDefault: (key: string) => boolean;
 }
 
 // Published by src/modules/loading_screens.ts (build-plan 23). fromFile makes the saved picture of a loading screen from the

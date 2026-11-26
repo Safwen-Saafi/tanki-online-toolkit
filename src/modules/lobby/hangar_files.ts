@@ -67,10 +67,6 @@
     const originalFetch = window.fetch;
     // The hangar's folder on the game's server, once its meta.info was seen.
     let folder: string | null = null;
-    // The painted wall picture, made once (the game and the lobby probe may both ask for it).
-    let painted: Promise<{ blob: Blob; type: string }> | null = null;
-    // The plain floor picture, made once.
-    let plainFloor: Promise<{ blob: Blob; type: string }> | null = null;
 
     const base = (): string | null => {
         const value = document.documentElement.getAttribute('data-kasp-hangar-base');
@@ -86,7 +82,11 @@
         let names: string[] = [];
         try {
             const list: unknown = await real.clone().json();
-            if (Array.isArray(list)) names = list.map((item) => (item && typeof item.name === 'string' ? item.name : ''));
+            if (Array.isArray(list)) {
+                names = (list as unknown[]).map((item) =>
+                    typeof item === 'object' && item !== null && 'name' in item && typeof item.name === 'string' ? item.name : '',
+                );
+            }
         } catch {
             return real;
         }
@@ -894,7 +894,6 @@
             return real;
         }
     }
-    let armless: Promise<ArrayBuffer> | null = null;
 
     // ---- the made files, saved (26f2, owner 2026-11-21: "for all of the hangar lobby textures, without exception") ----
     // Every file the lobby makes from the game's hangar (the model without the arm, the cleaned floor, the wall with the banners, the
@@ -963,17 +962,39 @@
         if (blob !== null) void writeMade(key, prefix, blob);
         return blob;
     }
-    // A hangar file answered from the saved copy, or made by run (a response marked with MADE_HEADER) and saved.
-    async function savedResponse(name: string, type: string, run: () => Promise<Response>): Promise<{ blob: Blob; type: string }> {
-        let fallback: { blob: Blob; type: string } | null = null;
+    // A hangar file answered from the saved copy, or made by run (a response marked with MADE_HEADER) and saved; or, when run gave the
+    // game's own answer (an error of the file host, or a file the making gave up on), that answer itself, its status kept.
+    type Answer = { readonly made: Blob } | { readonly real: Response };
+    async function savedResponse(name: string, run: () => Promise<Response>): Promise<Answer> {
+        const got: { real: Response | null } = { real: null };
         const blob = await saved(name, async () => {
             const r = await run();
-            const b = await r.blob();
-            if (r.headers.get(MADE_HEADER) === '1') return b;
-            fallback = { blob: b, type: r.headers.get('Content-Type') ?? type };
+            if (r.headers.get(MADE_HEADER) === '1') return r.blob();
+            got.real = r;
             return null;
         });
-        return blob !== null ? { blob, type } : fallback ?? { blob: new Blob(), type };
+        if (blob !== null) return { made: blob };
+        if (got.real !== null) return { real: got.real };
+        throw new Error(`${name} was not made`);
+    }
+    // Each answered file, made once (the game and the lobby may both ask for it). Only a made file is kept: the game's own answer (an
+    // error, say) is passed on as it is and forgotten, and so is a failed download, so the game's next request tries again (audit
+    // 2026-11-26: an error came to the game as a success, and stayed for the session).
+    const kept = new Map<string, Promise<Answer>>();
+    function answerMade(file: string, name: string, type: string, run: () => Promise<Response>): Promise<Response> {
+        let pending = kept.get(file);
+        if (pending === undefined) {
+            const mine = savedResponse(name, run);
+            pending = mine;
+            kept.set(file, mine);
+            const forget = (): void => {
+                if (kept.get(file) === mine) kept.delete(file);
+            };
+            mine.then((a) => {
+                if (!('made' in a)) forget();
+            }, forget);
+        }
+        return pending.then((a) => ('made' in a ? new Response(a.made, { status: 200, headers: { 'Content-Type': type } }) : a.real.clone()));
     }
 
     // The two floor steps and the saved store, shared with lobby_pass.ts, which makes the night pictures with them (26f2).
@@ -986,19 +1007,16 @@
             const address = typeof input === 'string' ? input : input instanceof URL ? input.href : input instanceof Request ? input.url : '';
             if (folder === null && /^https:\/\/[^/]*tankionline\.com\/.*\/meta\.info(\?|$)/.test(address)) return answerMetaInfo(address, init);
             if (wallTag !== '' && folder !== null && plain(address) === folder + '/gar1.webp') {
-                painted ??= savedResponse(`gar1${wallTag}.webp`, 'image/webp', () => wallPicture(address, init));
-                return painted.then(({ blob, type }) => new Response(blob, { status: 200, headers: { 'Content-Type': type } }));
+                return answerMade('wall', `gar1${wallTag}.webp`, 'image/webp', () => wallPicture(address, init));
             }
             if (cleanFloor && folder !== null && plain(address) === folder + '/flr1.webp') {
-                plainFloor ??= savedResponse('flr1-clean.webp', 'image/webp', () => plainFloorPicture(address, init));
-                return plainFloor.then(({ blob, type }) => new Response(blob, { status: 200, headers: { 'Content-Type': type } }));
+                return answerMade('floor', 'flr1-clean.webp', 'image/webp', () => plainFloorPicture(address, init));
             }
             if (folder !== null && plain(address) === folder + '/object.3ds') {
                 // saved under a name that says which pieces the look took out, so another look never gets this one's model
                 const removed = window.__kaspLobby?.removedTag() ?? '';
                 const name = `object-armless${christmas ? '-xmas' : ''}${removed !== '' ? '-' + removed : ''}.3ds`;
-                armless ??= savedResponse(name, 'application/octet-stream', () => modelWithoutArm(address, init)).then((r) => r.blob.arrayBuffer());
-                return armless.then((b) => new Response(b.slice(0), { status: 200, headers: { 'Content-Type': 'application/octet-stream' } }));
+                return answerMade('model', name, 'application/octet-stream', () => modelWithoutArm(address, init));
             }
         } catch {
             // the game's own request goes out

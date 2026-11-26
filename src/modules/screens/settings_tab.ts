@@ -36,8 +36,6 @@
         group: SwitchGroup;
         // True when the module applies a change at once; false when it applies after a reload.
         live: boolean;
-        // Off on a fresh profile and after RESET ALL (the switch service saves it as 1 when on).
-        offByDefault?: true;
     }
 
     const GROUPS: ReadonlyArray<{ id: SwitchGroup; heading: Record<KaspLanguageCode, string> }> = [
@@ -95,7 +93,7 @@
         // with "Drone flight".
         { key: 'kasp_droneroast', group: 'lobby', live: true, label: { EN: 'Drone roasts', RU: 'Подколки дрона' } },
         // Read by hangar_files.ts when the game starts: the Birthday hangar's wall banners in the lobby (26e); off unless turned on.
-        { key: 'kasp_lobbybanners', group: 'lobby', live: false, offByDefault: true, label: { EN: 'Birthday banners', RU: 'Праздничные флажки' } },
+        { key: 'kasp_lobbybanners', group: 'lobby', live: false, label: { EN: 'Birthday banners', RU: 'Праздничные флажки' } },
         // Read by lobby_ui.ts when the game starts: the lobby's parts on the right in glass, the 8 mode tiles and the glass top bar of the lobby and every other screen (26d1,
         // 26d2, a change needs a reload).
         { key: 'kasp_lobbyui', group: 'lobby', live: false, label: { EN: 'Lobby buttons', RU: 'Кнопки лобби' } },
@@ -755,7 +753,7 @@
         reset.appendChild(element('span', '', TEXT.reset[language]));
         onPress(reset, () => {
             for (const [entry, row] of rows) {
-                save(entry.key, entry.offByDefault !== true);
+                save(entry.key, window.kaspSwitches?.onByDefault(entry.key) ?? true);
                 setSwitch(row, isOn(entry.key));
             }
             for (const [entry, choice] of choices) {

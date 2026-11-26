@@ -126,6 +126,20 @@
     const note = document.createElement('div');
     note.className = 'kasp-mode-note';
 
+    // Where a tile's way into its mode stopped, in the game's language (written on <html> by language.ts; English until it is there).
+    const NOTES = {
+        search: { EN: 'the game did not start the search', RU: 'игра не начала поиск' },
+        quick: { EN: 'did not reach the Quick battle card', RU: 'не удалось открыть карточку быстрого боя' },
+        modes: { EN: 'did not reach the Modes card', RU: 'не удалось открыть карточку режимов' },
+        mode: { EN: 'did not reach the mode on the Modes screen', RU: 'не удалось найти режим на экране режимов' },
+        wait: { EN: 'did not reach the matchmaking wait', RU: 'не удалось начать поиск боя' },
+        error: { EN: 'stopped on an error', RU: 'остановлено из-за ошибки' },
+    } as const;
+    function modeNote(key: Key, why: keyof typeof NOTES): string {
+        const ru = document.documentElement.getAttribute('data-kasp-language') === 'RU';
+        return `${MODES[key].titles[ru ? 1 : 0]}: ${NOTES[why][ru ? 'RU' : 'EN']}`;
+    }
+
     function showNote(text: string): void {
         note.textContent = text;
         document.body.append(note);
@@ -148,12 +162,11 @@
             } catch {
                 started = false;
             }
-            if (!started) console.warn('[KI-test][lobby-ui] the direct start could not start', key, '- taking the game screens');
             if (started) {
                 busy = true;
                 const searching = await waitFor(() => document.querySelector(WAIT_SELECTOR));
                 busy = false;
-                if (searching === null) showNote(`${MODES[key].titles[0]}: the game did not start the search`);
+                if (searching === null) showNote(modeNote(key, 'search'));
                 return;
             }
         }
@@ -162,33 +175,33 @@
         document.documentElement.setAttribute(CALM_MARK, '');
         document.documentElement.setAttribute(TRIP_MARK, '');
         document.body.append(block);
-        let failed: string | null = null;
+        let failed: keyof typeof NOTES | null = null;
         try {
             press(playBox);
             if (key === 'qb') {
                 const quick = await waitFor(() => find(MODES.qb));
-                if (quick === null) failed = 'the Quick battle card';
+                if (quick === null) failed = 'quick';
                 else press(quick.card);
             } else {
                 const modes = await waitFor(() => find(MODES_CARD));
-                if (modes === null) failed = 'the Modes card';
+                if (modes === null) failed = 'modes';
                 else {
                     press(modes.card);
                     const mode = await waitFor(() => find(MODES[key]));
-                    if (mode === null) failed = 'the mode on the Modes screen';
+                    if (mode === null) failed = 'mode';
                     else press(mode.card);
                 }
             }
-            if (failed === null && (await waitFor(() => document.querySelector(WAIT_SELECTOR))) === null) failed = 'the matchmaking wait';
+            if (failed === null && (await waitFor(() => document.querySelector(WAIT_SELECTOR))) === null) failed = 'wait';
         } catch {
-            failed = 'an error';
+            failed = 'error';
         }
         // Where it stopped, in plain words, before the game's screen is left as it is (a mode the game does not offer right now, say).
         document.documentElement.removeAttribute(TRIP_MARK);
         block.remove();
         busy = false;
         calmTimer = window.setTimeout(() => document.documentElement.removeAttribute(CALM_MARK), CALM_AFTER_MS);
-        if (failed !== null) showNote(`${MODES[key].titles[0]}: did not reach ${failed}`);
+        if (failed !== null) showNote(modeNote(key, failed));
     }
 
     // The battle pass percentage in the Challenges box's title (owner 2026-11-23): the stars so far (the left number of the game's
@@ -612,7 +625,10 @@
     // our own presses on the game's close sheets, let through by the closing below
     let passing = false;
 
-    const friendsBox = (): Element | null => document.querySelector(FRIENDS_BOX);
+    // The garage's tab bar is on the page only with the friends screen or the garage open: without it the page-wide :has() search is
+    // skipped (audit 2026-11-26: it ran on every click, every mouse shot in a battle included).
+    const tabBars = document.getElementsByClassName('GarageMenuComponentStyle-garageMenuContainer');
+    const friendsBox = (): Element | null => (tabBars.length === 0 ? null : document.querySelector(FRIENDS_BOX));
     const isOpen = (key: DockKey): boolean => (key === 'friends' ? friendsBox() !== null : document.getElementsByClassName(DOCK[key].window).length > 0);
     // what closes it: the close sheet, or for friends its back button
     function closerOf(key: DockKey): HTMLElement | null {
