@@ -992,6 +992,41 @@ interface KaspSearch {
     room: boolean;
 }
 
+// The lobby drone (lobby_drone.ts, F-85): what lobby.ts hands it, the part of lobby.ts's scene it reads, and what it gives back.
+interface KaspLobbyDroneScene {
+    readonly system: Record<string, unknown>;
+    readonly record: KaspLobbyRecord;
+    readonly want: { readonly c: KaspLobbyVector; readonly t: KaspLobbyVector; readonly rightX: number; readonly rightY: number };
+    readonly droneHome: KaspLobbyVector | null;
+}
+interface KaspLobbyDroneEnv {
+    readonly DEG: number;
+    readonly isBag: (value: unknown) => value is Record<string, unknown>;
+    readonly bag: (owner: Record<string, unknown>, name: string) => Record<string, unknown>;
+    readonly num: (owner: Record<string, unknown>, name: string) => number;
+    readonly readVector: (vector: Record<string, unknown>, n: KaspLobbyNames) => KaspLobbyVector;
+    readonly writeVector: (vector: Record<string, unknown>, n: KaspLobbyNames, value: KaspLobbyVector) => void;
+    readonly wrapAngle: (a: number) => number;
+    // lobby.ts's live state, read at each call
+    readonly names: () => KaspLobbyNames | null;
+    readonly scene: () => KaspLobbyDroneScene | null;
+    readonly broken: () => boolean;
+}
+interface KaspLobbyDroneApi {
+    // one flight step, each lobby frame
+    readonly fly: (s: KaspLobbyDroneScene, n: KaspLobbyNames, now: number, dt: number) => void;
+    // the game's drone system's end-of-update call
+    readonly drone: (system: unknown) => void;
+    // the drone back to the game's own hover
+    readonly restore: (s: KaspLobbyDroneScene, n: KaspLobbyNames) => void;
+    // a new scene: the flight starts again
+    readonly reset: () => void;
+    // where the drone flies now, null before the flight
+    readonly position: () => KaspLobbyVector | null;
+    // for the owner's console checks (window.__kaspLobby.state)
+    readonly debug: () => Readonly<Record<string, unknown>>;
+}
+
 interface Window {
     __kaspLobby?: KaspLobby;
     __kaspSearch?: KaspSearch;
@@ -1004,6 +1039,10 @@ interface Window {
     // The one lobby look list (lobby_looks.ts), in the page's world only; missing if that file did not run.
     __kaspLobbyLooks?: typeof KASP_LOBBY_LOOKS;
     // The lobby drone's roast lines in English and Russian (drone_roasts.ts), in the page's world only; missing if that file did not run.
+    // The eleven looks' presets (lobby_presets.ts, F-85), read by lobby.ts.
+    __kaspLobbyPresets?: Readonly<Record<KaspLobbyLookName, LobbyLook>>;
+    // Makes the lobby drone's flight and roast bubble (lobby_drone.ts, F-85), called once by lobby.ts.
+    __kaspLobbyDroneMaker?: (env: KaspLobbyDroneEnv) => KaspLobbyDroneApi;
     __kaspDroneRoasts?: ReadonlyArray<Readonly<Record<KaspLanguageCode, string>>>;
     __kaspHangarPictures?: KaspHangarPictures;
     __kaspShowroom?: KaspShowroom;
