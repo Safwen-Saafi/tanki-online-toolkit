@@ -66,23 +66,8 @@
         else root.removeAttribute(name);
     }
 
-    // In a battle none of these screens can be there: the frame check stops and every mark comes off until the battle ends
-    // (owner 2026-11-26). This script does not look for the battle itself: src/modules/core/battle.ts (the one battle check) writes
-    // data-kasp-battle on <html> and sends kasp:battle at each change.
-    const BATTLE_MARK = 'data-kasp-battle';
-    // the next frame's check, 0 while stopped (cancelled at once, so a battle that ends before it ran never leaves two loops)
-    let next = 0;
-    function follow(): void {
-        if (root.hasAttribute(BATTLE_MARK)) {
-            cancelAnimationFrame(next);
-            next = 0;
-            for (const name of Object.keys(now)) mark(name, false);
-        } else if (next === 0) {
-            next = requestAnimationFrame(frame);
-        }
-    }
-    window.addEventListener('kasp:battle', follow);
-
+    // It runs in battles too (owner 2026-11-26): stopped there, the lobby came back from a battle without its marks (the game's plain
+    // lobby for a moment) until battle.ts's next look, twice a second; in a battle it costs the two live lists' answers a frame.
     function frame(): void {
         const atPlay = play.length > 0;
         const atSearch = search.length > 0;
@@ -93,7 +78,7 @@
         mark('data-kasp-at-chat', atPlay && chat.length > 0);
         mark('data-kasp-at-friends', atPlay && tabBars.length > 0 && keep(friends, findFriends));
         mark('data-kasp-at-group', (atPlay || atSearch) && keep(group, findGroup));
-        next = requestAnimationFrame(frame);
+        requestAnimationFrame(frame);
     }
-    follow();
+    requestAnimationFrame(frame);
 })();

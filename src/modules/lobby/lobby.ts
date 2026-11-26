@@ -3315,6 +3315,8 @@
                     names: () => names,
                     scene: () => scene,
                     broken: () => broken,
+                    // the waiting room still fading in (the hangar still on the screen): the drone waits where it stopped
+                    roomComing: () => window.__kaspSearch?.room === true && searchFx.roomGo < 1,
                 }) ?? null
             );
         } catch {

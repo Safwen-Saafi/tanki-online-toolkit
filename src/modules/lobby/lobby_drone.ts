@@ -75,6 +75,8 @@ window.__kaspLobbyDroneMaker = function (env: KaspLobbyDroneEnv): KaspLobbyDrone
         readonly y: number;
         readonly z: number;
         readonly detour: true;
+        // the search's stop where the drone was (escortStep)
+        readonly hold?: true;
     }
     type Waypoint = TourPoint | ScreenPoint | WorldPoint;
     type PathPoint = { readonly fixed: Vec } | { readonly wp: Waypoint };
@@ -114,8 +116,10 @@ window.__kaspLobbyDroneMaker = function (env: KaspLobbyDroneEnv): KaspLobbyDrone
         carrot: Vec | null;
         carrotDir: Vec | null;
         off: Vec;
-        // flying to or hovering at the escort place (26d step 9)
+        // stopped for the search or at the escort place (26d step 9)
         escort: boolean;
+        // which of the two: stopped where it was, or at the escort place
+        search: 'none' | 'hold' | 'home';
         // the line the drone says at the hello it is on (26d step 11), null at a silent one
         roast: string | null;
     }
@@ -470,6 +474,7 @@ window.__kaspLobbyDroneMaker = function (env: KaspLobbyDroneEnv): KaspLobbyDrone
             carrotDir: null,
             off: { x: 0, y: 0, z: 0 },
             escort: false,
+            search: 'none',
             roast: null,
         };
         refill(f);
@@ -739,19 +744,37 @@ window.__kaspLobbyDroneMaker = function (env: KaspLobbyDroneEnv): KaspLobbyDrone
         f.pendingAdvance = false;
     }
 
+    // While the waiting room fades in (owner 2026-11-26: the drone does not move until the hangar is off the screen), the drone first
+    // stops where it is, braking the way it brakes at any waypoint, and waits there looking at the tank; then it flies to the escort
+    // place. Without the waiting room it flies there at once, as before.
+    const holdPoint = (f: Flight): WorldPoint => {
+        const at = f.carrot ?? f.pos;
+        const brake = f.state === 'fly' && f.carrotDir !== null ? (f.vCarrot * f.vCarrot) / (2 * 520 * FLIGHT.speed) : 0;
+        const ahead = f.carrotDir === null ? { x: 0, y: 0, z: 0 } : scale3(f.carrotDir, brake);
+        return { kind: 'world', x: at.x + ahead.x, y: at.y + ahead.y, z: at.z + ahead.z, dwell: 1e6, look: 'tank', detour: true, hold: true };
+    };
+    const isSearchPoint = (w: Waypoint | undefined): boolean => isEscort(w) || (w !== undefined && w.kind === 'world' && w.hold === true);
+
     function escortStep(s: Scene, n: KaspLobbyNames, f: Flight): void {
         const S = window.__kaspSearch;
-        const want = S !== undefined && S.on && S.drone;
-        if (want === f.escort) return;
-        f.escort = want;
-        if (want) {
+        const on = S !== undefined && S.on && S.drone;
+        // once at (or on the way to) the escort place it stays there until the search ends
+        const want = !on ? 'none' : f.search !== 'home' && env.roomComing() ? 'hold' : 'home';
+        if (want === f.search) return;
+        f.search = want;
+        f.escort = want !== 'none';
+        if (want === 'hold') {
+            retarget(s, n, f, [holdPoint(f)]);
+            return;
+        }
+        if (want === 'home') {
             if (s.droneHome !== null) retarget(s, n, f, [escortPoint(s.droneHome)]);
             return;
         }
         f.greetTimer = Math.max(f.greetTimer, ESCORT_GREET_S);
-        if (!f.queue.some(isEscort)) return;
+        if (!f.queue.some(isSearchPoint)) return;
         // hovering there: its dwell ends now and the tour goes on; still on the way: a new way into the tour
-        if (isEscort(f.queue[0]) && f.state === 'hover') f.dwell = 0;
+        if (isSearchPoint(f.queue[0]) && f.state === 'hover') f.dwell = 0;
         else retarget(s, n, f, []);
     }
 

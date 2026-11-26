@@ -1011,6 +1011,8 @@ interface KaspLobbyDroneEnv {
     readonly names: () => KaspLobbyNames | null;
     readonly scene: () => KaspLobbyDroneScene | null;
     readonly broken: () => boolean;
+    // the battle search's waiting room still fading in (lobby.ts): the drone waits where it stopped until the hangar is gone
+    readonly roomComing: () => boolean;
 }
 interface KaspLobbyDroneApi {
     // one flight step, each lobby frame

@@ -12,17 +12,11 @@
     const canvases = document.getElementsByClassName('BattleComponentStyle-canvasContainer');
     const actions: Array<(on: boolean) => void> = [];
     let inBattle = false;
-    const BATTLE_MARK = 'data-kasp-battle';
-    const BATTLE_EVENT = 'kasp:battle';
 
     function check(): void {
         const now = canvases[0] !== undefined;
         if (now === inBattle) return;
         inBattle = now;
-        // the page world's scripts (page_marks.ts) follow it too: a mark on <html> and one event, so they never ask themselves
-        if (inBattle) document.documentElement.setAttribute(BATTLE_MARK, '');
-        else document.documentElement.removeAttribute(BATTLE_MARK);
-        window.dispatchEvent(new CustomEvent(BATTLE_EVENT));
         // An action that fails is warned about and the others still run, so one module cannot break another.
         for (const action of actions) {
             try {
