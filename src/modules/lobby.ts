@@ -4116,7 +4116,9 @@
         smooth: 0.35,
         spots: [
             [0.15, 0.24],
-            [0.3, 0.76],
+            // spot 2 (owner 2026-11-26): far enough right for a full roast bubble on its left (from 39 % on a 16:9 screen), low enough
+            // for that bubble to pass under the news / chat / friends bar
+            [0.4, 0.8],
             [0.76, 0.28],
         ],
         helloDist: 360,
@@ -4151,6 +4153,8 @@
         readonly sx: number;
         readonly sy: number;
         readonly fwd: number;
+        // a speaking hello spot (26d step 11): kept left of the lobby's right column, see clearOfColumn
+        readonly clear?: true;
     }
     interface WorldPoint extends PointCommon {
         readonly kind: 'world';
@@ -4238,6 +4242,17 @@
         return { x: c.x + w.x, y: c.y + w.y, z: c.z + w.z };
     }
 
+    // A speaking hello spot's place across the screen, moved left when the lobby's right column (with "Lobby buttons" on) would reach
+    // the drone: on a squarer screen than 16:9 the column starts further left. Pure maths on the window's size, nothing measured: the
+    // column's left edge is the window's width less 59.85 of the page's em (lobby_ui.css: --kasp-lu-right + --kasp-lu-width), the
+    // page's em being 14.637 px per 988 px of the window's height; the drone keeps its half size and 1 % of the width from it.
+    function clearOfColumn(sx: number, fwd: number, th: number): number {
+        if (!document.documentElement.hasAttribute('data-kasp-lobby-ui')) return sx;
+        const asp = aspect();
+        const half = ((FLIGHT.droneSize / (fwd * th)) / 2) * 0.9;
+        return Math.min(sx, 1 - (59.853 * (14.637 / 988) + half) / asp - 0.01);
+    }
+
     function waypointWorld(s: Scene, n: KaspLobbyNames, w: Waypoint): Vec {
         const B = s.record.base;
         if (w.kind === 'world') return { x: w.x, y: w.y, z: w.look === 'home' ? w.z : Math.min(w.z, B.z + FLIGHT.ceiling - 20) };
@@ -4257,7 +4272,7 @@
             const uy = -rx * fz;
             const uz = rx * fy - ry * fx;
             const th = Math.tan(lens(s, n) / 2);
-            const rr = (2 * w.sx - 1) * w.fwd * th * aspect();
+            const rr = (2 * (w.clear === true ? clearOfColumn(w.sx, w.fwd, th) : w.sx) - 1) * w.fwd * th * aspect();
             const uu = (1 - 2 * w.sy) * w.fwd * th;
             const zRaw = c.z + fz * w.fwd + uz * uu;
             return {
@@ -4384,17 +4399,19 @@
         f.roast = ROAST.spots.includes(i) && roastOn() ? nextRoast() : null;
         const dwell = f.roast === null ? 3.2 : Math.max(ROAST.minHold, ROAST.baseHold + f.roast.length * ROAST.perLetter);
         return [
-            { kind: 'screen', sx, sy, fwd: FLIGHT.helloDist * 2, dwell: 0 },
-            { kind: 'screen', sx, sy, fwd: FLIGHT.helloDist, dwell, look: 'camera', speed: 0.7 },
+            { kind: 'screen', sx, sy, fwd: FLIGHT.helloDist * 2, dwell: 0, clear: true },
+            { kind: 'screen', sx, sy, fwd: FLIGHT.helloDist, dwell, look: 'camera', speed: 0.7, clear: true },
         ];
     }
 
     // ---- the roast bubble (26d step 11, owner 2026-11-25: look A "Comic" of blueprint/reference/lobby-ideas/drone-bubble.html) ----
     // While the drone hovers at hello spot 1 or 2 looking at the player, a comic bubble of ours (a page element over the 3D, no game
-    // code) says one line, its tail at the drone. It never covers the play container (PLAY and the mode tiles, or the game's own PLAY
-    // box with "Lobby buttons" off): it goes on the drone's side away from it when it fits, otherwise on the other side, narrowed to
-    // end before it. Spot 3 (behind the right column) stays silent. It is placed in the lobby frames of its hello only; lobby.css hides
-    // it off the lobby or under an open news, chat or friends window, and a timer takes it away if the lobby frames stop meanwhile.
+    // code) says one line. Owner 2026-11-26 (the pop lagged while the bubble measured the page and followed the drone each frame): nothing
+    // on the page is measured and nothing follows. When the drone stops, the drone's place on the screen is worked out once from the
+    // camera's numbers (pure maths, no page read) and written with the text and spot in one go; lobby.css does the rest by data-spot:
+    // spot 1 on the drone's right, spot 2 on its left (on the right it went under the column's tiles), as wide as the room allows,
+    // popping out of its tail and shrinking back into it. Spot 3 (behind the right column) stays silent. lobby.css hides it off the
+    // lobby or under an open news, chat or friends window, and a timer takes it away if the lobby frames stop meanwhile.
     const ROAST = {
         // FLIGHT.spots indexes that speak
         spots: [0, 1] as readonly number[],
@@ -4402,16 +4419,6 @@
         baseHold: 1.6,
         perLetter: 0.055,
         minHold: 3.5,
-        // px: from the window's edges, and from the play container
-        edge: 12,
-        clear: 24,
-        // the top bar's height, as a share of the window's height
-        topBar: 0.1,
-        // the widest bubble and the narrowest still worth a side, in the bubble's em
-        maxEm: 20,
-        minEm: 9,
-        // the tail's length, in the bubble's em
-        tailEm: 1.2,
     } as const;
     // The lines live in drone_roasts.ts (window.__kaspDroneRoasts), each in English and Russian. A shuffled order, drawn from the
     // end: no line twice before all were said. null when that file did not run (the drone stays silent).
@@ -4456,110 +4463,15 @@
         }
     }
 
-    interface RoastBox {
-        readonly el: HTMLDivElement;
-        // the side of the drone it is on, its size, the play container's limit on that side (px)
-        readonly side: 'left' | 'right';
-        readonly w: number;
-        readonly h: number;
-        readonly limit: number;
-        readonly gapPx: number;
-    }
     let roastEl: HTMLDivElement | null = null;
-    let roastBox: RoastBox | null = null;
+    let roastShowing = false;
     let roastBroken = false;
     let roastTimer = 0;
     let roastOutTimer = 0;
 
-    // The play container: with "Lobby buttons" on, the whole right column (PLAY, the mode tiles, the menu, the passes, the news
-    // slides; the footer stays bottom left, outside it); with it off, only the game's PLAY box (the game's menu words are not in
-    // one block with it).
-    function playRect(): { left: number; right: number; top: number; bottom: number } | null {
-        let r: { left: number; right: number; top: number; bottom: number } | null = null;
-        const column = document.documentElement.hasAttribute('data-kasp-lobby-ui')
-            ? ', .kasp-modes, .kasp-mode, [class*="PrimaryMenuItemComponentStyle-menuItemContainer"], [class*="BattlePassLobbyComponentStyle-menuBattlePass"], [class*="AnnouncementHomeScreenComponentStyle-mainContainer"]'
-            : '';
-        for (const el of document.querySelectorAll(`[class*="MainScreenComponentStyle-playButtonContainer"]${column}`)) {
-            const b = el.getBoundingClientRect();
-            if (b.width <= 0 || b.height <= 0) continue;
-            r = r === null ? { left: b.left, right: b.right, top: b.top, bottom: b.bottom } : {
-                left: Math.min(r.left, b.left),
-                right: Math.max(r.right, b.right),
-                top: Math.min(r.top, b.top),
-                bottom: Math.max(r.bottom, b.bottom),
-            };
-        }
-        return r;
-    }
-
-    // Opens the bubble with its line beside the drone at (dx, dy) on the screen, the drone dronePx round: picks the side once.
-    function showRoast(text: string, dx: number, dy: number, dronePx: number, hold: number): void {
-        if (roastEl === null) {
-            roastEl = document.createElement('div');
-            roastEl.className = 'kasp-roast';
-            document.body.appendChild(roastEl);
-        }
-        const el = roastEl;
-        clearTimeout(roastOutTimer);
-        el.textContent = text;
-        el.style.maxWidth = `${ROAST.maxEm}em`;
-        el.dataset.state = 'measure';
-        const em = parseFloat(getComputedStyle(el).fontSize) || 16;
-        const W = window.innerWidth;
-        const gapPx = dronePx + ROAST.tailEm * em;
-        const h0 = el.offsetHeight;
-        // the container counts only where it is level with the bubble
-        const pr = playRect();
-        const level = pr !== null && pr.top < dy + h0 / 2 + ROAST.clear && pr.bottom > dy - h0 / 2 - ROAST.clear;
-        const prMid = pr === null ? W / 2 : (pr.left + pr.right) / 2;
-        const limitRight = level && pr !== null && prMid > dx ? Math.min(W - ROAST.edge, pr.left - ROAST.clear) : W - ROAST.edge;
-        const limitLeft = level && pr !== null && prMid <= dx ? Math.max(ROAST.edge, pr.right + ROAST.clear) : ROAST.edge;
-        const roomRight = limitRight - (dx + gapPx);
-        const roomLeft = dx - gapPx - limitLeft;
-        // away from the container (with none, toward the screen's middle) when it fits there
-        const away: 'left' | 'right' = pr !== null ? (prMid > dx ? 'left' : 'right') : dx < W / 2 ? 'right' : 'left';
-        const roomAway = away === 'left' ? roomLeft : roomRight;
-        const roomOther = away === 'left' ? roomRight : roomLeft;
-        const natural = Math.min(el.offsetWidth, ROAST.maxEm * em);
-        // "fits" means at its full width: the away side only when the whole bubble fits there, else the other side when it does,
-        // else the side with more room (a side that only fits the narrowest bubble squeezed short lines into many rows, 2026-11-26)
-        const other: 'left' | 'right' = away === 'left' ? 'right' : 'left';
-        const side: 'left' | 'right' = roomAway >= natural ? away : roomOther >= natural ? other : roomAway >= roomOther ? away : other;
-        const room = side === 'left' ? roomLeft : roomRight;
-        el.style.maxWidth = `${Math.max(ROAST.minEm * em, Math.min(ROAST.maxEm * em, room))}px`;
-        el.dataset.side = side;
-        roastBox = { el, side, w: el.offsetWidth, h: el.offsetHeight, limit: side === 'left' ? limitLeft : limitRight, gapPx };
-        placeRoast(dx, dy);
-        el.dataset.state = 'in';
-        // if the lobby frames stop during the hello (another screen, a battle), the bubble still goes
-        clearTimeout(roastTimer);
-        roastTimer = window.setTimeout(hideRoast, hold * 1000 + 1500);
-    }
-
-    // Each lobby frame of the hello: the bubble follows the drone's hover, never past its limit or off the screen.
-    function placeRoast(dx: number, dy: number): void {
-        const b = roastBox;
-        if (b === null) return;
-        const H = window.innerHeight;
-        const x = b.side === 'right' ? Math.min(dx + b.gapPx, b.limit - b.w) : Math.max(dx - b.gapPx - b.w, b.limit);
-        const y = Math.max(H * ROAST.topBar, Math.min(dy - b.h / 2, H - ROAST.edge - b.h));
-        b.el.style.translate = `${Math.round(x)}px ${Math.round(y)}px`;
-        b.el.style.setProperty('--kasp-roast-tail', `${Math.round(Math.max(b.h * 0.25, Math.min(dy - y, b.h * 0.75)))}px`);
-    }
-
-    function hideRoast(): void {
-        clearTimeout(roastTimer);
-        const el = roastEl;
-        roastBox = null;
-        if (el === null || el.dataset.state !== 'in') return;
-        el.dataset.state = 'out';
-        roastOutTimer = window.setTimeout(() => {
-            if (el.dataset.state === 'out') el.dataset.state = '';
-        }, 260);
-    }
-
-    // Where a world point is on the screen (pixels), with its depth; null behind the camera. The same view as keepInView.
-    function screenOf(s: Scene, n: KaspLobbyNames, p: Vec): { x: number; y: number; depth: number; th: number } | null {
+    // Where the drone is on the screen (pixels) and its half size there, from the camera's numbers alone (the same view as
+    // keepInView); null behind the camera.
+    function roastAt(s: Scene, n: KaspLobbyNames, p: Vec): { x: number; y: number; r: number } | null {
         const v = viewOf(s, n);
         const dx = p.x - v.c.x;
         const dy = p.y - v.c.y;
@@ -4568,36 +4480,64 @@
         if (depth < 1) return null;
         const xr = dx * v.r.x + dy * v.r.y;
         const yu = dx * v.u.x + dy * v.u.y + dz * v.u.z;
+        const H = window.innerHeight;
         return {
             x: (0.5 + xr / (depth * v.th * v.asp) / 2) * window.innerWidth,
-            y: (0.5 - yu / (depth * v.th) / 2) * window.innerHeight,
-            depth,
-            th: v.th,
+            y: (0.5 - yu / (depth * v.th) / 2) * H,
+            r: (FLIGHT.droneSize / (depth * v.th) / 2) * H * 0.9,
         };
     }
 
-    // Each lobby frame, after the flight step: the bubble opens when the drone has stopped at a speaking hello, follows it, and goes
-    // when the drone leaves (or the hello is cut short by the search's escort). A fault here stops only the roasts, never the drone.
+    // Shows the line at hello spot `spot` (1 or 2), its tail at the drone (x, y), r its half size: one write, nothing measured.
+    function showRoast(text: string, spot: number, x: number, y: number, r: number, hold: number): void {
+        if (roastEl === null) {
+            roastEl = document.createElement('div');
+            roastEl.className = 'kasp-roast';
+            document.body.appendChild(roastEl);
+        }
+        clearTimeout(roastOutTimer);
+        const el = roastEl;
+        el.textContent = text;
+        el.dataset.spot = String(spot);
+        el.style.setProperty('--kasp-roast-x', `${Math.round(x)}px`);
+        el.style.setProperty('--kasp-roast-y', `${Math.round(y)}px`);
+        el.style.setProperty('--kasp-roast-gap', `${Math.round(r)}px`);
+        el.dataset.state = 'in';
+        roastShowing = true;
+        // if the lobby frames stop during the hello (another screen, a battle), the bubble still goes
+        clearTimeout(roastTimer);
+        roastTimer = window.setTimeout(hideRoast, hold * 1000 + 1500);
+    }
+
+    // Shrinks the bubble back into its tail, then takes it off.
+    function hideRoast(): void {
+        clearTimeout(roastTimer);
+        roastShowing = false;
+        const el = roastEl;
+        if (el === null || el.dataset.state !== 'in') return;
+        el.dataset.state = 'out';
+        roastOutTimer = window.setTimeout(() => {
+            if (el.dataset.state === 'out') el.dataset.state = '';
+        }, 260);
+    }
+
+    // Each lobby frame, after the flight step: the bubble goes on when the drone has stopped at a speaking hello and off when it
+    // leaves (or the hello is cut short by the search's escort). A fault here stops only the roasts, never the drone.
     function roastStep(s: Scene, n: KaspLobbyNames, f: Flight): void {
         if (roastBroken) return;
         try {
             const cur = f.queue[0];
             const speaking = f.roast !== null && f.state === 'hover' && !f.escort && cur !== undefined && cur.look === 'camera';
             if (!speaking) {
-                if (roastBox !== null) {
+                if (roastShowing) {
                     hideRoast();
                     f.roast = null;
                 }
                 return;
             }
-            const at = screenOf(s, n, f.pos);
-            if (at === null) return;
-            if (roastBox === null) {
-                const dronePx = (FLIGHT.droneSize / (at.depth * at.th) / 2) * window.innerHeight * 0.9;
-                showRoast(f.roast ?? '', at.x, at.y, dronePx, f.dwell / 1000);
-            } else {
-                placeRoast(at.x, at.y);
-            }
+            if (roastShowing) return;
+            const at = roastAt(s, n, f.pos);
+            if (at !== null) showRoast(f.roast ?? '', f.helloSpot, at.x, at.y, at.r, f.dwell / 1000);
         } catch {
             roastBroken = true;
             try {
@@ -5001,7 +4941,7 @@
                 droneBroken,
                 flight: flight === null ? null : flight.state,
                 helloSpot: flight === null ? 0 : flight.helloSpot,
-                roast: roastBroken ? 'broken' : roastBox !== null ? 'showing' : flight !== null && flight.roast !== null ? 'next hello' : 'quiet',
+                roast: roastBroken ? 'broken' : roastShowing ? 'showing' : flight !== null && flight.roast !== null ? 'next hello' : 'quiet',
                 passFrames,
                 passBroken,
                 passParts: passScene === null ? 0 : passScene.parts.length,
