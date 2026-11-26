@@ -12,6 +12,7 @@
       ],
       "js": [
         "js/injector.js",
+        "js/modules/core/page_marks.js",
         "js/modules/screens/shop_quick_buy.js",
         "js/modules/garage/showroom.js",
         "js/modules/lobby/lobby_looks.js",

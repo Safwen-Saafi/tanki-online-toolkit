@@ -5,9 +5,9 @@
    menu word and the footer buttons keep the mouse. Nothing moves: only where the presses go changes. */
 /* Not while the news is open (owner 2026-11-21: the news could not be closed): the game catches the press outside the news inside that
    box, so it must keep its presses then. */
-html[data-kasp-lobby]:not(:has([class*="NewsComponentStyle-newsWindow"])) [class*="MainScreenComponentStyle-containerForMenuGradient"],
-html[data-kasp-lobby]:not(:has([class*="NewsComponentStyle-newsWindow"])) [class*="MainScreenComponentStyle-containerForMenuGradient"] [class*="MainScreenComponentStyle-gradientBlock"],
-html[data-kasp-lobby]:not(:has([class*="NewsComponentStyle-newsWindow"])) [class*="MainScreenComponentStyle-blockMainMenu"] {
+html[data-kasp-lobby]:not([data-kasp-at-news]) [class*="MainScreenComponentStyle-containerForMenuGradient"],
+html[data-kasp-lobby]:not([data-kasp-at-news]) [class*="MainScreenComponentStyle-containerForMenuGradient"] [class*="MainScreenComponentStyle-gradientBlock"],
+html[data-kasp-lobby]:not([data-kasp-at-news]) [class*="MainScreenComponentStyle-blockMainMenu"] {
     pointer-events: none !important;
 }
 
@@ -133,7 +133,7 @@ html[data-kasp-lobby-ui] body {
     border-color: transparent transparent transparent #fff;
 }
 
-html:not(:has([class*="MainScreenComponentStyle-playButtonContainer"])) .kasp-roast,
-html:has([class*="NewsComponentStyle-newsWindow"], [class*="ChatComponentStyle-chatWindow"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-roast {
+html:not([data-kasp-at-play]) .kasp-roast,
+html:is([data-kasp-at-news], [data-kasp-at-chat], [data-kasp-at-friends]) .kasp-roast {
     display: none !important;
 }
