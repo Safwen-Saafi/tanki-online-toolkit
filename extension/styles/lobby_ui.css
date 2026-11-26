@@ -1965,7 +1965,10 @@ html[data-kasp-lobby-ui]:has(.ChatComponentStyle-chatWindow) .FooterComponentSty
     display: none;
 }
 
-html[data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow, .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-dock-tabs {
+/* the friends part counts only over the lobby (its PLAY on the page): the clan page has the same tab bar, and its Members and
+   Requests tabs hold the friends screens' classes (owner 2026-11-26: the dock tabs showed there, FRIENDS lit) */
+html[data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) .kasp-dock-tabs,
+html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):has(.GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-dock-tabs {
     position: fixed;
     left: calc(var(--kasp-dock-left) + 2px + 0.7em);
     top: calc(var(--kasp-dock-top) + var(--kasp-dock-tabs-y));
@@ -1991,7 +1994,8 @@ html[data-kasp-lobby-ui]:has(.ChatComponentStyle-chatWindow) .kasp-dock-tabs {
 }
 
 /* closing: with the dock (owner 2026-11-23: they stayed after it; this rule was weaker than the one above, so it never took) */
-html[data-kasp-dock-closing][data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow, .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-dock-tabs {
+html[data-kasp-dock-closing][data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWindow, .ChatComponentStyle-chatWindow) .kasp-dock-tabs,
+html[data-kasp-dock-closing][data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):has(.GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-dock-tabs {
     animation: kasp-dock-shrink 0.5s var(--kasp-dock-ease) forwards;
 }
 
@@ -2016,7 +2020,7 @@ html[data-kasp-dock-closing][data-kasp-lobby-ui]:has(.NewsComponentStyle-newsWin
 
 html:has(.NewsComponentStyle-newsWindow) .kasp-dock-tab[data-tab="news"],
 html:has(.ChatComponentStyle-chatWindow) .kasp-dock-tab[data-tab="chat"],
-html:has(.GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-dock-tab[data-tab="friends"] {
+html:has(.MainScreenComponentStyle-playButtonContainer):has(.GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-dock-tab[data-tab="friends"] {
     color: #fff;
     background: rgb(255 255 255 / 0.14);
     cursor: default;

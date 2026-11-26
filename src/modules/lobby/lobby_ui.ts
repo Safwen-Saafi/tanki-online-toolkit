@@ -653,7 +653,10 @@
     // The garage's tab bar is on the page only with the friends screen or the garage open: without it the page-wide :has() search is
     // skipped (audit 2026-11-26: it ran on every click, every mouse shot in a battle included).
     const tabBars = document.getElementsByClassName('GarageMenuComponentStyle-garageMenuContainer');
-    const friendsBox = (): Element | null => (tabBars.length === 0 ? null : document.querySelector(FRIENDS_BOX));
+    // ... and only over the lobby (its PLAY on the page): the clan page has the same tab bar and the friends screens' classes, and a
+    // press there was taken for a press off the friends dock (owner 2026-11-26, the dock tabs showed on the clan page)
+    const playBoxes = document.getElementsByClassName(PLAY_BOX);
+    const friendsBox = (): Element | null => (tabBars.length === 0 || playBoxes.length === 0 ? null : document.querySelector(FRIENDS_BOX));
     const isOpen = (key: DockKey): boolean => (key === 'friends' ? friendsBox() !== null : document.getElementsByClassName(DOCK[key].window).length > 0);
     // what closes it: the close sheet, or for friends its back button
     function closerOf(key: DockKey): HTMLElement | null {

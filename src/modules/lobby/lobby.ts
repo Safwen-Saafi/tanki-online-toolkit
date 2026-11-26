@@ -1635,6 +1635,22 @@
     }
     // Haunted lamps: now and then the hangar's light stutters (the lamp flicker, without a thunder; the first 8 s after the look shows).
     const HAUNT = { next: 0 };
+    // The look's timed moments (the haunted flicker, a bat, a shooting star, a rain or snow gust) are booked as clock times but checked
+    // only in the lobby's frames: after a pause (the garage, a battle, the page out of sight) their time had passed, so the moment came
+    // the instant the lobby showed again (owner 2026-11-26: the Halloween lamps went dark on every return; the lightning had the same
+    // bug, fixed in stormNow on 2026-11-25). After a pause of more than a second each is booked again from that moment, as when the
+    // look first shows; one already running at that moment ends as it would.
+    let lookSeenAt = 0;
+    function rebookAfterPause(now: number): void {
+        if (lookSeenAt !== 0 && now - lookSeenAt > 1000) {
+            HAUNT.next = 0;
+            BAT.next = 0;
+            MET.next = 0;
+            GUST.next = 0;
+            SNOWG.next = 0;
+        }
+        lookSeenAt = now;
+    }
     // Spooky sounds (the probe's hwSoundsTick): an owl, a far wolf and a creak (credits in HALLOWEEN-SOUNDS-CREDITS.txt), each played
     // about every `every` seconds (the creak half as often; the first 4 s to `every` s in), to one side, at % x 0.06 / its loudness.
     const SPOOKY_FILES: Readonly<Record<'owl' | 'wolf' | 'creak', string>> = { owl: 'halloween-owl.mp3', wolf: 'halloween-wolf.mp3', creak: 'halloween-creak.mp3' };
@@ -2346,6 +2362,7 @@
 
     // One frame of the pass (the probe's buildFrame, the groups of the day normal look).
     function buildFrame(vp: Float32Array, pos: KaspLobbyVector, ps: PassScene): KaspLobbyPassFrame {
+        rebookAfterPause(performance.now());
         const L = look;
         const box = ps.box;
         const mix1 = (v: readonly number[], k: number): number[] => v.map((x) => lerp(1, x, k));
