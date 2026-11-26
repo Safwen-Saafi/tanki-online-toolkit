@@ -1826,6 +1826,13 @@
         const near = code.slice(menu.index, menu.index + 3000);
         const online = new RegExp(R`var r=t\.${asPattern(pas)}\.${asPattern(friend)}\.(${N}),e=null==r\?null:r\.(${N});return i\.isOnline=null!=e&&e`).exec(near);
         if (online === null) return skip('online state');
+        // a friend already in a group cannot be invited (owner 2026-11-26: INVITE showed for them; the game's own invite window lets
+        // no one in a group be ticked): the friend's battle state (the game's BattleNotifierData: inBattle, inGroup, proBattle),
+        // its inGroup field read from the class's own text form, its holder on the friend from the friends row's "(in group)" word
+        const inGroup = one(R`"BattleNotifierData \[";return t=\(t=\(t=t\+"inBattle = "\+this\.${N}\+" "\)\+"inGroup = "\+this\.(${N})\+`);
+        if (inGroup === null) return skip('group state');
+        const groupHolder = one(R`var (${N})=${N}\.(${N}),${N}=!0===\(null==\1\?null:\1\.${asPattern(inGroup[1])}\)\?" \("`);
+        if (groupHolder === null) return skip('group state holder');
         // the group's invite window: the tick (by the player's id field), the clear, the send, the word INVITE
         const tick = one(R`t\.state\.selectedUsersSendInvite\.${N}\(r\.(${N})\)[^]{0,2500}?\(a=r,function\(t\)\{return (${N})\(\)\.(${N})\(\)\.(${N})\(new (${N})\(a\.\1\)\)`);
         if (tick === null || tick.index === undefined) return skip('tick');
@@ -1866,7 +1873,7 @@
             `e.__kaspFirst&&n.${addChild}(${element}(${itemView}),${itemProps}(e))}})(this,t),`;
         const lastItems = loopText.replace(`{var e=r.${next}(),`, `{var e=r.${next}();if(e.__kaspFirst)continue;var `);
         const text =
-            `(function(){try{var f=t.${pas}.${friend},o=f.${online[1]};if(null!=o&&o.${online[2]}){` +
+            `(function(){try{var f=t.${pas}.${friend},o=f.${online[1]},q=f.${groupHolder[2]};if(null!=o&&o.${online[2]}&&!(null!=q&&!0===q.${inGroup[1]})){` +
             `var w=String(t.${mat}(${words[0][1]}().${words[0][2]}())),g=new ${item}(w.charAt(0).toUpperCase()+w.slice(1).toLowerCase(),function(){` +
             `try{var s=${store}().${getStore}();s.${dispatch}(${start[1]}());s.${dispatch}(${open[1]});` +
             `${clear[1]}();s.${dispatch}(new ${tickClass}(f.${idField}));s.${dispatch}(${send[1]}())}catch(e){}` +
