@@ -16,3 +16,102 @@ html[data-kasp-lobby] [class*="PrimaryMenuItemComponentStyle-menuItemContainer"]
 html[data-kasp-lobby] [class*="FooterComponentStyle-containerMenu"] {
     pointer-events: auto !important;
 }
+
+/* ---------- The drone's roast bubble (26d step 11, owner 2026-11-25: look A "Comic" of lobby-ideas/drone-bubble.html) ----------
+   lobby.ts makes one <div class="kasp-roast"> on <body>, sets its text, its side of the drone (data-side), its place (translate) and
+   the tail's height (--kasp-roast-tail) in the lobby frames of a hello, and data-state: measure (laid out unseen to size it), in (pops
+   out), out (shrinks away). It never takes the mouse. Off the lobby (no PLAY on the page) or under an open news, chat or friends
+   window it is not drawn, so it can never sit over another screen. */
+.kasp-roast {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1;
+    display: none;
+    box-sizing: border-box;
+    width: max-content;
+    pointer-events: none;
+    background: #fff;
+    color: #111;
+    border: 0.18em solid #111;
+    border-radius: 1.2em;
+    padding: 0.75em 1em;
+    box-shadow: 0.3em 0.3em 0 #111;
+    font: 700 clamp(14px, 1.9vh, 26px) / 1.35 BaseFontBold, FallbackFontBold, sans-serif;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.kasp-roast[data-state="measure"] {
+    display: block;
+    visibility: hidden;
+}
+
+.kasp-roast[data-state="in"] {
+    display: block;
+    animation: kasp-roast-pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.kasp-roast[data-state="out"] {
+    display: block;
+    animation: kasp-roast-out 0.25s ease-in both;
+}
+
+.kasp-roast[data-side="right"] {
+    transform-origin: 0 var(--kasp-roast-tail, 50%);
+}
+
+.kasp-roast[data-side="left"] {
+    transform-origin: 100% var(--kasp-roast-tail, 50%);
+}
+
+@keyframes kasp-roast-pop {
+    from { transform: scale(0.2); }
+    to { transform: scale(1); }
+}
+
+@keyframes kasp-roast-out {
+    to { transform: scale(0.2); opacity: 0; }
+}
+
+/* the tail: a black triangle with a white one inside, at the drone's height */
+.kasp-roast::before,
+.kasp-roast::after {
+    content: "";
+    position: absolute;
+    top: var(--kasp-roast-tail, 50%);
+    width: 0;
+    height: 0;
+    border-style: solid;
+    translate: 0 -50%;
+}
+
+.kasp-roast[data-side="right"]::before {
+    left: -1.3em;
+    border-width: 0.75em 1.25em 0.75em 0;
+    border-color: transparent #111 transparent transparent;
+}
+
+.kasp-roast[data-side="right"]::after {
+    left: -0.95em;
+    border-width: 0.52em 0.95em 0.52em 0;
+    border-color: transparent #fff transparent transparent;
+}
+
+.kasp-roast[data-side="left"]::before {
+    right: -1.3em;
+    border-width: 0.75em 0 0.75em 1.25em;
+    border-color: transparent transparent transparent #111;
+}
+
+.kasp-roast[data-side="left"]::after {
+    right: -0.95em;
+    border-width: 0.52em 0 0.52em 0.95em;
+    border-color: transparent transparent transparent #fff;
+}
+
+html:not(:has([class*="MainScreenComponentStyle-playButtonContainer"])) .kasp-roast,
+html:has([class*="NewsComponentStyle-newsWindow"], [class*="ChatComponentStyle-chatWindow"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ [class*="FriendRequestComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendListComponentStyle-"], .GarageMenuComponentStyle-garageMenuContainer ~ * [class*="FriendRequestComponentStyle-"]) .kasp-roast {
+    display: none !important;
+}

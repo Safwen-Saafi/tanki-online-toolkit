@@ -16,6 +16,7 @@
         "js/modules/showroom.js",
         "js/modules/lobby_looks.js",
         "js/modules/lobby_pass.js",
+        "js/modules/drone_roasts.js",
         "js/modules/lobby.js",
         "js/modules/hangar_files.js",
         "js/modules/lobby_ui.js",

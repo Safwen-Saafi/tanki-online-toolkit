@@ -1001,6 +1001,8 @@ interface Window {
     __kaspLobbyPass?: KaspLobbyPassApi;
     // The one lobby look list (lobby_looks.ts), in the page's world only; missing if that file did not run.
     __kaspLobbyLooks?: typeof KASP_LOBBY_LOOKS;
+    // The lobby drone's roast lines in English and Russian (drone_roasts.ts), in the page's world only; missing if that file did not run.
+    __kaspDroneRoasts?: ReadonlyArray<Readonly<Record<KaspLanguageCode, string>>>;
     __kaspHangarPictures?: KaspHangarPictures;
     __kaspShowroom?: KaspShowroom;
     __kaspShowroomParts?: KaspShowroomParts;

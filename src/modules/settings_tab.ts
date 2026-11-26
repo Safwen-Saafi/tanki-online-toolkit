@@ -91,6 +91,9 @@
         { key: 'kasp_lobby', group: 'lobby', live: false, label: { EN: 'Lobby camera and look', RU: 'Камера и вид лобби' } },
         // Read by the injector when the game starts: the drone's flight round the tank (26c); works only with the switch above.
         { key: 'kasp_lobbydrone', group: 'lobby', live: false, label: { EN: 'Drone flight', RU: 'Полёт дрона' } },
+        // Read by lobby.ts at each hello (26d step 11): the drone's comic bubble with a roast line at hello spots 1 and 2; works only
+        // with "Drone flight".
+        { key: 'kasp_droneroast', group: 'lobby', live: true, label: { EN: 'Drone roasts', RU: 'Подколки дрона' } },
         // Read by hangar_files.ts when the game starts: the Birthday hangar's wall banners in the lobby (26e); off unless turned on.
         { key: 'kasp_lobbybanners', group: 'lobby', live: false, offByDefault: true, label: { EN: 'Birthday banners', RU: 'Праздничные флажки' } },
         // Read by lobby_ui.ts when the game starts: the lobby's parts on the right in glass, the 8 mode tiles and the glass top bar of the lobby and every other screen (26d1,
