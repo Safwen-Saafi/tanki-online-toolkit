@@ -1,6 +1,6 @@
 /* The showroom garage's Turrets and Hulls screens (build-plan 25c, reworked by 25g): the owner's design from a concept picture,
    proven live with the probe blueprint/reference/garage-mirror-probe.js v1.6 on 2026-11-14. The tank stands on the right (the
-   camera's turret and hull poses, src/modules/showroom.ts); everything about the item is one column on the left, centred up and down
+   camera's turret and hull poses, src/modules/garage/showroom.ts); everything about the item is one column on the left, centred up and down
    between the header and the item cards: the level, its bar and the stats, then equip and upgrade side by side, then the augment,
    skin and shot colour icons each in its own glass tile, then the protection module (turrets) or overdrive (hulls). The top box
    (the item's name, its description and Read more) and the "F AUGMENTS/SKINS" title are hidden: the name is on the item's card. The

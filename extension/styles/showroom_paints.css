@@ -1,4 +1,4 @@
-/* The showroom garage's Paints screen (build-plan 25d1): the two things src/modules/showroom.ts adds to the garage's own box, shown
+/* The showroom garage's Paints screen (build-plan 25d1): the two things src/modules/garage/showroom.ts adds to the garage's own box, shown
    only while it marks <html data-kasp-showroom-paints> (the 7-tab bar's 7th tab is lit):
    - the 360 icon, the only sign that the view can be turned by dragging (owner 2026-11-16: no frame, no words): the extension's
      showroom/turn-360.svg used as a shape (showroom.ts writes its address in --kasp-showroom-turn-icon), coloured like the garage's

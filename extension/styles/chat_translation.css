@@ -1,4 +1,4 @@
-/* The chat translation (src/modules/chat_translation.ts, build-plan 19): the box of translated lines under the kill feed and
+/* The chat translation (src/modules/battle/chat_translation.ts, build-plan 19): the box of translated lines under the kill feed and
    the translation buttons beside the game's chat box. See blueprint/context/chat-translation.md. */
 
 /* Every weak blue of ours is written as itself with the game colour's hue and strength (--kasp-theme-hue and --kasp-theme-strength,

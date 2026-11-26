@@ -75,7 +75,7 @@ does not.
 
 - Install: `npm install`
 - Build: `npm run build` (compiles `src/injector.ts` and the files in
-  `src/modules/` to `extension/js/`, mirroring the `src/` folders, at the
+  `src/modules/` (grouped in `core/`, `battle/`, `sounds/`, `garage/`, `lobby/` and `screens/`) to `extension/js/`, mirroring the `src/` folders, at the
   paths the manifest references). Run this after any `.ts` change, before
   reloading the extension - `extension/js/` is gitignored build output, not
   source.

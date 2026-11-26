@@ -1,4 +1,4 @@
-/* The extension's panel in the game's settings screen (src/modules/settings_tab.ts). The tab and its yellow bar are the
+/* The extension's panel in the game's settings screen (src/modules/screens/settings_tab.ts). The tab and its yellow bar are the
    game's own (the settings-tab hook in src/injector.ts), so only the panel is styled here. */
 
 /* Every weak blue of ours is written as itself with the game colour's hue and strength (--kasp-theme-hue and --kasp-theme-strength,
