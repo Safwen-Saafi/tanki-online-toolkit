@@ -4,7 +4,8 @@
 // second): about 40 ms each time, a stutter every second of the search (the owner's trace "sex", 2026-11-26).
 // One check a frame (the owner's pick: something going away has no CSS signal): the game's live element lists, which the browser
 // keeps up to date by itself and answers at once while the page is unchanged. PLAY and the search box are looked at on every
-// screen; the rest only with PLAY on the page (they are lobby windows), the group button only with PLAY or the search box.
+// screen; the rest only with PLAY on the page (they are lobby windows), the group button only with PLAY or the search box. The
+// garage's screens (showroom_*.css, owner 2026-11-26: the garage part of the same fix) only with the garage on the page.
 (function () {
     'use strict';
 
@@ -17,6 +18,15 @@
     const chat = live('ChatComponentStyle-chatWindow');
     const tabBars = live('GarageMenuComponentStyle-garageMenuContainer');
     const headers = live('BreadcrumbsComponentStyle-headerContainer');
+    const garage = live('GarageCommonStyle-garageContainer');
+    const paints = live('PaintsCollectionComponentStyle-containerPaints');
+    const grenades = live('TanksPartComponentStyle-amountItems');
+    const protection = live('GarageProtectionsComponentStyle-blockParametersProtection');
+    const supplies = live('GarageSuppliesComponentStyle-blockStats');
+    const drones = live('TanksPartComponentStyle-descriptionContainer GarageCommonStyle-animatedBlurredLeftBlock');
+    const ITEM = 'MenuComponentStyle-mainMenuItem';
+    // on the page: the first one only (a list's length counts the whole page after a change, its first entry stops at the first)
+    const on = (list: HTMLCollectionOf<Element>): boolean => list[0] !== undefined;
     const FRIENDS = '[class*="FriendListComponentStyle-"], [class*="FriendRequestComponentStyle-"]';
     const GROUP = '[class*="UserGroupTitleButtonComponentStyle-"]';
     // a search for a part that is not there is tried again every RETRY frames, not on every one
@@ -40,6 +50,23 @@
             if (g !== null) return g;
         }
         return null;
+    }
+
+    // Turrets or Hulls: the garage's own tab bar (the one with a 7th tab) has its 1st or 2nd tab lit; its tabs are siblings
+    function itemScreen(box: Element): boolean {
+        const parent = box.getElementsByClassName(ITEM)[0]?.parentElement;
+        if (parent === null || parent === undefined) return false;
+        let count = 0;
+        let lit = false;
+        const kids = parent.children;
+        for (let i = 0; i < kids.length; i++) {
+            const child = kids[i];
+            if (!child.classList.contains(ITEM)) continue;
+            count++;
+            if (count <= 2 && child.className.includes('activeMenu')) lit = true;
+            if (count === 7) return lit;
+        }
+        return false;
     }
 
     // a part found by a search: kept while it is still on the page, searched again (every RETRY frames) when it is not
@@ -69,15 +96,23 @@
     // It runs in battles too (owner 2026-11-26): stopped there, the lobby came back from a battle without its marks (the game's plain
     // lobby for a moment) until battle.ts's next look, twice a second; in a battle it costs the two live lists' answers a frame.
     function frame(): void {
-        const atPlay = play.length > 0;
-        const atSearch = search.length > 0;
+        const atPlay = on(play);
+        const atSearch = on(search);
         mark('data-kasp-at-play', atPlay);
         mark('data-kasp-at-search', atSearch);
-        mark('data-kasp-at-loader', atPlay && loader.length > 0);
-        mark('data-kasp-at-news', atPlay && news.length > 0);
-        mark('data-kasp-at-chat', atPlay && chat.length > 0);
-        mark('data-kasp-at-friends', atPlay && tabBars.length > 0 && keep(friends, findFriends));
+        mark('data-kasp-at-loader', atPlay && on(loader));
+        mark('data-kasp-at-news', atPlay && on(news));
+        mark('data-kasp-at-chat', atPlay && on(chat));
+        mark('data-kasp-at-friends', atPlay && on(tabBars) && keep(friends, findFriends));
         mark('data-kasp-at-group', (atPlay || atSearch) && keep(group, findGroup));
+        const box = garage[0];
+        const atGarage = box !== undefined;
+        mark('data-kasp-at-paints', atGarage && on(paints));
+        mark('data-kasp-at-grenades', atGarage && on(grenades));
+        mark('data-kasp-at-protection', atGarage && on(protection));
+        mark('data-kasp-at-supplies', atGarage && on(supplies));
+        mark('data-kasp-at-drones', atGarage && on(drones));
+        mark('data-kasp-at-item', atGarage && itemScreen(box));
         requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);

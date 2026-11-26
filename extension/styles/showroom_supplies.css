@@ -27,7 +27,7 @@ html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-g
    and stats boxes when another supply is clicked but adds the buy box anew after one that cannot be bought (Nuclear energy), so
    a slide on each part played on the button alone (owner, 2026-11-15). The slide moves with translate, which the column's
    transform: none (against any game transform) does not stop. */
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .TanksPartBaseComponentStyle-blockInsideContainerItem {
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies][data-kasp-at-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .TanksPartBaseComponentStyle-blockInsideContainerItem {
     position: fixed !important;
     right: 14em !important;
     left: auto !important;
@@ -56,17 +56,17 @@ html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-g
 }
 
 /* the name block lets its buy box into the column (it has a fixed height of its own; the name inside it is hidden) */
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .TanksPartComponentStyle-descriptionContainer {
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies][data-kasp-at-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-descriptionContainer {
     display: contents !important;
 }
 
 /* 0. the name, the description and Read more all go (owner, 2026-11-15: no name above the stats) */
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .ItemDescriptionComponentStyle-descriptionBlockDevice {
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies][data-kasp-at-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .ItemDescriptionComponentStyle-descriptionBlockDevice {
     display: none !important;
 }
 
 /* 1. the stats, without the game's blurred box and its frame */
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .TanksPartComponentStyle-tankPartUpgrades {
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies][data-kasp-at-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-tankPartUpgrades {
     order: 1 !important;
     position: relative !important;
     inset: auto !important;
@@ -82,7 +82,7 @@ html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-g
 }
 
 /* 2. the buy button under the stats, across the column */
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .GarageSuppliesComponentStyle-containerButtons {
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies][data-kasp-at-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .GarageSuppliesComponentStyle-containerButtons {
     order: 2 !important;
     position: relative !important;
     inset: auto !important;
@@ -94,21 +94,21 @@ html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-g
     animation: none !important;
 }
 
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .GarageSuppliesComponentStyle-containerButtons > * {
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies][data-kasp-at-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .GarageSuppliesComponentStyle-containerButtons > * {
     width: 100% !important;
     margin: 0 !important;
 }
 
 /* the game's blur behind the blocks, and their own slide (the column's blocks have ours) */
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .GarageCommonStyle-animatedBlurredLeftBlock,
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageSuppliesComponentStyle-blockStats) .GarageCommonStyle-animatedBlurredRightBlock {
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies][data-kasp-at-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock,
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies][data-kasp-at-supplies] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredRightBlock {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
 }
 
 /* The item cards along the bottom: the main screen's frosted glass, as on the other item screens. Only the fill changes: the game
    marks the selected card with its box-shadow ring. */
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer:has(.GarageSuppliesComponentStyle-blockStats) .garage-item {
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies][data-kasp-at-supplies] .GarageCommonStyle-garageContainer .garage-item {
     background:
         linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
         linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%),
@@ -119,7 +119,7 @@ html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-g
     transition: background 0.3s ease !important;
 }
 
-html[data-kasp-showroom-floor][data-kasp-showroom-supplies] .GarageCommonStyle-garageContainer:has(.GarageSuppliesComponentStyle-blockStats) .garage-item:hover {
+html[data-kasp-showroom-floor][data-kasp-showroom-supplies][data-kasp-at-supplies] .GarageCommonStyle-garageContainer .garage-item:hover {
     background:
         linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
         linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%),

@@ -15,7 +15,7 @@
    keyframes. No script: nothing runs while playing. */
 
 /* the column: fixed on the right like the Drones one, from 7.3em under the top to 13em above the bottom, its content centred */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .TanksPartBaseComponentStyle-blockInsideContainerItem {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .TanksPartBaseComponentStyle-blockInsideContainerItem {
     position: fixed !important;
     right: 14em !important;
     left: auto !important;
@@ -43,12 +43,12 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer *:has(.GarageP
 }
 
 /* 0. the protection's name, kind and description all go (owner, 2026-11-15: no name above the stats) */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .GarageProtectionsComponentStyle-aboutDefence {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .GarageProtectionsComponentStyle-aboutDefence {
     display: none !important;
 }
 
 /* 1. level, stats and buttons. No transform rule on a block that slides in: an !important transform beats the slide. */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .TanksPartComponentStyle-tankPartUpgrades {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .TanksPartComponentStyle-tankPartUpgrades {
     order: 1 !important;
     position: relative !important;
     inset: auto !important;
@@ -59,7 +59,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBase
 }
 
 /* the protection block opens up (its name is hidden above, its slots box is fixed on its own, below) */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .GarageProtectionsComponentStyle-blockParametersProtection {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .GarageProtectionsComponentStyle-blockParametersProtection {
     display: contents !important;
 }
 
@@ -69,7 +69,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBase
    the game's width (100% of the 21.875em block, at least its own 31.25em); sliding in from the left like the game's left block.
    Fixed works here: no box around it moves or is transformed (the column is fixed with no transform, the protection block is
    display: contents, the boxes above have no slide). */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .GarageProtectionsComponentStyle-blockParametersProtection > :has(.GarageProtectionsComponentStyle-containerEquipmentCannon) {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .GarageProtectionsComponentStyle-blockParametersProtection > :has(.GarageProtectionsComponentStyle-containerEquipmentCannon) {
     position: fixed !important;
     left: 6em !important;
     right: auto !important;
@@ -81,35 +81,35 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBase
 }
 
 /* the game's blur behind the blocks, and their own slide (the column has ours) */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .GarageCommonStyle-animatedBlurredRightBlock {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredRightBlock {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     animation: none !important;
 }
 
 /* Equip (a small square, the button the game gives a top margin) and Upgrade (the rest) side by side, as on Drones */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .TanksPartBaseComponentStyle-buttonsContainer {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .TanksPartBaseComponentStyle-buttonsContainer {
     display: flex !important;
     flex-direction: row !important;
     align-items: stretch !important;
     gap: 0.5em !important;
 }
 
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .TanksPartBaseComponentStyle-buttonsContainer > * {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .TanksPartBaseComponentStyle-buttonsContainer > * {
     margin: 0 !important;
     flex: 1 1 0 !important;
     min-width: 0 !important;
     width: auto !important;
 }
 
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .TanksPartBaseComponentStyle-buttonsContainer > .TanksPartBaseComponentStyle-marginTop {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer .TanksPartBaseComponentStyle-buttonsContainer > .TanksPartBaseComponentStyle-marginTop {
     order: -1 !important;
     flex: 0 0 6em !important;
 }
 
 /* The item cards along the bottom: the main screen's frosted glass, as on the other item screens. Only the fill changes: the game
    marks the selected card with its box-shadow ring. */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .garage-item {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .garage-item {
     background:
         linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
         linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%),
@@ -120,7 +120,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.GaragePro
     transition: background 0.3s ease !important;
 }
 
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.GarageProtectionsComponentStyle-blockParametersProtection) .garage-item:hover {
+html[data-kasp-showroom-floor][data-kasp-at-protection] .GarageCommonStyle-garageContainer .garage-item:hover {
     background:
         linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
         linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%),

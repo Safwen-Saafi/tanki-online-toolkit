@@ -16,7 +16,7 @@
 
 /* the column: fixed on the right, clear of the tabs column, from 7.3em under the top to 13em above the bottom, its content centred
    ("safe": a long stats list starts at the top instead of running under the header) */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-descriptionContainer.GarageCommonStyle-animatedBlurredLeftBlock):has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartBaseComponentStyle-blockInsideContainerItem {
+html[data-kasp-showroom-floor][data-kasp-at-drones] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartBaseComponentStyle-blockInsideContainerItem {
     position: fixed !important;
     right: 14em !important;
     left: auto !important;
@@ -45,13 +45,13 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer *:has(.TanksPa
 }
 
 /* the name, description and Read more */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-descriptionContainer.GarageCommonStyle-animatedBlurredLeftBlock):has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartComponentStyle-descriptionContainer {
+html[data-kasp-showroom-floor][data-kasp-at-drones] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartComponentStyle-descriptionContainer {
     display: none !important;
 }
 
 /* level, stats and buttons: the column's one block, sliding in from the right. No transform rule here: an !important transform
    beats the slide (the slide ends at no move anyway). */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-descriptionContainer.GarageCommonStyle-animatedBlurredLeftBlock):has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartComponentStyle-tankPartUpgrades {
+html[data-kasp-showroom-floor][data-kasp-at-drones] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartComponentStyle-tankPartUpgrades {
     position: relative !important;
     inset: auto !important;
     width: auto !important;
@@ -61,35 +61,35 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBase
 }
 
 /* the game's blur behind the blocks (the thin dark background), and their own slide (the column has ours) */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-descriptionContainer.GarageCommonStyle-animatedBlurredLeftBlock):has(.TanksPartBaseComponentStyle-buttonsContainer) .GarageCommonStyle-animatedBlurredRightBlock {
+html[data-kasp-showroom-floor][data-kasp-at-drones] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartBaseComponentStyle-buttonsContainer) .GarageCommonStyle-animatedBlurredRightBlock {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     animation: none !important;
 }
 
 /* Equip (a small square, the button the game gives a top margin) and Upgrade (the rest) side by side, as on Turrets */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-descriptionContainer.GarageCommonStyle-animatedBlurredLeftBlock):has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartBaseComponentStyle-buttonsContainer {
+html[data-kasp-showroom-floor][data-kasp-at-drones] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartBaseComponentStyle-buttonsContainer {
     display: flex !important;
     flex-direction: row !important;
     align-items: stretch !important;
     gap: 0.5em !important;
 }
 
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-descriptionContainer.GarageCommonStyle-animatedBlurredLeftBlock):has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartBaseComponentStyle-buttonsContainer > * {
+html[data-kasp-showroom-floor][data-kasp-at-drones] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartBaseComponentStyle-buttonsContainer > * {
     margin: 0 !important;
     flex: 1 1 0 !important;
     min-width: 0 !important;
     width: auto !important;
 }
 
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartComponentStyle-descriptionContainer.GarageCommonStyle-animatedBlurredLeftBlock):has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartBaseComponentStyle-buttonsContainer > .TanksPartBaseComponentStyle-marginTop {
+html[data-kasp-showroom-floor][data-kasp-at-drones] .GarageCommonStyle-garageContainer .TanksPartBaseComponentStyle-tankPartContainer:has(.TanksPartBaseComponentStyle-buttonsContainer) .TanksPartBaseComponentStyle-buttonsContainer > .TanksPartBaseComponentStyle-marginTop {
     order: -1 !important;
     flex: 0 0 6em !important;
 }
 
 /* The item cards along the bottom: the main screen's frosted glass, as on Turrets and Hulls (showroom_items.css). Only the fill
    changes: the game marks the selected card with its box-shadow ring. */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.TanksPartComponentStyle-descriptionContainer.GarageCommonStyle-animatedBlurredLeftBlock):has(.TanksPartBaseComponentStyle-buttonsContainer) .garage-item {
+html[data-kasp-showroom-floor][data-kasp-at-drones] .GarageCommonStyle-garageContainer:has(.TanksPartBaseComponentStyle-buttonsContainer) .garage-item {
     background:
         linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
         linear-gradient(180deg, var(--kasp-gl-fill-top), var(--kasp-gl-fill) 45%),
@@ -100,7 +100,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.TanksPart
     transition: background 0.3s ease !important;
 }
 
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.TanksPartComponentStyle-descriptionContainer.GarageCommonStyle-animatedBlurredLeftBlock):has(.TanksPartBaseComponentStyle-buttonsContainer) .garage-item:hover {
+html[data-kasp-showroom-floor][data-kasp-at-drones] .GarageCommonStyle-garageContainer:has(.TanksPartBaseComponentStyle-buttonsContainer) .garage-item:hover {
     background:
         linear-gradient(var(--kasp-gl-inner-light), var(--kasp-gl-inner-light)) top / 100% 1px no-repeat,
         linear-gradient(180deg, var(--kasp-gl-fill-hover), var(--kasp-gl-fill) 60%),

@@ -21,7 +21,7 @@ html[data-kasp-showroom-floor] {
 }
 
 /* Turrets or Hulls is open: the garage's own bar (the one with a 7th tab) has its 1st or 2nd tab lit */
-html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:has(.MenuComponentStyle-mainMenuItem:nth-child(-n+2 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"] ~ .MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)) {
+html[data-kasp-showroom-floor][data-kasp-at-item] .GarageCommonStyle-garageContainer {
     /* the column: fixed on the left, from 7.3em under the top to 13em above the bottom, its content centred ("safe": a long stats list
        starts at the top instead of running under the header) */
     & .TanksPartBaseComponentStyle-tankPartContainer .TanksPartBaseComponentStyle-blockInsideContainerItem {
