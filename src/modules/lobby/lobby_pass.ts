@@ -2440,6 +2440,102 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
             gl.uniform1f(uni(pr, 'uDoorOut'), f.doorOut);
         };
 
+        // The game's settings the pass must put back that the browser can only answer by waiting for the graphics card to finish all its
+        // queued work (2026-11-26, the owner's trace of a first battle search: 345 ms of a 383 ms freeze were save()'s getParameter
+        // waiting on a card busy with the game's first-time pictures). They are kept here instead, written each time anyone sets them
+        // on this context (the game's renderer and the pass both call these on the same object), read once from the card at the start.
+        // The bindings, the active unit and the switched-on capabilities stay read from the browser, which answers them from its own
+        // copy at once. For the first VERIFY_FRAMES frames the copy is checked against the card; one difference and the pass goes back
+        // to asking the card, as before, for the rest of the page's life (a game build that sets one of these some other way).
+        const VERIFY_FRAMES = 120;
+        const kept = {
+            bs: gl.getParameter(gl.BLEND_SRC_RGB) as number,
+            bd: gl.getParameter(gl.BLEND_DST_RGB) as number,
+            bsa: gl.getParameter(gl.BLEND_SRC_ALPHA) as number,
+            bda: gl.getParameter(gl.BLEND_DST_ALPHA) as number,
+            be: gl.getParameter(gl.BLEND_EQUATION_RGB) as number,
+            bea: gl.getParameter(gl.BLEND_EQUATION_ALPHA) as number,
+            dmask: gl.getParameter(gl.DEPTH_WRITEMASK) as boolean,
+            dfunc: gl.getParameter(gl.DEPTH_FUNC) as number,
+            cmask: [...(gl.getParameter(gl.COLOR_WRITEMASK) as boolean[])],
+            viewport: Int32Array.from(gl.getParameter(gl.VIEWPORT) as Int32Array),
+            po: [gl.getParameter(gl.POLYGON_OFFSET_FACTOR) as number, gl.getParameter(gl.POLYGON_OFFSET_UNITS) as number] as [number, number],
+        };
+        let keptFrames = 0;
+        let keptOff = false;
+        const ctx = gl as unknown as Record<string, unknown>;
+        const keep = (name: string, record: (a: readonly unknown[]) => void): void => {
+            const own = ctx[name];
+            if (typeof own !== 'function') {
+                keptOff = true;
+                return;
+            }
+            ctx[name] = function (this: unknown, ...a: unknown[]): unknown {
+                record(a);
+                return Reflect.apply(own, this, a);
+            };
+        };
+        const n = (v: unknown): number => Number(v);
+        keep('blendFunc', (a) => {
+            kept.bs = kept.bsa = n(a[0]);
+            kept.bd = kept.bda = n(a[1]);
+        });
+        keep('blendFuncSeparate', (a) => {
+            kept.bs = n(a[0]);
+            kept.bd = n(a[1]);
+            kept.bsa = n(a[2]);
+            kept.bda = n(a[3]);
+        });
+        keep('blendEquation', (a) => {
+            kept.be = kept.bea = n(a[0]);
+        });
+        keep('blendEquationSeparate', (a) => {
+            kept.be = n(a[0]);
+            kept.bea = n(a[1]);
+        });
+        keep('depthMask', (a) => {
+            kept.dmask = Boolean(a[0]);
+        });
+        keep('depthFunc', (a) => {
+            kept.dfunc = n(a[0]);
+        });
+        keep('colorMask', (a) => {
+            kept.cmask = [Boolean(a[0]), Boolean(a[1]), Boolean(a[2]), Boolean(a[3])];
+        });
+        keep('viewport', (a) => {
+            kept.viewport = Int32Array.of(n(a[0]), n(a[1]), n(a[2]), n(a[3]));
+        });
+        keep('polygonOffset', (a) => {
+            kept.po = [n(a[0]), n(a[1])];
+        });
+        // the kept settings, or the card's own while checking (and for good after a difference)
+        const settings = (): Pick<Saved, 'bs' | 'bd' | 'bsa' | 'bda' | 'be' | 'bea' | 'dmask' | 'dfunc' | 'cmask' | 'viewport' | 'po'> => {
+            if (!keptOff && keptFrames >= VERIFY_FRAMES) return { ...kept, cmask: [...kept.cmask], viewport: Int32Array.from(kept.viewport), po: [kept.po[0], kept.po[1]] };
+            const real = {
+                bs: gl.getParameter(gl.BLEND_SRC_RGB) as number,
+                bd: gl.getParameter(gl.BLEND_DST_RGB) as number,
+                bsa: gl.getParameter(gl.BLEND_SRC_ALPHA) as number,
+                bda: gl.getParameter(gl.BLEND_DST_ALPHA) as number,
+                be: gl.getParameter(gl.BLEND_EQUATION_RGB) as number,
+                bea: gl.getParameter(gl.BLEND_EQUATION_ALPHA) as number,
+                dmask: gl.getParameter(gl.DEPTH_WRITEMASK) as boolean,
+                dfunc: gl.getParameter(gl.DEPTH_FUNC) as number,
+                cmask: [...(gl.getParameter(gl.COLOR_WRITEMASK) as boolean[])],
+                viewport: Int32Array.from(gl.getParameter(gl.VIEWPORT) as Int32Array),
+                po: [gl.getParameter(gl.POLYGON_OFFSET_FACTOR) as number, gl.getParameter(gl.POLYGON_OFFSET_UNITS) as number] as [number, number],
+            };
+            if (!keptOff) {
+                keptFrames++;
+                const same =
+                    real.bs === kept.bs && real.bd === kept.bd && real.bsa === kept.bsa && real.bda === kept.bda && real.be === kept.be &&
+                    real.bea === kept.bea && real.dmask === kept.dmask && real.dfunc === kept.dfunc &&
+                    real.cmask.every((v, i) => v === kept.cmask[i]) && real.viewport.every((v, i) => v === kept.viewport[i]) &&
+                    real.po[0] === kept.po[0] && real.po[1] === kept.po[1];
+                if (!same) keptOff = true;
+            }
+            return real;
+        };
+
         const save = (): Saved => {
             const prog = gl.getParameter(gl.CURRENT_PROGRAM) as WebGLProgram | null;
             const v = gl.getParameter(gl.VERTEX_ARRAY_BINDING) as WebGLVertexArrayObject | null;
@@ -2449,6 +2545,7 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
             const sampler2 = gl.getParameter(gl.SAMPLER_BINDING) as WebGLSampler | null;
             gl.activeTexture(gl.TEXTURE0 + UNIT);
             return {
+                ...settings(),
                 prog,
                 vao: v,
                 unit,
@@ -2457,22 +2554,11 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
                 tex: gl.getParameter(gl.TEXTURE_BINDING_2D) as WebGLTexture | null,
                 sampler: gl.getParameter(gl.SAMPLER_BINDING) as WebGLSampler | null,
                 blend: gl.isEnabled(gl.BLEND),
-                bs: gl.getParameter(gl.BLEND_SRC_RGB) as number,
-                bd: gl.getParameter(gl.BLEND_DST_RGB) as number,
-                bsa: gl.getParameter(gl.BLEND_SRC_ALPHA) as number,
-                bda: gl.getParameter(gl.BLEND_DST_ALPHA) as number,
-                be: gl.getParameter(gl.BLEND_EQUATION_RGB) as number,
-                bea: gl.getParameter(gl.BLEND_EQUATION_ALPHA) as number,
                 depth: gl.isEnabled(gl.DEPTH_TEST),
-                dmask: gl.getParameter(gl.DEPTH_WRITEMASK) as boolean,
-                dfunc: gl.getParameter(gl.DEPTH_FUNC) as number,
                 caps: [gl.CULL_FACE, gl.STENCIL_TEST, gl.SCISSOR_TEST, gl.POLYGON_OFFSET_FILL, gl.SAMPLE_ALPHA_TO_COVERAGE, gl.RASTERIZER_DISCARD].map((c): [number, boolean] => [c, gl.isEnabled(c)]),
-                cmask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
-                viewport: gl.getParameter(gl.VIEWPORT) as Int32Array,
                 draw: gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING) as WebGLFramebuffer | null,
                 read: gl.getParameter(gl.READ_FRAMEBUFFER_BINDING) as WebGLFramebuffer | null,
                 abuf: gl.getParameter(gl.ARRAY_BUFFER_BINDING) as WebGLBuffer | null,
-                po: [gl.getParameter(gl.POLYGON_OFFSET_FACTOR) as number, gl.getParameter(gl.POLYGON_OFFSET_UNITS) as number],
             };
         };
         const restore = (s: Saved): void => {
@@ -2506,8 +2592,11 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
         };
 
         // Copies the game's depth (the canvas's own) into our texture, so the stages can read it.
+        // the canvas's depth size never changes: asked of the card once, not each frame (each ask waits for the card)
+        let depthFormat = 0;
         function copyDepth(W: number, H: number): boolean {
-            const fmt = (gl.getParameter(gl.DEPTH_BITS) as number) > 24 ? gl.DEPTH32F_STENCIL8 : gl.DEPTH24_STENCIL8;
+            if (depthFormat === 0) depthFormat = (gl.getParameter(gl.DEPTH_BITS) as number) > 24 ? gl.DEPTH32F_STENCIL8 : gl.DEPTH24_STENCIL8;
+            const fmt = depthFormat;
             if (depthTex === null || dW !== W || dH !== H || dFmt !== fmt) {
                 if (depthTex !== null) gl.deleteTexture(depthTex);
                 if (depthFbo !== null) gl.deleteFramebuffer(depthFbo);

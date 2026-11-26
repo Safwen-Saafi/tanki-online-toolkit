@@ -57,8 +57,9 @@
     let offAt = -Infinity;
 
     // ---- the sound ----
-    // The audio is made at the first search (the player's click on PLAY or a tile came just before, so the browser lets it play); a
-    // file is read the first time it is picked, then kept. A missing or broken file stays silent.
+    // The audio is made, and the picked sound read, once the page has loaded (warm, below); the browser keeps the audio paused until the
+    // player has clicked somewhere, and a search always comes after a click. A file picked later is read at its first search, then
+    // kept. A missing or broken file stays silent.
     let ctx: AudioContext | null = null;
     const bufs = new Map<Pick, { readonly buf: AudioBuffer; readonly norm: number } | 'loading' | 'failed'>();
     // the loop playing now, so the search's end can fade it
@@ -176,6 +177,18 @@
     }
 
     document.addEventListener('animationstart', onAnimation);
+
+    // Made ahead (2026-11-26, the owner's trace of a first search: making the audio and reading the sound at the click took about 50 ms,
+    // right as the lift started): once the page has loaded (the game's loading screen, nobody playing yet), the audio is made and the
+    // picked sound read and measured, so the search itself only starts it.
+    function warm(): void {
+        if (!isOn(KEYS.sound)) return;
+        const c = audio();
+        if (c !== null) load(c, readPick(), () => {});
+    }
+    if (document.readyState === 'complete') warm();
+    else window.addEventListener('load', () => window.setTimeout(warm, 0), { once: true });
+
     // For the owner's console checks (probe 15): stop the search's sound, or start it again.
     window.__kaspSearchSound = {
         stop: () => fadeOut(0.1),

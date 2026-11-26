@@ -43,6 +43,9 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
 
 /* the column: the garage's own bar (with a 7th tab), or a sub-screen's bar (a garage box with a bar but no 7th tab) */
 :is(html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem)), html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer:not(:has(.MenuComponentStyle-mainMenuItem:nth-child(7 of .MenuComponentStyle-mainMenuItem))):has(.MenuComponentStyle-blockButtonsQECommunity) .MenuComponentStyle-blockButtonsQECommunity) {
+    /* the bar's own class is written next to & in the rules whose right-most part has no class (audit F-86, 2026-11-26): the parent is
+       always that bar, so nothing changes in what they match, but the browser can now skip them at once for any element outside the
+       bar; before, every element of the page (a battle's too) ran their :has() searches at each full restyle */
     /* the column: the 25b frosted glass, right of the screen, from 7.3em under the top to 13em above the bottom */
     & {
         position: fixed !important;
@@ -72,7 +75,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
     }
 
     /* every box between the column and the tabs: the tabs spread over the whole height (auto margins, so a short window scrolls) */
-    & *:has(.MenuComponentStyle-mainMenuItem) {
+    &.MenuComponentStyle-blockButtonsQECommunity *:has(.MenuComponentStyle-mainMenuItem) {
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
@@ -120,7 +123,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
     }
 
     /* the up and down keys: the game's own Q and E marks, their letters shown in the icons' colour (their own click stays) */
-    & > :not(:has(.MenuComponentStyle-mainMenuItem)) {
+    &.MenuComponentStyle-blockButtonsQECommunity > :not(:has(.MenuComponentStyle-mainMenuItem)) {
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -146,7 +149,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
     }
 
     /* the letter (the game may hold it in an inner box with a look of its own): bigger, in the column's colour, no box round it */
-    & > :not(:has(.MenuComponentStyle-mainMenuItem)) * {
+    &.MenuComponentStyle-blockButtonsQECommunity > :not(:has(.MenuComponentStyle-mainMenuItem)) * {
         font-size: 1.35em !important;
         font-weight: 700 !important;
         line-height: 1 !important;
@@ -173,7 +176,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
     }
 
     & .MenuComponentStyle-mainMenuItem:hover,
-    & > :not(:has(.MenuComponentStyle-mainMenuItem)):hover {
+    &.MenuComponentStyle-blockButtonsQECommunity > :not(:has(.MenuComponentStyle-mainMenuItem)):hover {
         background: rgb(255 255 255 / 0.07) !important;
     }
 
@@ -181,7 +184,7 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
         background: #fff !important;
     }
 
-    & > :not(:has(.MenuComponentStyle-mainMenuItem)):hover {
+    &.MenuComponentStyle-blockButtonsQECommunity > :not(:has(.MenuComponentStyle-mainMenuItem)):hover {
         color: #fff !important;
     }
 
@@ -228,8 +231,8 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .GarageMenuCom
     }
 
     /* a key dims when there is no tab further that way */
-    &:has(.MenuComponentStyle-mainMenuItem:nth-child(1 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) > :first-child:not(:has(.MenuComponentStyle-mainMenuItem)),
-    &:has(.MenuComponentStyle-mainMenuItem:nth-last-child(1 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) > :last-child:not(:has(.MenuComponentStyle-mainMenuItem)) {
+    &.MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-child(1 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) > :first-child:not(:has(.MenuComponentStyle-mainMenuItem)),
+    &.MenuComponentStyle-blockButtonsQECommunity:has(.MenuComponentStyle-mainMenuItem:nth-last-child(1 of .MenuComponentStyle-mainMenuItem)[class*="activeMenu"]) > :last-child:not(:has(.MenuComponentStyle-mainMenuItem)) {
         opacity: 0.3 !important;
     }
 }

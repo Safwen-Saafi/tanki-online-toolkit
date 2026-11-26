@@ -3252,7 +3252,9 @@ html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-playButtonContainer):not(
    centre it in the span; when the span is narrower, the mode name shortens with "...". The shop's tankoins, left of the rubies, are
    outside the span's count (the same place on every screen). CSS anchor positioning was tried first: probe 9 showed the browser never
    found the bar's pieces in the game's page, so the place is worked out from these numbers instead. */
-html[data-kasp-lobby-ui] :is(.BreadcrumbsComponentStyle-rightButtonsContainer > div:has(> .HeaderCommonStyle-icons):not(.UserScoreComponentStyle-coinsContainer), .UserScoreComponentStyle-blockRightPanel > div:has(.HeaderCommonStyle-icons)) {
+/* a plain list, not one :is(): the parents' classes then let the browser skip it at once off the top bar (audit F-86) */
+html[data-kasp-lobby-ui] .BreadcrumbsComponentStyle-rightButtonsContainer > div:has(> .HeaderCommonStyle-icons):not(.UserScoreComponentStyle-coinsContainer),
+html[data-kasp-lobby-ui] .UserScoreComponentStyle-blockRightPanel > div:has(.HeaderCommonStyle-icons) {
     animation: kasp-lu-money-seen 1ms;
 }
 
