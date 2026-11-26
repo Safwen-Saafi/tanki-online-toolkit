@@ -924,17 +924,8 @@ html[data-kasp-lobby-ui] .FooterComponentStyle-containerMenu > div {
     clip-path: inset(50%);
 }
 
-html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-disabledButtonPlay) .kasp-mode {
-    opacity: 0.4;
-    pointer-events: none;
-}
-
-/* greyed, a tile keeps its normal look even under the mouse (owner 2026-11-25: the tile pressed to start the search kept its
-   mouse-over white edge: the browser looks again at what is under the mouse only when it moves, and a greyed tile takes no mouse) */
-html[data-kasp-lobby-ui]:has(.MainScreenComponentStyle-disabledButtonPlay) .kasp-mode:hover {
-    background: var(--kasp-lu-glass) !important;
-    border-color: var(--kasp-lu-edge) !important;
-}
+/* no greyed tiles (owner 2026-11-26, after the independent review: "remove the greying completely"): the tiles keep their look while
+   the game searches; a click then does nothing (lobby_ui.ts returns while PLAY is greyed) */
 
 /* the icon: the game's own picture as a mask, in the text colour (in the tile's own font size) */
 /* white like the menu tiles' icons, and a size below theirs (about 4 em against their 5.6): the modes come under the menu */

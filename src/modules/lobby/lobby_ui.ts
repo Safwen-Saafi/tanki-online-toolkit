@@ -1,8 +1,11 @@
 // MAIN-world content script (build-plan 26d1): the lobby's 8 battle mode tiles, and the mark on <html> (data-kasp-lobby-ui) that lets
 // lobby_ui.css move the game's own lobby parts to the right side in glass; both only with the "Lobby buttons" switch on (kasp_lobbyui,
-// read once at start). Nothing here runs until the player clicks a tile or rolls the wheel over their row: the tiles are put on the page once, and
-// the stylesheet (lobby_ui.css) alone shows them only while the game's lobby PLAY is on the page, greys them while the game is
-// searching, and gives each its icon (bundled in extension/lobby/) and its name in the game's language.
+// read once at start). Nothing here watches the page on a clock: the tiles are put on the page once, and the stylesheet (lobby_ui.css)
+// alone shows them only while the game's lobby PLAY is on the page (never greyed: a click while the game searches does nothing), and
+// gives each its icon (bundled in extension/lobby/) and its name in the game's language. The code runs on the player's clicks, wheel and
+// keys, at the stylesheet's 1 ms marker animations, and, only while the chat or the friends list is open, on that list's own changes
+// (one MutationObserver each, on that list alone; a closed list gets no changes, and its observer is replaced when the list is drawn
+// again).
 // A click starts the mode the way the game's own Modes screen does, without any screen: the injector adds window.__kaspModeStart to
 // the game's code, which gives the game's store the game's own "search for this mode" action, the same one its Modes card sends (the
 // game then sends its usual request; we send nothing ourselves). Only if that is not in this game build, or cannot start it, the click
@@ -146,6 +149,20 @@
         window.setTimeout(() => note.remove(), 3000);
     }
 
+    // A tile's way that stopped half way leaves no half-open screen (independent review 2026-11-26): while the game's screens are still
+    // drawn unseen, its own back arrow is pressed until the lobby's PLAY is back, at most three screens deep; a search that started
+    // after all is left as it is.
+    const BACK = 'BreadcrumbsComponentStyle-backButton';
+    async function backToLobby(): Promise<void> {
+        for (let i = 0; i < 3 && document.getElementsByClassName(PLAY_BOX).length === 0; i++) {
+            if (document.querySelector(WAIT_SELECTOR) !== null) return;
+            const back = document.getElementsByClassName(BACK)[0];
+            if (!(back instanceof HTMLElement)) return;
+            press(back);
+            await waitFor(() => document.getElementsByClassName(PLAY_BOX)[0] ?? null);
+        }
+    }
+
     let busy = false;
     async function go(key: Key): Promise<void> {
         const playBox = document.getElementsByClassName(PLAY_BOX)[0];
@@ -196,7 +213,15 @@
         } catch {
             failed = 'error';
         }
-        // Where it stopped, in plain words, before the game's screen is left as it is (a mode the game does not offer right now, say).
+        // Stopped half way (a mode the game does not offer right now, say): back to the lobby first, still unseen, so no half-open
+        // screen is left; then where it stopped, in plain words.
+        if (failed !== null) {
+            try {
+                await backToLobby();
+            } catch {
+                // the game's screen stays as it is
+            }
+        }
         document.documentElement.removeAttribute(TRIP_MARK);
         block.remove();
         busy = false;

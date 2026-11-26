@@ -1704,7 +1704,25 @@
     // false, and the tile then takes the game's screens as before.
     const MODE_PRESS = /function\(([\w$]+),([\w$]+)\)\{\1\.([\w$]+)\(\)\.([\w$]+)\(new ([\w$]+)\(\2,([\w$]+)\(\),([\w$]+)\(\)\)\),\1\.\3\(\)\.\4\(new [\w$]+\([\w$]+\(\)\)\)\}/g;
     const MODE_MAKER_RANGE = 20000;
-    const STORE_HOLDER = /\(([\w$]+)\)\.aar=function\(\)\{var [\w$]+=[\w$]+;return this\.[\w$]+\.[\w$]+\(this,[\w$]+\("store",/g;
+    // The game's store getter and its "send an action" method, found by shape, never by their short names (independent review
+    // 2026-11-26: they were written in as this build's names). The getter is the method every store holder defines lazily under the
+    // name "store" (all of them the same name, else no answer); the sender is the method called on it with a new action, the clear
+    // majority of those calls (this build: 671 of 671).
+    const STORE_GETTER = /\.([\w$]+)=function\(\)\{var [\w$]+=[\w$]+;return this\.[\w$]+\.[\w$]+\(this,[\w$]+\("store",/g;
+    function storeNames(code: string): { readonly get: string; readonly dispatch: string } | null {
+        const gets = new Set([...code.matchAll(STORE_GETTER)].map((m) => m[1]));
+        if (gets.size !== 1) return null;
+        const [get] = gets;
+        const counts = new Map<string, number>();
+        for (const m of code.matchAll(new RegExp(`\\.${asPattern(get)}\\(\\)\\.([\\w$]+)\\(new `, 'g'))) counts.set(m[1], (counts.get(m[1]) ?? 0) + 1);
+        const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+        const total = ranked.reduce((sum, [, n]) => sum + n, 0);
+        if (ranked.length === 0 || ranked[0][1] < total * 0.9) return null;
+        return { get, dispatch: ranked[0][0] };
+    }
+    // a store holder class (its getter, given): the class name is captured
+    const storeHolder = (get: string): RegExp =>
+        new RegExp(`\\(([\\w$]+)\\)\\.${asPattern(get)}=function\\(\\)\\{var [\\w$]+=[\\w$]+;return this\\.[\\w$]+\\.[\\w$]+\\(this,[\\w$]+\\("store",`, 'g');
     const MODULE_BORDER = /[},]\s*\d{2,6}:(?:\([\w$],[\w$],[\w$]\)=>|function\([\w$],[\w$],[\w$]\))\{/;
 
     function patchLobbyModes(code: string): string | null {
@@ -1729,7 +1747,7 @@
         if (MODULE_BORDER.test(code.slice(Math.min(makerAt, first), Math.max(makerAt, last)))) return skip('module');
         // a store holder in the same module, with its getter
         let holder: string | null = null;
-        for (const found of code.matchAll(STORE_HOLDER)) {
+        for (const found of code.matchAll(storeHolder(store))) {
             const at = found.index ?? 0;
             if (MODULE_BORDER.test(code.slice(Math.min(at, makerAt), Math.max(at, makerAt)))) continue;
             const getter = new RegExp(`function ([\\w$]+)\\(\\)\\{return null==([\\w$]+)&&new ${asPattern(found[1])},\\2\\}`).exec(code);
@@ -1777,12 +1795,16 @@
         if (mapper === null) return skip('switcher state');
         const path = one(R`function ${asPattern(mapper[1])}\(t,n,i\)\{return new ${N}\(t\.(${N})\.(${N})\.(${N})\)\}`);
         if (path === null) return skip('current screen');
-        // the store, through the getter the switcher's module uses (the bottom bar's buttons: E2t().aar().gaq(...))
+        // the store, through the getter the switcher's module uses (the bottom bar's buttons: E2t().aar().gaq(...), names by shape)
+        const names = storeNames(code);
+        if (names === null) return skip('store names');
+        const { get, dispatch } = names;
         const switcherAt = switcher.index;
         let holder: string | null = null;
-        for (const found of code.slice(Math.max(0, switcherAt - 2000000), switcherAt).matchAll(/([\w$]+)\(\)\.aar\(\)\.gaq\(/g)) holder = found[1];
+        const call = new RegExp(`([\\w$]+)\\(\\)\\.${asPattern(get)}\\(\\)\\.${asPattern(dispatch)}\\(`, 'g');
+        for (const found of code.slice(Math.max(0, switcherAt - 2000000), switcherAt).matchAll(call)) holder = found[1];
         if (holder === null) return skip('store');
-        const holderAt = code.lastIndexOf(`${holder}().aar().gaq(`, switcherAt);
+        const holderAt = code.lastIndexOf(`${holder}().${get}().${dispatch}(`, switcherAt);
         if (MODULE_BORDER.test(code.slice(holderAt, switcherAt))) return skip('store module');
         // the root, where it draws the lobby (St(Rt) with Mu) or the switcher (St(It) with Du)
         const root = one(R`var (${N})=(${N})\((${N})\);n\.(${N})\(\1,(${N})\)\}\}else if\(function\(t,n\)\{return!!\(n instanceof ${N}(?:\|\|n instanceof ${N})*\)\|\|n instanceof ${N}\}\(0,i\)\)if\(t\.${N}\.${N}\)\{var ${N}=\2\(${N}\);n\.\4\(${N},${N}\)\}else\{`);
@@ -1794,7 +1816,7 @@
         const view = one(R`var r=t\.${asPattern(path[1])}\.${asPattern(path[2])}\.${asPattern(path[3])},[^;]{0,200}?,o=r instanceof ${N}\|\|r instanceof ${N}`);
         if (view === null || view.index === undefined) return skip('3D view');
         const check =
-            `window.__kaspFriendsScreen=function(){try{return ${holder}().aar().${path[1]}.${path[2]}.${path[3]} instanceof ${friendsScreen}}catch(e){return!1}},`;
+            `window.__kaspFriendsScreen=function(){try{return ${holder}().${get}().${path[1]}.${path[2]}.${path[3]} instanceof ${friendsScreen}}catch(e){return!1}},`;
         const draw = `if(window.__kaspFriendsScreen&&window.__kaspFriendsScreen()){var kaspLobby=${make}(${lobby});n.${add}(kaspLobby,${lobbyProps})}`;
         return applyEdits(code, [
             { at: switcherAt, length: 0, text: check },
@@ -1865,13 +1887,26 @@
         const loop = one(R`function\(t,n\)\{var i=t\.props\.additionalItems;if\(null==i\);else for\(var r=i\.(${N})\(\);r\.(${N})\(\);\)\{var e=r\.(${N})\(\),u=(${N})\((${N})\);n\.(${N})\(u,(${N})\(e\)\)\}\}\(this,t\)`);
         if (loop === null || loop.index === undefined) return skip('menu items');
         const [loopText, iter, hasNext, next, element, itemView, addChild, itemProps] = loop;
-        const menuStart = code.lastIndexOf('.jap=function(t){', loop.index);
-        const afterName = code.indexOf(')(this,t),', menuStart);
+        // the menu's draw method: the nearest method before the loop whose body really holds the loop (found by its braces, never by
+        // its short name: independent review 2026-11-26)
+        const MENU_SEARCH = 20000;
+        const defs = [...code.slice(Math.max(0, loop.index - MENU_SEARCH), loop.index).matchAll(/\.[\w$]+=function\(t\)\{/g)];
+        let menuStart = -1;
+        for (let k = defs.length - 1; k >= 0; k--) {
+            const open = Math.max(0, loop.index - MENU_SEARCH) + (defs[k].index ?? 0) + defs[k][0].length - 1;
+            if (closingBrace(code, open, MENU_SEARCH * 2) > loop.index) {
+                menuStart = open;
+                break;
+            }
+        }
+        const afterName = menuStart < 0 ? -1 : code.indexOf(')(this,t),', menuStart);
         if (menuStart < 0 || afterName < 0 || afterName > loop.index) return skip('menu name');
+        // the marked items first; wrapped in try, so a fault in ours never stops the game's own menu
         const firstItems =
-            `(function(t,n){var i=t.props.additionalItems;if(null!=i)for(var r=i.${iter}();r.${hasNext}();){var e=r.${next}();` +
-            `e.__kaspFirst&&n.${addChild}(${element}(${itemView}),${itemProps}(e))}})(this,t),`;
-        const lastItems = loopText.replace(`{var e=r.${next}(),`, `{var e=r.${next}();if(e.__kaspFirst)continue;var `);
+            `(function(t,n){try{var i=t.props.additionalItems;if(null!=i)for(var r=i.${iter}();r.${hasNext}();){var e=r.${next}();` +
+            `e.__kaspFirst&&n.${addChild}(${element}(${itemView}),${itemProps}(e))}}catch(e){}})(this,t),`;
+        // a replacement function, so a $ in the game's names is never read as a replacement pattern
+        const lastItems = loopText.replace(`{var e=r.${next}(),`, () => `{var e=r.${next}();if(e.__kaspFirst)continue;var `);
         const text =
             `(function(){try{var f=t.${pas}.${friend},o=f.${online[1]},q=f.${groupHolder[2]};if(null!=o&&o.${online[2]}&&!(null!=q&&!0===q.${inGroup[1]})){` +
             `var w=String(t.${mat}(${words[0][1]}().${words[0][2]}())),g=new ${item}(w.charAt(0).toUpperCase()+w.slice(1).toLowerCase(),function(){` +

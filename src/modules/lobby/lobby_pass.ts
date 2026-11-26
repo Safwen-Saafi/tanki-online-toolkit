@@ -2464,16 +2464,30 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
         let keptFrames = 0;
         let keptOff = false;
         const ctx = gl as unknown as Record<string, unknown>;
+        // what each wrapper replaced, so dispose() puts the context back as it was (independent review 2026-11-26)
+        const wrapped: Array<{ readonly name: string; readonly own: unknown; readonly hadOwn: boolean; readonly wrapper: unknown }> = [];
         const keep = (name: string, record: (a: readonly unknown[]) => void): void => {
             const own = ctx[name];
             if (typeof own !== 'function') {
                 keptOff = true;
                 return;
             }
-            ctx[name] = function (this: unknown, ...a: unknown[]): unknown {
+            const hadOwn = Object.prototype.hasOwnProperty.call(ctx, name);
+            const wrapper = function (this: unknown, ...a: unknown[]): unknown {
                 record(a);
                 return Reflect.apply(own, this, a);
             };
+            ctx[name] = wrapper;
+            wrapped.push({ name, own, hadOwn, wrapper });
+        };
+        // the game's own setters back on the context (only where ours is still the one there)
+        const unwrap = (): void => {
+            for (const w of wrapped) {
+                if (ctx[w.name] !== w.wrapper) continue;
+                if (w.hadOwn) ctx[w.name] = w.own;
+                else delete ctx[w.name];
+            }
+            wrapped.length = 0;
         };
         const n = (v: unknown): number => Number(v);
         keep('blendFunc', (a) => {
@@ -3881,6 +3895,7 @@ void main(){int mode=int(vD.z+.5);float s=vD.x,t=uTime;vec3 col;
         }
 
         function dispose(): void {
+            unwrap();
             if (gl.isContextLost()) return;
             for (const p of programs) gl.deleteProgram(p);
             gl.deleteVertexArray(vao);
