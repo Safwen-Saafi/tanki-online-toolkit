@@ -6,11 +6,16 @@
 // event the game's page could see. A reload module just reads its switch once at start. A choice (such as the chat's target
 // language) works the same way through getChoice, setChoice and onChoice: its value is the text under its key, and no key, or a
 // storage that cannot be read, means the module's own default.
+// A few switches are off by default (OFF_BY_DEFAULT): for those on is the exact text 1 and off is no key, so a fresh profile, or a
+// storage that cannot be read, has them off.
 (function () {
     'use strict';
 
     const LOG = '[KI-test][switches]';
     const OFF = '0';
+    const ON = '1';
+    // The Birthday banners in the lobby (build-plan 26e, owner 2026-11-21: there only if the player wants them).
+    const OFF_BY_DEFAULT: ReadonlySet<string> = new Set(['kasp_lobbybanners']);
     const actions = new Map<string, Array<(on: boolean) => void>>();
     const choiceActions = new Map<string, Array<(value: string | null) => void>>();
 
@@ -32,10 +37,12 @@
     }
 
     function isOn(key: string): boolean {
+        const offByDefault = OFF_BY_DEFAULT.has(key);
         try {
-            return localStorage.getItem(key) !== OFF;
+            const value = localStorage.getItem(key);
+            return offByDefault ? value === ON : value !== OFF;
         } catch {
-            return true;
+            return !offByDefault;
         }
     }
 
@@ -43,7 +50,10 @@
     function set(key: string, on: boolean): boolean {
         const was = isOn(key);
         try {
-            if (on) localStorage.removeItem(key);
+            if (OFF_BY_DEFAULT.has(key)) {
+                if (on) localStorage.setItem(key, ON);
+                else localStorage.removeItem(key);
+            } else if (on) localStorage.removeItem(key);
             else localStorage.setItem(key, OFF);
         } catch (error: unknown) {
             console.warn(`${LOG} could not save ${key}:`, error instanceof Error ? error.message : error);
@@ -83,5 +93,8 @@
         listen(choiceActions, key, action);
     }
 
-    window.kaspSwitches = { isOn, set, onChange, getChoice, setChoice, onChoice };
+    // a switch's value on a fresh profile and after the settings tab's RESET ALL (the one list of off-by-default switches is here)
+    const onByDefault = (key: string): boolean => !OFF_BY_DEFAULT.has(key);
+
+    window.kaspSwitches = { isOn, set, onChange, getChoice, setChoice, onChoice, onByDefault };
 })();

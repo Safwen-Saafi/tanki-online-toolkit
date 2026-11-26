@@ -1,0 +1,13 @@
+Battle search sounds (lobby_search.ts): the one the player picks under Battle search > Search sound plays while the game searches.
+
+search-sonar.mp3    = "sonar sound effect" (Pixabay file 230712, by nta88), Pixabay Content License
+                      (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+                      Changes: none to the file; looped while the game searches, faded out when the search ends.
+
+search-alarm.mp3    = "alarm" (Pixabay file 471496, by soundreality), Pixabay Content License
+                      (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+                      Changes: none to the file; looped while the game searches, faded out when the search ends.
+
+search-redalert.mp3 = "red alert nuclear buzzer" (Pixabay file 99741, by freesound_community), Pixabay Content License
+                      (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+                      Changes: none to the file; looped while the game searches, faded out when the search ends.

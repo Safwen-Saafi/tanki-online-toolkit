@@ -236,6 +236,8 @@ interface KaspSwitches {
     readonly getChoice: (key: string) => string | null;
     readonly setChoice: (key: string, value: string | null) => boolean;
     readonly onChoice: (key: string, action: (value: string | null) => void) => void;
+    // false only for the few switches that are off on a fresh profile (switches.ts OFF_BY_DEFAULT)
+    readonly onByDefault: (key: string) => boolean;
 }
 
 // Published by src/modules/loading_screens.ts (build-plan 23). fromFile makes the saved picture of a loading screen from the
@@ -305,7 +307,746 @@ interface KaspShowroom {
     readonly drone: () => KaspShowroomDrone | null;
 }
 
+// The game's own names the lobby needs (build-plan 26), found by src/injector.ts in the game's code at start and handed to
+// src/modules/lobby.ts once, so lobby.ts never spells a game name. Load-bearing: later lobby parts add their names here.
+interface KaspLobbyNames {
+    // The hangar system: its camera point, look-at point, tank base, platform node, camera component, breathing offset, the
+    // light direction it copies into the key light every frame, and the ring lamps' turn speed.
+    readonly cam: string;
+    readonly target: string;
+    readonly base: string;
+    readonly platform: string;
+    readonly cameraComponent: string;
+    readonly wobble: string;
+    readonly lightDir: string;
+    readonly lampSpeed: string;
+    // A vector's parts, a node's rotation (a vector), a camera component's lens (radians).
+    readonly x: string;
+    readonly y: string;
+    readonly z: string;
+    readonly rotation: string;
+    readonly fov: string;
+    // Methods: the system's world, the world's renderer.
+    readonly world: string;
+    readonly renderer: string;
+    // The renderer's lighting: the ambient (fill) colour, the key light, its colour and strength.
+    readonly lighting: string;
+    readonly ambient: string;
+    readonly key: string;
+    readonly keyColour: string;
+    readonly keyStrength: string;
+    // A colour's setter (r, g, b, a, 0 to 1) and its four parts.
+    readonly colourSet: string;
+    readonly red: string;
+    readonly green: string;
+    readonly blue: string;
+    readonly alpha: string;
+    // The renderer's settings state, its shadows flag and texture sharpness, and the sharpness setter.
+    readonly state: string;
+    readonly shadowsOn: string;
+    readonly sharpness: string;
+    readonly setSharpness: string;
+    // The renderer's shadows switch (on only where the graphics card can); optional: without it the game's own switch is left as it is.
+    readonly setShadows?: string;
+    // The renderer's shadow settings, the copy-with-changes method and its nine fields in the copy's order.
+    readonly shadow: string;
+    readonly shadowCopy: string;
+    readonly shadowFields: readonly string[];
+    // Only while the drone flight's edit went in too (26c).
+    readonly drone?: KaspLobbyDroneNames;
+    // Only while every name of the picture pass was found (26f1).
+    readonly pass?: KaspLobbyPassNames;
+}
+
+// The picture pass's names (build-plan 26f1): the renderer's frame call, its GL wrapper field and the wrapper's raw context, the
+// camera's view-projection matrix, the world's scene root and camera, a scene node's name, show switch and children (with the
+// list's size and item calls), a mesh's bounds call and the box's corner fields, a node's place.
+interface KaspLobbyPassNames {
+    readonly frame: string;
+    readonly glHolder: string;
+    readonly glContext: string;
+    readonly viewProjection: string;
+    readonly root: string;
+    readonly worldCamera: string;
+    readonly nodeName: string;
+    readonly setShown: string;
+    // A node's see-through amount (1 = solid) and its setter (26g1); missing when not found, then parts are only shown or hidden.
+    readonly alpha?: { readonly field: string; readonly set: string };
+    readonly children: string;
+    readonly size: string;
+    readonly at: string;
+    readonly bounds: string;
+    readonly boxMin: readonly string[];
+    readonly boxMax: readonly string[];
+    readonly position: string;
+}
+
+// The drone's names (build-plan 26c): the hangar's drone place (the point the drone system copies every frame), and the drone
+// system's own place, its pressed and grabbed flags (a press on the drone grabs it and a drag turns it) and its mesh.
+interface KaspLobbyDroneNames {
+    readonly home: string;
+    readonly place: string;
+    readonly pressed: string;
+    readonly grabbed: string;
+    readonly mesh: string;
+}
+
+// The game's own values in the lobby, recorded before anything is written (build-plan 26a).
+interface KaspLobbyVector {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+}
+
+interface KaspLobbyRecord {
+    readonly cam: KaspLobbyVector;
+    readonly target: KaspLobbyVector;
+    readonly base: KaspLobbyVector;
+    readonly turn: number;
+    readonly fov: number;
+    readonly lightDir: KaspLobbyVector;
+    readonly ambient: readonly number[];
+    readonly keyColour: readonly number[];
+    readonly keyStrength: number;
+    readonly lampSpeed: number;
+    readonly shadowsOn: boolean;
+    readonly shadow: readonly number[];
+    readonly sharpness: number;
+}
+
+// The lobby's picture pass (build-plan 26f, src/modules/lobby_pass.ts), driven by src/modules/lobby.ts.
+// A triangle list of one object and one material of a hangar model, with its picture's file name and address; mode 2 = see-through,
+// 1 = cut out, 0 = solid.
+interface KaspLobbyBatch {
+    readonly name: string;
+    readonly pic: string;
+    readonly url: string;
+    readonly pos: Float32Array;
+    readonly uv: Float32Array;
+    readonly mode: number;
+}
+
+// Pieces of a hangar model and their pictures; back / fwd = how far inside and outside the door a ground's top view reaches.
+interface KaspLobbyAsset {
+    readonly key: string;
+    readonly batches: readonly KaspLobbyBatch[];
+    readonly pics: ReadonlyMap<string, ImageBitmap>;
+    readonly back?: number;
+    readonly fwd?: number;
+    // The night factor pictures by picture name (26f2), once made.
+    readonly nightPics?: ReadonlyMap<string, ImageBitmap>;
+    // The lens factor pictures by picture name (26g1), once made.
+    readonly lensPics?: ReadonlyMap<string, ImageBitmap>;
+    // Where the pieces are moved to when drawn (26k): a turn or a mirror (2 x 2, column by column), a size and a move.
+    readonly xr?: readonly number[];
+    readonly xs?: number;
+    readonly xt?: readonly number[];
+    // A seasonal sky's mirrored copies past its two ends (26k).
+    readonly skyCopies?: readonly KaspLobbyAsset[];
+}
+
+// A seasonal hangar's outside (26k): its sky, town and mist pieces, and its ground just outside the door for the floor blend.
+interface KaspLobbySeason {
+    readonly asset: KaspLobbyAsset;
+    readonly ground: KaspLobbyAsset;
+}
+
+// The Halloween hangar's pumpkins (26k) and a candle point in each.
+interface KaspLobbyPumpkins {
+    readonly asset: KaspLobbyAsset;
+    readonly candles: ReadonlyArray<readonly number[]>;
+}
+
+// The lowest and highest corner of a piece (x, y, z).
+interface KaspLobbyBounds {
+    readonly lo: readonly number[];
+    readonly hi: readonly number[];
+}
+
+// The Christmas hangar's two trees (26l) and how far each reaches.
+interface KaspLobbyTrees {
+    readonly pine: KaspLobbyAsset;
+    readonly pineBig: KaspLobbyAsset;
+    readonly bounds: { readonly pine: KaspLobbyBounds; readonly pineBig: KaspLobbyBounds };
+}
+
+// The Christmas hangar's own fireplace (the probe's v1.88 ensureXmFire): pieces of its room taken by area, at their own places in that
+// room (the fireplace's back middle on the floor is pivot): the fireplace with its chimney, the log pile beside it, the rug in front.
+interface KaspLobbyFireplace {
+    readonly fire: KaspLobbyAsset;
+    readonly logs: KaspLobbyAsset;
+    readonly rug: KaspLobbyAsset;
+    readonly pivot: readonly number[];
+}
+
+// Small glowing points (26l): where each is (x, y, z, its colour and phase), how many, how bright, how fast they twinkle.
+interface KaspLobbyBulbs {
+    readonly pts: Float32Array;
+    readonly n: number;
+    readonly bright: number;
+    readonly blink: number;
+}
+
+// The game's own hangar: its room and floor, and the road's flat ground just outside the door.
+interface KaspLobbyStandard {
+    readonly std: KaspLobbyAsset;
+    readonly ground: KaspLobbyAsset;
+    // A point just under each ring lamp's lens (26f2).
+    readonly lamps: ReadonlyArray<readonly number[]>;
+}
+
+// The street side of the hangar: o = outward from the door, l = sideways, wall = the door line along o, the ground, the top of the
+// town (sky above it), where the sky backdrop begins along o (skyNear) and the room's top (skyLow).
+interface KaspLobbyBox {
+    readonly o: readonly [number, number];
+    readonly l: readonly [number, number];
+    readonly wall: number;
+    readonly groundZ: number;
+    readonly skyZ: number;
+    readonly skyNear: number;
+    readonly skyLow: number;
+    readonly floorZ: number;
+    // the town's reach sideways (along l), for the leaves (26f3)
+    readonly u: readonly [number, number];
+    // the town's far edge along o, and the rain's height range (the town's bottom to 2500 above the room's top) (26g2)
+    readonly far: number;
+    readonly z: readonly [number, number];
+    // the hangar's room as the model has it (26k: the string lights along the side wall)
+    readonly room: { readonly minX: number; readonly maxX: number; readonly minY: number; readonly maxY: number };
+    // the hangar's room, a little inside its walls, floor and roof (26h: the door beam's top, the floating dust)
+    readonly roomMin: readonly [number, number, number];
+    readonly roomMax: readonly [number, number, number];
+}
+
+// Stages 3 and 4 (26g2): the rain. drops = streaks drawn, dens = the share of them shown, drift = the wind added up over time,
+// reachEnd = how far out along o the rain falls, color = the rain lit like the outside.
+interface KaspLobbyRain {
+    readonly drops: number;
+    readonly dens: number;
+    readonly drift: number;
+    readonly speed: number;
+    readonly length: number;
+    readonly wind: number;
+    readonly width: number;
+    readonly bright: number;
+    readonly reachEnd: number;
+    readonly splash: number;
+    readonly color: readonly number[];
+}
+
+// Stage 1a: the hangar floor drawn again with the outside's ground mirrored in through the door line.
+interface KaspLobbyFloorMix {
+    readonly ground: KaspLobbyAsset;
+    readonly std: KaspLobbyAsset;
+    readonly amount: number;
+    readonly depth: number;
+    readonly bright: number;
+    readonly tone: number;
+    readonly fade: number;
+    readonly inside: number;
+    readonly wall: number;
+    readonly outR: number;
+    readonly lim: readonly [number, number, number];
+}
+
+// Stage 2: the atmosphere laid over the picture (the sun's glow, and with their looks fog, snow on the ground, stars, clouds, flash).
+interface KaspLobbyAtmos {
+    readonly stars: number;
+    readonly glow: number;
+    readonly sunDir: readonly number[];
+    readonly sunCol: readonly number[];
+    readonly fog: number;
+    readonly fogStart: number;
+    readonly fogHeight: number;
+    readonly fogMove: number;
+    readonly fogCol: readonly number[];
+    readonly cover: number;
+    readonly spark: number;
+    readonly coverCol: readonly number[];
+    readonly coverThick: number;
+    readonly groundZ: number;
+    readonly skyZ: number;
+    readonly flash: number;
+    readonly bolt: number;
+    readonly flashCol: readonly number[];
+    readonly cloud: number;
+    readonly cloudK: number;
+    readonly cloudSpeed: number;
+    readonly cloudCol: readonly number[];
+}
+
+// Everything one frame of the pass reads (the probe's buildFrame result); a later part adds its stage's field.
+// The warning beacon (26d step 9): per light (up to 8, now one) its turning beam's colour x strength (rot, 3 each), its glow all
+// round (stb, 3 each) and the beam's direction on the ground (dir, 2 each); reach = the glow's reach, beamReach the beam's, beam =
+// how narrow the beam is.
+interface KaspLobbySiren {
+    readonly lamps: ReadonlyArray<readonly number[]>;
+    readonly rot: Float32Array;
+    readonly stb: Float32Array;
+    readonly dir: Float32Array;
+    readonly reach: number;
+    readonly beamReach: number;
+    readonly beam: number;
+}
+
+// The waiting room, the launch lift (26d step 10): how far it has faded in (amount), the tank base, the cylinder round it that is
+// kept (radius, the floor height it starts over, the top, soft edges), the stand's half size, the drone's place and the ball
+// round it that is kept (x, y, z, radius; radius 0 = none), how near the tank is to a lamp row
+// (row, 0 to 1); the shaft's half width, how far the lift has risen (the walls' slide), and the beacon's beam (its colour x strength,
+// 0 without it, and its direction on the ground).
+interface KaspLobbyRoom {
+    readonly amount: number;
+    readonly base: readonly number[];
+    readonly radius: number;
+    readonly floor: number;
+    readonly top: number;
+    readonly soft: number;
+    readonly deck: number;
+    readonly drone: readonly number[];
+    readonly row: number;
+    readonly width: number;
+    readonly rise: number;
+    readonly beamCol: readonly number[];
+    readonly beamDir: readonly number[];
+    // the way the tank's front (its gun) points on the ground, a unit x, y
+    readonly face: readonly number[];
+    // the Tanki logo's picture (only its shape is used), null until it is read
+    readonly logo: ImageBitmap | null;
+}
+
+interface KaspLobbyPassFrame {
+    readonly vp: Float32Array;
+    readonly cam: readonly [number, number, number];
+    readonly time: number;
+    readonly box: KaspLobbyBox;
+    readonly doorIn: number;
+    readonly doorOut: number;
+    readonly offset: readonly [number, number, number];
+    readonly grade: { readonly inn: readonly number[]; readonly hor: readonly number[]; readonly zen: readonly number[] } | null;
+    readonly atmos: KaspLobbyAtmos | null;
+    readonly floorMix: KaspLobbyFloorMix | null;
+    // Stage 0a (26k): a seasonal outside drawn in place of the game's sky and town (its own brightness); null = the game's own.
+    readonly outside: { readonly asset: KaspLobbyAsset; readonly bright: number } | null;
+    // Stages 0a2, 1b2 and 2a2c (26k): the Halloween night's pumpkins, string lights, webs, wisps and bats; null = none.
+    readonly hw: {
+        readonly pumpkins: {
+            readonly asset: KaspLobbyAsset;
+            readonly n: number;
+            readonly candles: Float32Array;
+            readonly glowPts: Float32Array;
+            readonly glow: number;
+            readonly faces: number;
+            readonly pool: number;
+            readonly dim: number;
+        } | null;
+        readonly lights: { readonly pts: Float32Array; readonly n: number; readonly bright: number; readonly blink: number } | null;
+        readonly webs: { readonly w: Float32Array; readonly n: number; readonly size: number; readonly amount: number; readonly col: readonly number[] } | null;
+        readonly wisps: {
+            readonly n: number;
+            readonly near: number;
+            readonly far: number;
+            readonly span: readonly number[];
+            readonly height: number;
+            readonly size: number;
+            readonly speed: number;
+            readonly bright: number;
+            readonly color: readonly number[];
+        } | null;
+        readonly bats: {
+            readonly n: number;
+            readonly near: number;
+            readonly far: number;
+            readonly low: number;
+            readonly high: number;
+            readonly size: number;
+            readonly speed: number;
+            readonly haze: readonly number[];
+            // the one bat flying inside the hangar now (where it is), or null
+            readonly one: readonly number[] | null;
+        } | null;
+    } | null;
+    // Stages 0a3 and 1b3 (26l): the Christmas tree (moved to its spot), its bulbs, star and warm glow, the gifts round its foot, the
+    // Christmas lights; null = none.
+    readonly xm: {
+        readonly tree: { readonly asset: KaspLobbyAsset } | null;
+        readonly treeBulbs: KaspLobbyBulbs | null;
+        readonly star: KaspLobbyBulbs | null;
+        readonly pool: { readonly pts: Float32Array; readonly r: number; readonly amount: number; readonly dim: number } | null;
+        readonly gifts: { readonly g: Float32Array; readonly s: Float32Array; readonly n: number } | null;
+        readonly lights: KaspLobbyBulbs | null;
+    } | null;
+    // Stages 0a4 and 1b4 (26l, the probe's v1.88 fireplace): the Christmas hangar's fireplace pieces (placed), then its flames, embers
+    // and sparks (P = where and a seed, Q = width, height, brightness, kind; 48 each), pulled toward the camera by pull, at bright; and
+    // its flickering light pools.
+    readonly fp: {
+        readonly pieces: readonly KaspLobbyAsset[];
+        readonly fire: { readonly P: Float32Array; readonly Q: Float32Array; readonly n: number };
+        readonly pull: number;
+        readonly bright: number;
+        readonly pools: ReadonlyArray<{ readonly pts: Float32Array; readonly r: number; readonly amount: number; readonly dim: number }>;
+    } | null;
+    // Stage 0b (26f2): the hangar's walls and floor multiplied by their night factor pictures.
+    readonly desun: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
+    // Stage 0b2 (26g1): the ring lamp lenses made dark by their lens factor picture (the overcast).
+    readonly lensOff: { readonly asset: KaspLobbyAsset; readonly amount: number } | null;
+    // Stage 0c (26g1): the game's sky mesh drawn again with its greyed picture (the overcast).
+    readonly sky: { readonly asset: KaspLobbyAsset } | null;
+    // Stage 2b (26g4a): the grey sky mesh drawn again with the lightning bolt added, while a flash lasts; pic = the bolt picture
+    // (columns = directions across the door, +-0.6 rad), top = the angle up that its top row stands for.
+    readonly boltSky: { readonly asset: KaspLobbyAsset; readonly pic: ImageBitmap; readonly top: number } | null;
+    // Stage 1b (26f4c): the Halloween hangar's lit lamp heads over the ring lamps, then their light cones (added).
+    readonly fixtures: { readonly asset: KaspLobbyAsset; readonly alpha: number; readonly cones: number } | null;
+    // Stage 1c (26f2): the ring lamps' light.
+    readonly lamps: { readonly list: ReadonlyArray<readonly number[]>; readonly power: number; readonly reach: number; readonly glow: number; readonly color: readonly number[] } | null;
+    // Stage 1c2 (26d step 9): the emergency lights on the ring lamps while the game searches; null otherwise.
+    readonly siren: KaspLobbySiren | null;
+    // Stage 5 (26d step 10): the waiting room while the game searches, laid over everything but the tank; null otherwise.
+    readonly room: KaspLobbyRoom | null;
+    // Stage 2a2 (26f4b): the night's lights out on the street, the street lamps and the red warning light; null by day.
+    readonly nightx: KaspLobbyStreetLights | null;
+    // Stage 2a2b (26f4a): the clear night's extras, the town's lit windows and the shooting star; null by day.
+    readonly ncx: KaspLobbyNightExtras | null;
+    // Stage 2a3a (26f3): the normal day's extras, the white clouds over the sky and the leaves in the street; null at night.
+    readonly ndx: KaspLobbyDayExtras | null;
+    // Stages 3 and 4 (26g2): the rain splashes on the street, then the falling streaks; null = no rain.
+    readonly rain: KaspLobbyRain | null;
+    // Stage 1d (26g5): the wet floor by the door and the street; null = dry.
+    readonly wet: KaspLobbyWet | null;
+    // Stage 4 (26g5): the drips from the door's top edge; null = none.
+    readonly drips: KaspLobbyDrips | null;
+    // Stage 2a (26h): the foggy looks' extras (also on for the searchlight and the cones at night); null = none.
+    readonly fogx: KaspLobbyFogExtras | null;
+    // Stage 4 (26h): the dust floating in the hangar's light, n specks; null = none.
+    readonly motes: { readonly n: number; readonly bright: number; readonly color: readonly number[] } | null;
+    // Stage 4 (26j): the snow outside (with its drift and gust, which move every kind of speck, and its glow near the street lamps
+    // at night) and the snow blown into the hangar; null = none.
+    readonly snow: {
+        readonly flakes: number;
+        readonly speed: number;
+        readonly size: number;
+        readonly wind: number;
+        readonly drift: number;
+        readonly glow: {
+            readonly n: number;
+            readonly start: number;
+            readonly gap: number;
+            readonly sides: readonly number[];
+            readonly z: number;
+            readonly r: number;
+            readonly amount: number;
+            readonly color: readonly number[];
+        } | null;
+        readonly gust: number;
+        readonly sway: number;
+        readonly bright: number;
+        readonly reach: number;
+        readonly color: readonly number[];
+    } | null;
+    readonly snowIn: {
+        readonly n: number;
+        readonly speed: number;
+        readonly size: number;
+        readonly wind: number;
+        readonly sway: number;
+        readonly bright: number;
+        readonly color: readonly number[];
+    } | null;
+    // Stages 1e and 4 (26j): the snowy day's icicles on the door's top edge and the snow drift on the floor inside the door.
+    readonly swx: {
+        readonly ice: {
+            readonly n: number;
+            readonly top: number;
+            readonly at: number;
+            readonly span: readonly number[];
+            readonly len: number;
+            readonly width: number;
+            readonly glint: number;
+            readonly color: readonly number[];
+        } | null;
+        readonly drift: {
+            readonly amount: number;
+            readonly depth: number;
+            readonly lim: readonly number[];
+            readonly floorZ: number;
+            readonly spark: number;
+            readonly gust: number;
+            readonly color: readonly number[];
+        } | null;
+    } | null;
+    // Stage 2a3 (26i): the very sunny day's birds and heat shimmer, only by day; null = none.
+    readonly sunx: {
+        readonly shimmer: { readonly amount: number; readonly height: number; readonly speed: number } | null;
+        readonly birds: {
+            readonly n: number;
+            readonly near: number;
+            readonly far: number;
+            readonly low: number;
+            readonly high: number;
+            readonly size: number;
+            readonly speed: number;
+            readonly haze: readonly number[];
+        } | null;
+    } | null;
+}
+
+// amount = how wet, depth = how far in from the door, puddles = how much is standing water, shine = how strongly they mirror,
+// rings = rings in the puddles (0 without rain), floorZ = the floor's top, lim = across the door (left, right, edge softness),
+// sky = the colour a mirrored ray that leaves the screen gets, flash = the lightning's flash now.
+interface KaspLobbyWet {
+    readonly amount: number;
+    readonly depth: number;
+    readonly puddles: number;
+    readonly shine: number;
+    readonly rings: number;
+    readonly floorZ: number;
+    readonly lim: readonly number[];
+    readonly sky: readonly number[];
+    readonly flash: number;
+}
+
+// n drops along the door's top edge (top) at `at` along o, across span; g = gravity; ground = the floor's top; splash = the rings.
+interface KaspLobbyDrips {
+    readonly n: number;
+    readonly top: number;
+    readonly at: number;
+    readonly span: readonly number[];
+    readonly g: number;
+    readonly width: number;
+    readonly bright: number;
+    readonly splash: number;
+    readonly wind: number;
+    readonly ground: number;
+    readonly color: readonly number[];
+}
+
+interface KaspLobbyStreetLights {
+    readonly fog: number;
+    readonly fogStart: number;
+    readonly fogCol: readonly number[];
+    readonly lamps: {
+        readonly count: number;
+        readonly start: number;
+        readonly gap: number;
+        readonly left: number;
+        readonly right: number;
+        readonly height: number;
+        readonly size: number;
+        readonly halo: number;
+        readonly bright: number;
+        readonly color: readonly number[];
+        readonly postCol: readonly number[];
+    } | null;
+    readonly red: { readonly pos: readonly number[]; readonly size: number; readonly halo: number; readonly bright: number } | null;
+    // the foggy night's searchlight and the ring lamps' cones (26h), drawn by stage 2a; amount already x the night amount
+    readonly search: { readonly amount: number; readonly width: number; readonly origin: readonly number[]; readonly dir: readonly number[]; readonly color: readonly number[] } | null;
+    readonly cones: {
+        readonly amount: number;
+        readonly lamps: ReadonlyArray<readonly number[]>;
+        readonly angle: number;
+        readonly reach: number;
+        readonly dust: number;
+        readonly color: readonly number[];
+    } | null;
+}
+
+// Stage 2a (26h): the foggy day's floor fog, the fog banks and the door's light beam (with its lit patch on the floor); 0 = that part off.
+interface KaspLobbyFogExtras {
+    readonly floor: number;
+    readonly floorH: number;
+    readonly floorDepth: number;
+    readonly floorSpeed: number;
+    readonly floorLumps: number;
+    readonly floorOut: number;
+    readonly floorIn: readonly number[];
+    readonly floorOutCol: readonly number[];
+    readonly banks: number;
+    readonly bankSize: number;
+    readonly bankSpeed: number;
+    readonly bankGaps: number;
+    readonly bankHigh: number;
+    readonly bankStart: number;
+    readonly bankCol: readonly number[];
+    readonly far: number;
+    readonly beam: number;
+    readonly pool: number;
+    readonly dust: number;
+    readonly soft: number;
+    readonly beamCol: readonly number[];
+    readonly beamDir: readonly number[];
+    readonly door: readonly number[];
+}
+
+interface KaspLobbyNightExtras {
+    readonly hor: readonly number[];
+    // the stars on the sky painted behind the town (the same amount as stage 2's stars on the real sky)
+    readonly stars: number;
+    readonly zen: readonly number[];
+    readonly windows: { readonly amount: number; readonly dense: number; readonly size: number; readonly near: number; readonly far: number; readonly change: number } | null;
+    // a = start and b = end (across, up) in radians in the door's frame, t = 0 to 1 along the flight
+    // fireflies low over the street and moths round the ring lamps (26f4c)
+    readonly flies: {
+        readonly n: number;
+        readonly near: number;
+        readonly far: number;
+        readonly span: readonly number[];
+        readonly height: number;
+        readonly size: number;
+        readonly speed: number;
+        readonly bright: number;
+        readonly color: readonly number[];
+    } | null;
+    readonly moths: {
+        readonly lamps: ReadonlyArray<readonly number[]>;
+        readonly perLamp: number;
+        readonly size: number;
+        readonly speed: number;
+        readonly alpha: number;
+        readonly color: readonly number[];
+    } | null;
+    // the street lamps' light on the street and the walls under them (26f4b)
+    readonly pools: {
+        readonly amount: number;
+        readonly r: number;
+        readonly n: number;
+        readonly start: number;
+        readonly gap: number;
+        readonly sides: readonly number[];
+        readonly h: number;
+        readonly color: readonly number[];
+    } | null;
+    readonly meteor: { readonly a: readonly number[]; readonly b: readonly number[]; readonly t: number; readonly length: number; readonly width: number; readonly bright: number } | null;
+}
+
+interface KaspLobbyDayExtras {
+    readonly clouds: { readonly amount: number; readonly cover: number; readonly size: number; readonly speed: number; readonly color: readonly number[]; readonly shade: readonly number[] } | null;
+    // n leaves; P = place and size, A = length axis and kind, B = width axis and hue (4 numbers each, 64 slots)
+    readonly leaves: { readonly n: number; readonly P: Float32Array; readonly A: Float32Array; readonly B: Float32Array; readonly size: number; readonly ground: number; readonly floor: number; readonly light: readonly number[]; readonly sun: readonly number[] } | null;
+}
+
+// One pass per GL context; draw throws when a stage breaks (the game's GL state is put back first).
+interface KaspLobbyGpu {
+    readonly draw: (frame: KaspLobbyPassFrame) => void;
+    readonly dispose: () => void;
+    // For the owner's console checks (26d step 9): the emergency lights' program (made, or why not) and how often they were drawn.
+    readonly siren: () => { readonly program: string; readonly drawn: number };
+}
+
+interface KaspLobbyPassApi {
+    readonly make: (gl: WebGL2RenderingContext) => KaspLobbyGpu;
+    readonly loadStandard: (folder: string) => Promise<KaspLobbyStandard>;
+    readonly nightPictures: (asset: KaspLobbyAsset) => Promise<ReadonlyMap<string, ImageBitmap>>;
+    // The Halloween hangar's lamp heads round the ring lamps' spots and their light cones (26f4c), from the extension's hangars/ folder.
+    readonly loadFixtures: (base: string, lamps: ReadonlyArray<readonly number[]>) => Promise<KaspLobbyAsset>;
+    // The overcast (26g1): the ring lamp lenses' factor picture, and the game's sky mesh with its picture greyed (saved once made).
+    readonly lensPictures: (asset: KaspLobbyAsset) => Promise<ReadonlyMap<string, ImageBitmap>>;
+    readonly loadSky: (folder: string, grey: { readonly amount: number; readonly contrast: number; readonly tint: readonly number[] }) => Promise<KaspLobbyAsset>;
+    // A seasonal outside and the Halloween pumpkins (26k), from the extension's hangars/ folder.
+    readonly loadSeason: (base: string, season: string) => Promise<KaspLobbySeason>;
+    readonly loadPumpkins: (base: string) => Promise<KaspLobbyPumpkins>;
+    // The Christmas hangar's two trees (26l), from the extension's hangars/ folder.
+    readonly loadTrees: (base: string) => Promise<KaspLobbyTrees>;
+    // The Christmas hangar's own fireplace (26l), from the extension's hangars/ folder.
+    readonly loadFireplace: (base: string) => Promise<KaspLobbyFireplace>;
+}
+
+// MAIN world, defined by src/modules/hangar_files.ts (26e): its two floor steps, used by lobby_pass.ts for the night floor (26f2).
+interface KaspHangarPictures {
+    readonly removeSun: (px: Uint8ClampedArray, W: number, H: number) => void;
+    readonly flattenPicture: (px: Uint8ClampedArray, W: number, H: number) => void;
+    // The saved store of made files: the saved one for name, or make it and save it (null = could not be made).
+    readonly saved: (name: string, make: () => Promise<Blob | null>) => Promise<Blob | null>;
+    // Whether the floor picture the game gets is the cleaned one (the look's choice).
+    readonly floorCleaned: boolean;
+    // What was changed on the wall picture the game gets ('' = nothing, '-xmas' = the Christmas screens' shadows cleaned off,
+    // '-banners' = the Birthday banners), for the saved names of pictures made from it.
+    readonly wallTag: string;
+}
+
+// MAIN world, defined by src/modules/lobby.ts (build-plan 26a). The injector calls start once its lobby edit went in; the game's
+// hangar system calls frame first thing in every lobby frame.
+interface KaspLobby {
+    readonly start: (names: KaspLobbyNames) => void;
+    readonly frame: (system: unknown) => void;
+    // Called by hangar_files.ts once the game has asked for its hangar (26f2): the model and the night pictures are read at once.
+    readonly prepare: () => void;
+    // Asked by hangar_files.ts when the hangar's model arrives (owner 2026-11-25), piece by piece of the model: whether this look turns
+    // that piece off for the whole session (its hidden parts and, where the hour's sunbeams are too weak, the sunbeams); those pieces
+    // are removed from the model itself. The look's tag says which pieces, for the name the made model is saved under.
+    readonly removesPart: (name: string) => boolean;
+    readonly removedTag: () => string;
+    // Called by the game's drone system as the last thing of its own update (26c).
+    readonly drone: (system: unknown) => void;
+    // Read-only, for the owner's console checks.
+    readonly frames: number;
+    readonly game: KaspLobbyRecord | null;
+    readonly state: Readonly<Record<string, unknown>>;
+}
+
+// The battle search moment (26d step 9, src/modules/lobby_search.ts), read by lobby.ts in its lobby frames: on while the game
+// searches; the other four are the switches as they were at the search's start .
+interface KaspSearch {
+    on: boolean;
+    camera: boolean;
+    drone: boolean;
+    alert: boolean;
+    room: boolean;
+}
+
+// The lobby drone (lobby_drone.ts, F-85): what lobby.ts hands it, the part of lobby.ts's scene it reads, and what it gives back.
+interface KaspLobbyDroneScene {
+    readonly system: Record<string, unknown>;
+    readonly record: KaspLobbyRecord;
+    readonly want: { readonly c: KaspLobbyVector; readonly t: KaspLobbyVector; readonly rightX: number; readonly rightY: number };
+    readonly droneHome: KaspLobbyVector | null;
+}
+interface KaspLobbyDroneEnv {
+    readonly DEG: number;
+    readonly isBag: (value: unknown) => value is Record<string, unknown>;
+    readonly bag: (owner: Record<string, unknown>, name: string) => Record<string, unknown>;
+    readonly num: (owner: Record<string, unknown>, name: string) => number;
+    readonly readVector: (vector: Record<string, unknown>, n: KaspLobbyNames) => KaspLobbyVector;
+    readonly writeVector: (vector: Record<string, unknown>, n: KaspLobbyNames, value: KaspLobbyVector) => void;
+    readonly wrapAngle: (a: number) => number;
+    // lobby.ts's live state, read at each call
+    readonly names: () => KaspLobbyNames | null;
+    readonly scene: () => KaspLobbyDroneScene | null;
+    readonly broken: () => boolean;
+    // the battle search's waiting room still fading in (lobby.ts): the drone waits where it stopped until the hangar is gone
+    readonly roomComing: () => boolean;
+}
+interface KaspLobbyDroneApi {
+    // one flight step, each lobby frame
+    readonly fly: (s: KaspLobbyDroneScene, n: KaspLobbyNames, now: number, dt: number) => void;
+    // the game's drone system's end-of-update call
+    readonly drone: (system: unknown) => void;
+    // the drone back to the game's own hover
+    readonly restore: (s: KaspLobbyDroneScene, n: KaspLobbyNames) => void;
+    // a new scene: the flight starts again
+    readonly reset: () => void;
+    // where the drone flies now, null before the flight
+    readonly position: () => KaspLobbyVector | null;
+    // for the owner's console checks (window.__kaspLobby.state)
+    readonly debug: () => Readonly<Record<string, unknown>>;
+}
+
 interface Window {
+    __kaspLobby?: KaspLobby;
+    __kaspSearch?: KaspSearch;
+    // For the owner's console checks (26d step 10, lobby_search.ts): stop or start the search's sound.
+    __kaspSearchSound?: { readonly stop: () => void; readonly play: () => void };
+    // Added to the game's code by the injector (26d1, the lobby's mode tiles): starts the battle mode whose game name is in names with
+    // the game's own action, given to the game's store; false when it could not.
+    __kaspModeStart?: (names: readonly string[]) => boolean;
+    __kaspLobbyPass?: KaspLobbyPassApi;
+    // The one lobby look list (lobby_looks.ts), in the page's world only; missing if that file did not run.
+    __kaspLobbyLooks?: typeof KASP_LOBBY_LOOKS;
+    // The lobby drone's roast lines in English and Russian (drone_roasts.ts), in the page's world only; missing if that file did not run.
+    // The eleven looks' presets (lobby_presets.ts, F-85), read by lobby.ts.
+    __kaspLobbyPresets?: Readonly<Record<KaspLobbyLookName, LobbyLook>>;
+    // Makes the lobby drone's flight and roast bubble (lobby_drone.ts, F-85), called once by lobby.ts.
+    __kaspLobbyDroneMaker?: (env: KaspLobbyDroneEnv) => KaspLobbyDroneApi;
+    __kaspDroneRoasts?: ReadonlyArray<Readonly<Record<KaspLanguageCode, string>>>;
+    __kaspHangarPictures?: KaspHangarPictures;
     __kaspShowroom?: KaspShowroom;
     __kaspShowroomParts?: KaspShowroomParts;
     __kaspSendAction?: (className: string, obj: unknown) => void;

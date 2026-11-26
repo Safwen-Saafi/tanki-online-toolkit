@@ -1,0 +1,10 @@
+Halloween sounds used by the lobby test (spike branch): the Halloween night's spooky sounds, each played now and then, to one side.
+
+halloween-owl.mp3   = "owl hooting" (Pixabay file 223549, by lazychillzone), Pixabay Content License
+                      (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+halloween-wolf.mp3  = "wolf howl" (Pixabay file 140235, by Universfield), Pixabay Content License; no credit required; kept anyway.
+halloween-creak.mp3 = "old door sound night time" (Pixabay file 505140, by tanweraman), Pixabay Content License; no credit required;
+                      kept anyway.
+
+Changes: none to the files; the probe plays each whole, at a set loudness. Downloaded by the owner; the source above is read from the
+file names (Pixabay's naming).

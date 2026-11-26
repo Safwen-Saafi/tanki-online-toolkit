@@ -1,0 +1,12 @@
+Thunder sounds used by the lobby's rainy looks.
+
+thunder-soft.mp3    = the owner's own pick (2026-11-25), played whole and as it is; its source and licence are not recorded here yet
+thunder-medium.mp3  = the owner's own pick (2026-11-25), played whole and as it is; its source and licence are not recorded here yet
+
+thunder-loud.ogg    = "Thunder crack 2B.ogg", by Jud McCranie, from Wikimedia Commons, licence CC BY-SA 4.0
+                      (https://creativecommons.org/licenses/by-sa/4.0/)
+                      https://commons.wikimedia.org/wiki/File:Thunder_crack_2B.ogg
+                      Played as it is: a part of the file, with a fade out; nothing else is changed.
+
+If these ever ship in a published extension, the credit above has to ship with them (CC BY-SA asks for the author, the licence and a
+link); the two mp3 files need their own source and licence added here first.

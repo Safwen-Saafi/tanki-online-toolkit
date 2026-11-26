@@ -27,7 +27,7 @@
     const DIVIDER_CLASS = 'SettingsComponentStyle-borderLineOption';
     const DIVIDER_BLOCK_CLASS = 'SettingsComponentStyle-commonBlock';
 
-    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'shop' | 'interface' | 'colour' | 'tabColours' | 'loading';
+    type SwitchGroup = 'kills' | 'grenade' | 'weapons' | 'music' | 'battle' | 'chat' | 'garage' | 'lobby' | 'search' | 'shop' | 'interface' | 'colour' | 'tabColours' | 'loading';
 
     interface SwitchEntry {
         // The localStorage key the feature's module reads.
@@ -46,6 +46,8 @@
         { id: 'battle', heading: { EN: 'Battle tab', RU: 'Таблица боя' } },
         { id: 'chat', heading: { EN: 'Chat', RU: 'Чат' } },
         { id: 'garage', heading: { EN: 'Garage', RU: 'Гараж' } },
+        { id: 'lobby', heading: { EN: 'Lobby', RU: 'Лобби' } },
+        { id: 'search', heading: { EN: 'Battle search', RU: 'Поиск боя' } },
         { id: 'shop', heading: { EN: 'Shop', RU: 'Магазин' } },
         { id: 'interface', heading: { EN: 'Interface', RU: 'Интерфейс' } },
         // No switch: its row of colour circles (THEME_COLOURS).
@@ -83,6 +85,28 @@
         { key: 'kasp_garageskins', group: 'garage', live: true, label: { EN: 'Equipped skins in the garage', RU: 'Надетые скины в гараже' } },
         // Read by the injector when the game starts: the website's camera, light, drone place and floor in the garage (a change needs a reload).
         { key: 'kasp_showroom', group: 'garage', live: false, label: { EN: 'Showroom garage', RU: 'Гараж-витрина' } },
+        // Read by the injector when the game starts: the lobby's camera and the hangar's light (build-plan 26a, a change needs a reload).
+        { key: 'kasp_lobby', group: 'lobby', live: false, label: { EN: 'Lobby camera and look', RU: 'Камера и вид лобби' } },
+        // Read by the injector when the game starts: the drone's flight round the tank (26c); works only with the switch above.
+        { key: 'kasp_lobbydrone', group: 'lobby', live: false, label: { EN: 'Drone flight', RU: 'Полёт дрона' } },
+        // Read by lobby.ts at each hello (26d step 11): the drone's comic bubble with a roast line at hello spots 1 and 2; works only
+        // with "Drone flight".
+        { key: 'kasp_droneroast', group: 'lobby', live: true, label: { EN: 'Drone roasts', RU: 'Подколки дрона' } },
+        // Read by hangar_files.ts when the game starts: the Birthday hangar's wall banners in the lobby (26e); off unless turned on.
+        { key: 'kasp_lobbybanners', group: 'lobby', live: false, label: { EN: 'Birthday banners', RU: 'Праздничные флажки' } },
+        // Read by lobby_ui.ts when the game starts: the lobby's parts on the right in glass, the 8 mode tiles and the glass top bar of the lobby and every other screen (26d1,
+        // 26d2, a change needs a reload).
+        { key: 'kasp_lobbyui', group: 'lobby', live: false, label: { EN: 'Lobby buttons', RU: 'Кнопки лобби' } },
+        // Read by lobby_search.ts at each search start (26d step 9): the camera, drone and light need "Lobby camera and look" (and the
+        // drone "Drone flight"), the sonar's pings with the radar "Lobby buttons" (the radar is on its PLAY card).
+        { key: 'kasp_searchcamera', group: 'search', live: true, label: { EN: 'Ready camera', RU: 'Камера готовности' } },
+        // the one sound picked in its dropdown below (owner 2026-11-24: a sonar and an alarm never together)
+        { key: 'kasp_searchsound', group: 'search', live: true, label: { EN: 'Search sound', RU: 'Звук поиска' } },
+        { key: 'kasp_searchdrone', group: 'search', live: true, label: { EN: 'Drone escort', RU: 'Дрон рядом с танком' } },
+        // a new key (owner 2026-11-24: no sirens seen; the old "Hangar on alert" switch may have been left off from the green try)
+        { key: 'kasp_searchsiren', group: 'search', live: true, label: { EN: 'Emergency lights', RU: 'Аварийные огни' } },
+        // 26d step 10: the hangar fades out to the waiting room round the tank while searching (needs "Lobby camera and look")
+        { key: 'kasp_searchroom', group: 'search', live: true, label: { EN: 'Waiting room', RU: 'Комната ожидания' } },
         // Read by the injector when the game starts: the daily offer's click buys without the success dialog (a change needs a reload).
         { key: 'kasp_shopquickbuy', group: 'shop', live: false, label: { EN: 'Daily offer quick buying', RU: 'Быстрая покупка ежедневного предложения' } },
         { key: 'kasp_debugline', group: 'interface', live: true, label: { EN: 'Hide debug info line', RU: 'Скрыть строку отладки' } },
@@ -109,6 +133,8 @@
         // The value shown when nothing is saved; choosing it removes the key.
         fallback: string;
         options: readonly ChoiceOption[];
+        // Read once when the game starts: a change applies at the next start (the game reloads when the settings close).
+        atStart?: true;
     }
 
     // Google's codes for the languages chat can be translated to, each named in its own language, as the game names its own, with
@@ -164,7 +190,57 @@
                 { value: 'stage', label: { EN: 'Stage (moving light)', RU: 'Сцена (движущийся свет)' } },
             ],
         },
+        // The battle search's sound (26d step 9), read by lobby_search.ts at each search start; its fallback is also written there
+        // (SOUNDS' first). Change both together.
+        {
+            key: 'kasp_searchsoundpick',
+            after: 'kasp_searchsound',
+            title: { EN: 'Sound', RU: 'Звук' },
+            fallback: 'sonar',
+            options: [
+                { value: 'sonar', label: { EN: 'Sonar (with the radar)', RU: 'Сонар (с радаром)' } },
+                { value: 'alarm', label: { EN: 'Alarm siren', RU: 'Сирена тревоги' } },
+                { value: 'redalert', label: { EN: 'Red alert buzzer', RU: 'Красная тревога' } },
+            ],
+        },
+        // The lobby's look (build-plan 26f), read by lobby.ts and hangar_files.ts when the game starts: the one list of lobby_looks.ts,
+        // read from the page when the panel is drawn (pageLobbyLooks); without it the row is left out.
+        {
+            key: 'kasp_lobby_look',
+            after: 'kasp_lobby',
+            title: { EN: 'Lobby look', RU: 'Вид лобби' },
+            get fallback(): string {
+                return pageLobbyLooks()[0]?.value ?? '';
+            },
+            atStart: true,
+            get options(): readonly ChoiceOption[] {
+                return pageLobbyLooks();
+            },
+        },
     ];
+
+    // The lobby looks from the page (lobby_looks.ts writes them on <html> as data-kasp-lobby-looks); an empty list if they are not there
+    // or not in the expected shape.
+    function pageLobbyLooks(): readonly ChoiceOption[] {
+        try {
+            const raw: unknown = JSON.parse(document.documentElement.getAttribute('data-kasp-lobby-looks') ?? '[]');
+            if (!Array.isArray(raw)) return [];
+            const out: ChoiceOption[] = [];
+            for (const item of raw) {
+                if (typeof item !== 'object' || item === null) continue;
+                const value: unknown = Reflect.get(item, 'value');
+                const label: unknown = Reflect.get(item, 'label');
+                if (typeof value !== 'string' || typeof label !== 'object' || label === null) continue;
+                const en: unknown = Reflect.get(label, 'EN');
+                const ru: unknown = Reflect.get(label, 'RU');
+                if (typeof en !== 'string' || typeof ru !== 'string') continue;
+                out.push({ value, label: { EN: en, RU: ru } });
+            }
+            return out;
+        } catch {
+            return [];
+        }
+    }
 
     const optionLabel = (option: ChoiceOption, language: KaspLanguageCode): string =>
         typeof option.label === 'string' ? option.label : option.label[language];
@@ -251,6 +327,7 @@
         return window.kaspSwitches?.set(key, on) ?? false;
     }
 
+
     // How each reload switch was when the page started, which is when its module read it.
     const atStart = new Map(SWITCHES.filter((entry) => !entry.live).map((entry) => [entry.key, isOn(entry.key)]));
 
@@ -262,7 +339,11 @@
 
     // True when closing settings will reload: a reload switch, or the game colour, differs from how it was at start, so flipping
     // one off and on again waits for nothing.
+    // The dropdowns read when the game starts, as they were then.
+    const choicesAtStart = new Map(CHOICES.filter((entry) => entry.atStart === true).map((entry) => [entry.key, window.kaspSwitches?.getChoice(entry.key) ?? null]));
+
     function reloadWaiting(): boolean {
+        for (const [key, value] of choicesAtStart) if ((window.kaspSwitches?.getChoice(key) ?? null) !== value) return true;
         for (const [key, on] of atStart) if (isOn(key) !== on) return true;
         for (const [key, value] of picturesAtStart) if ((window.kaspSwitches?.getChoice(key) ?? null) !== value) return true;
         return (window.kaspSwitches?.getChoice(THEME_KEY) ?? null) !== themeAtStart;
@@ -361,7 +442,7 @@
     // A dropdown drawn like the game's own (its Language choice on the Game tab, measured 2026-11-08): the title, then a box with
     // the chosen value and an arrow. A click on the box opens the list under it; a click on a value saves it and closes the list;
     // a click anywhere else, or Escape, closes it.
-    function makeChoice(entry: ChoiceEntry, language: KaspLanguageCode): Choice {
+    function makeChoice(entry: ChoiceEntry, language: KaspLanguageCode, changed: () => void): Choice {
         const node = element('div', 'kasp-choice');
         const dropdown = element('div', 'kasp-dropdown');
         const control = element('div', 'kasp-dropdown-control');
@@ -416,6 +497,7 @@
                 // The fallback is saved as no key, so it stays the default if the default ever changes.
                 if (!(window.kaspSwitches?.setChoice(entry.key, option.value === entry.fallback ? null : option.value) ?? false)) return;
                 refresh();
+                changed();
                 close();
                 control.focus();
             });
@@ -634,8 +716,8 @@
                 }
                 form.appendChild(row);
                 for (const choiceEntry of CHOICES) {
-                    if (choiceEntry.after !== entry.key) continue;
-                    const choice = makeChoice(choiceEntry, language);
+                    if (choiceEntry.after !== entry.key || choiceEntry.options.length === 0) continue;
+                    const choice = makeChoice(choiceEntry, language, refreshNotice);
                     choices.push([choiceEntry, choice]);
                     section.appendChild(choice.node);
                     form = null;
@@ -662,7 +744,8 @@
             panel.appendChild(section);
         });
 
-        // RESET ALL removes every key, so every switch is on and every dropdown shows its default; a key the browser refused to
+        // RESET ALL removes every key, so every switch is back to its default (on, but off for the few off by default) and every
+        // dropdown shows its default; a key the browser refused to
         // remove keeps what it had.
         const resetBox = element('div', 'SettingsButtonsComponentStyle-containerGroupButton');
         const reset = element('div', 'kasp-reset');
@@ -670,7 +753,7 @@
         reset.appendChild(element('span', '', TEXT.reset[language]));
         onPress(reset, () => {
             for (const [entry, row] of rows) {
-                save(entry.key, true);
+                save(entry.key, window.kaspSwitches?.onByDefault(entry.key) ?? true);
                 setSwitch(row, isOn(entry.key));
             }
             for (const [entry, choice] of choices) {

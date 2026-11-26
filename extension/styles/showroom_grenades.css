@@ -1,6 +1,6 @@
 /* The showroom garage's Grenades screen (build-plan 25f1), proven live with the probe blueprint/reference/garage-grenades-probe.js
    v1.3.1 on 2026-11-15. The game's still grenade picture goes (the 3D tank stays shown there through an injector edit, and the camera
-   turns to the grenade, src/modules/showroom.ts), and the screen takes the Turrets screen's left column (showroom_items.css): level
+   turns to the grenade, src/modules/garage/showroom.ts), and the screen takes the Turrets screen's left column (showroom_items.css): level
    and stats, then Unequip as a small square and Upgrade side by side, then the buy box (a price button, or "Not available"), all
    sliding in from the left, centred up and down between the header and the item cards; the name, description, Read more and the
    count box are hidden (the item cards show the count); no game blur; the item cards in the main screen's frosted glass.

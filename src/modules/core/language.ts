@@ -1,6 +1,6 @@
 // Isolated-world content script. Works out the game's language and shares it with the other modules through
 // window.kaspLanguage: get() is the language so far (EN until one is found) and whenKnown resolves once, when it
-// settles. It stops at
+// settles; then it is also written on <html> as data-kasp-language, for the page's world. It stops at
 // the first real answer or when the main menu appears, and has no timeout, because the game can take any time to
 // load and a language change reloads the page.
 (function () {
@@ -58,6 +58,8 @@
     function settle(source: Source): void {
         settled = true;
         window.clearInterval(pollTimer);
+        // for the page's world, which cannot reach window.kaspLanguage (the lobby's roast bubble and mode notes)
+        document.documentElement.setAttribute('data-kasp-language', currentLanguage);
         resolveKnown(currentLanguage);
         console.log(`${LOG} ${currentLanguage} (${source})`);
     }

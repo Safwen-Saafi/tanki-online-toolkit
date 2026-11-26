@@ -1478,6 +1478,490 @@
         return { code: edited, grenades: grenade !== null, supplies: grenade !== null && grenade.parts.supplies };
     }
 
+    // The lobby (build-plan 26a, see blueprint/context/lobby-restyle-research.md). The game's hangar system has one per-frame update
+    // (the one that draws its "Controls" debug window, with "Move camera" and "Disable tank rotation"); it gets a call to
+    // window.__kaspLobby.frame(this) as its first statement, so lobby.ts writes the camera and light before the game's own code in
+    // that update reads them. Every game name lobby.ts needs is read here from the game's code, each anchored on the game's own
+    // strings (its lateinit error texts "cameraComponent" and "platformMesh", the hangar's node names "cam0", "cam_t0" and "tnk_base",
+    // the ShadowSettings text and the renderer's "Depth bias: " console line) or on a code shape next to them, and the names two places
+    // give must agree. One missing or doubtful name skips the whole lobby: the game keeps its own lobby.
+    // How far after the start of the hangar's update its "Disable tank rotation" text may be.
+    const LOBBY_UPDATE_RANGE = 2000;
+    // The names patchLobby found, handed to lobby.ts once the patched bundle is about to run.
+    let lobbyNames: KaspLobbyNames | null = null;
+
+    function patchLobby(code: string): { readonly code: string; readonly names: KaspLobbyNames } | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the lobby ${what} in this bundle, the lobby look is skipped`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const R = String.raw;
+        const one = (pattern: string): RegExpExecArray | null => exactlyOne(code, new RegExp(pattern, 'g'));
+        // The game has several "cameraComponent" getters; the hangar's sits between its "garageResource" and "platformMesh" ones.
+        const lateinit = (label: string): string => R`function ${N}\(t\)\{var n=t\.(${N});if\(null!=n\)return n;${N}\("${label}"\)\}`;
+        const getters = one(lateinit('garageResource') + lateinit('cameraComponent') + lateinit('platformMesh'));
+
+        const update = one(R`\.${N}=function\(t,n\)\{var i,r,e,u;this\.${N}\(\)\.${N}\(\)&&this\.${N}\(\)\.${N}&&function\(t\)\{var n=t\.${N}\(\)\.${N}\(\),i="Controls"`);
+        if (update === null || !code.slice(update.index, update.index + LOBBY_UPDATE_RANGE).includes('"Disable tank rotation"')) return skip('frame update');
+        if (getters === null) return skip('camera or platform');
+        const [, , cameraComponent, platform] = getters;
+        const points = one(R`case"cam0":t\.(${N})\.(${N})\(u\.(${N})\);break;case"cam_t0":t\.(${N})\.\2\(u\.\3\);break;default:if\("tnk_base"===_\)\{t\.(${N})\.\2\(u\.\3\);var h=t\.\5;h\.(${N})=h\.\6\+u\.${N}\(\)\.${N},t\.(${N})=u\}`);
+        if (points === null || points[7] !== platform) return skip('camera points');
+        const [, cam, , , target, base, z] = points;
+        const wobbleCode = one(R`function\(t,n\)\{if\(t\.${N}\)\{t\.(${N})=${N}\(t\.\1,n\);var i=t\.\1,r=t\.(${N}),e=${N}\(\.3,i\)\+0;r\.(${N})=30\*Math\.sin\(e\);var u=t\.\2,s=${N}\(\.1,i\)\+\.3;u\.(${N})=30\*Math\.sin\(s\);var o=t\.\2,_=${N}\(\.2,i\)\+\.6;o\.(${N})=30\*Math\.sin\(_\),${N}\(t\)\.(${N})\.${N}\(t\.(${N}),t\.\2\),${N}\(t\)\.${N}\(t\.(${N})\)\}\}`);
+        if (wobbleCode === null || wobbleCode[5] !== z || wobbleCode[7] !== cam || wobbleCode[8] !== target) return skip('breathing');
+        const [, , wobble, x, y, , cameraPlace] = wobbleCode;
+        const light = one(R`"freeCameraEntity"\)\}function ${N}\(t\)\{t\.(${N})\(\)\.(${N})\(\)\.(${N})\.(${N})\.${N}\.${N}\(t\.(${N})\)\}function ${N}\(t,n\)\{var i=${N}\(t\)\.(${N});i\.(${N})=i\.\7\+n\}`);
+        if (light === null || light[7] !== z) return skip('light direction');
+        const [, world, renderer, lighting, key, lightDir, rotation] = light;
+        const start = one(R`\.(${N})\(0,0,0,1\);var i=n\.(${N});i\.(${N})\.${N}\(${N}\(200,200,200\)\),i\.(${N})\.(${N})\.${N}\(${N}\(\)\.${N}\),i\.\4\.(${N})=1,`);
+        if (start === null || start[2] !== lighting || start[4] !== key) return skip('lights');
+        const [, colourSet, , ambient, , keyColour, keyStrength] = start;
+        const colour = one(R`\.${asPattern(colourSet)}=function\(t,n,i,r\)\{this\.(${N})=t,this\.(${N})=n,this\.(${N})=i,this\.(${N})=r\}`);
+        if (colour === null) return skip('colour');
+        const [, red, green, blue, alpha] = colour;
+        const lamps = one(R`for\(var i=t\.${N}\.${N}\(\);i\.${N}\(\);\)\{var r=i\.${N}\(\)\.(${N});r\.(${N})=r\.\2\+${N}\(t\.(${N}),n\)\}`);
+        if (lamps === null || lamps[1] !== rotation || lamps[2] !== x) return skip('lamps');
+        const lampSpeed = lamps[3];
+        const sharpnessCode = one(R`\.(${N})=function\(t\)\{this\.(${N})\.(${N})!==t&&${N}\(\)\.${N}\.${N}\(t\)&&\(this\.\2=this\.\2\.${N}\(t\)\)\}`);
+        if (sharpnessCode === null) return skip('sharpness');
+        const [, setSharpness, state, sharpness] = sharpnessCode;
+        const shadowsFlag = one(R`this\.${asPattern(sharpness)}=t,this\.(${N})=n,this\.${N}=i,this\.${N}=r,this\.${N}=e,this\.${N}=u,this\.${N}=s,this\.${N}=o\}`);
+        if (shadowsFlag === null) return skip('shadows switch');
+        const shadowsOn = shadowsFlag[1];
+        // the shadows switch: on only where the graphics card can (optional; without it the look keeps the game's own switch)
+        const shadowsSet = one(R`\.(${N})=function\(t\)\{var n=t&&${N}\(\)\.${N}\(\);this\.${asPattern(state)}=this\.${asPattern(state)}\.${N}\(${N},n\)\}`);
+        const shadowText = one(R`${N}\((${N})\)\.toString=function\(\)\{return"ShadowSettings\(shadowTextureSize="\+this\.(${N})\+", shadowFullDistance="\+this\.(${N})\+", shadowFadeDistance="\+this\.(${N})\+", shadowStrength="\+this\.(${N})\+", shadowDepthBias="\+this\.(${N})\+", blurSize="\+this\.(${N})\+", normalBias="\+this\.(${N})\+", viewBias="\+this\.(${N})\+", slopeBias="\+this\.(${N})\+"\)"\}`);
+        if (shadowText === null) return skip('shadow settings');
+        const [, shadowClass, ...shadowFields] = shadowText;
+        const shadowCopyCode = one(R`${N}\(${asPattern(shadowClass)}\)\.(${N})=function\(t,n,i,r,e,u,s,o,_,h\)\{return t=t===${N}\?this\.${asPattern(shadowFields[0])}:t,`);
+        const shadowPlace = one(R`"Depth bias: "\+${N}\.${N}\(\)\.${asPattern(renderer)}\(\)\.(${N})\.${asPattern(shadowFields[4])}`);
+        if (shadowCopyCode === null || shadowPlace === null) return skip('shadow settings');
+        const fovCode = one(R`\.call\(this\),this\.(${N})=3\.1415927\/3,this\.(${N})=new ${N},this\.${N}=new ${N}\}`);
+        if (fovCode === null || fovCode[2] !== cameraPlace) return skip('lens');
+
+        const names: KaspLobbyNames = {
+            cam, target, base, platform, cameraComponent, wobble, lightDir, lampSpeed,
+            x, y, z, rotation, fov: fovCode[1],
+            world, renderer,
+            lighting, ambient, key, keyColour, keyStrength,
+            colourSet, red, green, blue, alpha,
+            state, shadowsOn, sharpness, setSharpness, ...(shadowsSet !== null ? { setShadows: shadowsSet[1] } : {}),
+            shadow: shadowPlace[1], shadowCopy: shadowCopyCode[1], shadowFields,
+        };
+        const at = update.index + update[0].indexOf('{') + 1;
+        return { code: applyEdits(code, [{ at, length: 0, text: 'window.__kaspLobby&&window.__kaspLobby.frame(this);' }]), names };
+    }
+
+    // The lobby's picture pass (build-plan 26f1). Its game names: the renderer's frame call that draws the whole picture (it keeps a
+    // ring of frame times: (i + 1) % length, then 1e3 * the time), the field where the renderer keeps the GL wrapper it draws with, the
+    // wrapper's raw context (the one it asks for "EXT_color_buffer_float"), the camera's view-projection matrix (the 4th matrix the
+    // camera class makes, after its 3.1415927/3 lens), the world's scene root (a node named "/") and the world's camera next to it, a
+    // scene node's name, shown flag, show switch and children (the node class that starts with name "" and shown true), the
+    // children list's size and item calls, a mesh's bounds (the call before the one the hangar's drag test reads off the platform),
+    // the box class's six fields (from its two-corner setter) and a node's place (the one the hangar copies its camera points from).
+    // One missing or doubtful name skips only the pass; the camera, light and drone stay.
+    function patchLobbyPass(code: string, names: KaspLobbyNames): KaspLobbyPassNames | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the lobby picture pass ${what} in this bundle, the picture pass is skipped`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const R = String.raw;
+        const one = (pattern: string): RegExpExecArray | null => exactlyOne(code, new RegExp(pattern, 'g'));
+        // Every match gives the same names (one shape used in several places).
+        const agreed = (pattern: string): RegExpExecArray | null => {
+            const found = [...code.matchAll(new RegExp(pattern, 'g'))];
+            if (found.length === 0) return null;
+            const first = found[0].slice(1).join(' ');
+            return found.every((m) => m.slice(1).join(' ') === first) ? found[0] : null;
+        };
+        const p = asPattern;
+        const frame = one(R`\.(${N})=function\(t,n\)\{if\(this\.${N}\.${N}\(\),this\.(${N})=\(this\.\2\+1\|0\)%this\.(${N})\.length\|0,this\.\3\[this\.\2\]=1e3\*`);
+        if (frame === null) return skip('frame call');
+        const holder = one(R`\.${N}=function\(t\)\{var n,i;this\.${N}\.${N}\(\),this\.(${N})=t,this\.${N}=\(n=`);
+        if (holder === null) return skip('GL wrapper');
+        const context = one(R`function ${N}\(t\)\{var n;if\(this\.(${N})=t,[^;]{0,600}?this\.\1\.getExtension\("EXT_color_buffer_float"\)`);
+        if (context === null) return skip('GL context');
+        const matrix = one(R`this\.(${N})=3\.1415927\/3;var t=this\.\1\/2;this\.${N}=Math\.tan\(t\),this\.${N}=${N}\(\),this\.${N}=${N}\(\),this\.${N}=${N}\(\),this\.(${N})=${N}\(\)`);
+        if (matrix === null) return skip('camera matrix');
+        const root = one(R`var (${N})=new ${N};\1\.(${N})="\/",this\.(${N})=\1,this\.${N}=new ${N}\(this\.${N}\),this\.${N}=new ${N},this\.(${N})=new ${N},this\.${N}=null`);
+        if (root === null) return skip('scene root');
+        const [, , nodeName, sceneRoot, worldCamera] = root;
+        const node = one(R`\.call\(this\),this\.${p(nodeName)}="",this\.(${N})=!0,this\.(${N})=1,[^}]{0,300}?this\.(${N})=new ${N}\}`);
+        if (node === null) return skip('scene node');
+        const [, shown, alphaField, children] = node;
+        const show = one(R`\.(${N})=function\(t\)\{this\.${p(shown)}=t\}`);
+        // A node's see-through amount and its setter (26g1, the weaker sunbeams of the rainy looks); without them the sunbeams are
+        // only shown or hidden.
+        const alphaSet = one(R`\.(${N})=function\(t\)\{this\.${p(alphaField)}=t\}`);
+        if (alphaSet === null) warn(`${LOG} could not find the lobby node see-through setter in this bundle, the sunbeams are only shown or hidden`);
+        const list = agreed(R`var n=this\.${p(children)},i=0,r=n\.(${N})\(\);if\(i<r\)do\{var e=i;i=i\+1\|0,n\.(${N})\(e\)\.`);
+        if (show === null || list === null) return skip('node show switch or children');
+        const getters = one(R`${N}\("cameraComponent"\)\}function (${N})\(t\)\{var n=t\.${p(names.platform)};if\(null!=n\)return n;${N}\("platformMesh"\)\}`);
+        if (getters === null) return skip('platform getter');
+        const drag = one(R`,${p(getters[1])}\(t\)\.(${N})\(\)\)>0\}`);
+        if (drag === null) return skip('platform drag test');
+        const bounds = one(R`\.(${N})=function\(\)\{return this\.(${N})\.${N}\},${N}\(${N}\)\.${p(drag[1])}=function\(\)\{return this\.\2\.${N}\}`);
+        if (bounds === null) return skip('bounds');
+        const [x, y, z] = [p(names.x), p(names.y), p(names.z)];
+        const corners = one(R`t\.${x}<n\.${x}\?\(this\.(${N})=t\.${x},this\.(${N})=n\.${x}\):\(this\.\1=n\.${x},this\.\2=t\.${x}\),t\.${y}<n\.${y}\?\(this\.(${N})=t\.${y},this\.(${N})=n\.${y}\):\(this\.\3=n\.${y},this\.\4=t\.${y}\),t\.${z}<n\.${z}\?\(this\.(${N})=t\.${z},this\.(${N})=n\.${z}\)`);
+        if (corners === null) return skip('box');
+        const place = one(R`case"cam0":t\.${p(names.cam)}\.${N}\(u\.(${N})\);break;`);
+        if (place === null) return skip('node place');
+        return {
+            frame: frame[1],
+            glHolder: holder[1],
+            glContext: context[1],
+            viewProjection: matrix[2],
+            root: sceneRoot,
+            worldCamera,
+            nodeName,
+            setShown: show[1],
+            ...(alphaSet === null ? {} : { alpha: { field: alphaField, set: alphaSet[1] } }),
+            children,
+            size: list[1],
+            at: list[2],
+            bounds: bounds[1],
+            boxMin: [corners[1], corners[3], corners[5]],
+            boxMax: [corners[2], corners[4], corners[6]],
+            position: place[1],
+        };
+    }
+
+    // The drone flight (build-plan 26c). The lobby drone system's per-frame update (it copies the hangar's drone place, bobs the drone
+    // with 10*Math.sin and tilts it with 5*.017453292*Math.cos, then lets a press grab and turn it) gets a call to
+    // window.__kaspLobby.drone(this) as its last statement, so the turn, lean and hello tilt lobby.ts writes there come after the
+    // game's own. The hangar's drone place is the one its "Drone position" debug line traces. Checked against the names patchLobby
+    // found; one missing or doubtful name skips only the drone.
+    const LOBBY_DRONE_RANGE = 4000;
+    function patchLobbyDrone(code: string, names: KaspLobbyNames): { readonly code: string; readonly drone: KaspLobbyDroneNames } | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the lobby drone ${what} in this bundle, the drone flight is skipped`);
+            return null;
+        };
+        const N = '[\\w$]+';
+        const R = String.raw;
+        const one = (pattern: string): RegExpExecArray | null => exactlyOne(code, new RegExp(pattern, 'g'));
+        const home = one(R`"Drone position",\[t\.(${N})\]`);
+        if (home === null) return skip('place');
+        const update = one(R`\.${N}=function\(t,n\)\{var i=this\.${N};null==i\|\|\(i\.${N}\(this\.(${N})\),this\.(${N})\.(${N})\(this\.\1\.${N}\)\),(${N})\(this\)\.(${N})\.\3\(this\.\2\);var r=${N}\(t\),e=10\*Math\.sin\(r\),u=\4\(this\)\.\5;u\.(${N})=u\.\6\+e;var s=\4\(this\)\.(${N}),o=${N}\(t\);if\(s\.(${N})=5\*\.017453292\*Math\.cos\(o\),this\.${N}\(\)\.${N}\.${N}\(${N}\(\)\)\)if\(this\.(${N})\)\{if\(this\.(${N})\)\{`);
+        if (update === null || update[6] !== names.z || update[7] !== names.rotation || update[8] !== names.x) return skip('update');
+        const [, , place, , getter, , , , , pressed, grabbed] = update;
+        const mesh = one(R`\{this\.${N}=t,this\.(${N})=n\.${N}\(\),${asPattern(getter)}\(this\)\.${N}=!0,`);
+        if (mesh === null) return skip('mesh');
+        const open = update.index + update[0].indexOf('{');
+        const close = closingBrace(code, open, LOBBY_DRONE_RANGE);
+        // A return inside would skip our call at the end.
+        if (close < 0 || code.slice(open, close).includes('return')) return skip('update end');
+        return {
+            code: applyEdits(code, [{ at: close, length: 0, text: ';window.__kaspLobby&&window.__kaspLobby.drone(this)' }]),
+            drone: { home: home[1], place, pressed, grabbed, mesh: mesh[1] },
+        };
+    }
+
+    // The index of the } that closes the { at open, at most limit characters on, or -1; text in quotes is skipped.
+    function closingBrace(code: string, open: number, limit: number): number {
+        let depth = 0;
+        const end = Math.min(code.length, open + limit);
+        for (let i = open; i < end; i++) {
+            const ch = code[i];
+            if (ch === '"' || ch === "'") {
+                for (i++; i < end && code[i] !== ch; i++) if (code[i] === '\\') i++;
+            } else if (ch === '{') {
+                depth++;
+            } else if (ch === '}' && --depth === 0) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    function lobbyDroneSwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_lobbydrone') === '0';
+        } catch {
+            return false;
+        }
+    }
+
+    // The lobby's mode tiles (build-plan 26d1, src/modules/lobby_ui.ts): one click starts a battle mode the way the game's own Modes
+    // screen does, without opening any screen (owner, 2026-11-23: nothing may flash). On that screen a mode card's press runs, in this
+    // build (names change per build):
+    //   function(t,n){t.aar().gaq(new xq(n,$q(),jq())),t.aar().gaq(new oq(mq()))}
+    // that is: the component's store gets the game's "search for this mode" action (the mode and two fixed values of the screen), then
+    // the step back to the lobby. The cards are made by one function (myt) called once per mode by the screen with the mode's getter:
+    //   myt(t,u,KA()),myt(t,u,YA()),...
+    // The store itself comes from one of the game's small store holders in the same module, each only the store and its getter, which
+    // the game itself calls hundreds of times (in this build):
+    //   function C2t(){af=this,this.d1iy_1=new My(Ny(PS),null)}function E2t(){return null==af&&new C2t,af}
+    //   xy(C2t).aar=function(){var t=Cy;return this.d1iy_1.e2b(this,Ey("store",1,t,function(t){return t.aar()},null))}
+    // (the first try looked for the store on the lobby's own components, which have none: probe of 2026-11-23).
+    // A small function is added to the game's code right before that card maker, in the same module, so it can reach those names:
+    // window.__kaspModeStart(names) gives the store the same action for the mode whose name (QUICK_BATTLE, TDM_ONLY ...) is in names.
+    // Only the first action: the player is in the lobby already. It never runs by itself, only from a tile's click; any error answers
+    // false, and the tile then takes the game's screens as before.
+    const MODE_PRESS = /function\(([\w$]+),([\w$]+)\)\{\1\.([\w$]+)\(\)\.([\w$]+)\(new ([\w$]+)\(\2,([\w$]+)\(\),([\w$]+)\(\)\)\),\1\.\3\(\)\.\4\(new [\w$]+\([\w$]+\(\)\)\)\}/g;
+    const MODE_MAKER_RANGE = 20000;
+    // The game's store getter and its "send an action" method, found by shape, never by their short names (independent review
+    // 2026-11-26: they were written in as this build's names). The getter is the method every store holder defines lazily under the
+    // name "store" (all of them the same name, else no answer); the sender is the method called on it with a new action, the clear
+    // majority of those calls (this build: 671 of 671).
+    const STORE_GETTER = /\.([\w$]+)=function\(\)\{var [\w$]+=[\w$]+;return this\.[\w$]+\.[\w$]+\(this,[\w$]+\("store",/g;
+    function storeNames(code: string): { readonly get: string; readonly dispatch: string } | null {
+        const gets = new Set([...code.matchAll(STORE_GETTER)].map((m) => m[1]));
+        if (gets.size !== 1) return null;
+        const [get] = gets;
+        const counts = new Map<string, number>();
+        for (const m of code.matchAll(new RegExp(`\\.${asPattern(get)}\\(\\)\\.([\\w$]+)\\(new `, 'g'))) counts.set(m[1], (counts.get(m[1]) ?? 0) + 1);
+        const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+        const total = ranked.reduce((sum, [, n]) => sum + n, 0);
+        if (ranked.length === 0 || ranked[0][1] < total * 0.9) return null;
+        return { get, dispatch: ranked[0][0] };
+    }
+    // a store holder class (its getter, given): the class name is captured
+    const storeHolder = (get: string): RegExp =>
+        new RegExp(`\\(([\\w$]+)\\)\\.${asPattern(get)}=function\\(\\)\\{var [\\w$]+=[\\w$]+;return this\\.[\\w$]+\\.[\\w$]+\\(this,[\\w$]+\\("store",`, 'g');
+    const MODULE_BORDER = /[},]\s*\d{2,6}:(?:\([\w$],[\w$],[\w$]\)=>|function\([\w$],[\w$],[\w$]\))\{/;
+
+    function patchLobbyModes(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the battle modes' ${what} in this bundle, the lobby's mode tiles go through the game's screens`);
+            return null;
+        };
+        const presses = [...code.matchAll(MODE_PRESS)];
+        if (presses.length !== 1 || presses[0].index === undefined) return skip('press');
+        const press = presses[0];
+        const pressAt = press.index ?? 0;
+        const [, , , store, dispatch, action, source, kind] = press;
+        const from = Math.max(0, pressAt - MODE_MAKER_RANGE);
+        const makers = [...code.slice(from, pressAt).matchAll(/function ([\w$]+)\([\w$]+,[\w$]+,[\w$]+\)\{/g)];
+        const maker = makers[makers.length - 1];
+        if (maker === undefined || maker.index === undefined) return skip('card maker');
+        const makerAt = from + maker.index;
+        const calls = [...code.matchAll(new RegExp(`(?<![\\w$.])${asPattern(maker[1])}\\([\\w$]+,[\\w$]+,([\\w$]+)\\(\\)\\)`, 'g'))];
+        if (calls.length < 8) return skip('list');
+        const last = Math.max(...calls.map((c) => c.index ?? 0));
+        const first = Math.min(...calls.map((c) => c.index ?? 0));
+        if (MODULE_BORDER.test(code.slice(Math.min(makerAt, first), Math.max(makerAt, last)))) return skip('module');
+        // a store holder in the same module, with its getter
+        let holder: string | null = null;
+        for (const found of code.matchAll(storeHolder(store))) {
+            const at = found.index ?? 0;
+            if (MODULE_BORDER.test(code.slice(Math.min(at, makerAt), Math.max(at, makerAt)))) continue;
+            const getter = new RegExp(`function ([\\w$]+)\\(\\)\\{return null==([\\w$]+)&&new ${asPattern(found[1])},\\2\\}`).exec(code);
+            if (getter !== null) {
+                holder = getter[1];
+                break;
+            }
+        }
+        if (holder === null) return skip('store');
+        const getters = calls.map((c) => `${c[1]}()`).join(',');
+        const text =
+            `window.__kaspModeStart=function(w){try{var s=${holder}().${store}(),l=[${getters}];` +
+            `for(var k=0;k<l.length;k++)if(w.indexOf(String(l[k]))>=0){s.${dispatch}(new ${action}(l[k],${source}(),${kind}()));return!0}` +
+            `}catch(e){}return!1};`;
+        return applyEdits(code, [{ at: makerAt, length: 0, text }]);
+    }
+
+    // Friends over the lobby (26d, owner 2026-11-25, step 1, a TEST: friends to go in the lobby's dock with the news and the chat).
+    // The game draws one screen at a time (read in its code, build of 2026-11-22): its root draws either the lobby (w2n: the main menu,
+    // PLAY, the tiles, the bottom bar) or the screen switcher (R2n), which draws exactly one other screen from the store's current
+    // screen (t.faq_1.ppu_1.xpz_1): garage, shop, settings, friends (mIn, its own header, the FRIENDS and FRIEND REQUESTS tabs, the
+    // list), and so on. Going to friends took the lobby off the page. Two edits:
+    // 1. beside the switcher, in its module: window.__kaspFriendsScreen() says whether the store's current screen is the friends one;
+    // 2. in the root, where it draws the switcher: while that is true, the lobby first, so it is the root's same child in the same place
+    //    as in the lobby and the game keeps it on the page (never built again), the friends screen drawn after it.
+    // Every other screen is drawn as before. The switcher's friends branch is told by the component it draws, the one whose page shows
+    // the friends count as " [online/total]".
+    function patchFriendsOverLobby(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the friends screen's ${what} in this bundle, friends stays its own screen`);
+            return null;
+        };
+        const R = String.raw;
+        const N = '[\\w$]+';
+        const one = (pattern: string): RegExpExecArray | null => exactlyOne(code, new RegExp(pattern, 'g'));
+        // the friends screen component: its page writes the count as " [online/total]"
+        const friends = one(R`${N}\((${N})\)\.(${N})=function\(t\)\{var n=${N},i=${N}\.${N}\(n\);[^]{0,1600}?return" \["\+`);
+        if (friends === null) return skip('component');
+        // the switcher: its page picks one component by the class of its current screen; the friends branch draws that component
+        const switcher = one(R`${N}\((${N})\)\.${asPattern(friends[2])}=function\(t\)\{var n,i=this\.${N}\.${N};if\(i instanceof ${N}\)\{[^]{0,1500}?else if\(i instanceof (${N})\)\{var ${N}=${N}\(${asPattern(friends[1])}\);`);
+        if (switcher === null || switcher.index === undefined) return skip('switcher');
+        const [, switcherClass, friendsScreen] = switcher;
+        // where the switcher reads the store's current screen
+        const mapper = one(R`function ${asPattern(switcherClass)}\(\)\{${N}\.call\(this,(${N})\)\}`);
+        if (mapper === null) return skip('switcher state');
+        const path = one(R`function ${asPattern(mapper[1])}\(t,n,i\)\{return new ${N}\(t\.(${N})\.(${N})\.(${N})\)\}`);
+        if (path === null) return skip('current screen');
+        // the store, through the getter the switcher's module uses (the bottom bar's buttons: E2t().aar().gaq(...), names by shape)
+        const names = storeNames(code);
+        if (names === null) return skip('store names');
+        const { get, dispatch } = names;
+        const switcherAt = switcher.index;
+        let holder: string | null = null;
+        const call = new RegExp(`([\\w$]+)\\(\\)\\.${asPattern(get)}\\(\\)\\.${asPattern(dispatch)}\\(`, 'g');
+        for (const found of code.slice(Math.max(0, switcherAt - 2000000), switcherAt).matchAll(call)) holder = found[1];
+        if (holder === null) return skip('store');
+        const holderAt = code.lastIndexOf(`${holder}().${get}().${dispatch}(`, switcherAt);
+        if (MODULE_BORDER.test(code.slice(holderAt, switcherAt))) return skip('store module');
+        // the root, where it draws the lobby (St(Rt) with Mu) or the switcher (St(It) with Du)
+        const root = one(R`var (${N})=(${N})\((${N})\);n\.(${N})\(\1,(${N})\)\}\}else if\(function\(t,n\)\{return!!\(n instanceof ${N}(?:\|\|n instanceof ${N})*\)\|\|n instanceof ${N}\}\(0,i\)\)if\(t\.${N}\.${N}\)\{var ${N}=\2\(${N}\);n\.\4\(${N},${N}\)\}else\{`);
+        if (root === null || root.index === undefined) return skip('root');
+        const [, , make, lobby, add, lobbyProps] = root;
+        // 3. the 3D view shows its canvas and runs its scene only on the screens it lists (the lobby's and the garage's: probe of
+        //    2026-11-25, lobby-friends-over-probe.js, the hangar's frames 181 a second, then 0 and the canvas hidden with friends
+        //    open); the friends screen is added to that list, so the hangar stays alive under it
+        const view = one(R`var r=t\.${asPattern(path[1])}\.${asPattern(path[2])}\.${asPattern(path[3])},[^;]{0,200}?,o=r instanceof ${N}\|\|r instanceof ${N}`);
+        if (view === null || view.index === undefined) return skip('3D view');
+        const check =
+            `window.__kaspFriendsScreen=function(){try{return ${holder}().${get}().${path[1]}.${path[2]}.${path[3]} instanceof ${friendsScreen}}catch(e){return!1}},`;
+        const draw = `if(window.__kaspFriendsScreen&&window.__kaspFriendsScreen()){var kaspLobby=${make}(${lobby});n.${add}(kaspLobby,${lobbyProps})}`;
+        return applyEdits(code, [
+            { at: switcherAt, length: 0, text: check },
+            { at: root.index + root[0].length, length: 0, text: draw },
+            { at: view.index + view[0].length, length: 0, text: `||r instanceof ${friendsScreen}` },
+        ]);
+    }
+
+    // Invite a friend to the group from the friends list (owner 2026-11-25, option 1). A press on a friend opens the game's player
+    // menu, to which the friends screen adds its own item, "Remove friend" (read in its code, build of 2026-11-22). The game invites
+    // only from its group's invite window: there a friend is ticked (one action to the store with the player's id) and INVITE sends
+    // the invites to every ticked player and clears the ticks; the window's close clears them too; and the window, as it opens, first
+    // asks the server to start a group when the player has none. So one more item, the game's own word INVITE, only for a friend who
+    // is online: it starts the group if there is none, clears the ticks, ticks that friend and sends, the very same actions of the
+    // game, then closes the menu the way the menu closes. The game refuses an invite it would not allow (a search on, the group
+    // full) as from its own window. Every name is read from the game's code; one missing skips only this item.
+    function patchFriendsInvite(code: string): string | null {
+        const skip = (what: string): null => {
+            warn(`${LOG} could not find the friends invite's ${what} in this bundle, the friends menu stays the game's own`);
+            return null;
+        };
+        const R = String.raw;
+        const N = '[\\w$]+';
+        const one = (pattern: string): RegExpExecArray | null => exactlyOne(code, new RegExp(pattern, 'g'));
+        // the friends menu's own list of items ("Remove friend"), in the friend row's code
+        const menu = one(R`if\(t\.(${N})\.(${N})\)\{var i=(${N})\(\),r=t\.(${N})\(\(null==(${N})&&new (${N}),\5\)\.(${N})\(\)\);i\.(${N})\(new (${N})\(r,\(u=t,function\(\)\{var t=u\.\1,n=u\.\1\.(${N});return u\.(${N})\(t\.(${N})\((${N}),n,\13,\13,\13,\13,!0\)\),(${N})\}\),!0\)\);`);
+        if (menu === null || menu.index === undefined) return skip('menu');
+        const [, pas, , , mat, , , , add, item, friend, setState, newState, unset] = menu;
+        const near = code.slice(menu.index, menu.index + 3000);
+        const online = new RegExp(R`var r=t\.${asPattern(pas)}\.${asPattern(friend)}\.(${N}),e=null==r\?null:r\.(${N});return i\.isOnline=null!=e&&e`).exec(near);
+        if (online === null) return skip('online state');
+        // a friend already in a group cannot be invited (owner 2026-11-26: INVITE showed for them; the game's own invite window lets
+        // no one in a group be ticked): the friend's battle state (the game's BattleNotifierData: inBattle, inGroup, proBattle),
+        // its inGroup field read from the class's own text form, its holder on the friend from the friends row's "(in group)" word
+        const inGroup = one(R`"BattleNotifierData \[";return t=\(t=\(t=t\+"inBattle = "\+this\.${N}\+" "\)\+"inGroup = "\+this\.(${N})\+`);
+        if (inGroup === null) return skip('group state');
+        const groupHolder = one(R`var (${N})=${N}\.(${N}),${N}=!0===\(null==\1\?null:\1\.${asPattern(inGroup[1])}\)\?" \("`);
+        if (groupHolder === null) return skip('group state holder');
+        // the group's invite window: the tick (by the player's id field), the clear, the send, the word INVITE
+        const tick = one(R`t\.state\.selectedUsersSendInvite\.${N}\(r\.(${N})\)[^]{0,2500}?\(a=r,function\(t\)\{return (${N})\(\)\.(${N})\(\)\.(${N})\(new (${N})\(a\.\1\)\)`);
+        if (tick === null || tick.index === undefined) return skip('tick');
+        const [, idField, store, getStore, dispatch, tickClass] = tick;
+        const clear = one(R`t\.props\.onSendInviteHandler\(\),(${N})\(\),`);
+        const send = one(R`\.onSendInviteHandler=function\(t\)\{return function\(\)\{return t\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\((${N})\(\)\),${N}\}\}`);
+        const words = [...code.matchAll(new RegExp(R`\.text=i\.${asPattern(mat)}\((${N})\(\)\.(${N})\(\)\),r\.buttonKey=${N}\(\),r\.onClick=function\(t\)\{return function\(\)\{return t\.props\.onSendInviteHandler\(\),`, 'g'))];
+        if (clear === null || send === null || words.length === 0 || words.some((w) => w[1] !== words[0][1] || w[2] !== words[0][2])) return skip('invite window');
+        // the window's own first step, when it opens: "no group yet (no members): ask the server to start one" (owner 2026-11-25:
+        // the invite to a free player did nothing, lobby-friends-invite-probe.js: the player had no group, members=[]; the server
+        // takes no invite without one). The action is the window's, sent the moment it is put on the page, right before its page.
+        const open = one(R`\.${N}=function\(\)\{this\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\((${N})\)\},${N}\(${N}\)\.${N}=function\(t\)\{[^]{0,600}?\.onSendInviteHandler=function\(t\)\{return function\(\)\{return t\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\(${asPattern(send[1])}\(\)\)`);
+        if (open === null || open.index === undefined) return skip('window open');
+        // the group itself: the T button, pressed with no group, first sends "start a group if there is none" and only then opens the
+        // window; with no group the server takes no invite (owner 2026-11-25, lobby-friends-invite-probe.js comparing the game's
+        // invite with ours: the game's sent that start and its invite was accepted, ours did not and nothing came).
+        // Everything is sent at once, the invite right behind the start, never after the group has come: the game watches a new
+        // group with one rule, "the invite window closed, the player alone and no invite pending: close the group", and a group that
+        // came before our invite was pending was closed the moment it came (the probe: the new group, then gW and kW at once). The
+        // invite is pending in the game the moment it is sent, so the group stays; the server gets the start, then the invite.
+        const start = one(R`function\(t\)\{t\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\((${N})\(\)\),t\.${asPattern(getStore)}\(\)\.${N}\.${N}\.${N} instanceof ${N}\|\|t\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\(new ${N}\(${N}\(\)\)\)\}\(t\)`);
+        if (start === null || start.index === undefined) return skip('group start');
+        // all in the friends menu's module, so the names reach it
+        for (const at of [tick.index, clear.index ?? 0, send.index ?? 0, words[0].index ?? 0, open.index, start.index]) {
+            if (MODULE_BORDER.test(code.slice(Math.min(at, menu.index), Math.max(at, menu.index)))) return skip('module');
+        }
+        // The player menu draws its own items first and the screen's extra items ("Remove friend") last, after its other parts. The
+        // invite goes first (owner 2026-11-25): it is marked (__kaspFirst), the menu draws marked items right after the player's name
+        // and skips them in its last loop. Its word is the game's own, as a sentence (Invite, Пригласить), like the menu's others.
+        const loop = one(R`function\(t,n\)\{var i=t\.props\.additionalItems;if\(null==i\);else for\(var r=i\.(${N})\(\);r\.(${N})\(\);\)\{var e=r\.(${N})\(\),u=(${N})\((${N})\);n\.(${N})\(u,(${N})\(e\)\)\}\}\(this,t\)`);
+        if (loop === null || loop.index === undefined) return skip('menu items');
+        const [loopText, iter, hasNext, next, element, itemView, addChild, itemProps] = loop;
+        // the menu's draw method: the nearest method before the loop whose body really holds the loop (found by its braces, never by
+        // its short name: independent review 2026-11-26)
+        const MENU_SEARCH = 20000;
+        const defs = [...code.slice(Math.max(0, loop.index - MENU_SEARCH), loop.index).matchAll(/\.[\w$]+=function\(t\)\{/g)];
+        let menuStart = -1;
+        for (let k = defs.length - 1; k >= 0; k--) {
+            const open = Math.max(0, loop.index - MENU_SEARCH) + (defs[k].index ?? 0) + defs[k][0].length - 1;
+            if (closingBrace(code, open, MENU_SEARCH * 2) > loop.index) {
+                menuStart = open;
+                break;
+            }
+        }
+        const afterName = menuStart < 0 ? -1 : code.indexOf(')(this,t),', menuStart);
+        if (menuStart < 0 || afterName < 0 || afterName > loop.index) return skip('menu name');
+        // the marked items first; wrapped in try, so a fault in ours never stops the game's own menu
+        const firstItems =
+            `(function(t,n){try{var i=t.props.additionalItems;if(null!=i)for(var r=i.${iter}();r.${hasNext}();){var e=r.${next}();` +
+            `e.__kaspFirst&&n.${addChild}(${element}(${itemView}),${itemProps}(e))}}catch(e){}})(this,t),`;
+        // a replacement function, so a $ in the game's names is never read as a replacement pattern
+        const lastItems = loopText.replace(`{var e=r.${next}(),`, () => `{var e=r.${next}();if(e.__kaspFirst)continue;var `);
+        const text =
+            `(function(){try{var f=t.${pas}.${friend},o=f.${online[1]},q=f.${groupHolder[2]};if(null!=o&&o.${online[2]}&&!(null!=q&&!0===q.${inGroup[1]})){` +
+            `var w=String(t.${mat}(${words[0][1]}().${words[0][2]}())),g=new ${item}(w.charAt(0).toUpperCase()+w.slice(1).toLowerCase(),function(){` +
+            `try{var s=${store}().${getStore}();s.${dispatch}(${start[1]}());s.${dispatch}(${open[1]});` +
+            `${clear[1]}();s.${dispatch}(new ${tickClass}(f.${idField}));s.${dispatch}(${send[1]}())}catch(e){}` +
+            `t.${setState}(t.${pas}.${newState}(${unset},${unset},${unset},!1,null))},!1);g.__kaspFirst=!0;i.${add}(g)}}catch(e){}})();`;
+        return applyEdits(code, [
+            { at: menu.index + menu[0].length, length: 0, text },
+            { at: afterName + ')(this,t),'.length, length: 0, text: firstItems },
+            { at: loop.index, length: loopText.length, text: lastItems },
+        ]);
+    }
+
+    // The answer box on the right (a friend joins or refuses the group, read in the game's code, build of 2026-11-22): each time its
+    // part is drawn again it gives the box a new key from a counter that goes up by one on every drawing, so React throws the box away
+    // and builds it again, and its slide-in plays again. That part is drawn again whenever the data of the player in the box changes,
+    // which happens right after a friend accepts (they join the group, their state changes: lobby-invite-answer-probe.js, 2026-11-25,
+    // one answer, one box, both changes within 25 ms), so the box came in twice (owner 2026-11-25). The box now keeps its key for as
+    // long as it shows the same answer (the key is kept on the answer itself); a new answer still gets a new one and comes in.
+    function patchAnswerBoxKey(code: string): string | null {
+        const N = '[\\w$]+';
+        const found = exactlyOne(code, new RegExp(String.raw`\((${N})=this,(${N})=r,function\(t\)\{var r=(${N})\.(${N});return \3\.\4=r\+1\|0,t\.(${N})\(r\.toString\(\)\),`, 'g'));
+        if (found === null || found.index === undefined) {
+            warn(`${LOG} could not find the answer box's key in this bundle, it keeps the game's own`);
+            return null;
+        }
+        const [whole, self, answer, counter, field, setKey] = found;
+        const text =
+            `(${self}=this,${answer}=r,function(t){var r=${answer}.__kaspKey;null==r&&(r=${counter}.${field},${counter}.${field}=r+1|0,${answer}.__kaspKey=r);` +
+            `return t.${setKey}(r.toString()),`;
+        return applyEdits(code, [{ at: found.index, length: whole.length, text }]);
+    }
+
+    function lobbyUiSwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_lobbyui') === '0';
+        } catch {
+            return false;
+        }
+    }
+
+    function lobbySwitchedOff(): boolean {
+        try {
+            return localStorage.getItem('kasp_lobby') === '0';
+        } catch {
+            return false;
+        }
+    }
+
+    // lobby.css and the later lobby parts wait for this mark on <html>, put there only once the lobby edit went into the bundle.
+    function lobbyOn(names: KaspLobbyNames): void {
+        document.documentElement.setAttribute('data-kasp-lobby', '');
+        window.__kaspLobby?.start(names);
+    }
+
     function showroomSwitchedOff(): boolean {
         try {
             return localStorage.getItem('kasp_showroom') === '0';
@@ -1571,6 +2055,50 @@
                 if (showroom.supplies) hooked.push('showroom-supplies');
             }
         }
+        if (!lobbySwitchedOff()) {
+            const lobby = patchLobby(result);
+            if (lobby !== null) {
+                result = lobby.code;
+                let names = lobby.names;
+                hooked.push('lobby');
+                if (!lobbyDroneSwitchedOff()) {
+                    const drone = patchLobbyDrone(result, names);
+                    if (drone !== null) {
+                        result = drone.code;
+                        names = { ...names, drone: drone.drone };
+                        hooked.push('lobby-drone');
+                    }
+                }
+                const pass = patchLobbyPass(result, names);
+                if (pass !== null) {
+                    names = { ...names, pass };
+                    hooked.push('lobby-pass');
+                }
+                lobbyNames = names;
+            }
+        }
+        if (!lobbyUiSwitchedOff()) {
+            const modes = patchLobbyModes(result);
+            if (modes !== null) {
+                result = modes;
+                hooked.push('lobby-modes');
+            }
+            const friends = patchFriendsOverLobby(result);
+            if (friends !== null) {
+                result = friends;
+                hooked.push('friends-over-lobby');
+            }
+            const invite = patchFriendsInvite(result);
+            if (invite !== null) {
+                result = invite;
+                hooked.push('friends-invite');
+            }
+            const answerKey = patchAnswerBoxKey(result);
+            if (answerKey !== null) {
+                result = answerKey;
+                hooked.push('answer-box-key');
+            }
+        }
         // Last, so every other edit finds the game's code as it was.
         if (theme !== null) {
             const coloured = patchColours(result, theme);
@@ -1605,6 +2133,7 @@
             const patched = patchBundle(original);
             script.textContent = patched.code;
             if (patched.hooked.includes('showroom')) showroomOn();
+            if (lobbyNames !== null) lobbyOn(lobbyNames);
             if (patched.hooked.length > 0) log(`${LOG} hooks added to the game: ${patched.hooked.join(', ')}`);
         } catch (e: unknown) {
             warn(`${LOG} could not fetch the game bundle, starting it without the hook:`, e instanceof Error ? e.message : e);

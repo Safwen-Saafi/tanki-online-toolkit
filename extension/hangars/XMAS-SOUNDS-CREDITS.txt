@@ -1,0 +1,8 @@
+Christmas sounds used by the Christmas lobby look (and the lobby probe): the fireplace's crackling fire.
+
+xmas-fire.mp3 = "fireplace loop original noise" (Pixabay file 178209, by King_of_the_Christmas), Pixabay Content License
+                (https://pixabay.com/service/license-summary/), no credit required; kept here anyway.
+                Changes: cut to its first 2 000 000 bytes (about 62 s of 297 s; the whole file would take about 100 MB once
+                decoded); the lobby loops it with a 1.5 s crossfade, at a set loudness.
+
+Downloaded by the owner; the source above is read from the file name (Pixabay's naming).

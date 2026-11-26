@@ -1,0 +1,139 @@
+/* The lobby (build-plan 26a, src/modules/lobby/lobby.ts). Every rule waits for the injector's mark, set only once its lobby edit went into
+   the game's code, so a game build it misses keeps the game's own lobby.
+   The tank stands on the left, behind the game's left menu box (PLAY, the menu words, the footer buttons) and its dark shade. The
+   box and the shade stop taking presses, so a drag that starts on their empty parts reaches the 3D and turns the tank; PLAY, each
+   menu word and the footer buttons keep the mouse. Nothing moves: only where the presses go changes. */
+/* Not while the news is open (owner 2026-11-21: the news could not be closed): the game catches the press outside the news inside that
+   box, so it must keep its presses then. */
+html[data-kasp-lobby]:not([data-kasp-at-news]) [class*="MainScreenComponentStyle-containerForMenuGradient"],
+html[data-kasp-lobby]:not([data-kasp-at-news]) [class*="MainScreenComponentStyle-containerForMenuGradient"] [class*="MainScreenComponentStyle-gradientBlock"],
+html[data-kasp-lobby]:not([data-kasp-at-news]) [class*="MainScreenComponentStyle-blockMainMenu"] {
+    pointer-events: none !important;
+}
+
+html[data-kasp-lobby] [class*="MainScreenComponentStyle-playButtonContainer"],
+html[data-kasp-lobby] [class*="PrimaryMenuItemComponentStyle-menuItemContainer"],
+html[data-kasp-lobby] [class*="FooterComponentStyle-containerMenu"] {
+    pointer-events: auto !important;
+}
+
+/* ---------- The drone's roast bubble (26d step 11, owner 2026-11-25: look A "Comic" of lobby-ideas/drone-bubble.html) ----------
+   lobby.ts makes one <div class="kasp-roast"> on <body> and, when the drone stops at hello spot 1 or 2, writes once: its text,
+   data-spot (1 or 2), the drone's place on the screen (--kasp-roast-x, --kasp-roast-y) and half size (--kasp-roast-gap), and
+   data-state="in" (pops out of its tail); when the drone leaves, data-state="out" (shrinks back into it), then nothing. Owner
+   2026-11-26 (the pop lagged while the bubble measured the page and followed the drone each frame): nothing is measured, nothing
+   moves after the write, only the pop and shrink run (on the compositor). Spot 1: on the drone's right, the tail on the bubble's
+   left; spot 2: on the drone's left (on its right it went under the column's tiles), the tail on its right. The width is worked out
+   by the browser below. Never takes the mouse. Off the lobby (no PLAY on the page) or under an open news, chat or friends window it is not
+   drawn. */
+.kasp-roast {
+    position: fixed;
+    top: var(--kasp-roast-y, 50vh);
+    z-index: 1;
+    display: none;
+    box-sizing: border-box;
+    pointer-events: none;
+    background: #fff;
+    color: #111;
+    border: 0.18em solid #111;
+    border-radius: 1.2em;
+    padding: 0.75em 1em;
+    box-shadow: 0.3em 0.3em 0 #111;
+    font: clamp(14px, 1.9vh, 26px) / 1.35 BaseFontBold, FallbackFontBold, sans-serif;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.kasp-roast[data-state="in"] {
+    display: block;
+    animation: kasp-roast-pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.kasp-roast[data-state="out"] {
+    display: block;
+    animation: kasp-roast-out 0.25s ease-in both;
+}
+
+@keyframes kasp-roast-pop {
+    from { transform: scale(0.2); }
+    to { transform: scale(1); }
+}
+
+@keyframes kasp-roast-out {
+    to { transform: scale(0.2); opacity: 0; }
+}
+
+/* The bubble's width, worked out by the browser for any screen (owner 2026-11-26: never under the column's tiles, never cut by the
+   screen's edge, no measuring): at most 28em (two rows for the longest line), less when the room runs out. The room's end on the
+   right is the lobby's right column with "Lobby buttons" on: its distance from the window's right edge is --kasp-lu-right +
+   --kasp-lu-width (lobby_ui.css) in the PAGE's em, turned into pixels here on <body> (a registered length is worked out where it is
+   set, so the bubble's own bigger em does not change it); with the switch off it is 0 and the window's edge is the end. */
+@property --kasp-roast-column {
+    syntax: '<length>';
+    inherits: true;
+    initial-value: 0px;
+}
+
+html[data-kasp-lobby-ui] body {
+    --kasp-roast-column: calc(var(--kasp-lu-right) + var(--kasp-lu-width));
+}
+
+/* spot 1: on the drone's right, its left edge past the drone and the tail, its right edge 24 px before the column (or 12 px before the
+   window's edge); grows from its tail */
+.kasp-roast[data-spot="1"] {
+    left: calc(var(--kasp-roast-x, 0px) + var(--kasp-roast-gap, 0px) + 1.3em);
+    width: min(28em, calc(100vw - var(--kasp-roast-column) - 24px - var(--kasp-roast-x, 0px) - var(--kasp-roast-gap, 0px) - 1.3em));
+    translate: 0 -50%;
+    transform-origin: -1.3em 50%;
+}
+
+/* spot 2: on the drone's left, its right edge before the drone and the tail, its left edge 12 px from the window's edge; grows from
+   its tail */
+.kasp-roast[data-spot="2"] {
+    left: calc(var(--kasp-roast-x, 0px) - var(--kasp-roast-gap, 0px) - 1.3em);
+    width: min(28em, calc(var(--kasp-roast-x, 0px) - var(--kasp-roast-gap, 0px) - 1.3em - 12px));
+    translate: -100% -50%;
+    transform-origin: calc(100% + 1.3em) 50%;
+}
+
+/* the tail at the bubble's middle, toward the drone: a black triangle with a white one inside */
+.kasp-roast::before,
+.kasp-roast::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    translate: 0 -50%;
+}
+
+.kasp-roast[data-spot="1"]::before {
+    left: -1.3em;
+    border-width: 0.75em 1.25em 0.75em 0;
+    border-color: transparent #111 transparent transparent;
+}
+
+.kasp-roast[data-spot="1"]::after {
+    left: -0.95em;
+    border-width: 0.52em 0.95em 0.52em 0;
+    border-color: transparent #fff transparent transparent;
+}
+
+.kasp-roast[data-spot="2"]::before {
+    right: -1.3em;
+    border-width: 0.75em 0 0.75em 1.25em;
+    border-color: transparent transparent transparent #111;
+}
+
+.kasp-roast[data-spot="2"]::after {
+    right: -0.95em;
+    border-width: 0.52em 0 0.52em 0.95em;
+    border-color: transparent transparent transparent #fff;
+}
+
+html:not([data-kasp-at-play]) .kasp-roast,
+html:is([data-kasp-at-news], [data-kasp-at-chat], [data-kasp-at-friends]) .kasp-roast {
+    display: none !important;
+}
