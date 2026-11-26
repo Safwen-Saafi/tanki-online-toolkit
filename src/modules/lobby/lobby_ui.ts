@@ -37,7 +37,7 @@
         cp: { data: ['CP_ONLY', 'CP'], titles: ['CONTROL POINTS', 'КОНТРОЛЬ ТОЧЕК'] },
         ctf: { data: ['CTF_ONLY', 'CTF'], titles: ['CAPTURE THE FLAG', 'ЗАХВАТ ФЛАГА'] },
         sge: { data: ['SGE_ONLY', 'SGE'], titles: ['SIEGE', 'ОСАДА'] },
-        jg: { data: ['JGR_ONLY', 'JGR'], titles: ['JUGGERNAUT', 'ДЖАГГЕРНАУТ'] },
+        jg: { data: ['TJR_ONLY', 'TJR'], titles: ['TEAM JUGGERNAUT', 'КОМАНДНЫЙ ДЖАГГЕРНАУТ'] },
         rgb: { data: ['RUGBY_ONLY', 'RUGBY'], titles: ['RUGBY', 'РЕГБИ'] },
         asl: { data: ['AS_ONLY', 'AS'], titles: ['ASSAULT', 'ШТУРМ'] },
     };
