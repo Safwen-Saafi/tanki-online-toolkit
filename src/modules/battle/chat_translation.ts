@@ -1,12 +1,11 @@
-// Isolated-world content script for the chat translation (build-plan 19, see blueprint/context/chat-translation.md). The
-// injector posts each player's battle chat message (kasp:chat); the game's own chat line is left as it is. This asks Google
-// (its free translate address, no key) for the text in the language chosen in
-// the extension's settings tab (English by default) and, when the message was in another language, shows it in a box of its
-// own under the kill feed, in a copy of the game's chat line: rank picture, [clan] name in the sender's side colour, then
-// "[RU->EN] text". A message with letters of another script than the chosen language's shows three moving dots at once,
-// until the translation comes. The box shows only in a running round, sits in the game's battle area, and starts empty in
-// each battle. The settings tab's switch turns it all off at once: nothing is sent to Google while it is off. The player's own
-// messages are not shown in the box.
+// Isolated-world content script for the chat translation (build-plan 19, reworked by 28, see blueprint/context/chat-translation.md).
+// Other players' messages: the injector posts each one (kasp:chat) while Translate chat is on; this asks Google (its free
+// translate address, no key) for the text in the language chosen in the extension's settings tab (English by default) and
+// answers by number (kasp:chat-answer). The injector writes the translation into the game's own chat line as "[RU] text" and
+// the game redraws its chat. The ` key, in a battle and while nothing is being typed, switches every line between the original
+// and the translation; the choice is kept for the next battles. The settings (the switch, the language and that choice) go to
+// the injector at start and on every change (kasp:chat-settings); switched off, nothing is sent to Google and every line gets
+// its original back.
 // The player's own messages: while the game's chat box is open, three buttons beside it (or Alt+1, Alt+2, Alt+3) put the
 // typed text into the language chosen for that button, in the chat box itself; the game sends whatever is in the box when the
 // player presses Enter, as always. The same button again gives the typed text back. Only the text of a pressed button goes to
@@ -16,6 +15,8 @@
 
     const SWITCH_KEY = 'kasp_chattranslate';
     const LANGUAGE_KEY = 'kasp_chatlanguage';
+    // "1" while the ` key shows the original texts; no key for the translations.
+    const ORIGINAL_KEY = 'kasp_chatoriginal';
     // The default languages (this one and BUTTON_DEFAULTS) are also each dropdown's fallback in CHOICES in settings_tab.ts:
     // choosing a default saves no key, so this copy decides what happens. Change both together.
     const DEFAULT_TARGET = 'en';
@@ -24,32 +25,10 @@
     const TRANSLATE_URL = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&dt=t';
     const TIMEOUT_MS = 4000;
     const TEXT_MAX = 1000;
-    // Like the game's chat: up to 8 lines, all shown until 10 seconds after the last one, or while the chat input is open.
-    const MAX_LINES = 8;
-    const SHOW_MS = 10000;
     const CACHE_MAX = 200;
-    // The box and the buttons get their look from extension/styles/chat_translation.css, by these ids.
-    const BOX_ID = 'kasp-chat-translations';
-    // The game's chat colours: an ally's name, an enemy's name, and the text of a message to all.
-    const ALLY_COLOUR = '#33bbff';
-    const ENEMY_COLOUR = '#ff6666';
-    const TEXT_COLOUR = '#ffffff';
-    const PICTURE_HOST = /(^|\.)tankionline\.com$/;
-    // The letters of a target language's own script: a message with any other letter is surely in another language, so its
-    // dots show at once. Latin for every target not named here.
-    const SCRIPTS: Readonly<Record<string, RegExp>> = {
-        ru: /\p{Script=Cyrillic}/u,
-        uk: /\p{Script=Cyrillic}/u,
-        bg: /\p{Script=Cyrillic}/u,
-        ar: /\p{Script=Arabic}/u,
-        'zh-CN': /\p{Script=Han}/u,
-        ja: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
-        ko: /[\p{Script=Hangul}\p{Script=Han}]/u,
-    };
-    const LATIN = /\p{Script=Latin}/u;
-    const LETTERS = /\p{L}/gu;
+    // The key that switches the lines, by its place on the keyboard (under Esc), so it is the same key on every layout.
+    const VIEW_KEY = 'Backquote';
     const CHAT_INPUT = '[class*="BattleChatComponentStyle-input"]';
-    const BATTLE_SELECTOR = '.BattleComponentStyle-canvasContainer';
     // The game's chat row (the chat box and the button after it), and the bordered box around the text field.
     const CHAT_ROW = '.BattleChatComponentStyle-container';
     const CHAT_FIELD_BOX = '[class*="BattleChatComponentStyle-inputContainer"]';
@@ -57,34 +36,21 @@
     // The settings tab's dropdown for each button, and the language it has when nothing is saved.
     const BUTTON_KEYS = ['kasp_chatbutton1', 'kasp_chatbutton2', 'kasp_chatbutton3'] as const;
     const BUTTON_DEFAULTS = ['ru', 'en', 'pt'] as const;
+    // The buttons get their look from extension/styles/chat_translation.css, by this id.
     const BUTTONS_ID = 'kasp-chat-buttons';
     // The game's own limit (its chat code): a longer message is not sent, and its text turns red in the chat box.
     const SEND_MAX = 170;
     const FAIL_MS = 1500;
+    // The gap between the buttons and the chat row (or the chat box, when the buttons sit above it).
+    const BUTTONS_GAP = '0.6rem';
 
-    // The two messages this module reads, in their shared shapes from src/types.d.ts, so a renamed field breaks the build here
-    // instead of making the module drop every message.
+    // The message this module reads, in its shared shape from src/types.d.ts, so a renamed field breaks the build here instead
+    // of making the module drop every message.
     type ChatMessage = KaspChatMessage['detail'];
-    type BattleTime = KaspBattleTimeMessage['detail'];
 
     interface Translation {
         readonly from: string;
         readonly text: string;
-    }
-
-    interface Line {
-        readonly line: HTMLDivElement;
-        readonly text: HTMLSpanElement;
-    }
-
-    function asPicture(value: unknown): string | null {
-        if (typeof value !== 'string' || value.length > 300) return null;
-        try {
-            const url = new URL(value);
-            return url.protocol === 'https:' && PICTURE_HOST.test(url.hostname) ? url.href : null;
-        } catch {
-            return null;
-        }
     }
 
     function readMessage(data: unknown): ChatMessage | null {
@@ -92,20 +58,12 @@
         const detail = (data as { detail?: unknown }).detail;
         if (!detail || typeof detail !== 'object') return null;
         const d = detail as Partial<Record<keyof ChatMessage, unknown>>;
-        if (typeof d.uid !== 'string' || d.uid.length > 50) return null;
-        if (d.clanTag !== null && (typeof d.clanTag !== 'string' || d.clanTag.length > 20)) return null;
-        if (typeof d.ally !== 'boolean' || typeof d.own !== 'boolean' || typeof d.team !== 'boolean') return null;
+        if (typeof d.id !== 'number' || !Number.isSafeInteger(d.id) || d.id < 1) return null;
         if (typeof d.text !== 'string' || d.text.trim() === '' || d.text.length > TEXT_MAX) return null;
-        return { uid: d.uid, clanTag: d.clanTag, ally: d.ally, own: d.own, team: d.team, rankPicture: asPicture(d.rankPicture), text: d.text };
+        return { id: d.id, text: d.text };
     }
 
-    function surelyForeign(text: string, to: string): boolean {
-        const own = SCRIPTS[to] ?? LATIN;
-        for (const letter of text.matchAll(LETTERS)) if (!own.test(letter[0])) return true;
-        return false;
-    }
-
-    // The code as the line's mark shows it: EN, or ZH for zh-CN.
+    // The code as a button shows it: EN, or ZH for zh-CN.
     function short(code: string): string {
         return code.split('-')[0].toUpperCase();
     }
@@ -141,77 +99,6 @@
         return asked;
     }
 
-    let box: HTMLDivElement | null = null;
-    let hideTimer = 0;
-    let inputOpen = false;
-    let lastChange = 0;
-    // False while the game's round is not running: in the lobby, before the round starts and on the results screen
-    // (kasp:battle-time). It stays true if that message never comes, so the box still works when that hook is lost.
-    let roundRunning = true;
-
-    // The box sits right after the game's battle canvas, at the canvas's own z-index, so what the game shows over its canvas
-    // (menus, the TAB table) should cover the box too, and the box goes away with the battle: a new battle area gets a new,
-    // empty box. Null when no battle is on screen.
-    function getBox(): HTMLDivElement | null {
-        const battle = document.querySelector(BATTLE_SELECTOR);
-        if (battle === null) return null;
-        if (box !== null && box.isConnected && battle.contains(box)) return box;
-        box?.remove();
-        const created = document.createElement('div');
-        created.id = BOX_ID;
-        created.hidden = true;
-        const canvas = battle.querySelector('canvas');
-        if (canvas !== null) {
-            const z = getComputedStyle(canvas).zIndex;
-            if (z !== 'auto') created.style.zIndex = z;
-            canvas.after(created);
-        } else {
-            battle.appendChild(created);
-        }
-        box = created;
-        return created;
-    }
-
-    // Shows the box while the round runs, a line is shown, and the chat input is open or the last change is less than SHOW_MS
-    // old, as the game does with its chat. changed is true when a shown line was just added, filled or removed.
-    function showBox(changed: boolean): void {
-        if (changed) lastChange = Date.now();
-        window.clearTimeout(hideTimer);
-        if (box === null || !box.isConnected) return;
-        const shown = box;
-        const left = lastChange + SHOW_MS - Date.now();
-        const hasLine = shown.querySelector('.kasp-chat-line:not([hidden])') !== null;
-        shown.hidden = !roundRunning || !hasLine || (!inputOpen && left <= 0);
-        if (!shown.hidden && !inputOpen) hideTimer = window.setTimeout(() => (shown.hidden = true), left);
-    }
-
-    // Keeps the last MAX_LINES lines that are shown (a line still waiting for its answer, hidden, does not count).
-    function trimLines(target: HTMLDivElement): void {
-        const shown = [...target.querySelectorAll<HTMLDivElement>('.kasp-chat-line:not([hidden])')];
-        for (let k = 0; k < shown.length - MAX_LINES; k++) shown[k].remove();
-    }
-
-    function makeLine(message: ChatMessage): Line {
-        const line = document.createElement('div');
-        line.className = 'kasp-chat-line';
-        const sideColour = message.ally ? ALLY_COLOUR : ENEMY_COLOUR;
-        if (message.rankPicture !== null) {
-            const rank = document.createElement('img');
-            rank.className = 'kasp-chat-rank';
-            rank.alt = '';
-            rank.addEventListener('error', () => rank.remove());
-            rank.src = message.rankPicture;
-            line.appendChild(rank);
-        }
-        const name = document.createElement('span');
-        name.style.color = sideColour;
-        name.textContent = `${message.clanTag === null ? '' : `[${message.clanTag}] `}${message.uid}: `;
-        const text = document.createElement('span');
-        text.style.color = message.team ? sideColour : TEXT_COLOUR;
-        line.append(name, text);
-        return { line, text };
-    }
-
     function dots(): HTMLSpanElement {
         const span = document.createElement('span');
         span.className = 'kasp-chat-dots';
@@ -227,62 +114,43 @@
     // The settings tab's switch and dropdown, read through the switch service; both apply at once.
     let enabled = window.kaspSwitches?.isOn(SWITCH_KEY) ?? true;
     let language = readCode(window.kaspSwitches?.getChoice(LANGUAGE_KEY) ?? null, DEFAULT_TARGET);
+    let original = window.kaspSwitches?.getChoice(ORIGINAL_KEY) === '1';
 
+    function sendSettings(): void {
+        const message: KaspChatSettingsMessage = { type: 'kasp:chat-settings', translate: enabled, language, original };
+        window.postMessage(message, window.location.origin);
+    }
+
+    function answer(id: number, result: Translation | null): void {
+        const message: KaspChatAnswerMessage = { type: 'kasp:chat-answer', id, text: result?.text ?? null, from: result?.from ?? '' };
+        window.postMessage(message, window.location.origin);
+    }
+
+    // Every message gets an answer, so a line showing its dots always gets its translation or its original back.
     function onMessage(message: ChatMessage): void {
-        if (!enabled || message.own) return;
-        const target = getBox();
-        if (target === null) return;
-        const to = language;
-        // The line takes its place at once, so lines stay in the order the messages came; it is hidden until the answer
-        // unless the message is surely in another language, then it shows its dots.
-        const { line, text } = makeLine(message);
-        const sure = surelyForeign(message.text, to);
-        line.hidden = !sure;
-        if (sure) text.appendChild(dots());
-        target.appendChild(line);
-        if (sure) {
-            trimLines(target);
-            showBox(true);
-        }
-        translate(message.text, to)
-            .then((result) => {
-                // The battle may have ended, or the line been pushed out, while Google was answering.
-                if (!line.isConnected) return;
-                // null: already in the chosen language, or Google gave the same text back, so there is nothing to show.
-                if (result === null) {
-                    line.remove();
-                    showBox(sure);
-                    return;
-                }
-                text.textContent = `[${short(result.from)}->${short(to)}] ${result.text}`;
-                line.hidden = false;
-                trimLines(target);
-                showBox(true);
-            })
-            .catch(() => {
-                // Google failed or took too long: the message stays untranslated.
-                if (!line.isConnected) return;
-                line.remove();
-                showBox(sure);
-            });
+        if (!enabled) return;
+        translate(message.text, language)
+            .then((result) => answer(message.id, result))
+            .catch(() => answer(message.id, null));
     }
 
-    function readBattleTime(data: unknown): BattleTime | null {
-        if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'kasp:battle-time') return null;
-        const detail = (data as { detail?: unknown }).detail;
-        if (!detail || typeof detail !== 'object') return null;
-        const d = detail as Partial<Record<keyof BattleTime, unknown>>;
-        if (typeof d.remaining !== 'number' || typeof d.roundStarted !== 'boolean' || typeof d.battleLoaded !== 'boolean') return null;
-        return { remaining: d.remaining, roundStarted: d.roundStarted, battleLoaded: d.battleLoaded };
+    // The ` key in a battle, while nothing is being typed (the chat box then types the character as always). The key is not
+    // taken from the game, so an action the player gave that key in the game's controls still happens.
+    function isTyping(): boolean {
+        const focused = document.activeElement;
+        return focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement || (focused instanceof HTMLElement && focused.isContentEditable);
     }
 
-    // The game says remaining -1 when the player joins a battle and battleLoaded false when the player leaves: both start
-    // the box over, so a new battle never shows the last one's lines.
-    function onBattleTime(time: BattleTime): void {
-        if (!time.battleLoaded || time.remaining === -1) box?.replaceChildren();
-        roundRunning = time.battleLoaded && time.roundStarted;
-        showBox(false);
-    }
+    window.addEventListener(
+        'keydown',
+        (event: KeyboardEvent) => {
+            if (event.code !== VIEW_KEY || event.repeat || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
+            if (!enabled || window.kaspBattle?.isOn() !== true || isTyping()) return;
+            // saved through the switch service, whose onChoice below sends the new view
+            window.kaspSwitches?.setChoice(ORIGINAL_KEY, original ? null : '1');
+        },
+        true,
+    );
 
     // The translation buttons beside the game's chat box, for the player's own messages.
     interface Translated {
@@ -348,13 +216,13 @@
             return;
         }
         // Another button, on a translation, translates the typed text, not the translation.
-        const original = last !== null ? last.original : showing;
-        if (original.trim() === '') return;
+        const typed = last !== null ? last.original : showing;
+        if (typed.trim() === '') return;
         const to = buttonLanguages[index];
         const asked = ++question;
         waiting = index;
         paint();
-        translate(original, to)
+        translate(typed, to)
             .then((result) => {
                 if (asked !== question) return;
                 waiting = null;
@@ -364,7 +232,7 @@
                     return;
                 }
                 // null: the typed text is already in that language, so it is the text that goes.
-                const text = result === null ? original : result.text;
+                const text = result === null ? typed : result.text;
                 // Longer than the game's limit: the game would not send it, so the typed text stays.
                 if (text.length > SEND_MAX) {
                     paint();
@@ -372,7 +240,7 @@
                     return;
                 }
                 put(input, text);
-                done = { original, translated: text, button: index };
+                done = { original: typed, translated: text, button: index };
                 paint();
             })
             .catch(() => {
@@ -417,14 +285,18 @@
         return button;
     }
 
-    // Right after the game's chat row (its chat box and the button after it), as tall as the chat box and level with it.
+    // Right after the game's chat row (its chat box and the button after it), as tall as the chat box and level with it. When
+    // the window is too narrow for that, above the chat box, starting at its left edge.
     function place(): void {
         if (bar === null || field === null) return;
         const row = (field.closest(CHAT_ROW) ?? field).getBoundingClientRect();
         const fieldBox = (field.closest(CHAT_FIELD_BOX) ?? field).getBoundingClientRect();
-        bar.style.left = `calc(${row.right}px + 0.6rem)`;
-        bar.style.top = `${fieldBox.top}px`;
         bar.style.height = `${fieldBox.height}px`;
+        bar.style.left = `calc(${row.right}px + ${BUTTONS_GAP})`;
+        bar.style.top = `${fieldBox.top}px`;
+        if (bar.getBoundingClientRect().right <= window.innerWidth) return;
+        bar.style.left = `${fieldBox.left}px`;
+        bar.style.top = `calc(${fieldBox.top - fieldBox.height}px - ${BUTTONS_GAP})`;
     }
 
     function showButtons(input: HTMLInputElement): void {
@@ -457,20 +329,14 @@
     document.addEventListener(
         'focusin',
         (event: FocusEvent) => {
-            if (!isChatInput(event.target)) return;
-            inputOpen = true;
-            showBox(false);
-            showButtons(event.target);
+            if (isChatInput(event.target)) showButtons(event.target);
         },
         true,
     );
     document.addEventListener(
         'focusout',
         (event: FocusEvent) => {
-            if (!isChatInput(event.target)) return;
-            inputOpen = false;
-            showBox(false);
-            hideButtons();
+            if (isChatInput(event.target)) hideButtons();
         },
         true,
     );
@@ -507,19 +373,21 @@
         const message = readMessage(data);
         if (message !== null) onMessage(message);
     });
-    window.kaspMessages?.on('kasp:battle-time', (data) => {
-        const time = readBattleTime(data);
-        if (time !== null) onBattleTime(time);
-    });
+    // The injector asks when it starts after this script.
+    window.kaspMessages?.on('kasp:chat-settings-request', sendSettings);
 
-    // Off empties the box at once; a new language applies from the next message, and the lines already shown stay.
+    // Each change goes to the injector at once, which writes the lines again and redraws the game's chat.
     window.kaspSwitches?.onChange(SWITCH_KEY, (on) => {
         enabled = on;
-        if (!on) box?.replaceChildren();
-        showBox(false);
+        sendSettings();
     });
     window.kaspSwitches?.onChoice(LANGUAGE_KEY, (value) => {
         language = readCode(value, DEFAULT_TARGET);
+        sendSettings();
+    });
+    window.kaspSwitches?.onChoice(ORIGINAL_KEY, (value) => {
+        original = value === '1';
+        sendSettings();
     });
     // Settings and the chat box are never open together, so a change shows the next time the chat opens.
     window.kaspSwitches?.onChange(BUTTONS_KEY, (on) => {
@@ -534,4 +402,5 @@
             buttonLanguages[index] = readCode(value, BUTTON_DEFAULTS[index]);
         });
     });
+    sendSettings();
 })();
