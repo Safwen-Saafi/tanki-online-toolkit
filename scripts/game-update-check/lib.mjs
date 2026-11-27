@@ -2,7 +2,9 @@
 // does, and says which of its changes went into the game's code and what it warned about. Nothing in the extension changes for
 // this: the injector is loaded as it ships, and a stand-in browser answers it. No dependencies (Node 18 or later).
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import vm from 'node:vm';
 
 // What the injector prints and how it finds the game's bundle (src/injector.ts). If one of these changes there, change it here
@@ -69,9 +71,14 @@ function readHooks(line) {
 // prefix taken off), and the patched code; `failed` is set when the run itself went wrong, which is a fault of this check (a
 // stand-in that is missing something), never of the game.
 export async function runInjector(injectorPath, bundleText, bundleName) {
+    const result = { hooked: [], warnings: [], errors: [], patchedCode: null, failed: null };
+    // The injector holds back only a tag whose address holds "/static/js/main."; any other name would leave it waiting.
+    if (!/^main\.[\w.-]+\.js$/.test(bundleName)) {
+        result.failed = `"${bundleName}" is not a game bundle name (main.<hash>.js)`;
+        return result;
+    }
     const injector = fs.readFileSync(injectorPath, 'utf8');
     const lines = { log: [], warn: [], error: [] };
-    const result = { hooked: [], warnings: [], errors: [], patchedCode: null, failed: null };
     let finish;
     const done = new Promise((resolve) => {
         finish = resolve;
@@ -249,4 +256,35 @@ export function saveKnownGood(folder, bundleFile) {
     const note = { name: path.basename(bundleFile), savedAt: new Date().toISOString() };
     fs.writeFileSync(path.join(folder, GOOD_NOTE), JSON.stringify(note, null, 4) + '\n');
     return note;
+}
+
+// ---- reading our own code ----
+
+// Every hook name the injector can add, read from its source so no list is kept by hand: the `label: '...'` of its class hooks
+// and the name in each `hooked.push('...')` (for `game-colour (12 colours, ...)` only the name).
+export function sourceHooks(injectorSourcePath) {
+    const source = fs.readFileSync(injectorSourcePath, 'utf8');
+    const names = new Set();
+    for (const m of source.matchAll(/label: '([\w-]+)'|hooked\.push\([`'"]([\w-]+)/g)) names.add(m[1] ?? m[2]);
+    return [...names];
+}
+
+// A hook as the injector prints it, without what follows its name: "game-colour (162 colours, 2 kept styles)" is "game-colour".
+export function hookName(hook) {
+    return hook.replace(/ \(.*\)$/, '');
+}
+
+// ---- the patched code still parses ----
+
+// Node's own syntax check on the patched bundle, from a temp file that is always deleted. Null when it parses, else the reason.
+export function syntaxProblem(code) {
+    const file = path.join(os.tmpdir(), `game-update-check-${process.pid}-${Date.now()}.js`);
+    fs.writeFileSync(file, code);
+    try {
+        const run = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
+        if (run.status === 0) return null;
+        return (run.stderr || run.stdout || 'node --check failed').split(file).join('patched bundle').trim().split('\n').slice(0, 6).join('\n');
+    } finally {
+        fs.rmSync(file, { force: true });
+    }
 }
