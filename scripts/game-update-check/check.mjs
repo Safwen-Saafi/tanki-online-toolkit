@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Plain, currentBundleAddress, fetchBundle, hookName, knownGood, runInjector, saveKnownGood, sourceHooks, syntaxProblem } from './lib.mjs';
+import { Plain, classNameIn, currentBundleAddress, fetchBundle, hookName, knownGood, ourClassNames, runInjector, saveKnownGood, sourceHooks, syntaxProblem } from './lib.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..');
@@ -36,7 +36,7 @@ function list(lines) {
 }
 
 // Prints the report and returns how many things broke.
-function report(now, good) {
+function report(now, good, nowText, goodText) {
     let broken = 0;
     const nowNames = new Set(now.hooked.map(hookName));
 
@@ -77,6 +77,22 @@ function report(now, good) {
         list(problem.split('\n'));
         broken += 1;
     }
+
+    // 4. The game class names our code and stylesheets use: gone from the new bundle while the known-good one had them (or,
+    // with no known-good yet, not in the new bundle at all).
+    const names = ourClassNames(ROOT);
+    const gone = names.filter((name) => !classNameIn(nowText, name) && (goodText === null || classNameIn(goodText, name)));
+    console.log(`
+4. Class names: ${names.length} used by our code and styles, ${gone.length === 0 ? 'none gone.' : `${gone.length} gone:`}`);
+    list(gone);
+    broken += gone.length;
+    if (goodText !== null) {
+        const neverIn = names.filter((name) => !classNameIn(nowText, name) && !classNameIn(goodText, name));
+        if (neverIn.length > 0) {
+            console.log('   Not in either bundle (not a game change, but worth a look):');
+            list(neverIn);
+        }
+    }
     return broken;
 }
 
@@ -104,7 +120,7 @@ async function main() {
 
     const now = await runOn(injector, bundleFile, path.basename(bundleFile));
     const before = good === null ? null : await runOn(injector, good.file, good.name);
-    const broken = report(now, before);
+    const broken = report(now, before, fs.readFileSync(bundleFile, 'utf8'), good === null ? null : fs.readFileSync(good.file, 'utf8'));
 
     console.log(`\n${broken === 0 ? 'Nothing broke that this check can see.' : `${broken} thing${broken === 1 ? '' : 's'} broke.`}`);
     console.log(BLIND_SPOT);

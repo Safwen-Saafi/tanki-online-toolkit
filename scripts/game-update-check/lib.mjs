@@ -288,3 +288,33 @@ export function syntaxProblem(code) {
         fs.rmSync(file, { force: true });
     }
 }
+
+// ---- the game's class names we use ----
+
+const CLASS_NAME = /\b([A-Z][A-Za-z0-9]*Style)-([A-Za-z0-9_-]+)/g;
+
+function filesUnder(folder, ending) {
+    if (!fs.existsSync(folder)) return [];
+    return fs.readdirSync(folder, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith(ending))
+        .map((entry) => path.join(entry.parentPath ?? entry.path, entry.name));
+}
+
+// Every game class name our code and stylesheets use ("GarageCommonStyle-garageContainer"), read from the files each time so no
+// list is kept by hand, sorted.
+export function ourClassNames(root) {
+    const files = [...filesUnder(path.join(root, 'src'), '.ts'), ...filesUnder(path.join(root, 'extension', 'styles'), '.css')];
+    const names = new Set();
+    for (const file of files) for (const m of fs.readFileSync(file, 'utf8').matchAll(CLASS_NAME)) names.add(m[0]);
+    return [...names].sort();
+}
+
+// The game builds a class name at run time from two texts, the style's name and the key ("GarageCommonStyle" and
+// "garageContainer"), so the name itself is never in the bundle: each half is looked for as a quoted text on its own. A
+// half-name our selectors match on ("...Style-block-") is looked for without its last dash.
+export function classNameIn(bundleText, className) {
+    const at = className.indexOf('-');
+    const style = className.slice(0, at);
+    const key = className.slice(at + 1).replace(/-+$/, '');
+    return bundleText.includes(`"${style}"`) && bundleText.includes(`"${key}"`);
+}
