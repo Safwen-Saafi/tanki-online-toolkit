@@ -12,6 +12,20 @@ html[data-kasp-showroom-floor] #app-root > div[class="-container"][data-kasp-sho
     background: none !important;
 }
 
-html[data-kasp-showroom-battle] #kasp-showroom-floor {
+/* The garage opened from a battle: the game puts the garage's box inside the battle's container instead of right under #app-root
+   (measured live 2026-11-27), with the same dark background, and the battle's 3D canvas lies between it and the room. That box is
+   see-through too, and the battle's canvas is made invisible (not removed) while the garage is open over it: the garage's own
+   background covered it whole anyway, and it shows again as soon as the garage closes. */
+html[data-kasp-showroom-floor] .BattleComponentStyle-canvasContainer > div[class="-container"][data-kasp-showroom-garage] {
+    background: none !important;
+}
+
+html[data-kasp-showroom-floor][data-kasp-showroom-battle][data-kasp-at-garage] .BattleComponentStyle-canvasContainer > canvas {
+    visibility: hidden !important;
+}
+
+/* hidden while playing; the garage opened over a battle (page_marks.ts's data-kasp-at-garage) still shows the room (owner
+   2026-11-27: the garage opened from a battle showed only the dark background) */
+html[data-kasp-showroom-battle]:not([data-kasp-at-garage]) #kasp-showroom-floor {
     display: none !important;
 }

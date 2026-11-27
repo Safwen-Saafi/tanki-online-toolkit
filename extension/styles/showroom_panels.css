@@ -285,3 +285,28 @@ html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesCompo
     background: var(--kasp-gl-cell-hover) !important;
     box-shadow: inset 0 0 0 1px var(--kasp-gl-edge-hover) !important;
 }
+
+/* ---------- the game's % discount badges ----------
+   The game pins them at top 0 and right 0 of their panel or supplies cell (measured live 2026-11-27): in the very corner, which on
+   the game's flat panels shows nothing, but on our glass sits on the 2px edge and its rounded corner (owner 2026-11-27). They get
+   the same gap from the top and the right instead; the round % next to the upgrade arrows (bottom right) is in its row on purpose
+   and stays. */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer :is(.MountedItemsStyle-commonBlockDrone, .MountedItemsStyle-commonBlockGrenades, .MountedItemsStyle-commonBlockForTurretsHulls) .-discount,
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer .SuppliesComponentStyle-cellAdd > .SuppliesComponentStyle-discountLabel {
+    top: 0.5em !important;
+    right: 0.5em !important;
+}
+
+/* The game's notification dot on these panels (ItemNotificationMarkerStyle, 10px, at 0.4em from the top and the right; with a
+   discount the game adds 20px on its right so it sits beside the corner badge). With the badges moved in above, the owner's rule
+   (2026-11-27): without a discount the dot sits in the centre of the badge's place, with one it sits right next to the badge, on
+   its left, centred on its height. The badge is 1.25em (20px) at 0.5em, the dot 0.625em (10px). */
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer :is(.MountedItemsStyle-commonBlockDrone, .MountedItemsStyle-commonBlockGrenades, .MountedItemsStyle-commonBlockForTurretsHulls) .ItemNotificationMarkerStyle-right {
+    top: 0.8125em !important;
+    right: 0.8125em !important;
+    margin: 0 !important;
+}
+
+html[data-kasp-showroom-floor] .GarageCommonStyle-garageContainer :is(.MountedItemsStyle-commonBlockDrone, .MountedItemsStyle-commonBlockGrenades, .MountedItemsStyle-commonBlockForTurretsHulls):has(.-discount) .ItemNotificationMarkerStyle-right {
+    right: 2em !important;
+}

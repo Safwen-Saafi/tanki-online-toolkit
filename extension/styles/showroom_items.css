@@ -139,6 +139,13 @@ html[data-kasp-showroom-floor][data-kasp-at-item] .GarageCommonStyle-garageConta
         -webkit-backdrop-filter: none !important;
     }
 
+    /* the game's round % discount picture (static/images/discount.<hash>.svg), an <img> straight inside this box: it belonged to
+       the block's "AUGMENTS/SKINS" header, which goes, so it goes too (owner 2026-11-27: the discount shows on the buy button;
+       found by a live probe, 2026-11-27) */
+    & .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock > :has(> .DeviceButtonComponentStyle-blockAlterations) > img[src*="/discount."] {
+        display: none !important;
+    }
+
     & .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock > :has(> .DeviceButtonComponentStyle-blockAlterations)::before,
     & .TanksPartBaseComponentStyle-tankPartContainer .GarageCommonStyle-animatedBlurredLeftBlock > :has(> .DeviceButtonComponentStyle-blockAlterations)::after,
     & .TanksPartBaseComponentStyle-tankPartContainer .DeviceButtonComponentStyle-blockAlterations::before,
