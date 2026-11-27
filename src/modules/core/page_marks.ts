@@ -107,6 +107,8 @@
         mark('data-kasp-at-group', (atPlay || atSearch) && keep(group, findGroup));
         const box = garage[0];
         const atGarage = box !== undefined;
+        // showroom.css keeps the studio room shown in a battle while the garage is open over it (owner 2026-11-27)
+        mark('data-kasp-at-garage', atGarage);
         mark('data-kasp-at-paints', atGarage && on(paints));
         mark('data-kasp-at-grenades', atGarage && on(grenades));
         mark('data-kasp-at-protection', atGarage && on(protection));
