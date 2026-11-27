@@ -1130,6 +1130,8 @@
     // writes every kept message back to its original or its translation. The player's own messages are never touched.
     const CHAT_TEXT_MAX = 1000;
     const CHAT_ANSWER_MAX = 2000;
+    // The game's chat draws at most this many letters of a message (its line drawing takes the first 170).
+    const CHAT_DRAW_MAX = 170;
     // The game's chat shows its last 8 messages; more are kept so a redraw never shows a message we can no longer switch.
     const CHAT_KEPT = 20;
     const CHAT_DOTS = '...';
@@ -1294,7 +1296,12 @@
         const entry = chatEntries.find((e) => e.id === id);
         if (entry === undefined || entry.translated !== null) return;
         const valid = typeof text === 'string' && text !== '' && text.length <= CHAT_ANSWER_MAX && typeof from === 'string' && CHAT_FROM.test(from);
-        entry.translated = valid ? `[${from.split('-')[0].toUpperCase()}] ${text}` : '';
+        const line = valid ? `[${from.split('-')[0].toUpperCase()}] ${text}` : '';
+        // The game draws only the first CHAT_DRAW_MAX letters of a line; a longer one ends with … so the cut shows (never in the
+        // middle of a two-part letter such as an emoji).
+        let cut = CHAT_DRAW_MAX - 1;
+        if (line.length > CHAT_DRAW_MAX && /[\uD800-\uDBFF]/.test(line[cut - 1])) cut--;
+        entry.translated = line.length > CHAT_DRAW_MAX ? `${line.slice(0, cut)}…` : line;
         if (chatWrite(entry)) chatRedrawSoon();
     });
 
