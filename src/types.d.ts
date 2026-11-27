@@ -158,20 +158,31 @@ interface KillSoundsConfig {
     readonly grenade: Readonly<Record<string, KillSoundEntry>>;
 }
 
-// Posted by src/injector.ts for each player's battle chat message, for src/modules/chat_translation.ts. ally is the sender's
-// side relative to the local player, own is true for the player's own message, team is true for a team only message, and
-// rankPicture is the address of the game's small picture of the sender's rank (null when it was not found).
+// The chat translation's three messages (build-plan 19, reworked by 28). The injector posts each other player's battle chat
+// message while translation is on (kasp:chat: its number and text, 1 to 1000 letters); src/modules/battle/chat_translation.ts
+// answers it by number (kasp:chat-answer: the translation, or null when there is nothing to show or it failed, and the language
+// Google found, empty with null) and tells the injector its settings at start and on every change (kasp:chat-settings: the
+// Translate chat switch, the chosen language, and original, true while the ` key shows the original texts).
 interface KaspChatMessage {
     readonly type: "kasp:chat";
     readonly detail: {
-        readonly uid: string;
-        readonly clanTag: string | null;
-        readonly ally: boolean;
-        readonly own: boolean;
-        readonly team: boolean;
-        readonly rankPicture: string | null;
+        readonly id: number;
         readonly text: string;
     };
+}
+
+interface KaspChatAnswerMessage {
+    readonly type: "kasp:chat-answer";
+    readonly id: number;
+    readonly text: string | null;
+    readonly from: string;
+}
+
+interface KaspChatSettingsMessage {
+    readonly type: "kasp:chat-settings";
+    readonly translate: boolean;
+    readonly language: string;
+    readonly original: boolean;
 }
 
 // Published by src/modules/language.ts. get() is EN until the language is found; whenKnown resolves once with the
@@ -1062,8 +1073,10 @@ interface Window {
     __kaspSettingsTabAdd?: (items: unknown[], make: (key: unknown) => unknown, keyField: string, categoryField: string) => unknown[];
     // MAIN world only: the address of the change column's header picture, read by the game's header code (build-plan 18a).
     __kaspChangeHeader?: string;
-    // MAIN world only: called by the game's chat code with each message it adds, and the team message class (build-plan 19).
-    __kaspChat?: (event: unknown, teamClass: unknown) => void;
+    // MAIN world only (build-plan 19, reworked by 28): called by the game's chat code with each message it adds, and by the end of
+    // the game's chat display constructor with the display and the game's function that redraws it.
+    __kaspChat?: (event: unknown) => void;
+    __kaspChatView?: (display: unknown, redraw: unknown) => void;
     // MAIN world only (build-plan 24): the time (ms) until which the next shop success dialog is skipped, set by the patched showcase
     // card click and used up by the dialog's mount; and the two functions the patched dialog calls when it draws and when it mounts.
     __kaspShopSkipUntil?: number;

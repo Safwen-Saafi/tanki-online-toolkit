@@ -15,7 +15,8 @@
 // unpatched), so the extension can lose a hook but never the game. One more part patches nothing: it reads each garage card's
 // name, rank and picture address from the game's React data for the hidden augment cards (kasp:cards-request from augments.ts).
 // Another part swaps the game's augment pictures for the old ones bundled in the extension, as the game assigns their addresses (kasp:old-pictures from old_pictures.ts).
-// The chat translation hook posts each player's battle chat message (window.__kaspChat, kasp:chat) for chat_translation.ts.
+// The chat translation hook posts each other player's battle chat message (window.__kaspChat, kasp:chat) for chat_translation.ts
+// and writes its answer into the game's own message, then redraws the game's chat (window.__kaspChatView).
 // The game colour part paints the game's blue look in the colour saved under kasp_theme, by rewriting the colours in the game's
 // code once before it runs; a new colour applies at the next start.
 // The showroom part edits the garage's 3D code at start so it calls window.__kaspShowroom (src/modules/showroom.ts) every frame.
@@ -1113,110 +1114,262 @@
 
     listenChangeHeader();
 
-    // The chat translation hook (build-plan 19, see blueprint/context/chat-translation.md). Every battle chat message the
-    // game adds to its chat list goes through one function, right before the readable text "BattleChat":
-    //   function nct(t,n){n instanceof Ret&&n.v11n_1||t.p12x_1.y(n);...}
-    // The edit adds one call at its start (window.__kaspChat) that posts each player's message (kasp:chat: the sender's name,
-    // clan, rank picture and side, whether it is the player's own, whether it is a team message, and the text) to
-    // chat_translation.ts, which shows the translation in its own box. The game's own message is not touched. A team message
-    // is told apart by its class, learned from the game's chat display, which registers it as "onTeamMessage".
+    // The chat translation (build-plan 19, reworked by 28, see blueprint/context/chat-translation.md). The translation is written
+    // into the game's own message, and the game draws it in its own chat. Two edits, both or neither:
+    //   add:     every battle chat message the game adds to its chat list goes through one function, right before the readable
+    //            text "BattleChat": function ict(t,n){n instanceof Ret&&n.c11q_1||t.r12z_1.y(n);var i=t.q12z_1;null==i||i.jz9(n)}
+    //            A call at its start (window.__kaspChat) sees the message before the game draws it.
+    //   display: the game's chat display is made with a callback named "onChatRebuild" as its fifth argument, keeps it in a field
+    //            and ends its constructor by calling its redraw function, which asks that callback for the last messages again
+    //            and draws them:  new $Nn(i,r,e,u,(t=this,(n=function(n){...}).callableName="onChatRebuild",n))
+    //            function $Nn(t,n,i,r,e){...,this.m1gh_1=e,...;oNn(this)}   function oNn(t){...;t.m1gh_1(t.z1gh_1)}
+    //            A call at the end of the constructor (window.__kaspChatView) keeps the display and its redraw function.
+    // Each other player's message is posted (kasp:chat) to chat_translation.ts, which asks Google and answers by number
+    // (kasp:chat-answer); the answer is written into the message as "[RU] text" and the display is redrawn. While the text is
+    // surely in another language, "..." is written at once, before the game draws it. The ` key (kasp:chat-settings, original)
+    // writes every kept message back to its original or its translation. The player's own messages are never touched.
     const CHAT_TEXT_MAX = 1000;
-    const CHAT_LABEL = /^UserLabelData\(userId=(-?\d+), uid=(.*?), rank=(\d+), hasPremium=(true|false), clanTag=(.*?), teamRelation=(\w+)\)$/;
-    const RANK_COUNT = 31;
+    const CHAT_ANSWER_MAX = 2000;
+    // The game's chat draws at most this many letters of a message (its line drawing takes the first 170).
+    const CHAT_DRAW_MAX = 170;
+    // The game's chat shows its last 8 messages; more are kept so a redraw never shows a message we can no longer switch.
+    const CHAT_KEPT = 20;
+    const CHAT_DOTS = '...';
+    // Answers that come close together give one redraw.
+    const CHAT_REDRAW_MS = 50;
+    const CHAT_SENDER = /^UserLabelData\(userId=(-?\d+), uid=/;
+    const CHAT_LANGUAGE = /^[a-z]{2,3}(-[A-Z]{2})?$/;
+    const CHAT_FROM = /^[a-z]{2,3}(-[a-z]{2,4})?$/i;
+    const CHAT_BATTLE = '.BattleComponentStyle-canvasContainer';
+    // The letters of a chosen language's own script: a message with any other letter is surely in another language, so its dots
+    // show at once. Latin for every language not named here.
+    const CHAT_SCRIPTS: Readonly<Record<string, RegExp>> = {
+        ru: /\p{Script=Cyrillic}/u,
+        uk: /\p{Script=Cyrillic}/u,
+        bg: /\p{Script=Cyrillic}/u,
+        ar: /\p{Script=Arabic}/u,
+        'zh-CN': /\p{Script=Han}/u,
+        ja: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
+        ko: /[\p{Script=Hangul}\p{Script=Han}]/u,
+    };
+    const CHAT_LATIN = /\p{Script=Latin}/u;
+    const CHAT_LETTERS = /\p{L}/gu;
+
+    interface ChatEntry {
+        readonly id: number;
+        readonly message: Record<string, unknown>;
+        // the message's text field and the text the sender typed
+        readonly key: string;
+        readonly original: string;
+        // the text last written into the message (the original until something else is written)
+        written: string;
+        // "[RU] text" once Google answered with a translation, "" when there is nothing to show, null while waiting
+        translated: string | null;
+    }
+
+    interface ChatSettings {
+        readonly translate: boolean;
+        readonly language: string;
+        readonly original: boolean;
+    }
+
     const seenChat = new WeakSet<object>();
-    // The game's small rank pictures as full addresses: plain ranks 1 to 31, then premium ranks 1 to 31. Empty when not found.
-    let rankPictures: string[] = [];
+    const chatEntries: ChatEntry[] = [];
+    let chatId = 0;
+    // Null until chat_translation.ts says its settings; nothing is posted before that.
+    let chatSettings: ChatSettings | null = null;
+    // The game's latest chat display and its redraw function (a new display is made when the battle's screen is built again).
+    let chatDisplay: object | null = null;
+    let chatRedrawFn: ((display: object) => void) | null = null;
+    let chatRedrawTimer = 0;
+
+    function surelyForeign(text: string, language: string): boolean {
+        const own = CHAT_SCRIPTS[language] ?? CHAT_LATIN;
+        for (const letter of text.matchAll(CHAT_LETTERS)) if (!own.test(letter[0])) return true;
+        return false;
+    }
+
+    // What the message should say now: the translation in the translated view, "..." while waiting for a text surely in another
+    // language, else the original.
+    function chatShown(entry: ChatEntry): string {
+        const settings = chatSettings;
+        if (settings === null || !settings.translate || settings.original) return entry.original;
+        if (entry.translated === null) return surelyForeign(entry.original, settings.language) ? CHAT_DOTS : entry.original;
+        return entry.translated === '' ? entry.original : entry.translated;
+    }
+
+    // Writes what the message should say; true when its text changed. A message whose text is no longer the one written last
+    // (the game changed it), or one that cannot be written, is left alone.
+    function chatWrite(entry: ChatEntry): boolean {
+        const text = chatShown(entry);
+        if (text === entry.written || entry.message[entry.key] !== entry.written) return false;
+        try {
+            entry.message[entry.key] = text;
+        } catch {
+            return false;
+        }
+        if (entry.message[entry.key] !== text) return false;
+        entry.written = text;
+        return true;
+    }
+
+    // Redraws the game's chat once, shortly after, while a battle is on the page. Never throws into the game.
+    function chatRedrawSoon(): void {
+        if (chatRedrawTimer !== 0) return;
+        chatRedrawTimer = window.setTimeout(() => {
+            chatRedrawTimer = 0;
+            const display = chatDisplay;
+            const redraw = chatRedrawFn;
+            if (display === null || redraw === null || document.querySelector(CHAT_BATTLE) === null) return;
+            try {
+                redraw(display);
+            } catch {
+                // the chat keeps the texts it drew; the next message draws them again
+            }
+        }, CHAT_REDRAW_MS);
+    }
 
     // Called from inside the game's code, so it must never throw into it. Nothing is posted while the player's own id is unknown
     // (the user id hook was not added): the player's own messages could not be told apart, and they must never reach Google
     // except through a translation button.
-    window.__kaspChat = function (event: unknown, teamClass: unknown): void {
+    window.__kaspChat = function (event: unknown): void {
         try {
-            if (ownUserId === '' || !isObject(event) || seenChat.has(event)) return;
+            const settings = chatSettings;
+            if (settings === null || !settings.translate || ownUserId === '' || !isObject(event) || seenChat.has(event)) return;
             seenChat.add(event);
-            let label: RegExpExecArray | null = null;
-            let text: string | null = null;
-            for (const key of Object.keys(event)) {
-                const value = event[key];
+            let key: string | null = null;
+            let sender: string | null = null;
+            for (const name of Object.keys(event)) {
+                const value = event[name];
                 if (typeof value === 'string') {
-                    if (text === null) text = value;
-                } else if (isObject(value) && label === null) {
-                    label = CHAT_LABEL.exec(String(value));
+                    if (key === null) key = name;
+                } else if (isObject(value) && sender === null) {
+                    sender = CHAT_SENDER.exec(String(value))?.[1] ?? null;
                 }
             }
-            if (label === null || text === null || text.trim() === '' || text.length > CHAT_TEXT_MAX) return;
-            const rank = Number(label[3]);
-            const premium = label[4] === 'true';
-            const message: KaspChatMessage = {
-                type: 'kasp:chat',
-                detail: {
-                    uid: label[2],
-                    clanTag: label[5] === 'null' ? null : label[5],
-                    ally: label[6] === 'ALLY',
-                    // the player's own message (the id from the game's SetUserId, known here: see above)
-                    own: label[1] === ownUserId,
-                    team: typeof teamClass === 'function' && event instanceof teamClass,
-                    rankPicture: rankPictures[(premium ? RANK_COUNT : 0) + rank - 1] ?? null,
-                    text,
-                },
-            };
+            if (key === null || sender === null || sender === ownUserId) return;
+            const text = event[key] as string;
+            if (text.trim() === '' || text.length > CHAT_TEXT_MAX) return;
+            const entry: ChatEntry = { id: ++chatId, message: event, key, original: text, written: text, translated: null };
+            chatEntries.push(entry);
+            // A message pushed out of the kept list gets its original back (it may still show its dots).
+            const dropped = chatEntries.length > CHAT_KEPT ? chatEntries.shift() : undefined;
+            if (dropped !== undefined && dropped.message[dropped.key] === dropped.written) dropped.message[dropped.key] = dropped.original;
+            // The dots go in before the game draws the message, so no redraw is needed for them.
+            chatWrite(entry);
+            const message: KaspChatMessage = { type: 'kasp:chat', detail: { id: entry.id, text } };
             window.postMessage(message, window.location.origin);
         } catch {
             // a missed message only means one line is not translated
         }
     };
 
-    // Each picture of the game is a module of its bundle that gives one file's address, for a rank picture:
-    //   12345:(t,n,i)=>{"use strict";t.exports=i.p+"static/images/31.2d481c05.webp"}
-    // and the game asks for all its rank pictures in one run of calls such as i(12345), six runs of ranks 1 to 31: 32 pixel
-    // plain, 32 pixel premium, then bigger sizes. The first two runs that really are ranks 1 to 31 are taken. i.p is the
-    // folder the bundle came from. Nothing is found, and no rank picture shown, when the game changes this.
-    const RANK_MODULE = /(\d+):\([\w$]+,[\w$]+,[\w$]+\)=>\{"use strict";[\w$]+\.exports=[\w$]+\.p\+"(static\/images\/(\d{1,2})\.[0-9a-f]+\.webp)"\}/g;
-    const RANK_CALL = /[\w$]+\((\d+)\)/g;
+    // Called from the end of the game's chat display constructor, so it must never throw into it.
+    window.__kaspChatView = function (display: unknown, redraw: unknown): void {
+        if (!isObject(display) || typeof redraw !== 'function') return;
+        chatDisplay = display;
+        chatRedrawFn = redraw as (display: object) => void;
+    };
 
-    function findRankPictures(code: string, src: string): string[] {
-        const folder = src.indexOf('static/js/');
-        if (folder < 0) return [];
-        const modules = new Map<string, { readonly rank: number; readonly file: string }>();
-        for (const m of code.matchAll(RANK_MODULE)) modules.set(m[1], { rank: Number(m[3]), file: m[2] });
-        let run: string[] = [];
-        for (const m of code.matchAll(RANK_CALL)) {
-            const picture = modules.get(m[1]);
-            if (picture === undefined) continue;
-            if (picture.rank !== (run.length % RANK_COUNT) + 1) run = [];
-            if (picture.rank !== (run.length % RANK_COUNT) + 1) continue;
-            run.push(src.slice(0, folder) + picture.file);
-            if (run.length === 2 * RANK_COUNT) return run;
+    // Translation off, or another language: every answer is forgotten and every message gets its original back. The view
+    // alone changing (the ` key) writes the translations or the originals.
+    onMessage('kasp:chat-settings', (data) => {
+        const translate = data['translate'];
+        const language = data['language'];
+        const original = data['original'];
+        if (typeof translate !== 'boolean' || typeof original !== 'boolean' || typeof language !== 'string' || !CHAT_LANGUAGE.test(language)) return;
+        const before = chatSettings;
+        chatSettings = { translate, language, original };
+        if (before !== null && (before.translate !== translate || before.language !== language)) {
+            for (const entry of chatEntries) entry.translated = '';
         }
-        return [];
-    }
+        let changed = false;
+        for (const entry of chatEntries) changed = chatWrite(entry) || changed;
+        if (changed) chatRedrawSoon();
+    });
+
+    // Only a message still waiting takes an answer, so an answer in a language no longer chosen is dropped.
+    onMessage('kasp:chat-answer', (data) => {
+        const id = data['id'];
+        const text = data['text'];
+        const from = data['from'];
+        const entry = chatEntries.find((e) => e.id === id);
+        if (entry === undefined || entry.translated !== null) return;
+        const valid = typeof text === 'string' && text !== '' && text.length <= CHAT_ANSWER_MAX && typeof from === 'string' && CHAT_FROM.test(from);
+        const line = valid ? `[${from.split('-')[0].toUpperCase()}] ${text}` : '';
+        // The game draws only the first CHAT_DRAW_MAX letters of a line; a longer one ends with … so the cut shows (never in the
+        // middle of a two-part letter such as an emoji).
+        let cut = CHAT_DRAW_MAX - 1;
+        if (line.length > CHAT_DRAW_MAX && /[\uD800-\uDBFF]/.test(line[cut - 1])) cut--;
+        entry.translated = line.length > CHAT_DRAW_MAX ? `${line.slice(0, cut)}…` : line;
+        if (chatWrite(entry)) chatRedrawSoon();
+    });
+
+    // chat_translation.ts sends its settings when it starts and again when asked here, so they arrive whichever script runs first.
+    window.postMessage({ type: 'kasp:chat-settings-request' }, window.location.origin);
 
     const CHAT_ANCHOR = '="BattleChat",';
     const CHAT_ADD = /function ([\w$]+)\(([\w$]+),([\w$]+)\)\{(?=\3 instanceof [\w$]+&&\3\.[\w$]+\|\|\2\.[\w$]+\.[\w$]+\(\3\);)/g;
-    const CHAT_TEAM = /callableName="onTeamMessage",[\w$]+\}\(this\);[\w$]+\.[\w$]+\([\w$]+\(([\w$]+)\),/;
+    const CHAT_REBUILD = 'callableName="onChatRebuild"';
+    // The display's constructor call, with the callback as its fifth argument, a little before that name.
+    const CHAT_DISPLAY_NEW = /new ([\w$]+)\([\w$]+,[\w$]+,[\w$]+,[\w$]+,\(/g;
+    const CHAT_DISPLAY_RANGE = 600;
+    const CHAT_FUNCTION_END = '}function ';
 
-    function patchChat(code: string): string | null {
+    // The place of the call in the add message function, and the message's name there.
+    function findChatAdd(code: string): { readonly at: number; readonly message: string } | null {
         const anchor = code.indexOf(CHAT_ANCHOR);
-        if (anchor < 0) {
-            warn(`${LOG} could not find the battle chat in this bundle, chat-translation hook skipped`);
-            return null;
-        }
+        if (anchor < 0) return null;
         const start = Math.max(0, anchor - 3000);
         const before = code.slice(start, anchor);
         let last: RegExpExecArray | null = null;
         CHAT_ADD.lastIndex = 0;
         for (let m = CHAT_ADD.exec(before); m !== null; m = CHAT_ADD.exec(before)) last = m;
-        if (last === null) {
+        return last === null ? null : { at: start + last.index + last[0].length, message: last[3] };
+    }
+
+    // The end of the display's constructor and the name of its redraw function. The constructor's body runs to its first
+    // "}function " and must end by calling one function with this; that function is the redraw only when some function of that
+    // name calls the field the constructor filled from its fifth argument. The call put in passes the same name from the same
+    // place, so it is the function the constructor itself calls.
+    function findChatDisplay(code: string): { readonly at: number; readonly redraw: string } | null {
+        const marker = code.indexOf(CHAT_REBUILD);
+        if (marker < 0 || code.indexOf(CHAT_REBUILD, marker + 1) >= 0) return null;
+        const made = [...code.slice(Math.max(0, marker - CHAT_DISPLAY_RANGE), marker).matchAll(CHAT_DISPLAY_NEW)];
+        if (made.length === 0) return null;
+        const name = asPattern(made[made.length - 1][1]);
+        const start = exactlyOne(code, new RegExp(`function ${name}\\(([\\w$]+),([\\w$]+),([\\w$]+),([\\w$]+),([\\w$]+)\\)\\{`, 'g'));
+        if (start === null) return null;
+        const bodyStart = start.index + start[0].length;
+        const end = code.indexOf(CHAT_FUNCTION_END, bodyStart);
+        if (end < 0) return null;
+        const body = code.slice(bodyStart, end);
+        const field = new RegExp(`this\\.([\\w$]+)=${asPattern(start[5])}[,;]`).exec(body);
+        const tail = /([\w$]+)\(this\)$/.exec(body);
+        if (field === null || tail === null) return null;
+        const redraws = [...code.matchAll(new RegExp(`function ${asPattern(tail[1])}\\(([\\w$]+)\\)\\{`, 'g'))].filter((m) => {
+            const from = m.index + m[0].length;
+            const to = code.indexOf(CHAT_FUNCTION_END, from);
+            return to > 0 && code.slice(from, to).includes(`${m[1]}.${field[1]}(`);
+        });
+        return redraws.length === 1 ? { at: end, redraw: tail[1] } : null;
+    }
+
+    function patchChat(code: string): string | null {
+        const add = findChatAdd(code);
+        if (add === null) {
             warn(`${LOG} could not find the chat's add message function in this bundle, chat-translation hook skipped`);
             return null;
         }
-        const message = last[3];
-        const team = CHAT_TEAM.exec(code)?.[1];
-        if (team === undefined) warn(`${LOG} could not find the team message class in this bundle, translated team lines get the all chat colour`);
-        const teamClass = team === undefined ? 'null' : `typeof ${team}==="function"?${team}:null`;
-        const at = start + last.index + last[0].length;
-        const call = `window.__kaspChat&&window.__kaspChat(${message},${teamClass});`;
-        return `${code.slice(0, at)}${call}${code.slice(at)}`;
+        const display = findChatDisplay(code);
+        if (display === null) {
+            warn(`${LOG} could not find the chat display in this bundle, chat-translation hook skipped`);
+            return null;
+        }
+        return applyEdits(code, [
+            { at: add.at, length: 0, text: `window.__kaspChat&&window.__kaspChat(${add.message});` },
+            { at: display.at, length: 0, text: `;window.__kaspChatView&&window.__kaspChatView(this,${display.redraw})` },
+        ]);
     }
 
     // ---- the daily offer quick buying (build-plan 24, see blueprint/context/shop-quick-buy.md) ----
@@ -2125,12 +2278,6 @@
             const res = await fetch(src, { signal: AbortSignal.timeout(BUNDLE_TIMEOUT_MS) });
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const original = await res.text();
-            try {
-                rankPictures = findRankPictures(original, src);
-            } catch {
-                rankPictures = [];
-            }
-            if (rankPictures.length === 0) warn(`${LOG} could not find the rank pictures in this bundle, translated chat lines show no rank`);
             const patched = patchBundle(original);
             script.textContent = patched.code;
             if (patched.hooked.includes('showroom')) showroomOn();

@@ -1,47 +1,13 @@
-/* The chat translation (src/modules/battle/chat_translation.ts, build-plan 19): the box of translated lines under the kill feed and
-   the translation buttons beside the game's chat box. See blueprint/context/chat-translation.md. */
+/* The chat translation (src/modules/battle/chat_translation.ts, build-plan 19, reworked by 28): the translation buttons beside the
+   game's chat box. Other players' translated lines are written into the game's own chat, which draws them. See
+   blueprint/context/chat-translation.md. */
 
 /* Every weak blue of ours is written as itself with the game colour's hue and strength (--kasp-theme-hue and --kasp-theme-strength,
    written by src/injector.ts, build-plan 22b), so it follows the game colour the way the game's own blues do; with the game's blue
    the variables are absent and each is its own colour. The very light blues (the pale blue of icons and text) keep their colour,
    as the game's do. */
 
-/* The box: a copy of the game's chat line look (bold 'Open Sans', a black shadow), on the right under the kill feed and as wide
-   as its widest rows. The game's own chat lines are drawn on its canvas, so these are copied, not reused. */
-#kasp-chat-translations {
-    position: fixed;
-    top: 44vh;
-    right: 2vw;
-    width: 18vw;
-    pointer-events: none;
-    font: bold 15px/23px 'Open Sans', sans-serif;
-    color: #ffffff;
-    text-shadow: 0 0 5px #000, 0 0 5px #000;
-}
-
-#kasp-chat-translations[hidden],
-#kasp-chat-translations [hidden] {
-    display: none;
-}
-
-/* A line: the rank picture in a 26 pixel gap on the left, so the name and every wrapped line start on one edge. */
-#kasp-chat-translations .kasp-chat-line {
-    position: relative;
-    padding-left: 26px;
-    text-align: left;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-}
-
-#kasp-chat-translations .kasp-chat-rank {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 24px;
-    height: 24px;
-}
-
-/* Three moving dots while a translation is on its way, in a line of the box and on a button. */
+/* Three moving dots on a button while its translation is on its way. */
 .kasp-chat-dots i {
     display: inline-block;
     width: 5px;
@@ -69,7 +35,7 @@
 
 /* The translation buttons beside the game's chat box, drawn like that box (measured 2026-11-08: a dark see-through fill, a
    2 pixel border, corners of 0.5rem, the text in the game's medium font at 1.25rem); rem is the game's own size unit. Their
-   place and height are set by the script from the chat box. Green: the chat box holds that button's translation. Red: it
+   place and height are set by the script from the chat box (right of the chat row, or above the chat box on a narrow window). Green: the chat box holds that button's translation. Red: it
    failed, or the translation is longer than the game sends. */
 #kasp-chat-buttons {
     position: fixed;
