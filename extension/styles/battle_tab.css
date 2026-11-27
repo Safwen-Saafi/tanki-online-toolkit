@@ -2,8 +2,8 @@
    The game lays its row cells out one after another and shows a player's protections only while the mouse is
    on that row. Here every header and every row cell of the two team tables gets its own fixed spot in em, the protections
    cell shows on every row, and the change column the game draws for us (src/injector.ts) gets the last spot. A row cell is
-   found by the game's class for it, a header by its place, since the game's headers carry no class. The DM table keeps the
-   game's own flow. Measurements and the game's own layout: blueprint/context/battle-stats-table.md. */
+   found by the game's class for it, a header by its place, since the game's headers carry no class. The DM table (festive
+   and some pro battles: no teams) is the same code in its own box and gets the same spots (owner 2026-11-27). Measurements and the game's own layout: blueprint/context/battle-stats-table.md. */
 
 /* The panel is 90em in the game; 96em gives each team table room for the change column after kills/deaths. Capped
    against the window so it can never run off-screen. */
@@ -14,67 +14,66 @@
 
 .BattleTabStatisticComponentStyle-blueTeamTableContainer,
 .BattleTabStatisticComponentStyle-redTeamTableContainer,
-.BattleTabStatisticComponentStyle-dmTableContainer,
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) table {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) table {
     width: 100% !important;
 }
 
 /* Team rows run the full width of their table; every cell is placed against its own row. */
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody tr {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody tr {
     position: relative !important;
     width: 100% !important;
 }
 
 /* visible: the game hides GS and the two icon cells while the mouse is on a row, and the protections otherwise. */
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody td {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody td {
     position: absolute !important;
     top: 0 !important;
     margin: 0 0.5em !important;
     visibility: visible !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody .BattleTabStatisticComponentStyle-nicknameCell {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody .BattleTabStatisticComponentStyle-nicknameCell {
     left: 0 !important;
     width: 10em !important;
     overflow: hidden !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody :is(.BattleTabStatisticComponentStyle-gsCell, .BattleTabStatisticComponentStyle-levelsCell) {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody :is(.BattleTabStatisticComponentStyle-gsCell, .BattleTabStatisticComponentStyle-levelsCell) {
     left: 11em !important;
     width: 3em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody .BattleTabStatisticComponentStyle-deviceCell {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody .BattleTabStatisticComponentStyle-deviceCell {
     left: 14em !important;
     width: 3em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody .BattleTabStatisticComponentStyle-defenceCell {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody .BattleTabStatisticComponentStyle-defenceCell {
     left: 18em !important;
     width: 3em !important;
 }
 
 /* The turret and the hull cell each hold an item icon and its augment icon, side by side. */
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody :is(.BattleTabStatisticComponentStyle-deviceCell, .BattleTabStatisticComponentStyle-defenceCell) > div {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody :is(.BattleTabStatisticComponentStyle-deviceCell, .BattleTabStatisticComponentStyle-defenceCell) > div {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     gap: 0.25em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody :is(.BattleTabStatisticComponentStyle-deviceCell, .BattleTabStatisticComponentStyle-defenceCell) > div > div {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody :is(.BattleTabStatisticComponentStyle-deviceCell, .BattleTabStatisticComponentStyle-defenceCell) > div > div {
     width: 1em !important;
     height: 1em !important;
     margin: 0 !important;
 }
 
 /* Up to four protection modules, each an icon and its percent in a 2.5em slot. */
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody .BattleTabStatisticComponentStyle-resistanceModuleCell {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody .BattleTabStatisticComponentStyle-resistanceModuleCell {
     left: 22em !important;
     width: auto !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody .BattleTabStatisticComponentStyle-defenceLabel {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody .BattleTabStatisticComponentStyle-defenceLabel {
     visibility: visible !important;
     width: 2.5em !important;
     display: flex !important;
@@ -82,36 +81,36 @@
     align-items: center !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody .BattleTabStatisticComponentStyle-defenceLabel > div {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody .BattleTabStatisticComponentStyle-defenceLabel > div {
     width: 1em !important;
     height: 1em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody :is(.BattleTabStatisticComponentStyle-scoreCell, .BattleTabStatisticComponentStyle-dlCell) {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody :is(.BattleTabStatisticComponentStyle-scoreCell, .BattleTabStatisticComponentStyle-dlCell) {
     width: 3em !important;
     text-align: center !important;
     border: none !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody .BattleTabStatisticComponentStyle-scoreCell {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody .BattleTabStatisticComponentStyle-scoreCell {
     left: 34em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody .BattleTabStatisticComponentStyle-dlCell {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody .BattleTabStatisticComponentStyle-dlCell {
     left: 38em !important;
 }
 
 /* The change column: the game makes it with the kills/deaths cell's class, so its own attribute gives it the next spot. */
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) tbody td[data-kasp-change] {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) tbody td[data-kasp-change] {
     left: 42em !important;
 }
 
 /* Headers: the same spots, by their place in the game's header list (the change column's is the seventh). */
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead {
     width: auto !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead tr {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead tr {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
@@ -119,45 +118,45 @@
     width: 42.5em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead th {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead th {
     position: absolute !important;
     top: 0 !important;
     width: 3em !important;
     margin: 0 0.5em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead th:nth-child(1) {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead th:nth-child(1) {
     left: 0 !important;
     width: 10em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead th:nth-child(2) {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead th:nth-child(2) {
     left: 11em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead th:nth-child(3) {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead th:nth-child(3) {
     left: 14em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead th:nth-child(4) {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead th:nth-child(4) {
     left: 18em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead th:nth-child(5) {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead th:nth-child(5) {
     left: 34em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead th:nth-child(6) {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead th:nth-child(6) {
     left: 38em !important;
 }
 
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead th:nth-child(7) {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead th:nth-child(7) {
     left: 42em !important;
 }
 
 /* The % header, which the game does not have: a shield with a percent sign in the header colour, centred over the four
    protection slots (they start 4em after the start of the hull header and are 10em wide). */
-:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer) thead th:nth-child(4)::after {
+:is(.BattleTabStatisticComponentStyle-blueTeamTableContainer, .BattleTabStatisticComponentStyle-redTeamTableContainer, .BattleTabStatisticComponentStyle-dmTableContainer) thead th:nth-child(4)::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -253,8 +252,9 @@
 :root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009631151"] { background-image: none !important; background-color: rgb(1, 255, 162) !important; }
 :root:not([data-kasp-plain-turrets]) [data-kasp-turret="920009631158"] { background-image: none !important; background-color: rgb(255, 59, 58) !important; }
 
-/* DM: one table, centred, its rows wider, its cells in the game's own flow. Its header row grows to fit its cells, so the
-   change column's header does not make the game's headers shrink off their columns (measured 2026-11-07). */
+/* DM: one table, centred, as wide as one team table (half of the teams' 96em), so the change column fits after kills/deaths;
+   its rows and headers take the team tables' spots above. Until 2026-11-27 its cells stayed in the game's own flow, which left
+   the rows in the game's look and the change column outside them (owner 2026-11-27, festive and pro battles). */
 .BattleTabStatisticComponentStyle-tablesContainer:has(.BattleTabStatisticComponentStyle-dmTableContainer) {
     display: flex !important;
     flex-direction: column !important;
@@ -262,13 +262,19 @@
     justify-content: flex-start !important;
 }
 
-.BattleTabStatisticComponentStyle-dmTableContainer tbody tr {
-    position: relative !important;
-    width: 56em !important;
+.BattleTabStatisticComponentStyle-dmTableContainer {
+    width: 48em !important;
+    max-width: 98vw !important;
+    /* a bit of room on both sides inside the panel that fits it (owner 2026-11-27: the game's padding alone was too thin) */
+    margin-left: 1em !important;
+    margin-right: 1em !important;
 }
 
-.BattleTabStatisticComponentStyle-dmTableContainer thead tr {
-    width: auto !important;
+/* The panel keeps the game's 90em in DM, which left a wide empty band on both sides of the 48em table; it fits the table
+   instead, so only the game's own padding is left round it, as round the team tables (owner 2026-11-27). */
+.BattleTabStatisticComponentStyle-containerInsideResults:has(.BattleTabStatisticComponentStyle-dmTableContainer) {
+    width: fit-content !important;
+    max-width: 98vw !important;
 }
 
 /* The augment box of the battle tab (augments.ts showBattleBox): the garage's box (styles/augments.css) made small, its two
