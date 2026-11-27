@@ -109,6 +109,11 @@ does not.
   saves `augment-ids-EN.json` or `augment-ids-RU.json` in Downloads), then `node scripts/augment-ids/merge.mjs <EN file> <RU file>` merges them
   into `extension/data/augment_ids.json` (it checks every line and refuses a broken file; `--dry-run` writes nothing). Until then a new
   augment says "No information yet" in the battle tab. Not part of the extension, never commits. See `scripts/augment-ids/README.md`.
+- Game update check: after a game update, double-click `scripts/game-update-check/start.cmd` (a menu: check the live game, check a bundle
+  file, save the last checked one as known-good) or run `node scripts/game-update-check/check.mjs` after `npm run build`. It runs the built
+  injector on the game's new bundle and on a known-good one offline and reports the hooks missing now, new warnings, whether the patched
+  code parses, and the game class names our code uses that are gone; downloads stay in its gitignored `bundles/` folder. Reads code only,
+  blind to layout and looks, so look at the game too. Not part of the extension, never commits. See `scripts/game-update-check/README.md`.
 - Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`, which
   builds, packages, and opens a **draft** GitHub Release with the zip
   attached and the release commit's body as the description - it never
