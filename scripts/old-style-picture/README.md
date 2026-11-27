@@ -67,3 +67,4 @@ Which addresses count, what a stable path is, and how it becomes a file name is 
 - `wizard.mjs`: the menu.
 - `make.mjs`: the command line.
 - `lib.mjs`: what both share (the address check, the recolouring, the list, the 12 styles).
+- `../tui.mjs`: the terminal kit (the full-screen window, keys and mouse, the big title, tables and menus), shared with the game update check.

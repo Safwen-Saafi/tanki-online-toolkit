@@ -1,0 +1,458 @@
+// The game update check's engine: runs the extension's own built injector on a game bundle, offline in Node, the way the page
+// does, and says which of its changes went into the game's code and what it warned about. Nothing in the extension changes for
+// this: the injector is loaded as it ships, and a stand-in browser answers it. No dependencies (Node 18 or later).
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import vm from 'node:vm';
+
+// What the injector prints and how it finds the game's bundle (src/injector.ts). If one of these changes there, change it here
+// in the same commit: the injector's notes in coding-standards.md say so.
+const LOG_PREFIX = '[KI-test][injector]';
+const HOOKS_LINE = 'hooks added to the game: ';
+const BUNDLE_HOST = 'https://s.eu.tankionline.com';
+const PAGE_URL = 'https://tankionline.com/play/';
+const WAIT_MS = 60000;
+
+// Every switch is on when its key is missing, so the stand-in storage has no keys, except the game colour: with the game's own
+// blue the colour edit does nothing, so a colour is set to make it run too.
+const STORAGE = { kasp_theme: 'pink' };
+
+// A stand-in for anything the injector reaches that this file does not answer on purpose: every property is another stand-in,
+// a call or `new` gives one back, and it reads as an empty text. It is never a promise (no `then`) and never iterates anything,
+// so the injector's own code takes its "not there" paths quietly instead of throwing.
+function standIn() {
+    const children = new Map();
+    const target = function () {};
+    return new Proxy(target, {
+        get(t, key) {
+            if (key === 'then') return undefined;
+            if (key === Symbol.toPrimitive) return () => '';
+            if (key === Symbol.iterator) return function* () {};
+            if (typeof key === 'symbol') return undefined;
+            if (key === 'prototype' || key === 'length' || key === 'name') {
+                if (!children.has(key)) children.set(key, key === 'prototype' ? standIn() : key === 'length' ? 0 : '');
+                return children.get(key);
+            }
+            if (Object.prototype.hasOwnProperty.call(t, key)) return t[key];
+            if (!children.has(key)) children.set(key, standIn());
+            return children.get(key);
+        },
+        set(t, key, value) {
+            children.set(key, value);
+            return true;
+        },
+        apply: () => standIn(),
+        construct: () => standIn(),
+    });
+}
+
+// An object with the parts that matter written out, and a stand-in behind it for everything else.
+function withStandIn(own) {
+    const rest = standIn();
+    return new Proxy(own, {
+        get: (t, key) => (key in t ? t[key] : rest[key]),
+        has: () => true,
+    });
+}
+
+function sentence(args) {
+    return args.map((a) => (a instanceof Error ? a.message : typeof a === 'string' ? a : String(a))).join(' ');
+}
+
+// The hooks line is "a, b, game-colour (12 colours, 3 kept styles), c": split on the commas outside brackets.
+function readHooks(line) {
+    const list = line.slice(line.indexOf(HOOKS_LINE) + HOOKS_LINE.length);
+    return list.split(/, (?![^(]*\))/).map((s) => s.trim()).filter(Boolean);
+}
+
+// Runs the built injector on one bundle's text. Resolves with the hooks that went in, the injector's warnings and errors (its
+// prefix taken off), and the patched code; `failed` is set when the run itself went wrong, which is a fault of this check (a
+// stand-in that is missing something), never of the game.
+export async function runInjector(injectorPath, bundleText, bundleName) {
+    const result = { hooked: [], warnings: [], errors: [], patchedCode: null, failed: null };
+    // The injector holds back only a tag whose address holds "/static/js/main."; any other name would leave it waiting.
+    if (!/^main\.[\w.-]+\.js$/.test(bundleName)) {
+        result.failed = `"${bundleName}" is not a game bundle name (main.<hash>.js)`;
+        return result;
+    }
+    const injector = fs.readFileSync(injectorPath, 'utf8');
+    const lines = { log: [], warn: [], error: [] };
+    let finish;
+    const done = new Promise((resolve) => {
+        finish = resolve;
+    });
+
+    const capture = (kind) => (...args) => {
+        const text = sentence(args);
+        lines[kind].push(text);
+    };
+    const console = { log: capture('log'), warn: capture('warn'), error: capture('error'), info() {}, debug() {} };
+
+    class HTMLScriptElement {
+        constructor(src = '') {
+            this.src = src;
+            this.type = '';
+            this.textContent = '';
+        }
+        remove() {}
+    }
+    const documentElement = withStandIn({});
+    // The injector puts the patched code on a script element it appends, then empties it; the code is taken at the append.
+    const appendChild = (node) => {
+        if (node instanceof HTMLScriptElement) {
+            if (node.textContent !== '') result.patchedCode = node.textContent;
+            finish();
+        }
+        return node;
+    };
+    const document = withStandIn({
+        documentElement,
+        head: withStandIn({ appendChild }),
+        scripts: [],
+        createElement: (tag) => (String(tag).toLowerCase() === 'script' ? new HTMLScriptElement() : standIn()),
+    });
+
+    let bundleArrived = null;
+    class MutationObserver {
+        constructor(callback) {
+            this.callback = callback;
+        }
+        observe(target) {
+            if (target === documentElement) bundleArrived = this.callback;
+        }
+        disconnect() {}
+        takeRecords() {
+            return [];
+        }
+    }
+
+    const bundleUrl = `${BUNDLE_HOST}/static/js/${bundleName}`;
+    const fetch = async (url) => {
+        if (String(url) === bundleUrl) return { ok: true, status: 200, text: async () => bundleText };
+        return { ok: false, status: 404, text: async () => '', json: async () => null };
+    };
+
+    const localStorage = withStandIn({
+        getItem: (key) => (Object.prototype.hasOwnProperty.call(STORAGE, key) ? STORAGE[key] : null),
+        setItem() {},
+        removeItem() {},
+    });
+
+    const context = vm.createContext({
+        console,
+        document,
+        MutationObserver,
+        HTMLScriptElement,
+        fetch,
+        localStorage,
+        sessionStorage: localStorage,
+        location: withStandIn({ href: PAGE_URL, origin: 'https://tankionline.com', hostname: 'tankionline.com', protocol: 'https:' }),
+        // The injector's own one-shot timers (its watchdog) never need to run for this check.
+        setTimeout: () => 0,
+        clearTimeout() {},
+        setInterval: () => 0,
+        clearInterval() {},
+    });
+    // Any browser name the injector reads that is not given above (HTMLImageElement, XMLHttpRequest, CSS, chrome and so on) is
+    // found on the global's prototype, as a stand-in. The real JavaScript built-ins are the global's own and are found first.
+    vm.runInContext('(fallback) => { Object.setPrototypeOf(globalThis, fallback); globalThis.window = globalThis; globalThis.self = globalThis; }', context)(
+        new Proxy({}, { has: (t, key) => typeof key === 'string', get: (t, key) => (typeof key === 'string' ? standIn() : undefined) }),
+    );
+
+    const timer = setTimeout(() => {
+        result.failed = `the injector did not finish within ${WAIT_MS / 1000} s`;
+        finish();
+    }, WAIT_MS);
+    try {
+        vm.runInContext(injector, context, { filename: 'injector.js' });
+        if (bundleArrived === null) throw new Error('the injector did not start watching the page for the game bundle');
+        // What the page does: the game's bundle tag is added to the page.
+        bundleArrived([{ addedNodes: [new HTMLScriptElement(bundleUrl)] }]);
+        await done;
+    } catch (e) {
+        result.failed = e instanceof Error ? e.message : String(e);
+    } finally {
+        clearTimeout(timer);
+    }
+
+    const strip = (text) => (text.startsWith(LOG_PREFIX) ? text.slice(LOG_PREFIX.length).trim() : text);
+    const hooksLine = lines.log.find((line) => line.includes(HOOKS_LINE));
+    if (hooksLine !== undefined) result.hooked = readHooks(hooksLine);
+    result.warnings = lines.warn.map(strip);
+    result.errors = lines.error.map(strip);
+    if (result.failed === null && result.patchedCode === null) {
+        // The injector gave the page the bundle's address instead of patched code: its download or its patch failed.
+        result.failed = 'the injector did not patch the bundle' + (result.warnings.length > 0 ? `: ${result.warnings.at(-1)}` : '');
+    }
+    return result;
+}
+
+// ---- the game's current bundle ----
+
+// A plain browser name, and nothing about the owner. Only the play page and the bundle address written in it are fetched.
+const DOWNLOAD_HEADERS = { 'User-Agent': 'Mozilla/5.0' };
+const DOWNLOAD_MS = 60000;
+const BUNDLE_ADDRESS = /(?:https:\/\/[a-z0-9.-]+\.tankionline\.com)?\/static\/js\/(main\.[0-9a-f]+\.js)/;
+
+// Thrown for a problem the owner can act on; its message is shown as it is, with no stack trace.
+export class Plain extends Error {}
+
+async function download(url, what) {
+    let res;
+    try {
+        res = await fetch(url, { headers: DOWNLOAD_HEADERS, signal: AbortSignal.timeout(DOWNLOAD_MS) });
+    } catch {
+        throw new Plain(`Could not download ${what} (${url}). Is the internet on? Try again in a minute.`);
+    }
+    if (!res.ok) throw new Plain(`Could not download ${what} (${url}): the server answered ${res.status}. Try again in a minute.`);
+    return res.text();
+}
+
+// Finds the bundle the play page loads today: its file name (main.<hash>.js) and full address.
+export async function currentBundleAddress() {
+    const page = await download(PAGE_URL, 'the game\'s play page');
+    const found = BUNDLE_ADDRESS.exec(page);
+    if (found === null) throw new Plain(`The play page (${PAGE_URL}) has no main.<hash>.js address in it: the game changed how it loads. Check the page by hand.`);
+    const url = found[0].startsWith('/') ? new URL(found[0], BUNDLE_HOST).href : found[0];
+    return { name: found[1], url };
+}
+
+// Downloads the bundle into the folder, unless that file is already there. Returns its path.
+export async function fetchBundle(folder, { name, url }) {
+    const file = path.join(folder, name);
+    if (fs.existsSync(file) && fs.statSync(file).size > 0) return file;
+    const text = await download(url, 'the game bundle');
+    fs.mkdirSync(folder, { recursive: true });
+    // Written beside it first, so a download cut halfway never leaves a broken bundle under its real name.
+    fs.writeFileSync(file + '.part', text);
+    fs.renameSync(file + '.part', file);
+    return file;
+}
+
+// ---- the known-good bundle ----
+
+const GOOD_CODE = 'known-good.js';
+const GOOD_NOTE = 'known-good.json';
+
+// The bundle last saved as working, or null when none is saved yet.
+export function knownGood(folder) {
+    const code = path.join(folder, GOOD_CODE);
+    const note = path.join(folder, GOOD_NOTE);
+    if (!fs.existsSync(code) || !fs.existsSync(note)) return null;
+    try {
+        const { name, savedAt } = JSON.parse(fs.readFileSync(note, 'utf8'));
+        if (typeof name !== 'string' || typeof savedAt !== 'string') return null;
+        return { file: code, name, savedAt };
+    } catch {
+        return null;
+    }
+}
+
+export function saveKnownGood(folder, bundleFile) {
+    fs.mkdirSync(folder, { recursive: true });
+    fs.copyFileSync(bundleFile, path.join(folder, GOOD_CODE));
+    const note = { name: path.basename(bundleFile), savedAt: new Date().toISOString() };
+    fs.writeFileSync(path.join(folder, GOOD_NOTE), JSON.stringify(note, null, 4) + '\n');
+    return note;
+}
+
+// ---- reading our own code ----
+
+// Every hook name the injector can add, read from its source so no list is kept by hand: the `label: '...'` of its class hooks
+// and the name in each `hooked.push('...')` (for `game-colour (12 colours, ...)` only the name).
+export function sourceHooks(injectorSourcePath) {
+    const source = fs.readFileSync(injectorSourcePath, 'utf8');
+    const names = new Set();
+    for (const m of source.matchAll(/label: '([\w-]+)'|hooked\.push\([`'"]([\w-]+)/g)) names.add(m[1] ?? m[2]);
+    return [...names];
+}
+
+// A hook as the injector prints it, without what follows its name: "game-colour (162 colours, 2 kept styles)" is "game-colour".
+export function hookName(hook) {
+    return hook.replace(/ \(.*\)$/, '');
+}
+
+// ---- the patched code still parses ----
+
+// Node's own syntax check on the patched bundle, from a temp file that is always deleted. Null when it parses, else the reason.
+export function syntaxProblem(code) {
+    const file = path.join(os.tmpdir(), `game-update-check-${process.pid}-${Date.now()}.js`);
+    fs.writeFileSync(file, code);
+    try {
+        const run = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
+        if (run.status === 0) return null;
+        return (run.stderr || run.stdout || 'node --check failed').split(file).join('patched bundle').trim().split('\n').slice(0, 6).join('\n');
+    } finally {
+        fs.rmSync(file, { force: true });
+    }
+}
+
+// ---- the game's class names we use ----
+
+const CLASS_NAME = /\b([A-Z][A-Za-z0-9]*Style)-([A-Za-z0-9_-]+)/g;
+
+export function filesUnder(folder, ending) {
+    if (!fs.existsSync(folder)) return [];
+    return fs.readdirSync(folder, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith(ending))
+        .map((entry) => path.join(entry.parentPath ?? entry.path, entry.name));
+}
+
+// Every game class name our code and stylesheets use ("GarageCommonStyle-garageContainer"), read from the files each time so no
+// list is kept by hand, sorted.
+export function ourClassNames(root) {
+    const files = [...filesUnder(path.join(root, 'src'), '.ts'), ...filesUnder(path.join(root, 'extension', 'styles'), '.css')];
+    const names = new Set();
+    for (const file of files) for (const m of fs.readFileSync(file, 'utf8').matchAll(CLASS_NAME)) names.add(m[0]);
+    return [...names].sort();
+}
+
+// The game builds a class name at run time from two texts, the style's name and the key ("GarageCommonStyle" and
+// "garageContainer"), so the name itself is never in the bundle: each half is looked for as a quoted text on its own. A
+// half-name our selectors match on ("...Style-block-") is looked for without its last dash.
+export function classNameIn(bundleText, className) {
+    const at = className.indexOf('-');
+    const style = className.slice(0, at);
+    const key = className.slice(at + 1).replace(/-+$/, '');
+    return bundleText.includes(`"${style}"`) && bundleText.includes(`"${key}"`);
+}
+
+// ---- the comparison ----
+
+// Runs the injector on a bundle file; the bundle's real name is passed on, since the injector only takes a tag whose address
+// holds "/static/js/main.". A run that went wrong is a fault of this check, never of the game.
+export async function runOnFile(injectorPath, file, name) {
+    const run = await runInjector(injectorPath, fs.readFileSync(file, 'utf8'), name);
+    if (run.failed !== null) throw new Plain(`The check itself failed on ${name} (not the game): ${run.failed}`);
+    return run;
+}
+
+// What changed between the known-good run and the new one, as data for the command line and the menu alike. `good` and
+// `goodText` are null when no known-good bundle is saved yet: the hooks are then compared with every hook in our source, and
+// a class name counts as gone when the new bundle lacks it.
+//   hooks:      count (went in now), against ('good' or 'source'), missing, neverIn (missing on both), changed ({ name, before, now })
+//   warnings:   the warning and error lines that are new
+//   code:       null when the patched bundle parses, else the reason
+//   classNames: count (used by our code and styles), gone, neverIn (in neither bundle)
+//   broken:     how many things broke (missing hooks, new warnings, the code, gone class names)
+export function compare({ root, now, good, nowText, goodText }) {
+    const nowNames = new Set(now.hooked.map(hookName));
+    const fromSource = sourceHooks(path.join(root, 'src', 'injector.ts'));
+    const expected = good !== null ? good.hooked.map(hookName) : fromSource;
+    const hooks = {
+        count: now.hooked.length,
+        against: good !== null ? 'good' : 'source',
+        missing: expected.filter((name) => !nowNames.has(name)),
+        neverIn: good === null ? [] : fromSource.filter((name) => !nowNames.has(name) && !good.hooked.some((h) => hookName(h) === name)),
+        changed: [],
+    };
+    if (good !== null) {
+        for (const hook of now.hooked) {
+            const before = good.hooked.find((h) => hookName(h) === hookName(hook));
+            if (before !== undefined && before !== hook) {
+                hooks.changed.push({ name: hookName(hook), before: before.slice(hookName(before).length).trim(), now: hook.slice(hookName(hook).length).trim() });
+            }
+        }
+    }
+
+    const seen = new Set(good !== null ? [...good.warnings, ...good.errors] : []);
+    const warnings = [...now.warnings, ...now.errors].filter((line) => !seen.has(line));
+
+    const code = syntaxProblem(now.patchedCode);
+
+    const names = ourClassNames(root);
+    const classNames = {
+        count: names.length,
+        gone: names.filter((name) => !classNameIn(nowText, name) && (goodText === null || classNameIn(goodText, name))),
+        neverIn: goodText === null ? [] : names.filter((name) => !classNameIn(nowText, name) && !classNameIn(goodText, name)),
+    };
+
+    const broken = hooks.missing.length + warnings.length + (code === null ? 0 : 1) + classNames.gone.length;
+    return { hooks, warnings, code, classNames, broken };
+}
+
+// Where our code and stylesheets use a class name: { file (from the repo root, with / between folders), line }.
+export function classNameUsers(root, className) {
+    const files = [...filesUnder(path.join(root, 'src'), '.ts'), ...filesUnder(path.join(root, 'extension', 'styles'), '.css')];
+    const users = [];
+    for (const file of files) {
+        fs.readFileSync(file, 'utf8').split('\n').forEach((text, at) => {
+            for (const m of text.matchAll(CLASS_NAME)) {
+                if (m[0] === className) {
+                    users.push({ file: path.relative(root, file).split(path.sep).join('/'), line: at + 1 });
+                    break;
+                }
+            }
+        });
+    }
+    return users;
+}
+
+// ---- the report as text ----
+
+export const BLIND_SPOT =
+    'This check reads code only. It cannot see page layout, how things look, the game\'s card data, the hangar files or sounds, so look at the game too.';
+
+// The whole report as lines of plain text: what check.mjs prints and what every check saves in reports/, so the coding agent can
+// read it later. `good` is the known-good note ({ name, savedAt }) or null; `injector` is set only when another one was used.
+export function reportLines({ root, name, good, result, sameAsGood, injector = null }) {
+    const { hooks, warnings, code, classNames } = result;
+    const hasGood = good !== null;
+    const out = [];
+    const list = (lines) => lines.forEach((text) => out.push(`   - ${text}`));
+
+    out.push(
+        hasGood
+            ? `Checking ${name} against the known-good ${good.name} (saved ${good.savedAt.slice(0, 10)}).`
+            : `Checking ${name}. No known-good bundle is saved yet, so it is checked against the hooks in src/injector.ts.`,
+    );
+    if (sameAsGood) out.push('The game has not changed since the known-good bundle.');
+    if (injector !== null) out.push(`Injector: ${injector}`);
+
+    out.push('', `1. Hooks: ${hooks.count} went in.`);
+    if (hooks.missing.length === 0) {
+        out.push(hasGood ? '   None missing: every hook that went in on the known-good bundle went in now.' : '   None missing: every hook in src/injector.ts went in.');
+    } else {
+        out.push(hasGood ? '   Went in on the known-good bundle, MISSING now:' : '   In src/injector.ts, MISSING now:');
+        list(hooks.missing);
+    }
+    if (hooks.neverIn.length > 0) {
+        out.push('   Missing on both bundles (not a game change, but worth a look):');
+        list(hooks.neverIn);
+    }
+    for (const change of hooks.changed) out.push(`   ${change.name}: "${change.before}" before, "${change.now}" now.`);
+
+    out.push('', `2. Warnings: ${warnings.length === 0 ? 'none new.' : `${warnings.length} new:`}`);
+    list(warnings);
+
+    out.push('', `3. Valid code: ${code === null ? 'the patched bundle parses.' : 'the patched bundle does NOT parse:'}`);
+    if (code !== null) list(code.split('\n'));
+
+    out.push('', `4. Class names: ${classNames.count} used by our code and styles, ${classNames.gone.length === 0 ? 'none gone.' : `${classNames.gone.length} gone:`}`);
+    for (const gone of classNames.gone) {
+        out.push(`   - ${gone}`);
+        for (const user of classNameUsers(root, gone)) out.push(`       used in ${user.file}:${user.line}`);
+    }
+    if (classNames.neverIn.length > 0) {
+        out.push('   Not in either bundle (not a game change, but worth a look):');
+        list(classNames.neverIn);
+    }
+
+    const broken = result.broken;
+    out.push('', broken === 0 ? 'Nothing broke that this check can see.' : `${broken} thing${broken === 1 ? '' : 's'} broke.`, BLIND_SPOT);
+    return out;
+}
+
+// Saves a report as reports/<date> <time> <bundle>.txt (local time, gitignored) and returns its path.
+export function saveReport(folder, name, lines) {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+    fs.mkdirSync(folder, { recursive: true });
+    const file = path.join(folder, `${stamp} ${name}.txt`);
+    const head = [`Game update check, ${stamp.slice(0, 10)} ${stamp.slice(11).replace(/-/g, ':')}`, ''];
+    fs.writeFileSync(file, [...head, ...lines].join('\n') + '\n');
+    return file;
+}
