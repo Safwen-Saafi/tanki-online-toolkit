@@ -16,3 +16,6 @@ blueprint/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Game update check downloads (scripts/game-update-check), about 10 MB each
+/scripts/game-update-check/bundles/
