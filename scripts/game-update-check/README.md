@@ -6,12 +6,18 @@ When the game updates, its code is rebuilt and the short names inside it can mov
 
 ## How to use it
 
-Double-click `start.cmd`. A window opens with a menu:
+Double-click `start.cmd`. A full-screen window opens, in the look of the old-style picture maker (arrow keys and Enter, or the mouse in Windows Terminal; Ctrl+C quits):
 
-- **1 Check the live game now**: builds the extension, downloads the game's code of today and checks it.
-- **2 Check a bundle file**: the same for a `main.<hash>.js` file on the computer (type its path or drag it into the window).
-- **3 Save the last checked bundle as known-good**: keeps it as the one to compare with next time. It is saved only when nothing broke.
-- **0 Quit**.
+- **Home** shows the game's bundle of today, the good copy and its date, whether the extension build is older than its source, and how many game files are downloaded.
+- **Check the live game**: builds the extension, downloads the game's code of today and checks it, each job ticked off as it ends.
+- **Check a game file**: the same for a downloaded game file, or any `main.<hash>.js` file (type, paste or drag its path into the window).
+- **The report**: a big NOTHING BROKE (green) or N THINGS BROKE (red), then the four parts below with a ✓ or ✗. Enter on a part opens its full list; a class name that is gone also shows the files and lines of ours that use it. When nothing broke, **Keep it as the good copy** saves it as the one to compare with next time.
+- **Look up the game again**: reads the play page again and shows today's bundle name with the time it was looked up (Home looks it up when the window opens; nothing is downloaded).
+- **Game files**: every downloaded game file with its size and date, marked "game today" and "good copy". Pick one to check it or delete it (asked twice).
+- **Reports**: the saved reports, newest first; Enter opens one in its program (Notepad).
+- **Help**: what the check does and cannot see, and the terminal commands.
+
+The screens come from the terminal kit shared with the old-style picture maker, `scripts/tui.mjs`.
 
 From a terminal, the same check: `node scripts/game-update-check/check.mjs` (today's game), `--bundle <file>` (a file), `--save-good` (save it when nothing broke), `--injector <file>` (check another built `injector.js`, for example an old one). It needs `npm run build` first. The exit code is 0 when nothing broke, 1 otherwise.
 
@@ -25,6 +31,7 @@ From a terminal, the same check: `node scripts/game-update-check/check.mjs` (tod
    3. **Valid code**: whether the changed game code still parses (`node --check`).
    4. **Class names**: the game class names our code and styles use (`...Style-...`, read from `src/` and `extension/styles/` each time) that the known-good copy had and the new one does not.
 4. Ends with "Nothing broke that this check can see" or "N things broke". A missing hook and the warning that explains it count as two.
+5. Saves the report as a text file in `reports/` (kept on this computer only, never committed), named like `2026-11-27 12-07-03 main.65064b57.js.txt`: the same text the terminal prints, with the files and lines of ours that use each gone class name. The script never fixes anything: to get a break fixed, tell the coding agent "read the latest report in scripts/game-update-check/reports and fix it".
 
 Nothing has to be kept up to date by hand: the hooks and the class names are read from the extension's code on every run.
 

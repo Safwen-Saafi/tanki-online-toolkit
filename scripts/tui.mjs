@@ -278,15 +278,29 @@ const GLYPHS = {
     C: ['╔═╗', '║  ', '╚═╝'],
     H: ['╦ ╦', '╠═╣', '╩ ╩'],
     K: ['╦╔═', '╠╩╗', '╩ ╩'],
+    I: ['╦', '║', '╩'],
+    B: ['╔╗ ', '╠╩╗', '╚═╝'],
+    R: ['╦═╗', '╠╦╝', '╩╚═'],
+    0: ['╔═╗', '║ ║', '╚═╝'],
+    1: ['╔╗ ', ' ║ ', '═╩═'],
+    2: ['╔═╗', '╔═╝', '╚═╝'],
+    3: ['╔═╗', ' ═╣', '╚═╝'],
+    4: ['╦ ╦', '╚═╣', '  ╩'],
+    5: ['╔═╗', '╚═╗', '╚═╝'],
+    6: ['╔═╗', '╠═╗', '╚═╝'],
+    7: ['╔═╗', '  ║', '  ╩'],
+    8: ['╔═╗', '╠═╣', '╚═╝'],
+    9: ['╔═╗', '╚═╣', '╚═╝'],
     ' ': ['   ', '   ', '   '],
 };
 
-// The text in big letters, alternating orange and yellow: three rows. The letters touch, as in the usual figlet layout.
-export function bigTitle(text) {
+// The text in big letters, alternating orange and yellow (or the two colours given): three rows. The letters touch, as in the
+// usual figlet layout.
+export function bigTitle(text, colors = [c.accent, c.title]) {
     const rows = ['', '', ''];
     [...text].forEach((letter, at) => {
         const glyph = GLYPHS[letter] ?? GLYPHS[' '];
-        for (let row = 0; row < 3; row++) rows[row] += `${at % 2 === 0 ? c.accent : c.title}${glyph?.[row] ?? ''}${c.reset}`;
+        for (let row = 0; row < 3; row++) rows[row] += `${colors[at % 2]}${glyph?.[row] ?? ''}${c.reset}`;
     });
     return rows;
 }

@@ -293,7 +293,7 @@ export function syntaxProblem(code) {
 
 const CLASS_NAME = /\b([A-Z][A-Za-z0-9]*Style)-([A-Za-z0-9_-]+)/g;
 
-function filesUnder(folder, ending) {
+export function filesUnder(folder, ending) {
     if (!fs.existsSync(folder)) return [];
     return fs.readdirSync(folder, { recursive: true, withFileTypes: true })
         .filter((entry) => entry.isFile() && entry.name.endsWith(ending))
@@ -317,4 +317,142 @@ export function classNameIn(bundleText, className) {
     const style = className.slice(0, at);
     const key = className.slice(at + 1).replace(/-+$/, '');
     return bundleText.includes(`"${style}"`) && bundleText.includes(`"${key}"`);
+}
+
+// ---- the comparison ----
+
+// Runs the injector on a bundle file; the bundle's real name is passed on, since the injector only takes a tag whose address
+// holds "/static/js/main.". A run that went wrong is a fault of this check, never of the game.
+export async function runOnFile(injectorPath, file, name) {
+    const run = await runInjector(injectorPath, fs.readFileSync(file, 'utf8'), name);
+    if (run.failed !== null) throw new Plain(`The check itself failed on ${name} (not the game): ${run.failed}`);
+    return run;
+}
+
+// What changed between the known-good run and the new one, as data for the command line and the menu alike. `good` and
+// `goodText` are null when no known-good bundle is saved yet: the hooks are then compared with every hook in our source, and
+// a class name counts as gone when the new bundle lacks it.
+//   hooks:      count (went in now), against ('good' or 'source'), missing, neverIn (missing on both), changed ({ name, before, now })
+//   warnings:   the warning and error lines that are new
+//   code:       null when the patched bundle parses, else the reason
+//   classNames: count (used by our code and styles), gone, neverIn (in neither bundle)
+//   broken:     how many things broke (missing hooks, new warnings, the code, gone class names)
+export function compare({ root, now, good, nowText, goodText }) {
+    const nowNames = new Set(now.hooked.map(hookName));
+    const fromSource = sourceHooks(path.join(root, 'src', 'injector.ts'));
+    const expected = good !== null ? good.hooked.map(hookName) : fromSource;
+    const hooks = {
+        count: now.hooked.length,
+        against: good !== null ? 'good' : 'source',
+        missing: expected.filter((name) => !nowNames.has(name)),
+        neverIn: good === null ? [] : fromSource.filter((name) => !nowNames.has(name) && !good.hooked.some((h) => hookName(h) === name)),
+        changed: [],
+    };
+    if (good !== null) {
+        for (const hook of now.hooked) {
+            const before = good.hooked.find((h) => hookName(h) === hookName(hook));
+            if (before !== undefined && before !== hook) {
+                hooks.changed.push({ name: hookName(hook), before: before.slice(hookName(before).length).trim(), now: hook.slice(hookName(hook).length).trim() });
+            }
+        }
+    }
+
+    const seen = new Set(good !== null ? [...good.warnings, ...good.errors] : []);
+    const warnings = [...now.warnings, ...now.errors].filter((line) => !seen.has(line));
+
+    const code = syntaxProblem(now.patchedCode);
+
+    const names = ourClassNames(root);
+    const classNames = {
+        count: names.length,
+        gone: names.filter((name) => !classNameIn(nowText, name) && (goodText === null || classNameIn(goodText, name))),
+        neverIn: goodText === null ? [] : names.filter((name) => !classNameIn(nowText, name) && !classNameIn(goodText, name)),
+    };
+
+    const broken = hooks.missing.length + warnings.length + (code === null ? 0 : 1) + classNames.gone.length;
+    return { hooks, warnings, code, classNames, broken };
+}
+
+// Where our code and stylesheets use a class name: { file (from the repo root, with / between folders), line }.
+export function classNameUsers(root, className) {
+    const files = [...filesUnder(path.join(root, 'src'), '.ts'), ...filesUnder(path.join(root, 'extension', 'styles'), '.css')];
+    const users = [];
+    for (const file of files) {
+        fs.readFileSync(file, 'utf8').split('\n').forEach((text, at) => {
+            for (const m of text.matchAll(CLASS_NAME)) {
+                if (m[0] === className) {
+                    users.push({ file: path.relative(root, file).split(path.sep).join('/'), line: at + 1 });
+                    break;
+                }
+            }
+        });
+    }
+    return users;
+}
+
+// ---- the report as text ----
+
+export const BLIND_SPOT =
+    'This check reads code only. It cannot see page layout, how things look, the game\'s card data, the hangar files or sounds, so look at the game too.';
+
+// The whole report as lines of plain text: what check.mjs prints and what every check saves in reports/, so the coding agent can
+// read it later. `good` is the known-good note ({ name, savedAt }) or null; `injector` is set only when another one was used.
+export function reportLines({ root, name, good, result, sameAsGood, injector = null }) {
+    const { hooks, warnings, code, classNames } = result;
+    const hasGood = good !== null;
+    const out = [];
+    const list = (lines) => lines.forEach((text) => out.push(`   - ${text}`));
+
+    out.push(
+        hasGood
+            ? `Checking ${name} against the known-good ${good.name} (saved ${good.savedAt.slice(0, 10)}).`
+            : `Checking ${name}. No known-good bundle is saved yet, so it is checked against the hooks in src/injector.ts.`,
+    );
+    if (sameAsGood) out.push('The game has not changed since the known-good bundle.');
+    if (injector !== null) out.push(`Injector: ${injector}`);
+
+    out.push('', `1. Hooks: ${hooks.count} went in.`);
+    if (hooks.missing.length === 0) {
+        out.push(hasGood ? '   None missing: every hook that went in on the known-good bundle went in now.' : '   None missing: every hook in src/injector.ts went in.');
+    } else {
+        out.push(hasGood ? '   Went in on the known-good bundle, MISSING now:' : '   In src/injector.ts, MISSING now:');
+        list(hooks.missing);
+    }
+    if (hooks.neverIn.length > 0) {
+        out.push('   Missing on both bundles (not a game change, but worth a look):');
+        list(hooks.neverIn);
+    }
+    for (const change of hooks.changed) out.push(`   ${change.name}: "${change.before}" before, "${change.now}" now.`);
+
+    out.push('', `2. Warnings: ${warnings.length === 0 ? 'none new.' : `${warnings.length} new:`}`);
+    list(warnings);
+
+    out.push('', `3. Valid code: ${code === null ? 'the patched bundle parses.' : 'the patched bundle does NOT parse:'}`);
+    if (code !== null) list(code.split('\n'));
+
+    out.push('', `4. Class names: ${classNames.count} used by our code and styles, ${classNames.gone.length === 0 ? 'none gone.' : `${classNames.gone.length} gone:`}`);
+    for (const gone of classNames.gone) {
+        out.push(`   - ${gone}`);
+        for (const user of classNameUsers(root, gone)) out.push(`       used in ${user.file}:${user.line}`);
+    }
+    if (classNames.neverIn.length > 0) {
+        out.push('   Not in either bundle (not a game change, but worth a look):');
+        list(classNames.neverIn);
+    }
+
+    const broken = result.broken;
+    out.push('', broken === 0 ? 'Nothing broke that this check can see.' : `${broken} thing${broken === 1 ? '' : 's'} broke.`, BLIND_SPOT);
+    return out;
+}
+
+// Saves a report as reports/<date> <time> <bundle>.txt (local time, gitignored) and returns its path.
+export function saveReport(folder, name, lines) {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+    fs.mkdirSync(folder, { recursive: true });
+    const file = path.join(folder, `${stamp} ${name}.txt`);
+    const head = [`Game update check, ${stamp.slice(0, 10)} ${stamp.slice(11).replace(/-/g, ':')}`, ''];
+    fs.writeFileSync(file, [...head, ...lines].join('\n') + '\n');
+    return file;
 }
