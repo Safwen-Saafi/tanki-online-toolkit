@@ -1506,9 +1506,9 @@
         if (update === null || !code.slice(update.index, update.index + LOBBY_UPDATE_RANGE).includes('"Disable tank rotation"')) return skip('frame update');
         if (getters === null) return skip('camera or platform');
         const [, , cameraComponent, platform] = getters;
-        const points = one(R`case"cam0":t\.(${N})\.(${N})\(u\.(${N})\);break;case"cam_t0":t\.(${N})\.\2\(u\.\3\);break;default:if\("tnk_base"===_\)\{t\.(${N})\.\2\(u\.\3\);var h=t\.\5;h\.(${N})=h\.\6\+u\.${N}\(\)\.${N},t\.(${N})=u\}`);
-        if (points === null || points[7] !== platform) return skip('camera points');
-        const [, cam, , , target, base, z] = points;
+        const points = one(R`case"cam0":t\.(${N})\.(${N})\(u\.(${N})\);break;case"cam_t0":t\.(${N})\.\2\(u\.\3\);break;default:if\("tnk_base"===_\)\{t\.(${N})\.\2\(u\.\3\);var (${N})=t\.\5;\6\.(${N})=\6\.\7\+u\.${N}\(\)\.${N},t\.(${N})=u\}`);
+        if (points === null || points[8] !== platform) return skip('camera points');
+        const [, cam, , , target, base, , z] = points;
         const wobbleCode = one(R`function\(t,n\)\{if\(t\.${N}\)\{t\.(${N})=${N}\(t\.\1,n\);var i=t\.\1,r=t\.(${N}),e=${N}\(\.3,i\)\+0;r\.(${N})=30\*Math\.sin\(e\);var u=t\.\2,s=${N}\(\.1,i\)\+\.3;u\.(${N})=30\*Math\.sin\(s\);var o=t\.\2,_=${N}\(\.2,i\)\+\.6;o\.(${N})=30\*Math\.sin\(_\),${N}\(t\)\.(${N})\.${N}\(t\.(${N}),t\.\2\),${N}\(t\)\.${N}\(t\.(${N})\)\}\}`);
         if (wobbleCode === null || wobbleCode[5] !== z || wobbleCode[7] !== cam || wobbleCode[8] !== target) return skip('breathing');
         const [, , wobble, x, y, , cameraPlace] = wobbleCode;
@@ -1535,7 +1535,7 @@
         const shadowText = one(R`${N}\((${N})\)\.toString=function\(\)\{return"ShadowSettings\(shadowTextureSize="\+this\.(${N})\+", shadowFullDistance="\+this\.(${N})\+", shadowFadeDistance="\+this\.(${N})\+", shadowStrength="\+this\.(${N})\+", shadowDepthBias="\+this\.(${N})\+", blurSize="\+this\.(${N})\+", normalBias="\+this\.(${N})\+", viewBias="\+this\.(${N})\+", slopeBias="\+this\.(${N})\+"\)"\}`);
         if (shadowText === null) return skip('shadow settings');
         const [, shadowClass, ...shadowFields] = shadowText;
-        const shadowCopyCode = one(R`${N}\(${asPattern(shadowClass)}\)\.(${N})=function\(t,n,i,r,e,u,s,o,_,h\)\{return t=t===${N}\?this\.${asPattern(shadowFields[0])}:t,`);
+        const shadowCopyCode = one(R`${N}\(${asPattern(shadowClass)}\)\.(${N})=function\(t,n,i,r,e,u,s,o,_,${N}\)\{return t=t===${N}\?this\.${asPattern(shadowFields[0])}:t,`);
         const shadowPlace = one(R`"Depth bias: "\+${N}\.${N}\(\)\.${asPattern(renderer)}\(\)\.(${N})\.${asPattern(shadowFields[4])}`);
         if (shadowCopyCode === null || shadowPlace === null) return skip('shadow settings');
         const fovCode = one(R`\.call\(this\),this\.(${N})=3\.1415927\/3,this\.(${N})=new ${N},this\.${N}=new ${N}\}`);
@@ -1580,7 +1580,8 @@
         const p = asPattern;
         const frame = one(R`\.(${N})=function\(t,n\)\{if\(this\.${N}\.${N}\(\),this\.(${N})=\(this\.\2\+1\|0\)%this\.(${N})\.length\|0,this\.\3\[this\.\2\]=1e3\*`);
         if (frame === null) return skip('frame call');
-        const holder = one(R`\.${N}=function\(t\)\{var n,i;this\.${N}\.${N}\(\),this\.(${N})=t,this\.${N}=\(n=`);
+        // (the game build of 2026-11-27 put one more call before the first one; up to one such call is allowed)
+        const holder = one(R`\.${N}=function\(t\)\{var n,i;(?:[^;{}]{0,80}?\),)?this\.${N}\.${N}\(\),this\.(${N})=t,this\.${N}=\(n=${N}\(1e3,`);
         if (holder === null) return skip('GL wrapper');
         const context = one(R`function ${N}\(t\)\{var n;if\(this\.(${N})=t,[^;]{0,600}?this\.\1\.getExtension\("EXT_color_buffer_float"\)`);
         if (context === null) return skip('GL context');
@@ -1856,9 +1857,9 @@
         const groupHolder = one(R`var (${N})=${N}\.(${N}),${N}=!0===\(null==\1\?null:\1\.${asPattern(inGroup[1])}\)\?" \("`);
         if (groupHolder === null) return skip('group state holder');
         // the group's invite window: the tick (by the player's id field), the clear, the send, the word INVITE
-        const tick = one(R`t\.state\.selectedUsersSendInvite\.${N}\(r\.(${N})\)[^]{0,2500}?\(a=r,function\(t\)\{return (${N})\(\)\.(${N})\(\)\.(${N})\(new (${N})\(a\.\1\)\)`);
+        const tick = one(R`t\.state\.selectedUsersSendInvite\.${N}\(r\.(${N})\)[^]{0,2500}?\((${N})=r,function\(t\)\{return (${N})\(\)\.(${N})\(\)\.(${N})\(new (${N})\(\2\.\1\)\)`);
         if (tick === null || tick.index === undefined) return skip('tick');
-        const [, idField, store, getStore, dispatch, tickClass] = tick;
+        const [, idField, , store, getStore, dispatch, tickClass] = tick;
         const clear = one(R`t\.props\.onSendInviteHandler\(\),(${N})\(\),`);
         const send = one(R`\.onSendInviteHandler=function\(t\)\{return function\(\)\{return t\.${asPattern(getStore)}\(\)\.${asPattern(dispatch)}\((${N})\(\)\),${N}\}\}`);
         const words = [...code.matchAll(new RegExp(R`\.text=i\.${asPattern(mat)}\((${N})\(\)\.(${N})\(\)\),r\.buttonKey=${N}\(\),r\.onClick=function\(t\)\{return function\(\)\{return t\.props\.onSendInviteHandler\(\),`, 'g'))];
