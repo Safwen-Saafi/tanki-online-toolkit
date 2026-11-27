@@ -409,6 +409,17 @@ html[data-kasp-lobby-ui] .PrimaryMenuItemComponentStyle-menuItemContainer::befor
     bottom: auto !important;
 }
 
+/* the game's % discount badge: the game pins it 10px from the top and 0 from the right, flush against the edge our glass tile
+   draws; a small gap instead, close to the right edge, and the badge a bit smaller (owner 2026-11-27: 10px pushed it onto the
+   icon, then "push more to the right, reduce its size a bit", then "too small, same margins"). Its width, padding and text are in em, so its font size scales it
+   whole; top and right are in its own (smaller) em. */
+html[data-kasp-lobby-ui] .PrimaryMenuItemComponentStyle-menuItemContainer > .PrimaryMenuItemComponentStyle-discountNotification {
+    font-size: 0.95em !important;
+    /* the same visible gap on both sides, 3px (owner 2026-11-27): at 0.25em each the top showed 1px and the right 3px */
+    top: calc(0.25em + 5px) !important;
+    right: 0.25em !important;
+}
+
 /* ---------- elite pass: a tile at the start of the PROGRESS AND NEWS row ----------
    the timer at the top left, the game's level ring in the middle, ELITE PASS and the game's LEVEL REWARDS at the bottom left. Its
    colours are the game's own (owner 2026-11-23: its purple, its ring, its text colours): only its place and size are ours. */
